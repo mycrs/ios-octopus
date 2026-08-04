@@ -41,7 +41,9 @@ struct ChannelRecord: Codable, FetchableRecord, PersistableRecord {
             name: name,
             streamKey: streamKey,
             logoURL: logoURL.flatMap(URL.init(string:)),
-            categoryID: categoryId.map(MediaCategory.ID.init),
+            // Açık closure: `Identifier` hem String hem literal init'i taşıdığı
+            // için `.init` kısa gösterimi belirsiz kalıyor.
+            categoryID: categoryId.map { MediaCategory.ID($0) },
             epgChannelID: epgChannelId,
             number: number,
             sortOrder: sortOrder,
