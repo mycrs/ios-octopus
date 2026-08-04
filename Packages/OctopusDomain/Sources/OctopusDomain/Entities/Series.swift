@@ -10,6 +10,11 @@ public struct Series: Identifiable, Hashable, Codable, Sendable {
     public let playlistID: Playlist.ID
 
     public var title: String
+
+    /// Sağlayıcının verdiği ham dizi kimliği.
+    /// Sezon/bölüm ağacı bununla çekilir (Xtream `get_series_info`).
+    public var streamKey: String
+
     public var posterURL: URL?
     public var backdropURL: URL?
     public var categoryID: MediaCategory.ID?
@@ -25,6 +30,7 @@ public struct Series: Identifiable, Hashable, Codable, Sendable {
         id: ID,
         playlistID: Playlist.ID,
         title: String,
+        streamKey: String,
         posterURL: URL? = nil,
         backdropURL: URL? = nil,
         categoryID: MediaCategory.ID? = nil,
@@ -38,6 +44,7 @@ public struct Series: Identifiable, Hashable, Codable, Sendable {
         self.id = id
         self.playlistID = playlistID
         self.title = title
+        self.streamKey = streamKey
         self.posterURL = posterURL
         self.backdropURL = backdropURL
         self.categoryID = categoryID

@@ -49,21 +49,44 @@ final class AppContainer: ObservableObject {
 
     private let engineResolver: PlaybackEngineResolver
 
+    /// Açılışta kalıcı depolama kurulamadıysa doldurulur.
+    /// Uygulama çalışmaya devam eder ama veriler kalıcı olmaz.
+    @Published private(set) var startupFailure: AppError?
+
     // MARK: - Kurulum
 
-    init() {
-        secrets = KeychainSecretStore()
+    /// - Parameter database: Testler için enjekte edilir. `nil` ise
+    ///   diskteki kalıcı veritabanı açılır.
+    init(database: AppDatabase? = nil) {
+        let secretStore = KeychainSecretStore()
+        secrets = secretStore
 
-        // 🚧 Faz 1-2: aşağıdaki satırlar GRDB destekli implementasyonlarla değişecek.
-        // Değişecek tek yer burasıdır — hiçbir ekran etkilenmez.
-        playlists = InMemoryPlaylistRepository()
-        channels = InMemoryChannelRepository()
-        vod = InMemoryVODRepository()
-        series = InMemorySeriesRepository()
-        epg = InMemoryEPGRepository()
-        favorites = InMemoryFavoritesRepository()
-        progress = InMemoryPlaybackProgressRepository()
-        history = InMemoryWatchHistoryRepository()
+        if let database = database ?? Self.openDatabase() {
+            playlists = GRDBPlaylistRepository(database: database, secrets: secretStore)
+            channels = GRDBChannelRepository(database: database)
+            vod = GRDBVODRepository(database: database)
+            series = GRDBSeriesRepository(database: database)
+            epg = GRDBEPGRepository(database: database)
+            favorites = GRDBFavoritesRepository(database: database)
+            progress = GRDBPlaybackProgressRepository(database: database)
+            history = GRDBWatchHistoryRepository(database: database)
+            startupFailure = nil
+        } else {
+            // Depolama hiç kurulamadı (disk dolu, izin sorunu…).
+            // Çökmek yerine bellek içi depolarla açılır; kullanıcı uyarılır.
+            Log.app.error("Depolama kurulamadı — oturumluk belleğe düşülüyor")
+            playlists = InMemoryPlaylistRepository()
+            channels = InMemoryChannelRepository()
+            vod = InMemoryVODRepository()
+            series = InMemorySeriesRepository()
+            epg = InMemoryEPGRepository()
+            favorites = InMemoryFavoritesRepository()
+            progress = InMemoryPlaybackProgressRepository()
+            history = InMemoryWatchHistoryRepository()
+            startupFailure = .storage(reason: "Veritabanı açılamadı")
+        }
+
+        // 🚧 Faz 2: gerçek sağlayıcı ve senkronizasyonla değişecek.
         streams = ScaffoldStreamResolver()
         sync = ScaffoldContentSync()
 
@@ -75,6 +98,19 @@ final class AppContainer: ObservableObject {
         )
 
         Log.app.info("AppContainer hazır — yedek motor: \(VLCEngineFactory.isAvailable)")
+    }
+
+    /// Kalıcı veritabanını açar; olmazsa oturumluk belleğe düşer.
+    ///
+    /// Depolama sorunu uygulamayı çökertmemeli — kullanıcı en azından
+    /// kaynağını girip yayın izleyebilmeli.
+    private static func openDatabase() -> AppDatabase? {
+        do {
+            return try AppDatabase.makeShared()
+        } catch {
+            Log.app.error("Kalıcı veritabanı açılamadı: \(String(describing: error))")
+            return try? AppDatabase.makeInMemory()
+        }
     }
 
     /// Açılışta kaynak var mı? Yoksa onboarding gösterilir.
