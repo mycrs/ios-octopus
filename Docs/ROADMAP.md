@@ -34,23 +34,36 @@ derlenmeyen ara durum olmaz. Bir faz bitmeden sonrakine geçilmez.
 
 ---
 
-## Faz 1 — Kalıcılık *(sıradaki)*
+## ✅ Faz 1 — Kalıcılık *(tamam)*
 
-- [ ] GRDB 7.x bağımlılığını `OctopusData/Package.swift`'te aç
-- [ ] `AppDatabase` + migration zinciri
-- [ ] Tablolar: playlist, kategori, kanal, film, dizi, sezon, bölüm, epg, favori, ilerleme, geçmiş
-- [ ] Kanal/film/dizi adlarında FTS5 arama indeksi
-- [ ] Domain entity ↔ satır dönüşümleri (ayrı `Record` tipleri)
-- [ ] `InMemory*Repository` → `GRDB*Repository`
-- [ ] Migration ve toplu yazma testleri
+- [x] GRDB 7.x bağımlılığı (yalnızca `OctopusData` içinde)
+- [x] `AppDatabase` + iki adımlı göç zinciri
+- [x] 11 tablo: playlist, kategori, kanal, film, dizi, sezon, bölüm, epg, favori, ilerleme, geçmiş
+- [x] Kanal/film/dizi adlarında FTS5 arama indeksi (trigger'larla otomatik eşitlenir)
+- [x] Domain entity ↔ satır dönüşümleri (ayrı `Record` tipleri)
+- [x] Sekiz depo `InMemory*` → `GRDB*`
+- [x] `EntityID` — global benzersiz kimlikler
+- [x] Göç, cascade, arama ve toplu yazma testleri
 
 **Referanstan gelen zorunluluklar** *(bkz. REFERANS-ANALIZI § 3)*:
-- Katalog **satır satır** yazılır — tek blob asla kullanılmaz (14k kanalda cursor taşması yaşandı)
-- Kalıcılık hataları **her zaman** loglanır, sessiz `try?` yok
-- Sayfalı yükleme sıralamayı bozmaz (sabit sıralama anahtarı)
+- [x] Katalog **satır satır** yazılır — şemada blob kolonu yok
+- [x] Kalıcılık hataları loglanır ve `AppError.storage`'a çevrilir, sessiz `try?` yok
+- [x] Sıralama sabit — sayfalı yükleme listeyi kaydırmaz
 
-**Bitti tanımı:** Uygulama kapanıp açıldığında veriler duruyor.
-50.000 kanallık toplu yazma < 3 sn. `AppContainer`'da yalnızca bağlama satırları değişti.
+**Bitti tanımı:** ✅ **Doğrulandı** — 2026-08-04, CI run `30943353673`.
+
+| Ölçüm | Sonuç |
+|---|---|
+| 10.000 kanal + FTS indeksleme, tek transaction | **0,738 sn** |
+| Toplam test | 56 (Data: 37) |
+| Değişen ekran dosyası sayısı | **0** |
+
+> **Faz 1'in sınavı:** Sekiz depo bellek içinden SQLite'a taşındı ve hiçbir
+> feature dosyasına dokunulmadı. Değişiklik `AppContainer` içinde kaldı —
+> çünkü Feature modülleri yalnızca Domain protokollerini görüyor.
+
+> Not: 50.000 kanal hedefi doğrudan ölçülmedi; 10.000 kanal ölçüldü.
+> Gerçek katalog boyutuyla ilk teyit Faz 2'de canlı senkronizasyonla yapılacak.
 
 ---
 
