@@ -207,7 +207,32 @@ ios-octopus/
 
 ---
 
-## 10. YOL HARİTASI
+## 10. TEST STRATEJİSİ
+
+Testin **nerede koştuğu** mimariden çıkar. Yanlış yere yazılan test ya hiç
+çalışmaz ya da gereksiz yavaş çalışır.
+
+| Test | Nerede koşar | Süre | Neden orada |
+|---|---|---|---|
+| `OctopusDomainTests` | Linux, `swift test` | saniyeler | Saf Swift — macOS/simülatör gerekmez |
+| `OctopusDataTests` | Simülatör, `xcodebuild test` | ~1 dk | Core üzerinden `Security`/`os`'a bağlı |
+| `OctopusPlaybackTests` | Simülatör, `xcodebuild test` | ~1 dk | `UIKit` bağımlı |
+| `OctopusTests` (smoke) | Simülatör, `-scheme Octopus` | ~1 dk | Composition root'u kurar |
+
+> ⚠️ **Paket test hedefleri ana şemaya dahil değildir.**
+> `xcodebuild test -scheme Octopus` yalnızca `OctopusTests`'i koşar.
+> Paket testleri CI'da her paketin kendi dizininde ayrıca çalıştırılır
+> (bkz. `.github/workflows/ci.yml` → "Paket testleri").
+> Yeni bir pakete test eklersen **o listeye de eklemeyi unutma** —
+> yoksa test yazılmış ama hiç koşmamış olur ki bu, testsiz olmaktan
+> daha tehlikelidir: koruman var sanırsın.
+
+**Kural:** İş kuralını Domain'e yaz → testi ücretsiz ve anında koşar.
+Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katmana koydun.
+
+---
+
+## 11. YOL HARİTASI
 
 | Faz | İçerik | Durum |
 |---|---|---|
@@ -225,7 +250,7 @@ ios-octopus/
 
 ---
 
-## 11. "MAIN NEDEN ŞİŞMEZ?"
+## 12. "MAIN NEDEN ŞİŞMEZ?"
 
 Klasik IPTV projelerinde `ContentView.swift` 3000 satır olur çünkü **her şey oraya bağlanır**.
 Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:

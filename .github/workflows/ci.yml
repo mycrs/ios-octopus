@@ -61,10 +61,11 @@ jobs:
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO
 
-      # Simülatör adını çalışma anında bulur — sabit isim yazmaz.
-      - name: Simülatörde test et
+      # Simülatör adı Xcode sürümüne göre değişir (iPhone 15 → 16 → 17...).
+      # Çalışma anında bulunur ve GITHUB_ENV üzerinden sonraki adımlara taşınır —
+      # her adım ayrı bir kabukta çalıştığı için kabuk değişkeni yetmez.
+      - name: Simülatör seç
         run: |
-          set -o pipefail
           SIM=$(xcrun simctl list devices available \
                 | grep -oE '^\s+iPhone [^(]+' \
                 | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
@@ -72,12 +73,39 @@ jobs:
             echo "::error::Kullanılabilir iPhone simülatörü bulunamadı"
             exit 1
           fi
-          echo "Simülatör: $SIM"
+          echo "Seçilen simülatör: $SIM"
+          echo "SIM=$SIM" >> "$GITHUB_ENV"
+
+      - name: Uygulama testleri
+        run: |
+          set -o pipefail
           xcodebuild test \
             -scheme Octopus \
             -destination "platform=iOS Simulator,name=$SIM" \
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO
+
+      # Paket test hedefleri ana şemaya dahil DEĞİLDİR; `xcodebuild test -scheme
+      # Octopus` onları koşmaz. Her paket kendi dizininde ayrıca test edilir —
+      # aksi halde yazılmış ama hiç çalışmayan testler birikir.
+      #
+      # OctopusDomain burada yok: saf Swift olduğu için Linux işinde koşuyor.
+      # Bunlar UIKit/Security'ye bağlı olduğundan simülatör gerekiyor.
+      - name: Paket testleri (simülatör)
+        run: |
+          set -o pipefail
+          for pkg in OctopusData OctopusPlayback; do
+            echo "::group::$pkg testleri"
+            (
+              cd "Packages/$pkg"
+              xcodebuild test \
+                -scheme "$pkg" \
+                -destination "platform=iOS Simulator,name=$SIM" \
+                -skipMacroValidation \
+                CODE_SIGNING_ALLOWED=NO
+            ) || { echo "::error::$pkg testleri başarısız"; exit 1; }
+            echo "::endgroup::"
+          done
 
       # Derleme patlarsa günlükleri indirip inceleyebilmek için.
       - name: Hata günlüklerini yükle
