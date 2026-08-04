@@ -1,0 +1,123 @@
+# XcodeGen proje tanımı — TEK kaynak.
+# Mac'te:  brew install xcodegen && xcodegen generate && open Octopus.xcodeproj
+name: Octopus
+
+options:
+  bundleIdPrefix: com.octopus
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    TARGETED_DEVICE_FAMILY: "1,2"          # iPhone + iPad
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: targeted     # Swift 6'ya kademeli geçiş için
+    CLANG_ENABLE_MODULE_VERIFIER: NO
+    DEAD_CODE_STRIPPING: YES
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+      SWIFT_COMPILATION_MODE: wholemodule
+      VALIDATE_PRODUCT: YES
+
+# ── Yerel modüller ────────────────────────────────────────────────
+packages:
+  OctopusCore:
+    path: Packages/OctopusCore
+  OctopusDomain:
+    path: Packages/OctopusDomain
+  OctopusData:
+    path: Packages/OctopusData
+  OctopusNavigation:
+    path: Packages/OctopusNavigation
+  OctopusDesignSystem:
+    path: Packages/OctopusDesignSystem
+  OctopusPlayback:
+    path: Packages/OctopusPlayback
+  OctopusPlaybackVLC:
+    path: Packages/OctopusPlaybackVLC
+  OctopusFeatures:
+    path: Packages/OctopusFeatures
+
+targets:
+  # ── Uygulama kabuğu: İNCE KALMALI ──────────────────────────────
+  Octopus:
+    type: application
+    platform: iOS
+    sources:
+      - path: App/Sources
+      - path: App/Resources
+        buildPhase: resources
+    info:
+      path: App/Resources/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.octopus.iptv
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        ENABLE_BITCODE: NO
+    dependencies:
+      # Composition root her modülü görebilen TEK yerdir.
+      - package: OctopusCore
+        product: OctopusCore
+      - package: OctopusDomain
+        product: OctopusDomain
+      - package: OctopusData
+        product: OctopusData
+      - package: OctopusNavigation
+        product: OctopusNavigation
+      - package: OctopusDesignSystem
+        product: OctopusDesignSystem
+      - package: OctopusPlayback
+        product: OctopusPlayback
+      - package: OctopusPlaybackVLC
+        product: OctopusPlaybackVLC
+      - package: OctopusFeatures
+        product: FeatureOnboarding
+      - package: OctopusFeatures
+        product: FeatureHome
+      - package: OctopusFeatures
+        product: FeatureLive
+      - package: OctopusFeatures
+        product: FeatureVOD
+      - package: OctopusFeatures
+        product: FeatureSeries
+      - package: OctopusFeatures
+        product: FeatureSearch
+      - package: OctopusFeatures
+        product: FeaturePlayer
+      - package: OctopusFeatures
+        product: FeatureSettings
+
+  OctopusTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Octopus
+
+schemes:
+  Octopus:
+    build:
+      targets:
+        Octopus: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - OctopusTests
+    archive:
+      config: Release

@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:   # Actions sekmesinden elle de tetiklenebilir
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1) Mimari denetimi — saniyeler sürer, en önce patlasın ──────────
+  architecture:
+    name: Mimari kuralları
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Demir kuralları denetle
+        run: bash Scripts/check-architecture.sh
+
+  # ── 2) Mantık testleri — Linux'ta, simülatörsüz, hızlı ─────────────
+  #
+  # Domain saf Swift olduğu için macOS gerektirmez. Mimarinin
+  # doğrudan kazancı: iş kuralları ücretsiz ve saniyeler içinde doğrulanır.
+  logic-tests:
+    name: Domain testleri (Linux)
+    runs-on: ubuntu-latest
+    container: swift:5.9
+    steps:
+      - uses: actions/checkout@v4
+      - name: Domain testlerini koş
+        run: swift test --package-path Packages/OctopusDomain
+
+  # ── 3) Gerçek iOS derlemesi — macOS runner ─────────────────────────
+  ios-build:
+    name: iOS derleme
+    runs-on: macos-latest
+    needs: [architecture]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode sürümünü göster
+        run: xcodebuild -version
+
+      - name: XcodeGen kur
+        run: brew install xcodegen
+
+      - name: Xcode projesini üret
+        run: xcodegen generate
+
+      # Cihaz adı yerine 'generic' hedef: simülatör isimleri Xcode
+      # sürümüne göre değiştiği için bu form kırılmaz.
+      - name: Derle
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -scheme Octopus \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Simülatör adını çalışma anında bulur — sabit isim yazmaz.
+      - name: Simülatörde test et
+        run: |
+          set -o pipefail
+          SIM=$(xcrun simctl list devices available \
+                | grep -oE '^\s+iPhone [^(]+' \
+                | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          if [ -z "$SIM" ]; then
+            echo "::error::Kullanılabilir iPhone simülatörü bulunamadı"
+            exit 1
+          fi
+          echo "Simülatör: $SIM"
+          xcodebuild test \
+            -scheme Octopus \
+            -destination "platform=iOS Simulator,name=$SIM" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+      # Derleme patlarsa günlükleri indirip inceleyebilmek için.
+      - name: Hata günlüklerini yükle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-logs
+          path: |
+            ~/Library/Logs/DiagnosticReports
+            **/*.xcresult
+          retention-days: 5
+          if-no-files-found: ignore

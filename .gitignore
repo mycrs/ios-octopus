@@ -1,0 +1,34 @@
+# Xcode — proje XcodeGen ile üretilir, repoya girmez
+*.xcodeproj/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+
+# Build
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# SPM
+.build/
+.swiftpm/
+Packages/*/.build/
+Package.resolved
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Gizli bilgiler — ASLA commit etme
+Secrets.xcconfig
+*.p12
+*.mobileprovision
+.env
+
+# Araçlar
+fastlane/report.xml
+fastlane/screenshots
