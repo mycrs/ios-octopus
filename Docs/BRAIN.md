@@ -7,9 +7,15 @@
 
 ## 1. NE İNŞA EDİYORUZ
 
-iOS için IPTV istemcisi. Kullanıcı bir **kaynak** ekler (Xtream Codes hesabı veya M3U linki),
-uygulama o kaynaktan **Canlı TV / Film / Dizi** içeriğini çeker, yerel veritabanına yazar,
-offline-first gösterir ve uygun motorla oynatır.
+iOS için IPTV istemcisi. Kullanıcı bir **kaynak** ekler (Xtream hesabı, M3U linki
+veya aktivasyon kodu), uygulama o kaynaktan **Canlı TV / Film / Dizi** içeriğini
+çeker, yerel veritabanına yazar, offline-first gösterir ve uygun motorla oynatır.
+
+Ayrıca bir **bayi (reseller) altyapısına** bağlanır: marka rengi, duyurular,
+yedek sunucu listesi ve bakım/güncelleme kapısı panelden gelir.
+
+> 📐 Tasarım ve özellik hedefi Android sürümünden alınıyor —
+> ayrıntı ve sahada öğrenilmiş dersler: [`REFERANS-ANALIZI.md`](REFERANS-ANALIZI.md)
 
 ---
 
@@ -17,7 +23,9 @@ offline-first gösterir ve uygun motorla oynatır.
 
 | Konu | Karar | Neden |
 |---|---|---|
-| İçerik kaynağı | Xtream Codes **+** M3U/M3U8 | Tek `ContentProvider` protokolü arkasında. Yeni kaynak = yeni dosya, sıfır refactor |
+| İçerik kaynağı | Xtream **+** M3U/M3U8 **+** aktivasyon kodu | Üçü de tek `ContentProvider` protokolü arkasında. Yeni kaynak = yeni dosya, sıfır refactor |
+| Bayi altyapısı | Panel API (`/api/app-config`, `/api/activation/redeem`, `/api/dns-list`) | Marka, duyuru, failover uzaktan yönetilir |
+| Görsel dil | Android sürümüyle aynı kimlik, iOS'a özgü cila | Marka `#00B0FF`, koyu tema; SF Symbols + iOS tipografisi + haptik |
 | Oynatma | AVPlayer **+** VLCKit | HLS → AVPlayer (PiP/AirPlay/arka plan). MPEG-TS/RTSP → VLCKit fallback |
 | Min. platform | **iOS 16.0**, iPhone + iPad | Kapsam geniş |
 | Proje üretimi | **XcodeGen** (`project.yml`) | `.xcodeproj` git'e girmez → merge conflict yok, Windows'ta düzenlenebilir |

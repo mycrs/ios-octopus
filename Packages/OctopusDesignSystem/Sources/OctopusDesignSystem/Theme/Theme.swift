@@ -10,24 +10,49 @@ public enum Theme {
     //
     // IPTV arayüzleri koyu temada yaşar: video kenarında açık arayüz
     // göz yorar ve poster/logo renklerini bozar. Bu yüzden koyu esastır.
+    //
+    // Palet, Android sürümüyle aynı görsel kimliği taşır —
+    // bkz. Docs/REFERANS-ANALIZI.md § 1.
 
     public enum Palette {
-        public static let background = Color(hex: 0x0B0E14)
-        public static let surface = Color(hex: 0x151A23)
-        public static let surfaceElevated = Color(hex: 0x1E2530)
+        public static let background = Color(hex: 0x1C1B1F)
+        public static let surface = Color(hex: 0x2B2930)
+        public static let surfaceElevated = Color(hex: 0x36333D)
 
-        public static let accent = Color(hex: 0x00C2A8)
-        public static let accentMuted = Color(hex: 0x00C2A8).opacity(0.16)
+        /// Marka rengi. Faz 3'te kullanıcı seçimi ve bayi paneli bunu ezebilecek.
+        public static let accent = Color(hex: 0x00B0FF)
+        public static let accentMuted = Color(hex: 0x00B0FF).opacity(0.16)
 
-        public static let textPrimary = Color(hex: 0xF2F5F9)
-        public static let textSecondary = Color(hex: 0x9AA5B4)
-        public static let textTertiary = Color(hex: 0x5F6B7C)
+        public static let textPrimary = Color(hex: 0xE6E1E5)
+        public static let textSecondary = Color(hex: 0x938F99)
+        public static let textTertiary = Color(hex: 0x6B6672)
 
-        public static let separator = Color(hex: 0x252C38)
+        public static let separator = Color(hex: 0x3A3740)
 
         public static let live = Color(hex: 0xFF4D4F)
-        public static let success = Color(hex: 0x3DD68C)
-        public static let warning = Color(hex: 0xFFB020)
+        public static let success = Color(hex: 0x00E676)
+        public static let warning = Color(hex: 0xFF9100)
+        public static let error = Color(hex: 0xF2B8B5)
+    }
+
+    /// Kullanıcının Ayarlar'dan seçebileceği marka renkleri.
+    ///
+    /// Faz 3'te `ThemeController` bunları uygulayacak; şu an yalnızca
+    /// tasarım kararı olarak sabitlendi.
+    public enum BrandColor: String, CaseIterable, Sendable {
+        case `default`
+        case purple
+        case green
+        case orange
+
+        public var color: Color {
+            switch self {
+            case .default: return Palette.accent
+            case .purple: return Color(hex: 0xE040FB)
+            case .green: return Color(hex: 0x00E676)
+            case .orange: return Color(hex: 0xFF9100)
+            }
+        }
     }
 
     // MARK: - Aralık (4pt ızgara)
