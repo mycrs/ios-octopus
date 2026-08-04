@@ -1,0 +1,31 @@
+# Satır sonu normalizasyonu.
+#
+# ⚠️ KRİTİK: Bu proje Windows'ta yazılıp Linux/macOS CI'da çalıştırılıyor.
+# Shell scriptleri CRLF ile kaydedilirse runner'da şu hatayı verir:
+#   /usr/bin/env: 'bash\r': No such file or directory
+# Bu yüzden depoda ve çalışma kopyasında LF zorunlu tutuluyor.
+
+* text=auto eol=lf
+
+# Windows'a özgü scriptler CRLF kalabilir — yalnızca yerelde çalışırlar.
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Shell scriptleri kesinlikle LF ve çalıştırılabilir olmalı.
+*.sh    text eol=lf
+
+# Xcode/Swift kaynakları
+*.swift        text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+*.plist        text eol=lf
+*.md           text eol=lf
+*.strings      text eol=lf working-tree-encoding=UTF-16LE
+
+# İkili dosyalar — dönüştürülmesin
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.pdf    binary
+*.xcframework/** binary
