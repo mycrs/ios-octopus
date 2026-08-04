@@ -57,7 +57,8 @@ final class ContentSyncServiceTests: XCTestCase {
         let provider = FakeProvider(channels: [makeChannel(id: "1", name: "K")])
         try await makeService(provider).sync(playlistID: "p1")
 
-        let playlist = try XCTUnwrap(try await playlists.playlist(id: "p1"))
+        let fetched = try await playlists.playlist(id: "p1")
+        let playlist = try XCTUnwrap(fetched)
         XCTAssertNotNil(playlist.lastSyncedAt)
     }
 

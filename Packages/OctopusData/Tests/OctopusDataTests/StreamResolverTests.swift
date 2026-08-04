@@ -204,7 +204,8 @@ final class StreamResolverTests: XCTestCase {
     func test_providerIsReusedAcrossCalls() async throws {
         // M3U sağlayıcısı indirdiği listeyi kendi içinde tutar; her çağrıda
         // yenisi kurulursa 20 MB'lık liste tekrar tekrar iner.
-        let playlist = try XCTUnwrap(try await playlists.playlist(id: "m3u1"))
+        let fetched = try await playlists.playlist(id: "m3u1")
+        let playlist = try XCTUnwrap(fetched)
 
         let first = try await factory.makeProvider(for: playlist)
         let second = try await factory.makeProvider(for: playlist)
@@ -216,7 +217,8 @@ final class StreamResolverTests: XCTestCase {
     }
 
     func test_invalidate_forcesNewProvider() async throws {
-        let playlist = try XCTUnwrap(try await playlists.playlist(id: "m3u1"))
+        let fetched = try await playlists.playlist(id: "m3u1")
+        let playlist = try XCTUnwrap(fetched)
 
         let first = try await factory.makeProvider(for: playlist)
         await factory.invalidate(playlistID: "m3u1")
@@ -235,7 +237,8 @@ final class StreamResolverTests: XCTestCase {
             ),
             password: nil
         )
-        let playlist = try XCTUnwrap(try await playlists.playlist(id: "act1"))
+        let fetched = try await playlists.playlist(id: "act1")
+        let playlist = try XCTUnwrap(fetched)
 
         do {
             _ = try await factory.makeProvider(for: playlist)
