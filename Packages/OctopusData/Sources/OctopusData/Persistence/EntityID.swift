@@ -54,6 +54,14 @@ enum EntityID {
         EPGProgram.ID("\(sanitize(epgChannelID))\(separator)\(Int(startDate.timeIntervalSince1970))")
     }
 
+    /// Global kimlikten sağlayıcının ham değerini geri çıkarır.
+    ///
+    /// API çağrılarında (ör. `category_id` parametresi) panelin kendi
+    /// kimliği gerekir; ekranlar ise global kimliği taşır.
+    static func rawValue(from composedID: String) -> String {
+        composedID.components(separatedBy: separator).last ?? composedID
+    }
+
     // MARK: - Yardımcılar
 
     private static func compose(
