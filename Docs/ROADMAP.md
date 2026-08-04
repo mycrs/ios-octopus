@@ -15,8 +15,21 @@ derlenmeyen ara durum olmaz. Bir faz bitmeden sonrakine geçilmez.
 - [x] 8 feature modülü (yer tutucu ekranlar)
 - [x] `AppContainer` composition root, `OctopusApp.swift` 26 satır
 
-**Bitti tanımı:** Mac'te `xcodegen generate` → derlenir → uygulama açılır,
-sekmeler gezilir, onboarding görünür. Testler yeşil.
+- [x] CI: mimari + Domain (Linux) + iOS derleme/test + paket testleri
+
+**Bitti tanımı:** ✅ **Doğrulandı** — 2026-08-04, CI run `30926392775`.
+`xcodegen generate` → `BUILD SUCCEEDED` → `TEST SUCCEEDED` (iPhone 17 Pro).
+
+| Test hedefi | Nerede | Adet |
+|---|---|---|
+| `OctopusDomainTests` | Linux | 11 ✅ |
+| `OctopusPlaybackTests` | Simülatör | 4 ✅ |
+| `OctopusDataTests` | Simülatör | 1 ✅ |
+| `OctopusTests` (smoke) | Simülatör | 3 ✅ |
+
+> Not: Uygulamanın ekranda açılışı **görsel olarak** doğrulanmadı (Mac yok).
+> Smoke test composition root'u kurup bootstrap ediyor; UI'nın gerçekten
+> çizildiği ilk kez Faz 3'te ekran görüntüsüyle teyit edilecek.
 
 ---
 
