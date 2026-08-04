@@ -40,12 +40,16 @@ final class ContentSyncServiceTests: XCTestCase {
 
     func test_sync_writesCatalogToDatabase() async throws {
         let provider = FakeProvider(
-            channels: [makeChannel(id: "1", name: "TRT 1"), makeChannel(id: "2", name: "Show")],
+            channels: [
+                makeChannel(id: "1", name: "TRT 1", sortOrder: 0),
+                makeChannel(id: "2", name: "Show", sortOrder: 1)
+            ],
             liveCategories: [makeCategory(id: "c1", name: "ULUSAL")]
         )
 
         try await makeService(provider).sync(playlistID: "p1")
 
+        // Sağlayıcının liste sırası korunur — kullanıcı alıştığı düzeni görür.
         let stored = try await channels.channels(playlistID: "p1", categoryID: nil)
         XCTAssertEqual(stored.map(\.name), ["TRT 1", "Show"])
 
@@ -183,12 +187,17 @@ final class ContentSyncServiceTests: XCTestCase {
 
     // MARK: - Test yardımcıları
 
-    private func makeChannel(id: String, name: String) -> Channel {
+    /// - Parameter sortOrder: Sağlayıcının verdiği liste sırası.
+    ///   Belirtilmezse tüm kanallar aynı sıraya düşer ve depo ada göre
+    ///   sıralar — bu doğru davranıştır, ama testin sırayı ada göre
+    ///   beklemesi gerekir. Karışıklık olmasın diye açıkça veriliyor.
+    private func makeChannel(id: String, name: String, sortOrder: Int = 0) -> Channel {
         Channel(
             id: EntityID.channel(playlistID: "p1", rawID: id),
             playlistID: "p1",
             name: name,
-            streamKey: id
+            streamKey: id,
+            sortOrder: sortOrder
         )
     }
 
