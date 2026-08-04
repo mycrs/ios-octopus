@@ -11,17 +11,18 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../OctopusCore"),
-        .package(path: "../OctopusDomain")
-        // Faz 1'de eklenecek (kalıcılık katmanı yazılırken):
-        // .package(url: "https://github.com/groue/GRDB.swift", from: "6.0.0")
+        .package(path: "../OctopusDomain"),
+        // SQLite katmanı. Bu bağımlılık YALNIZCA bu modülde bulunur —
+        // hiçbir Feature, Domain veya App dosyası GRDB görmez.
+        .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0")
     ],
     targets: [
         .target(
             name: "OctopusData",
             dependencies: [
                 "OctopusCore",
-                "OctopusDomain"
-                // .product(name: "GRDB", package: "GRDB.swift")
+                "OctopusDomain",
+                .product(name: "GRDB", package: "GRDB.swift")
             ]
         ),
         .testTarget(name: "OctopusDataTests", dependencies: ["OctopusData"])
