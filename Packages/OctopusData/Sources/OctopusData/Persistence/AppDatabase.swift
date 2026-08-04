@@ -7,7 +7,11 @@ import OctopusDomain
 ///
 /// ⚠️ GRDB bu modülün dışına **sızmaz**. Repository'ler bu tipi kullanır,
 /// dışarıya yalnızca Domain protokolleri görünür.
-public final class AppDatabase {
+///
+/// `Sendable`: tek `let` alanı olan `DatabaseWriter` zaten eşzamanlı erişime
+/// göre tasarlanmıştır. Bu sayede actor tabanlı repository'ler veritabanına
+/// izolasyon dışından (ör. `ValueObservation` kurarken) erişebilir.
+public final class AppDatabase: Sendable {
 
     /// Okuma/yazma erişimi. Üretimde `DatabasePool` (WAL, eşzamanlı okuma),
     /// testlerde bellek içi `DatabaseQueue`.

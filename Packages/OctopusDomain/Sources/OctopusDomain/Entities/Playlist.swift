@@ -17,6 +17,9 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
         case m3u(url: URL)
         /// Cihaza aktarılmış yerel M3U dosyası.
         case m3uLocalFile(fileName: String)
+        /// Bayi tarafından verilen aktivasyon kodu.
+        /// Panel kodu çözüp gerçek Xtream bilgilerini döndürür.
+        case activationCode(code: String)
     }
 
     public let id: ID
