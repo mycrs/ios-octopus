@@ -181,7 +181,7 @@ ios-octopus/
 │   │   └── Composition/
 │   │       ├── AppContainer.swift   # tüm bağlantılar burada
 │   │       └── RootView.swift
-│   └── Resources/Info.plist
+│   └── Info.plist                   # sources DIŞINDA — çift üretim hatası olmasın
 └── Packages/
     ├── OctopusCore/
     ├── OctopusDomain/               # ⭐ saf Swift

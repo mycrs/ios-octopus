@@ -20,24 +20,29 @@ strip_comments() { grep -vE ':[0-9]+:[[:space:]]*(///?|\*|/\*)' || true; }
 echo "🧠 Octopus mimari denetimi"
 echo
 
+# Import satırı öneki: `@preconcurrency import X` gibi attribute'lu biçimler
+# de yakalanmalı — aksi halde kurallar sessizce atlatılabilir.
+IMP='^(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+'
+
 # 1 — Domain saf kalmalı
 echo "1) Domain yalnızca Foundation import eder"
-leaks=$(grep -rhE '^import ' Packages/OctopusDomain/Sources 2>/dev/null | grep -v '^import Foundation$' | sort -u)
+leaks=$(grep -rhE "$IMP" Packages/OctopusDomain/Sources 2>/dev/null \
+        | grep -vE "${IMP}Foundation[[:space:]]*$" | sort -u)
 if [ -z "$leaks" ]; then ok "temiz"; else bad "fazladan import:"; echo "$leaks" | sed 's/^/         /'; fi
 
 # 2 — Feature, Data'yı göremez
 echo "2) Feature modülleri OctopusData import etmez"
-hits=$(grep -rln 'import OctopusData' Packages/OctopusFeatures/Sources 2>/dev/null)
+hits=$(grep -rnE "${IMP}OctopusData" Packages/OctopusFeatures/Sources 2>/dev/null)
 if [ -z "$hits" ]; then ok "temiz"; else bad "Data sızıntısı:"; echo "$hits" | sed 's/^/         /'; fi
 
 # 3 — Feature → Feature import yok
 echo "3) Feature modülleri birbirini import etmez"
-hits=$(grep -rn '^import Feature' Packages/OctopusFeatures/Sources 2>/dev/null)
+hits=$(grep -rnE "${IMP}Feature" Packages/OctopusFeatures/Sources 2>/dev/null)
 if [ -z "$hits" ]; then ok "temiz"; else bad "çapraz import:"; echo "$hits" | sed 's/^/         /'; fi
 
 # 4 — Data, SwiftUI bilmez
 echo "4) Data katmanı SwiftUI/UIKit import etmez"
-hits=$(grep -rln -E '^import (SwiftUI|UIKit)' Packages/OctopusData/Sources 2>/dev/null)
+hits=$(grep -rnE "${IMP}(SwiftUI|UIKit)" Packages/OctopusData/Sources 2>/dev/null)
 if [ -z "$hits" ]; then ok "temiz"; else bad "UI sızıntısı:"; echo "$hits" | sed 's/^/         /'; fi
 
 # 5 — main ince kalmalı

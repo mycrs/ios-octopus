@@ -107,4 +107,4 @@ veya ikinci el bir Mac mini devreye alınabilir.
 - **Apple Developer Program** üyeliği — yıllık ücretli, App Store'a yükleme için zorunlu
 - İmzalama sertifikaları ve provisioning profilleri (CI'dan da yönetilebilir)
 - ATS gerekçesi: IPTV yayınları HTTP üzerinden geldiği için inceleme sırasında
-  açıklama istenir — bkz. [`App/Resources/Info.plist`](../App/Resources/Info.plist) içindeki not
+  açıklama istenir — bkz. [`App/Info.plist`](../App/Info.plist) içindeki not

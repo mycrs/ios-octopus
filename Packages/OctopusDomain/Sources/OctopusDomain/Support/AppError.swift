@@ -7,7 +7,10 @@ import Foundation
 ///
 /// ⚠️ Kullanıcıya gösterilecek metin burada **yok** — o sunum katmanının işi.
 /// Bkz. `OctopusDesignSystem/AppError+Presentation.swift`
-public enum AppError: Error, Equatable, Sendable {
+/// - Not: `Hashable` zorunlu — `SyncStage` ve `PlaybackState` gibi tipler
+///   `case failed(AppError)` taşıyor ve kendileri `Hashable` olmak durumunda
+///   (SwiftUI `Equatable`/diffing ve `Set` kullanımı için).
+public enum AppError: Error, Hashable, Sendable {
 
     /// Ağ erişilemiyor, zaman aşımı, DNS hatası.
     case network(reason: String)

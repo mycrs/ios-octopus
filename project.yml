@@ -53,12 +53,15 @@ targets:
   Octopus:
     type: application
     platform: iOS
+    # ⚠️ Info.plist KASITLI OLARAK sources dışında (App/ kökünde).
+    # Bir klasör hem `sources` içinde olup hem `info.path` ile gösterilirse
+    # Xcode dosyayı iki kez üretmeye çalışır:
+    #   error: Multiple commands produce '.../Octopus.app/Info.plist'
+    # Assets.xcassets eklenince buraya `App/Resources` girişi geri gelecek.
     sources:
       - path: App/Sources
-      - path: App/Resources
-        buildPhase: resources
     info:
-      path: App/Resources/Info.plist
+      path: App/Info.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.octopus.iptv
