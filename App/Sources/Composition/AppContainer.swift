@@ -62,14 +62,37 @@ final class AppContainer: ObservableObject {
         secrets = secretStore
 
         if let database = database ?? Self.openDatabase() {
-            playlists = GRDBPlaylistRepository(database: database, secrets: secretStore)
+            let playlistRepository = GRDBPlaylistRepository(
+                database: database,
+                secrets: secretStore
+            )
+            let progressRepository = GRDBPlaybackProgressRepository(database: database)
+
+            playlists = playlistRepository
             channels = GRDBChannelRepository(database: database)
             vod = GRDBVODRepository(database: database)
             series = GRDBSeriesRepository(database: database)
             epg = GRDBEPGRepository(database: database)
             favorites = GRDBFavoritesRepository(database: database)
-            progress = GRDBPlaybackProgressRepository(database: database)
+            progress = progressRepository
             history = GRDBWatchHistoryRepository(database: database)
+
+            // Kaynak türü dallanması yalnızca bu fabrikada olur.
+            let providerFactory = DefaultContentProviderFactory(
+                httpClient: URLSessionHTTPClient(),
+                secrets: secretStore
+            )
+            streams = ProviderStreamResolver(
+                playlists: playlistRepository,
+                providerFactory: providerFactory,
+                progress: progressRepository
+            )
+            sync = ContentSyncService(
+                playlists: playlistRepository,
+                providerFactory: providerFactory,
+                database: database
+            )
+
             startupFailure = nil
         } else {
             // Depolama hiç kurulamadı (disk dolu, izin sorunu…).
@@ -83,12 +106,11 @@ final class AppContainer: ObservableObject {
             favorites = InMemoryFavoritesRepository()
             progress = InMemoryPlaybackProgressRepository()
             history = InMemoryWatchHistoryRepository()
+            // Depolama yokken senkronizasyonun yazacak yeri de yok.
+            streams = ScaffoldStreamResolver()
+            sync = ScaffoldContentSync()
             startupFailure = .storage(reason: "Veritabanı açılamadı")
         }
-
-        // 🚧 Faz 2: gerçek sağlayıcı ve senkronizasyonla değişecek.
-        streams = ScaffoldStreamResolver()
-        sync = ScaffoldContentSync()
 
         // Motor zinciri: AVPlayer her zaman var, VLC yalnızca bağlıysa eklenir.
         // VLC yoksa uygulama AVPlayer'la çalışmaya devam eder — çökmez.
