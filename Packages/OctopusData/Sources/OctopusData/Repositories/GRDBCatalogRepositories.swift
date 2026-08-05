@@ -98,12 +98,22 @@ public actor GRDBVODRepository: VODRepository {
 
 // MARK: - Diziler
 
+/// Sezon/bölüm ağacını uzak kaynaktan getirir.
+///
+/// Depodan ayrı bir sözleşme: depo yerel veriden sorumlu, bu tip uzak
+/// veriden. Böylece depo `ContentProvider`'ı tanımak zorunda kalmıyor.
+public protocol SeriesDetailLoading: Sendable {
+    func loadDetails(for series: Series) async throws -> (seasons: [Season], episodes: [Episode])
+}
+
 public actor GRDBSeriesRepository: SeriesRepository {
 
     private let database: AppDatabase
+    private let detailLoader: SeriesDetailLoading?
 
-    public init(database: AppDatabase) {
+    public init(database: AppDatabase, detailLoader: SeriesDetailLoading? = nil) {
         self.database = database
+        self.detailLoader = detailLoader
     }
 
     public func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] {
@@ -171,8 +181,53 @@ public actor GRDBSeriesRepository: SeriesRepository {
         return record?.toDomain()
     }
 
-    /// Faz 2'de: sezon/bölüm ağacı sağlayıcıdan çekilip yazılacak.
-    public func loadDetails(id: Series.ID) async throws {}
+    /// Sezon/bölüm ağacını getirir ve saklar.
+    ///
+    /// ⚠️ **Önbellekli**: referans projede `get_series_info` her dizi
+    /// açılışında yeniden çağrılıyordu; ağır bir istek ve kullanıcı her
+    /// seferinde bekliyordu. Bir kez çekilen ağaç yerelde tutulur.
+    public func loadDetails(id: Series.ID) async throws {
+        guard let record = try await database.read({ db in
+            try SeriesRecord.fetchOne(db, key: id.value)
+        }) else {
+            throw AppError.notFound
+        }
+
+        // Daha önce çekildiyse tekrar istek atılmaz.
+        if record.detailsLoadedAt != nil { return }
+        guard let detailLoader else { return }
+
+        let result = try await detailLoader.loadDetails(for: record.toDomain())
+
+        try await database.write { db in
+            // Ağaç tamamen değiştirilir: panelde bölüm eklenmiş/çıkarılmış olabilir.
+            try SeasonRecord.filter(Column("seriesId") == id.value).deleteAll(db)
+            try EpisodeRecord.filter(Column("seriesId") == id.value).deleteAll(db)
+
+            for season in result.seasons {
+                try SeasonRecord(season).insert(db)
+            }
+            for episode in result.episodes {
+                try EpisodeRecord(episode).insert(db)
+            }
+            try db.execute(
+                sql: "UPDATE series SET detailsLoadedAt = ? WHERE id = ?",
+                arguments: [Date(), id.value]
+            )
+        }
+
+        Log.sync.info("Dizi ağacı yüklendi: \(result.episodes.count) bölüm")
+    }
+
+    /// Kullanıcı "yenile" derse önbellek atlanır.
+    public func invalidateDetails(id: Series.ID) async throws {
+        try await database.write { db in
+            try db.execute(
+                sql: "UPDATE series SET detailsLoadedAt = NULL WHERE id = ?",
+                arguments: [id.value]
+            )
+        }
+    }
 
     public func search(
         query: String,

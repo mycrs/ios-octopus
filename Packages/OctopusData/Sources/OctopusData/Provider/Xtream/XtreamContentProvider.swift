@@ -122,11 +122,34 @@ public struct XtreamContentProvider: ContentProvider {
         return series
     }
 
+    /// Sezon ve bölüm ağacı ayrı bir istektir; dizi listesinde gelmez.
     public func fetchSeriesDetails(
         streamKey: String
     ) async throws -> (seasons: [Season], episodes: [Episode]) {
-        // Faz 8: get_series_info ile sezon/bölüm ağacı çekilecek.
-        throw AppError.notFound
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.path = "/player_api.php"
+        components?.queryItems = [
+            URLQueryItem(name: "username", value: username),
+            URLQueryItem(name: "password", value: password),
+            URLQueryItem(name: "action", value: "get_series_info"),
+            URLQueryItem(name: "series_id", value: streamKey)
+        ]
+        guard let url = components?.url else {
+            throw AppError.invalidResponse(reason: "Dizi adresi kurulamadı")
+        }
+
+        let data = try await httpClient.get(url, headers: [:])
+        let dto = try decode(XtreamSeriesInfoDTO.self, from: data, context: "dizi ayrıntısı")
+
+        let seriesID = EntityID.series(playlistID: playlistID, rawID: streamKey)
+        let result = dto.toDomain(seriesID: seriesID)
+
+        guard !result.episodes.isEmpty else {
+            // Bölümsüz dizi oynatılamaz; boş liste göstermek yerine
+            // kullanıcıya durumu bildirmek daha doğru.
+            throw AppError.notFound
+        }
+        return result
     }
 
     /// Xtream panelleri rehberi ayrı bir uçta sunar.

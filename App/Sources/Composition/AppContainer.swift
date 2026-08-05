@@ -94,16 +94,9 @@ final class AppContainer: ObservableObject {
             )
             let progressRepository = GRDBPlaybackProgressRepository(database: database)
 
-            playlists = playlistRepository
-            channels = GRDBChannelRepository(database: database)
-            vod = GRDBVODRepository(database: database)
-            series = GRDBSeriesRepository(database: database)
-            epg = GRDBEPGRepository(database: database)
-            favorites = GRDBFavoritesRepository(database: database)
-            progress = progressRepository
-            history = GRDBWatchHistoryRepository(database: database)
-
             // Kaynak türü dallanması yalnızca bu fabrikada olur.
+            // Dizi deposu ağaç yüklemek için buna ihtiyaç duyduğundan
+            // depolardan önce kurulur.
             let providerFactory = DefaultContentProviderFactory(
                 httpClient: URLSessionHTTPClient(),
                 secrets: secretStore,
@@ -111,6 +104,23 @@ final class AppContainer: ObservableObject {
                 // adres ölünce panelin yedek listesine geçilir.
                 hostResolver: DNSFailoverService()
             )
+
+            playlists = playlistRepository
+            channels = GRDBChannelRepository(database: database)
+            vod = GRDBVODRepository(database: database)
+            series = GRDBSeriesRepository(
+                database: database,
+                // Sezon/bölüm ağacı ayrı bir istektir; depo yerel veriden
+                // sorumlu, bu yükleyici uzak veriden.
+                detailLoader: ProviderSeriesDetailLoader(
+                    playlists: playlistRepository,
+                    providerFactory: providerFactory
+                )
+            )
+            epg = GRDBEPGRepository(database: database)
+            favorites = GRDBFavoritesRepository(database: database)
+            progress = progressRepository
+            history = GRDBWatchHistoryRepository(database: database)
             streams = ProviderStreamResolver(
                 playlists: playlistRepository,
                 providerFactory: providerFactory,
