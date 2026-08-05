@@ -34,7 +34,8 @@ final class MovieDetailViewModelTests: XCTestCase {
         title: String = "Film",
         duration: Int? = nil,
         year: Int? = nil,
-        genres: [String] = []
+        genres: [String] = [],
+        rating: Double? = nil
     ) -> Movie {
         var releaseDate: Date?
         if let year {
@@ -54,6 +55,7 @@ final class MovieDetailViewModelTests: XCTestCase {
             streamKey: "1",
             releaseDate: releaseDate,
             durationSeconds: duration,
+            rating: rating,
             genres: genres
         )
     }
@@ -128,34 +130,62 @@ final class MovieDetailViewModelTests: XCTestCase {
         XCTAssertTrue(progress.wasCleared)
     }
 
-    // MARK: - Künye satırı
+    // MARK: - Künye çipleri
 
-    func test_metadataLineCombinesAvailableFields() async {
+    func test_chipsCombineAvailableFields() async {
         vod.detail = makeMovie(duration: 6_420, year: 2020, genres: ["Dram", "Gerilim"])
 
         let viewModel = makeViewModel()
         await viewModel.load()
 
         // 6420 sn = 1 saat 47 dakika
-        XCTAssertEqual(viewModel.metadataLine, "2020 · 1s 47dk · Dram, Gerilim")
+        XCTAssertEqual(
+            viewModel.chips.map(\.text),
+            ["2020", "1s 47dk", "Dram", "Gerilim"]
+        )
     }
 
-    func test_metadataLineOmitsMissingFields() async {
+    func test_chipsOmitMissingFields() async {
         vod.detail = makeMovie(duration: 2_700)
 
         let viewModel = makeViewModel()
         await viewModel.load()
 
-        XCTAssertEqual(viewModel.metadataLine, "45dk", "Bir saatin altında saat gösterilmemeli")
+        XCTAssertEqual(
+            viewModel.chips.map(\.text),
+            ["45dk"],
+            "Bir saatin altında saat gösterilmemeli"
+        )
     }
 
-    func test_metadataLineIsNilWhenNothingKnown() async {
+    func test_chipsAreEmptyWhenNothingKnown() async {
         vod.detail = makeMovie()
 
         let viewModel = makeViewModel()
         await viewModel.load()
 
-        XCTAssertNil(viewModel.metadataLine)
+        XCTAssertTrue(viewModel.chips.isEmpty)
+    }
+
+    func test_ratingChipIsHighlighted() async {
+        vod.detail = makeMovie(rating: 8.4)
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        let rating = viewModel.chips.first
+        XCTAssertEqual(rating?.text, "8.4")
+        XCTAssertTrue(rating?.isHighlighted == true, "Puan öne çıkmalı")
+    }
+
+    func test_chipsCapGenreCount() async {
+        // Sağlayıcılar bazen on beş tür yazıyor; şerit taşmamalı.
+        vod.detail = makeMovie(genres: ["A", "B", "C", "D", "E"])
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.chips.map(\.text), ["A", "B", "C"])
     }
 
     // MARK: - Favori

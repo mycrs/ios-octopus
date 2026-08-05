@@ -113,17 +113,4 @@ public final class MovieDetailViewModel: ObservableObject {
         return hours > 0 ? "\(hours)s \(minutes)dk" : "\(minutes)dk"
     }
 
-    /// "2020 · 1s 47dk" biçiminde künye satırı.
-    public var metadataLine: String? {
-        guard let movie else { return nil }
-        var parts: [String] = []
-
-        if let year = Self.year(of: movie.releaseDate) { parts.append(year) }
-        if let duration = Self.durationText(movie.durationSeconds) { parts.append(duration) }
-        if !movie.genres.isEmpty {
-            parts.append(movie.genres.prefix(2).joined(separator: ", "))
-        }
-
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
-    }
 }
