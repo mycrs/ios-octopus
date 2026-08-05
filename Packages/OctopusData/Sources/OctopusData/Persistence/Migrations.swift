@@ -94,11 +94,24 @@ extension AppDatabase {
             t.column("sortOrder", .integer).notNull().defaults(to: 0)
             t.column("isAdult", .boolean).notNull().defaults(to: false)
         }
-        // Kanal listesi ekranının ana sorgusu.
+        // Kanal listesi ekranının ana sorgusu — kategori seçiliyken.
+        //
+        // ⚠️ `name` de indekste: sıralama `sortOrder, name`. Son kolon
+        // eksik olsaydı SQLite indeksle süzüp sonra ayrıca sıralardı.
         try db.create(
             index: "channel_byCategory",
             on: "channel",
-            columns: ["playlistId", "categoryId", "sortOrder"]
+            columns: ["playlistId", "categoryId", "sortOrder", "name"]
+        )
+        // ⚠️ "Tümü" görünümü — **varsayılan ve en çok kullanılan** sorgu.
+        // Yukarıdaki indeks bunu karşılamıyor: `categoryId` süzülmediğinde
+        // ürettiği sıra (categoryId, sortOrder) oluyor, istenen ise
+        // (sortOrder, name). 20.000 kanallı bir hesapta senkronizasyonun
+        // her tazelemesinde tam sıralama demekti.
+        try db.create(
+            index: "channel_byPlaylistOrder",
+            on: "channel",
+            columns: ["playlistId", "sortOrder", "name"]
         )
         // EPG eşleştirmesi bu kolon üzerinden yapılır.
         try db.create(index: "channel_byEpgId", on: "channel", columns: ["epgChannelId"])
@@ -129,7 +142,15 @@ extension AppDatabase {
         try db.create(
             index: "movie_byCategory",
             on: "movie",
-            columns: ["playlistId", "categoryId", "title"]
+            columns: ["playlistId", "categoryId", "title", "id"]
+        )
+        // Kategori seçilmemişken (varsayılan görünüm) sayfalama bu indeksi
+        // kullanır; olmadan her `LIMIT/OFFSET` isteği tüm katalogu sıralıyordu.
+        // `id` sıralamadaki beraberlik bozucu olduğu için indekste de var.
+        try db.create(
+            index: "movie_byPlaylistTitle",
+            on: "movie",
+            columns: ["playlistId", "title", "id"]
         )
         // "Son eklenenler" rafı.
         try db.create(index: "movie_byAdded", on: "movie", columns: ["playlistId", "addedAt"])
@@ -159,7 +180,13 @@ extension AppDatabase {
         try db.create(
             index: "series_byCategory",
             on: "series",
-            columns: ["playlistId", "categoryId", "title"]
+            columns: ["playlistId", "categoryId", "title", "id"]
+        )
+        // Kategori seçilmemişken (varsayılan görünüm) sayfalama bu indeksi kullanır.
+        try db.create(
+            index: "series_byPlaylistTitle",
+            on: "series",
+            columns: ["playlistId", "title", "id"]
         )
 
         try db.create(table: "season") { t in

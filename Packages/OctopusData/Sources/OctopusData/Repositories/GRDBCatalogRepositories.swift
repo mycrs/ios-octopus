@@ -47,7 +47,13 @@ public actor GRDBVODRepository: VODRepository {
                 request = request.filter(Column("categoryId") == categoryID.value)
             }
             return try request
-                .order(Column("title"))
+                // ⚠️ `id` beraberlik bozucu — sıralamayı **kesin** yapar.
+                // IPTV listelerinde aynı film birden çok kalitede geçiyor
+                // ("Inception FHD", "Inception HD" değil, birebir aynı ad).
+                // Yalnızca `title` ile sıralarken eşit başlıkların sırası
+                // belirsizdi ve sayfa sınırında öğeler tekrar edip
+                // kaybolabiliyordu.
+                .order(Column("title"), Column("id"))
                 .limit(limit, offset: offset)
                 .fetchAll(db)
         }
@@ -167,7 +173,8 @@ public actor GRDBSeriesRepository: SeriesRepository {
                 request = request.filter(Column("categoryId") == categoryID.value)
             }
             return try request
-                .order(Column("title"))
+                // Beraberlik bozucu — film kataloğuyla aynı gerekçe.
+                .order(Column("title"), Column("id"))
                 .limit(limit, offset: offset)
                 .fetchAll(db)
         }
