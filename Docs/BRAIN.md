@@ -189,7 +189,7 @@ ios-octopus/
 │   │   └── Composition/
 │   │       ├── AppContainer.swift   # tüm bağlantılar burada
 │   │       └── RootView.swift
-│   └── Info.plist                   # sources DIŞINDA — çift üretim hatası olmasın
+│   └── Info.plist                   # `info:` DEĞİL, INFOPLIST_FILE ile bağlanır
 └── Packages/
     ├── OctopusCore/
     ├── OctopusDomain/               # ⭐ saf Swift
@@ -199,6 +199,15 @@ ios-octopus/
     ├── OctopusPlayback/
     ├── OctopusPlaybackVLC/
     └── OctopusFeatures/             # her feature ayrı target
+        ├── FeatureOnboarding/       # kaynak ekleme, doğrulama
+        ├── FeatureHome/             # raflar
+        ├── FeatureLive/             # kanal listesi + EPG şeridi
+        ├── FeatureVOD/              # film kataloğu + detay
+        ├── FeatureSeries/           # dizi kataloğu + sezon/bölüm
+        ├── FeatureSearch/           # birleşik arama
+        ├── FeatureFavorites/        # favoriler
+        ├── FeaturePlayer/           # oynatıcı (Faz 6)
+        └── FeatureSettings/         # ayarlar, kaynak yönetimi
 ```
 
 ---
@@ -255,6 +264,27 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 | **8** | Favoriler, izleme geçmişi, kaldığın yerden devam | ⏳ |
 | **9** | PiP, AirPlay, arka plan sesi, Now Playing | ⏳ |
 | **10** | Çoklu profil, ebeveyn kilidi, tema | ⏳ |
+
+---
+
+## 11.1 SAHADA ÖĞRENİLEN TUZAKLAR
+
+Bu proje boyunca **derleme geçtiği hâlde** yanlış olan şeyler. Hepsi
+gerçekten yaşandı; tekrar keşfetmeye gerek yok.
+
+| Tuzak | Belirti | Doğrusu |
+|---|---|---|
+| XcodeGen `info:` bölümü | `Info.plist` sessizce **eziliyor**; ATS ve launch screen pakete girmiyor, uygulama 320×480 boyutta açılıyor | `info:` kullanma, `INFOPLIST_FILE` build ayarını ver |
+| Eksik `ignoresSafeArea()` | Arka plan durum çubuğuna uzanmıyor, ekran "kutu içinde" duruyor | Kök görünümde `ZStack` + `ignoresSafeArea()` |
+| Çok ürünlü SPM paketi | `xcodebuild -scheme OctopusFeatures` diye bir şema **yok**, testler koşmuyor | `<Ad>-Package` toplu şemasını kullan |
+| `XCTUnwrap(try await …)` | `'async' call in an autoclosure` | Önce `await`, sonra unwrap |
+| Ham dizgi `#"…"#` + renk kodu | `"#00E676` dizisi dizgiyi erken kapatıyor | İki diyezli sınırlayıcı `##"…"##` |
+| Feature'da `as?` ile Data protokolü | Dönüşüm **asla tutmaz** (feature Data'yı göremez), özellik sessizce çalışmaz | Sözleşmeyi Domain'e taşı |
+| Domain'in iç yardımcısına uzanmak | `inaccessible due to 'internal'` | Dönüşümü sunum katmanına koy, Domain'i açma |
+
+> 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
+> üçüncüde `plutil -p` ile derlenmiş plist okununca cevap tek satırda çıktı.
+> Belirti tekrar ediyorsa tahmini bırak, ölç.
 
 ---
 

@@ -160,9 +160,9 @@ görüntüsüyle teyit edildiğinde kapanacak.
 - [x] FTS5 destekli arama, 300 ms geciktirmeli
 - [x] Favori ekleme/çıkarma, canlı gözlemle anında güncelleme
 - [x] Kaynak yokken boş durum (hata değil)
-- [ ] Kanal satırında "şimdi/sırada" EPG şeridi → **Faz 7** (EPG ile birlikte)
-- [ ] Favoriler görünümü
-- [ ] Kanal numarası ile hızlı geçiş
+- [x] Kanal satırında "şimdi oynuyor" şeridi (Faz 7 ile birlikte geldi)
+- [x] Favoriler görünümü (`FeatureFavorites`)
+- [ ] Kanal numarası ile hızlı geçiş → oynatıcıyla birlikte (Faz 6)
 
 **Bitti tanımı:** 20.000 kanallık listede kaydırma 60 fps.
 ⚠️ **Ölçülmedi** — kaydırma performansı simülatörde anlamlı ölçülemiyor,
@@ -187,29 +187,35 @@ devralıyor, kullanıcı fark etmiyor.
 
 ---
 
-## Faz 7 — EPG
+## Faz 7 — EPG *(çekirdek tamam)*
 
-- [ ] Zaman çizelgeli rehber ızgarası
-- [ ] Pencereli sorgu `[şimdi−3s, şimdi+36s]`
-- [ ] Otomatik tazeleme + bayatlık kontrolü + kaynak başına kısıtlama
+- [x] XMLTV senkronizasyonu, akış halinde parça parça yazma
+- [x] Otomatik tazeleme + **iki kapı**: kapsam (2 saat ileri) ve kısıtlama (6 saat)
+- [x] Eski kayıtların temizliği (6 saat pay bırakarak)
+- [x] Kanal satırında "şimdi oynuyor" + ilerleme çubuğu
+- [x] `allNowPlaying(at:)` — 20.000 kimlikli `IN` sorgusu yerine zaman aralığıyla tek sorgu
+- [ ] Zaman çizelgeli rehber ızgarası (tam EPG ekranı)
 - [ ] **Program hatırlatıcı** → bildirim → kanala git
-- [ ] Eski kayıtların temizliği
 
 ---
 
-## Faz 8 — VOD + Dizi
+## ✅ Faz 8 — VOD + Dizi *(tamam)*
 
-- [ ] Afiş ızgaraları, film/dizi detay ekranları
-- [ ] Sezon → bölüm ağacı, sıradaki bölüm
-- [ ] Detay önbelleği (her açılışta yeniden çekme yok)
+- [x] Film ve dizi afiş ızgaraları, sayfalı yükleme
+- [x] Film detay ekranı + `get_vod_info` künye çekimi
+- [x] Dizi detay ekranı: sezon seçici, bölüm listesi, izlendi/devam işaretleri
+- [x] `get_series_info` sezon/bölüm ağacı, biçim tutarsızlıklarına dayanıklı
+- [x] Detay önbelleği — her açılışta yeniden çekme yok
+- [x] Birleşik arama (kanal + film + dizi, paralel)
 
 ---
 
-## Faz 9 — Kişisel veriler
+## Faz 9 — Kişisel veriler *(büyük kısmı tamam)*
 
-- [ ] Ana sayfa rafları: izlemeye devam et, son eklenenler, son izlenenler
-- [ ] İzleme ilerlemesinin periyodik kaydı + devam dialogu
-- [ ] Favoriler
+- [x] Ana sayfa rafları: izlemeye devam et, son izlenen kanallar, son eklenenler
+- [x] Favoriler görünümü (kanal + film + dizi)
+- [x] Ayarlar: veri temizleme, vurgu rengi, kaynak yönetimi, künye
+- [ ] İzleme ilerlemesinin periyodik kaydı → **oynatıcıyla birlikte (Faz 6)**
 - [ ] **Açılış ekranı tercihi** (ana sayfa / favoriler)
 
 ---
