@@ -100,8 +100,10 @@ final class PanelRemoteConfigTests: XCTestCase {
 
     func test_themeObjectTakesPrecedenceOverFlatField() async {
         // Yeni paneller rengi `theme` altında, eskiler düz alanda gönderiyor.
+        // Not: iki diyezli sınırlayıcı şart — tek diyezli `#"…"#` biçimi,
+        // içerikteki `"#00E676` dizisindeki `"#` ile erken kapanıyor.
         let service = makeService {
-            self.json(#"{"primary_color":"#111111","theme":{"primary_color":"#00E676"}}"#)
+            self.json(##"{"primary_color":"#111111","theme":{"primary_color":"#00E676"}}"##)
         }
         let config = await service.refresh()
         XCTAssertEqual(config?.branding.effectiveColorHex, "#00E676")
@@ -110,7 +112,7 @@ final class PanelRemoteConfigTests: XCTestCase {
     func test_panelDefaultRedIsIgnoredEndToEnd() async {
         // Panel renk seçilmediğinde eski kırmızı varsayılanı gönderiyor;
         // bu, uygulamanın mavi kimliğini ezmemeli.
-        let service = makeService { self.json(#"{"theme":{"primary_color":"#E53935"}}"#) }
+        let service = makeService { self.json(##"{"theme":{"primary_color":"#E53935"}}"##) }
         let config = await service.refresh()
         XCTAssertNil(config?.branding.effectiveColorHex)
     }
