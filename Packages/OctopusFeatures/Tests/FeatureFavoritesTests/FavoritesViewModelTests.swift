@@ -23,8 +23,25 @@ final class FavoritesViewModelTests: XCTestCase {
         )
     }
 
-    private func waitABit(_ ms: UInt64 = 120) async {
-        try? await Task.sleep(nanoseconds: ms * 1_000_000)
+    /// Koşul gerçekleşene kadar kısa aralıklarla yoklar.
+    ///
+    /// ⚠️ Sabit `sleep` ile beklemek CI'da rastgele kırmızıya yol açıyordu:
+    /// koşucu yüklüyken gözlem görevi verilen süre içinde sıraya girmiyor.
+    /// Bekleme süresi değil **koşul** ölçülür.
+    private func waitUntil(
+        _ description: String,
+        timeoutMS: UInt64 = 3_000,
+        _ condition: () -> Bool
+    ) async {
+        let step: UInt64 = 10
+        var waited: UInt64 = 0
+
+        while waited < timeoutMS {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: step * 1_000_000)
+            waited += step
+        }
+        XCTFail("Zaman aşımı: \(description)")
     }
 
     // MARK: - Yükleme
@@ -123,16 +140,16 @@ final class FavoritesViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
-        XCTAssertEqual(viewModel.channels.count, 1)
+        await waitUntil("ilk liste yüklenmeli") { viewModel.channels.count == 1 }
 
         favorites.channels.append(
             Channel(id: "c2", playlistID: "p1", name: "Yeni", streamKey: "2")
         )
         favorites.emitChange()
-        await waitABit()
 
-        XCTAssertEqual(viewModel.channels.count, 2, "Dış değişiklik listeye yansımalı")
+        await waitUntil("dış değişiklik listeye yansımalı") {
+            viewModel.channels.count == 2
+        }
     }
 }
 
