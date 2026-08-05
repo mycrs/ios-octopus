@@ -90,17 +90,25 @@ alanlar çökmeye sebep olmuyor. CI run `30949745419`, 146 test.
 
 ---
 
-## Faz 3 — Onboarding + tema sistemi
+## Faz 3 — Onboarding *(büyük kısmı tamam)*
 
-- [ ] Kaynak türü seçimi (Xtream / M3U / aktivasyon kodu) → form → doğrulama
-- [ ] Parola Keychain'e, entity'ye değil
-- [ ] Senkronizasyon ilerleme ekranı
-- [ ] Çoklu kaynak yönetimi (ekle/düzenle/sil/aktif yap)
-- [ ] **Dinamik tema:** `ThemeController` — mod (dark/light/yüksek kontrast) + marka rengi seçimi
-- [ ] **İlk görsel doğrulama:** CI'da simülatör ekran görüntüsü artifact'i
+- [x] Kaynak türü seçimi (Xtream / M3U) → form → doğrulama
+- [x] `PlaylistDraft` — form doğrulaması saf Domain mantığı olarak
+- [x] `PlaylistValidating` — **kaydetmeden önce** sunucu doğrulaması
+- [x] Parola Keychain'e, entity'ye değil
+- [x] Senkronizasyon ilerleme ekranı (aşama adlı)
+- [x] Çoklu kaynak yönetimi (ekle/sil/aktif yap/yenile)
+- [x] **İlk görsel doğrulama:** CI'da simülatör ekran görüntüsü artifact'i
+- [ ] ~~Dinamik tema~~ → **Faz 4'e taşındı** (bayi marka rengiyle birlikte anlamlı)
+- [ ] Aktivasyon kodu ile giriş → Faz 4
 
-**Bitti tanımı:** Uygulamayı ilk açan biri hesabını ekleyip içeriği görebiliyor.
-**Ekran görüntüsüyle görsel olarak teyit edilir.**
+> 🐞 **Görsel doğrulamanın ilk kazancı:** İlk ekran görüntüsü, uygulamanın
+> letterbox modunda (üstte-altta siyah şeritlerle) çalıştığını ortaya çıkardı.
+> Sebep `Info.plist`'te geçersiz `UILaunchScreen` içeriğiydi. Derleme geçiyor,
+> 166 test yeşil, hiç uyarı yoktu — bu hata yalnızca ekrana bakılarak bulunabilirdi.
+
+**Bitti tanımı:** Gerçek bir hesapla uçtan uca akış denenip ekran
+görüntüsüyle teyit edildiğinde kapanacak.
 
 ---
 
