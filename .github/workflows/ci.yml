@@ -119,6 +119,57 @@ jobs:
             echo "::endgroup::"
           done
 
+      # Uygulamayı simülatörde çalıştırıp ekran görüntüsü alır.
+      #
+      # Geliştirme Windows'ta yapıldığı için arayüzün gerçekten çizildiğini
+      # görmenin başka yolu yok: derleme ve testler geçse bile ekranın nasıl
+      # göründüğünü kimse görmemiş olur. Görüntüler artifact olarak inip
+      # doğrudan incelenebilir.
+      - name: Uygulamayı çalıştır ve ekran görüntüsü al
+        run: |
+          set -o pipefail
+          mkdir -p screenshots
+
+          xcrun simctl boot "$SIM" 2>/dev/null || true
+          xcrun simctl bootstatus "$SIM" -b
+
+          xcodebuild build \
+            -scheme Octopus \
+            -destination "platform=iOS Simulator,name=$SIM" \
+            -derivedDataPath ./DerivedData \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO
+
+          APP_PATH=$(find ./DerivedData/Build/Products -name "Octopus.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::Derlenmiş uygulama bulunamadı"
+            exit 1
+          fi
+          echo "Uygulama: $APP_PATH"
+
+          xcrun simctl install booted "$APP_PATH"
+          xcrun simctl launch booted com.octopus.iptv
+
+          # Açılış animasyonu ve ilk çizim için pay bırak.
+          sleep 8
+          xcrun simctl io booted screenshot screenshots/01-acilis.png
+
+          # Koyu/açık tema farkını da görebilmek için ikinci kare.
+          xcrun simctl ui booted appearance light 2>/dev/null || true
+          sleep 3
+          xcrun simctl io booted screenshot screenshots/02-acik-tema.png
+
+          ls -la screenshots
+
+      - name: Ekran görüntülerini yükle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ekran-goruntuleri
+          path: screenshots/
+          retention-days: 30
+          if-no-files-found: warn
+
       # Derleme patlarsa günlükleri indirip inceleyebilmek için.
       - name: Hata günlüklerini yükle
         if: failure()
