@@ -147,6 +147,14 @@ jobs:
           fi
           echo "Uygulama: $APP_PATH"
 
+          # Ekran boyutu sorunlarının teşhisi: uygulamanın GERÇEK Info.plist'i
+          # ne diyor? Kaynak plist ile derlenen plist ayrışabiliyor.
+          echo "::group::Derlenmiş Info.plist — ekran ayarları"
+          plutil -p "$APP_PATH/Info.plist" \
+            | grep -iE "launch|fullscreen|orientation|devicefamily" \
+            || echo "(ekranla ilgili anahtar bulunamadı)"
+          echo "::endgroup::"
+
           xcrun simctl install booted "$APP_PATH"
           xcrun simctl launch booted com.octopus.iptv
 
