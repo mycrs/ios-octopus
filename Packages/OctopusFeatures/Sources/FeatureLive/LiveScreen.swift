@@ -98,6 +98,8 @@ public struct LiveScreen: View {
                 ForEach(viewModel.channels) { channel in
                     ChannelRowView(
                         channel: channel,
+                        program: viewModel.currentProgram(for: channel),
+                        clock: viewModel.clock,
                         isFavorite: viewModel.isFavorite(channel),
                         onTap: { router.presentPlayer(.liveChannel(channel.id)) },
                         onToggleFavorite: { Task { await viewModel.toggleFavorite(channel) } }
@@ -160,6 +162,8 @@ private struct CategoryStripView: View {
 private struct ChannelRowView: View {
 
     let channel: Channel
+    let program: EPGProgram?
+    let clock: Date
     let isFavorite: Bool
     let onTap: () -> Void
     let onToggleFavorite: () -> Void
@@ -175,7 +179,18 @@ private struct ChannelRowView: View {
                         .foregroundColor(Theme.Palette.textPrimary)
                         .lineLimit(1)
 
-                    if let number = channel.number {
+                    if let program {
+                        // Şu an oynayan program + ne kadarının geçtiği.
+                        Text(program.title)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Palette.textSecondary)
+                            .lineLimit(1)
+
+                        ProgressView(value: program.progress(at: clock))
+                            .progressViewStyle(.linear)
+                            .tint(Theme.Palette.accent)
+                            .frame(height: 2)
+                    } else if let number = channel.number {
                         Text("Kanal \(number)")
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Palette.textTertiary)

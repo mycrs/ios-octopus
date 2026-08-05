@@ -12,6 +12,11 @@ public final class LiveChannelsViewModel: ObservableObject {
     @Published public private(set) var favoriteKeys: Set<String> = []
     @Published public private(set) var state: LoadableState<Int> = .idle
 
+    /// Kanal kimliğine göre o an yayında olan program.
+    @Published public private(set) var nowPlaying: [String: EPGProgram] = [:]
+    /// İlerleme çubuklarının canlı görünmesi için kullanılan referans an.
+    @Published public private(set) var clock = Date()
+
     /// `nil` = tüm kanallar.
     @Published public private(set) var selectedCategoryID: MediaCategory.ID?
     @Published public var searchText = "" {
@@ -29,21 +34,28 @@ public final class LiveChannelsViewModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
     private var favoritesTask: Task<Void, Never>?
+    private var epgTask: Task<Void, Never>?
+    private let epgRefreshInterval: Duration
 
     public init(
         dependencies: LiveDependencies,
         // Kullanıcı yazarken her tuşta sorgu atmak büyük kataloglarda
         // arayüzü kilitliyor. Referans projede bu değer 600 ms'e çekilmişti.
-        searchDebounce: Duration = .milliseconds(300)
+        searchDebounce: Duration = .milliseconds(300),
+        // Program değişimlerini yakalamak için yeterli; daha sık tazelemek
+        // listeyi gereksiz yere yeniden çizer.
+        epgRefreshInterval: Duration = .seconds(60)
     ) {
         self.dependencies = dependencies
         self.searchDebounce = searchDebounce
+        self.epgRefreshInterval = epgRefreshInterval
     }
 
     deinit {
         searchTask?.cancel()
         observationTask?.cancel()
         favoritesTask?.cancel()
+        epgTask?.cancel()
     }
 
     // MARK: - Yükleme
@@ -64,6 +76,7 @@ public final class LiveChannelsViewModel: ObservableObject {
             categories = try await dependencies.channels.categories(playlistID: playlist.id)
             observeChannels(playlistID: playlist.id, categoryID: selectedCategoryID)
             observeFavorites()
+            startEPGRefresh()
         } catch {
             state = .failed(AppError.wrap(error))
         }
@@ -168,6 +181,33 @@ public final class LiveChannelsViewModel: ObservableObject {
                 self.state = .loaded(updated.count)
             }
         }
+    }
+
+    /// Şu an oynayan programları periyodik tazeler.
+    ///
+    /// ⚠️ Kanal kimliklerini tek tek sormak yerine zaman aralığıyla **tek
+    /// sorgu** yapılır: 20.000 kimlik içeren bir `IN` sorgusu hem yavaş
+    /// hem de SQLite değişken sınırına takılır.
+    private func startEPGRefresh() {
+        epgTask?.cancel()
+        epgTask = Task { [weak self, dependencies, epgRefreshInterval] in
+            while !Task.isCancelled {
+                let current = Date()
+                let programs = (try? await dependencies.epg.allNowPlaying(at: current)) ?? [:]
+
+                guard let self, !Task.isCancelled else { return }
+                self.nowPlaying = programs
+                self.clock = current
+
+                try? await Task.sleep(for: epgRefreshInterval)
+            }
+        }
+    }
+
+    /// Bir kanalın o anki programı.
+    public func currentProgram(for channel: Channel) -> EPGProgram? {
+        guard let epgID = channel.epgChannelID else { return nil }
+        return nowPlaying[epgID]
     }
 
     private func observeFavorites() {

@@ -120,6 +120,13 @@ public protocol EPGRepository: Sendable {
         at date: Date
     ) async throws -> [String: EPGProgram]
 
+    /// O anda yayında olan **tüm** programlar, kanal kimliğine göre.
+    ///
+    /// Kanal listesi için: 20.000 kimlik içeren bir `IN` sorgusu yazmak
+    /// yerine zaman aralığıyla tek sorgu yapılır. Sonuç kanal sayısı
+    /// kadardır (birkaç bin satır), kimlik listesi kadar değil.
+    func allNowPlaying(at date: Date) async throws -> [String: EPGProgram]
+
     /// Zaman aralığındaki tüm programlar (EPG ızgarası için).
     func programs(
         epgChannelID: String,

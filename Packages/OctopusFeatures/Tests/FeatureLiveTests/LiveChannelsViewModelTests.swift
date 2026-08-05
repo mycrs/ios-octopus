@@ -9,11 +9,13 @@ final class LiveChannelsViewModelTests: XCTestCase {
     private var playlists: StubPlaylists!
     private var channels: StubChannels!
     private var favorites: StubFavorites!
+    private var epg: StubEPG!
 
     override func setUp() async throws {
         playlists = StubPlaylists()
         channels = StubChannels()
         favorites = StubFavorites()
+        epg = StubEPG()
     }
 
     private func makeViewModel() -> LiveChannelsViewModel {
@@ -21,11 +23,12 @@ final class LiveChannelsViewModelTests: XCTestCase {
             dependencies: LiveDependencies(
                 playlists: playlists,
                 channels: channels,
-                epg: NoopEPG(),
+                epg: epg,
                 favorites: favorites
             ),
-            // Testte beklememek için çok kısa gecikme.
-            searchDebounce: .milliseconds(10)
+            // Testte beklememek için çok kısa gecikmeler.
+            searchDebounce: .milliseconds(10),
+            epgRefreshInterval: .seconds(3600)
         )
     }
 
@@ -152,6 +155,41 @@ final class LiveChannelsViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.isFavorite(channel))
     }
 
+    // MARK: - Yayın akışı
+
+    func test_currentProgramIsMatchedByEPGChannelID() async {
+        channels.stored = [
+            makeChannel("1", "TRT 1", epgID: "trt1.tr"),
+            makeChannel("2", "Eşleşmeyen", epgID: "yok.tr"),
+            makeChannel("3", "Kimliksiz", epgID: nil)
+        ]
+        epg.programs = ["trt1.tr": makeProgram("Haberler")]
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await waitABit()
+
+        XCTAssertEqual(viewModel.currentProgram(for: viewModel.channels[0])?.title, "Haberler")
+        XCTAssertNil(viewModel.currentProgram(for: viewModel.channels[1]))
+        XCTAssertNil(
+            viewModel.currentProgram(for: viewModel.channels[2]),
+            "EPG kimliği olmayan kanal program göstermemeli"
+        )
+    }
+
+    func test_missingGuideDoesNotBreakList() async {
+        // Rehber hiç çekilmemişse kanal listesi yine çalışmalı.
+        channels.stored = [makeChannel("1", "TRT 1", epgID: "trt1.tr")]
+        epg.programs = [:]
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await waitABit()
+
+        XCTAssertEqual(viewModel.channels.count, 1)
+        XCTAssertNil(viewModel.currentProgram(for: viewModel.channels[0]))
+    }
+
     // MARK: - Canlı gözlem
 
     func test_syncWritesAppearWithoutManualRefresh() async {
@@ -171,8 +209,25 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
     // MARK: - Yardımcılar
 
-    private func makeChannel(_ id: String, _ name: String) -> Channel {
-        Channel(id: Channel.ID(id), playlistID: "p1", name: name, streamKey: id)
+    private func makeChannel(_ id: String, _ name: String, epgID: String? = nil) -> Channel {
+        Channel(
+            id: Channel.ID(id),
+            playlistID: "p1",
+            name: name,
+            streamKey: id,
+            epgChannelID: epgID
+        )
+    }
+
+    private func makeProgram(_ title: String) -> EPGProgram {
+        let start = Date()
+        return EPGProgram(
+            id: EPGProgram.ID(title),
+            epgChannelID: "trt1.tr",
+            title: title,
+            startDate: start,
+            endDate: start.addingTimeInterval(3_600)
+        )
     }
 
     private func makeCategory(_ id: String, _ name: String) -> MediaCategory {
@@ -279,9 +334,20 @@ private final class StubFavorites: FavoritesRepository, @unchecked Sendable {
     }
 }
 
-private struct NoopEPG: EPGRepository {
-    func nowPlaying(epgChannelID: String, at date: Date) async throws -> EPGProgram? { nil }
-    func nowPlaying(epgChannelIDs: [String], at date: Date) async throws -> [String: EPGProgram] { [:] }
+private final class StubEPG: EPGRepository, @unchecked Sendable {
+
+    var programs: [String: EPGProgram] = [:]
+
+    func nowPlaying(epgChannelID: String, at date: Date) async throws -> EPGProgram? {
+        programs[epgChannelID]
+    }
+
+    func nowPlaying(epgChannelIDs: [String], at date: Date) async throws -> [String: EPGProgram] {
+        programs.filter { epgChannelIDs.contains($0.key) }
+    }
+
+    func allNowPlaying(at date: Date) async throws -> [String: EPGProgram] { programs }
+
     func programs(epgChannelID: String, from: Date, to: Date) async throws -> [EPGProgram] { [] }
     func purgePrograms(before date: Date) async throws {}
 }

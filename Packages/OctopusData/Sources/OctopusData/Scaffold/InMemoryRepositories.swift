@@ -244,6 +244,13 @@ public actor InMemoryEPGRepository: EPGRepository {
         return result
     }
 
+    public func allNowPlaying(at date: Date) async throws -> [String: EPGProgram] {
+        Dictionary(
+            storedPrograms.filter { $0.isOnAir(at: date) }.map { ($0.epgChannelID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
     public func programs(
         epgChannelID: String,
         from: Date,

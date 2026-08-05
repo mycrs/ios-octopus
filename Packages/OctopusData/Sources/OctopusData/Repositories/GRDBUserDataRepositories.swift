@@ -46,6 +46,22 @@ public actor GRDBEPGRepository: EPGRepository {
         )
     }
 
+    /// Tek sorguda tüm kanalların o anki programı.
+    ///
+    /// `epg_byChannelTime` indeksi zaman aralığını da kapsadığı için
+    /// bu sorgu tam tarama yapmaz.
+    public func allNowPlaying(at date: Date) async throws -> [String: EPGProgram] {
+        let records = try await database.read { db in
+            try EPGProgramRecord
+                .filter(Column("startDate") <= date && Column("endDate") > date)
+                .fetchAll(db)
+        }
+        return Dictionary(
+            records.map { ($0.epgChannelId, $0.toDomain()) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
     public func programs(
         epgChannelID: String,
         from: Date,
