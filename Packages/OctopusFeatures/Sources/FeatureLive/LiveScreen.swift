@@ -102,7 +102,8 @@ public struct LiveScreen: View {
                         clock: viewModel.clock,
                         isFavorite: viewModel.isFavorite(channel),
                         onTap: { router.presentPlayer(.liveChannel(channel.id)) },
-                        onToggleFavorite: { Task { await viewModel.toggleFavorite(channel) } }
+                        onToggleFavorite: { Task { await viewModel.toggleFavorite(channel) } },
+                        onShowGuide: { router.push(.channelGuide(channel.id)) }
                     )
                 }
             }
@@ -167,6 +168,7 @@ private struct ChannelRowView: View {
     let isFavorite: Bool
     let onTap: () -> Void
     let onToggleFavorite: () -> Void
+    let onShowGuide: () -> Void
 
     var body: some View {
         Button(action: onTap) {
@@ -213,5 +215,18 @@ private struct ChannelRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            // Rehber uzun basmada: satırda ikinci bir düğme dokunma
+            // hedeflerini daraltıyordu.
+            Button(action: onShowGuide) {
+                Label("Yayın akışı", systemImage: "calendar")
+            }
+            Button(action: onToggleFavorite) {
+                Label(
+                    isFavorite ? "Favorilerden çıkar" : "Favorilere ekle",
+                    systemImage: isFavorite ? "heart.slash" : "heart"
+                )
+            }
+        }
     }
 }

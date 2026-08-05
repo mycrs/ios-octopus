@@ -133,6 +133,11 @@ struct RootView: View {
         switch route {
         case .channels:
             LiveScreen(dependencies: container.makeLiveDependencies())
+        case .channelGuide(let id):
+            ChannelGuideView(
+                channelID: id,
+                dependencies: container.makeLiveDependencies()
+            )
         case .movieDetail(let id):
             MovieDetailView(
                 movieID: id,

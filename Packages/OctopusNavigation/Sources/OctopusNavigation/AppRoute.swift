@@ -24,6 +24,8 @@ public enum AppRoute: Hashable, Sendable {
     case seriesDetail(Series.ID)
     case seasonEpisodes(seriesID: Series.ID, seasonNumber: Int)
     case categoryList(kind: MediaCategory.Kind)
+    /// Bir kanalın gün boyu yayın akışı.
+    case channelGuide(Channel.ID)
     case favorites
     case playlistManager
     case about
