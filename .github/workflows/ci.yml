@@ -50,17 +50,9 @@ jobs:
       - name: Xcode projesini üret
         run: xcodegen generate
 
-      # Cihaz adı yerine 'generic' hedef: simülatör isimleri Xcode
-      # sürümüne göre değiştiği için bu form kırılmaz.
-      - name: Derle
-        run: |
-          set -o pipefail
-          xcodebuild build \
-            -scheme Octopus \
-            -destination 'generic/platform=iOS Simulator' \
-            -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO
-
+      # Not: ayrı bir "derle" adımı yok — `xcodebuild test` zaten derliyor.
+      # Ayrıca derlemek turu boşuna uzatıyordu.
+      #
       # Simülatör adı Xcode sürümüne göre değişir (iPhone 15 → 16 → 17...).
       # Çalışma anında bulunur ve GITHUB_ENV üzerinden sonraki adımlara taşınır —
       # her adım ayrı bir kabukta çalıştığı için kabuk değişkeni yetmez.
@@ -76,12 +68,15 @@ jobs:
           echo "Seçilen simülatör: $SIM"
           echo "SIM=$SIM" >> "$GITHUB_ENV"
 
+      # `-derivedDataPath` sabit: ekran görüntüsü adımı aynı ürünü kullanır,
+      # uygulamayı ikinci kez derlemeye gerek kalmaz.
       - name: Uygulama testleri
         run: |
           set -o pipefail
           xcodebuild test \
             -scheme Octopus \
             -destination "platform=iOS Simulator,name=$SIM" \
+            -derivedDataPath ./DerivedData \
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO
 
@@ -99,13 +94,7 @@ jobs:
           xcrun simctl boot "$SIM" 2>/dev/null || true
           xcrun simctl bootstatus "$SIM" -b
 
-          xcodebuild build \
-            -scheme Octopus \
-            -destination "platform=iOS Simulator,name=$SIM" \
-            -derivedDataPath ./DerivedData \
-            -skipMacroValidation \
-            CODE_SIGNING_ALLOWED=NO
-
+          # Derleme YOK: test adımı aynı derived data yoluna zaten üretti.
           APP_PATH=$(find ./DerivedData/Build/Products -name "Octopus.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "::error::Derlenmiş uygulama bulunamadı"

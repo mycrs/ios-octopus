@@ -43,6 +43,8 @@ struct RootView: View {
         // Marka rengi: kullanıcı seçimi > bayi paneli > uygulama varsayılanı.
         .tint(container.themeController.accent)
         .environment(\.brandColor, container.themeController.accent)
+        // Ayarlar ekranı renk seçimini buradan okur ve değiştirir.
+        .environmentObject(container.themeController)
         // Oynatıcı tam ekran sunulur — gezinme yığınına girmez,
         // böylece hangi ekrandan açılırsa açılsın davranışı aynıdır.
         .fullScreenCover(item: $router.player) { presentation in

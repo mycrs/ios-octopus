@@ -8,39 +8,260 @@ public struct SettingsDependencies {
     public let sync: ContentSyncing
     public let progress: PlaybackProgressRepository
     public let history: WatchHistoryRepository
+    /// Bayinin destek kanalları (panelden gelir).
+    public let contact: ContactChannels
 
     public init(
         playlists: PlaylistRepository,
         sync: ContentSyncing,
         progress: PlaybackProgressRepository,
-        history: WatchHistoryRepository
+        history: WatchHistoryRepository,
+        contact: ContactChannels = .empty
     ) {
         self.playlists = playlists
         self.sync = sync
         self.progress = progress
         self.history = history
+        self.contact = contact
     }
 }
 
-/// Ayarlar: kaynak yönetimi, senkronizasyon, ebeveyn kilidi, önbellek temizliği.
-/// Faz 3 ve Faz 10'da doldurulacak.
+/// Ayarlar: kaynak, görünüm, veri ve künye.
 public struct SettingsScreen: View {
 
-    private let dependencies: SettingsDependencies
+    @StateObject private var viewModel: SettingsViewModel
     @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var theme: ThemeController
+
+    private let contact: ContactChannels
+    @State private var confirmingAction: DataAction?
+
+    private enum DataAction: String, Identifiable {
+        case history
+        case progress
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .history: return "İzleme geçmişi silinsin mi?"
+            case .progress: return "Kaldığın yer bilgileri silinsin mi?"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .history: return "Son izlenen kanallar listesi temizlenir."
+            case .progress: return "Yarım bıraktığın film ve bölümler baştan başlar."
+            }
+        }
+    }
 
     public init(dependencies: SettingsDependencies) {
-        self.dependencies = dependencies
+        _viewModel = StateObject(wrappedValue: SettingsViewModel(dependencies: dependencies))
+        self.contact = dependencies.contact
     }
 
     public var body: some View {
-        EmptyStateView(
-            icon: "gearshape",
-            title: "Ayarlar",
-            message: "Kaynak yönetimi, senkronizasyon ve ebeveyn kilidi Faz 3+'ta gelecek.",
-            actionTitle: "Kaynakları yönet",
-            action: { router.push(.playlistManager) }
-        )
-        .background(Theme.Palette.background)
+        ZStack {
+            Theme.Palette.background.ignoresSafeArea()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                    if let message = viewModel.message {
+                        InlineMessageView(text: message, kind: .info)
+                    }
+
+                    sourceSection
+                    appearanceSection
+                    dataSection
+                    if contact.hasAny { supportSection }
+                    aboutSection
+                }
+                .padding(Theme.Spacing.md)
+            }
+            .disabled(viewModel.isBusy)
+
+            if viewModel.isBusy {
+                LoadingStateView()
+                    .background(.ultraThinMaterial)
+            }
+        }
+        .navigationTitle("Ayarlar")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await viewModel.load() }
+        .confirmationDialog(
+            confirmingAction?.title ?? "",
+            isPresented: .init(
+                get: { confirmingAction != nil },
+                set: { if !$0 { confirmingAction = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Sil", role: .destructive) {
+                let action = confirmingAction
+                confirmingAction = nil
+                Task {
+                    switch action {
+                    case .history: await viewModel.clearWatchHistory()
+                    case .progress: await viewModel.clearPlaybackProgress()
+                    case nil: break
+                    }
+                }
+            }
+            Button("Vazgeç", role: .cancel) { confirmingAction = nil }
+        } message: {
+            Text(confirmingAction?.message ?? "")
+        }
+    }
+
+    // MARK: - Bölümler
+
+    private var sourceSection: some View {
+        section("Kaynak") {
+            SettingsRow(
+                icon: "antenna.radiowaves.left.and.right",
+                title: viewModel.activePlaylistName ?? "Kaynak seçilmedi",
+                detail: viewModel.lastSyncedText
+            ) {
+                router.push(.playlistManager)
+            }
+
+            SettingsRow(icon: "arrow.clockwise", title: "Şimdi güncelle") {
+                Task { await viewModel.resyncActivePlaylist() }
+            }
+
+            if viewModel.playlistCount > 1 {
+                Text("\(viewModel.playlistCount) kaynak kayıtlı")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textTertiary)
+            }
+        }
+    }
+
+    private var appearanceSection: some View {
+        section("Görünüm") {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("Vurgu rengi")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textSecondary)
+
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(Theme.BrandColor.allCases, id: \.self) { option in
+                        Button {
+                            theme.select(option)
+                        } label: {
+                            Circle()
+                                .fill(option.color)
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(
+                                            theme.selection == option
+                                                ? Theme.Palette.textPrimary
+                                                : Color.clear,
+                                            lineWidth: 2
+                                        )
+                                )
+                        }
+                        .accessibilityLabel(option.rawValue)
+                    }
+                }
+
+                // Bayi markası varsa "Varsayılan" onun rengini kullanır.
+                if let resellerName = theme.resellerName {
+                    Text("Varsayılan renk \(resellerName) tarafından belirleniyor.")
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Palette.textTertiary)
+                }
+            }
+        }
+    }
+
+    private var dataSection: some View {
+        section("Veriler") {
+            SettingsRow(icon: "clock.arrow.circlepath", title: "İzleme geçmişini sil") {
+                confirmingAction = .history
+            }
+            SettingsRow(icon: "play.slash", title: "Kaldığın yer bilgilerini sil") {
+                confirmingAction = .progress
+            }
+        }
+    }
+
+    private var supportSection: some View {
+        section("Destek") {
+            ContactLinksView(contact: contact)
+        }
+    }
+
+    private var aboutSection: some View {
+        section("Uygulama") {
+            HStack {
+                Text("Sürüm")
+                    .font(Theme.Typography.rowSubtitle)
+                    .foregroundColor(Theme.Palette.textSecondary)
+                Spacer()
+                Text(viewModel.appVersion)
+                    .font(Theme.Typography.rowSubtitle)
+                    .foregroundColor(Theme.Palette.textTertiary)
+            }
+            .padding(Theme.Spacing.md)
+            .background(Theme.Palette.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+        }
+    }
+
+    private func section<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text(title)
+                .font(Theme.Typography.sectionTitle)
+                .foregroundColor(Theme.Palette.textPrimary)
+            content()
+        }
+    }
+}
+
+private struct SettingsRow: View {
+
+    let icon: String
+    let title: String
+    var detail: String?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.md) {
+                Image(systemName: icon)
+                    .foregroundColor(Theme.Palette.accent)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    Text(title)
+                        .font(Theme.Typography.rowTitle)
+                        .foregroundColor(Theme.Palette.textPrimary)
+                        .multilineTextAlignment(.leading)
+
+                    if let detail {
+                        Text(detail)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Palette.textTertiary)
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textTertiary)
+            }
+            .padding(Theme.Spacing.md)
+            .background(Theme.Palette.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }

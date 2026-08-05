@@ -296,7 +296,9 @@ final class AppContainer: ObservableObject {
             playlists: playlists,
             sync: sync,
             progress: progress,
-            history: history
+            history: history,
+            // Destek kanalları panelden gelir; henüz çekilmediyse boş.
+            contact: appConfig?.contact ?? .empty
         )
     }
 }
