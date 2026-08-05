@@ -142,6 +142,12 @@ final class FavoritesViewModelTests: XCTestCase {
         await viewModel.load()
         await waitUntil("ilk liste yüklenmeli") { viewModel.channels.count == 1 }
 
+        // ⚠️ Abone olunmadan yayın yapmak **kaybolur**: `AsyncStream`'in
+        // continuation'ı gözlem görevi başlayana kadar yok. Eski hâlinde
+        // buradaki 120 ms'lik uyku bunu şans eseri örtüyordu — süre değil,
+        // aboneliğin kendisi beklenmeli.
+        await waitUntil("gözlem başlamalı") { favorites.isObserving }
+
         favorites.channels.append(
             Channel(id: "c2", playlistID: "p1", name: "Yeni", streamKey: "2")
         )
@@ -200,9 +206,13 @@ private final class StubFavorites: FavoritesRepository, @unchecked Sendable {
     func favoriteMovies(playlistID: Playlist.ID) async throws -> [Movie] { movies }
     func favoriteSeries(playlistID: Playlist.ID) async throws -> [Series] { series }
 
+    /// Abone olundu mu? Test, yayın yapmadan önce bunu bekler.
+    private(set) var isObserving = false
+
     func observeFavoriteKeys() -> AsyncStream<Set<String>> {
         AsyncStream { continuation in
             self.continuation = continuation
+            self.isObserving = true
             continuation.yield([])   // mevcut durum
         }
     }

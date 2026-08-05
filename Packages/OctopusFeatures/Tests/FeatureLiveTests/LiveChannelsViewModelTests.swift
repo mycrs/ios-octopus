@@ -281,14 +281,15 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
-        XCTAssertEqual(viewModel.channels.count, 1)
+        await waitUntil("ilk liste gelmeli") { viewModel.channels.count == 1 }
+
+        // ⚠️ Abone olunmadan yayın yapmak kaybolur — süre değil, aboneliği bekle.
+        await waitUntil("gözlem başlamalı") { channels.isObserving }
 
         // Senkronizasyon yeni kanal yazdı.
         channels.emit([makeChannel("1", "TRT 1"), makeChannel("2", "Yeni")])
-        await waitABit()
 
-        XCTAssertEqual(viewModel.channels.count, 2, "Gözlem ekranı tazelemeli")
+        await waitUntil("gözlem ekranı tazelemeli") { viewModel.channels.count == 2 }
     }
 
     // MARK: - Yardımcılar
@@ -376,6 +377,9 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
         return searchResults
     }
 
+    /// Abone olundu mu? Test, yayın yapmadan önce bunu bekler.
+    private(set) var isObserving = false
+
     func observeChannels(
         playlistID: Playlist.ID,
         categoryID: MediaCategory.ID?
@@ -383,6 +387,7 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
         observedCategoryIDs.append(categoryID)
         return AsyncStream { continuation in
             self.continuation = continuation
+            self.isObserving = true
             continuation.yield(stored)
         }
     }
