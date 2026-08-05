@@ -98,8 +98,20 @@ jobs:
             echo "::group::$pkg testleri"
             (
               cd "Packages/$pkg"
+
+              # Şema adı paketin ürün sayısına göre değişir:
+              # tek ürünlü pakette paket adıyla aynı, çok ürünlü pakette
+              # (OctopusFeatures) yalnızca "<Ad>-Package" toplu şeması
+              # tüm hedefleri — dolayısıyla testleri — içerir.
+              if xcodebuild -list 2>/dev/null | grep -qE "^ *${pkg}-Package *$"; then
+                SCHEME="${pkg}-Package"
+              else
+                SCHEME="$pkg"
+              fi
+              echo "Şema: $SCHEME"
+
               xcodebuild test \
-                -scheme "$pkg" \
+                -scheme "$SCHEME" \
                 -destination "platform=iOS Simulator,name=$SIM" \
                 -skipMacroValidation \
                 CODE_SIGNING_ALLOWED=NO
