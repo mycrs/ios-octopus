@@ -104,6 +104,17 @@ public final class AppRouter: ObservableObject {
         sheet = nil
     }
 
+    /// Açık ekranları kapatır ama sekme seçimini korur.
+    ///
+    /// Ebeveyn kilidi kurulduğunda gerekir: kullanıcı yetişkin bir içeriğin
+    /// detayındayken Ayarlar'a geçip PIN kurmuş olabilir. Listeler süzülür
+    /// ama **yığında duran** ekran kimliğiyle açık kalır ve geri dönünce
+    /// karşısına çıkardı.
+    public func clearOpenScreens() {
+        paths = [:]
+        player = nil
+    }
+
     /// Kaynak silindi/değişti — tüm yığınları temizle, eski id'lerle ekran açık kalmasın.
     public func resetAfterPlaylistChange() {
         paths = [:]

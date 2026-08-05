@@ -121,6 +121,21 @@ final class StartupTabTests: XCTestCase {
         XCTAssertEqual(AppRouter(store: store).startupTab, .home)
     }
 
+    func test_clearOpenScreensKeepsTabButClosesStacks() throws {
+        // Ebeveyn kilidi kurulunca çağrılır: kullanıcı Ayarlar'da kalmalı
+        // ama yığında duran içerik ekranları kapanmalı.
+        let router = AppRouter(store: try makeStore())
+        router.selectedTab = .settings
+        router.push(.movieDetail("m1"), in: .movies)
+        router.presentPlayer(.movie("m1"))
+
+        router.clearOpenScreens()
+
+        XCTAssertEqual(router.selectedTab, .settings, "Sekme korunmalı")
+        XCTAssertNil(router.player)
+        XCTAssertTrue(router.paths.isEmpty, "Yığınlar temizlenmeli")
+    }
+
     func test_playlistChangeReturnsToStartupTab() throws {
         let router = AppRouter(store: try makeStore())
         router.startupTab = .movies

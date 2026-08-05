@@ -136,6 +136,11 @@ public struct SettingsScreen: View {
                         await viewModel.disableParental(with: pin)
                     } else {
                         await viewModel.setParentalPIN(pin)
+                        // Kilit kurulduysa açık ekranları kapat: yetişkin bir
+                        // içeriğin detayı yığında durup geri dönünce açılmasın.
+                        if viewModel.isParentalEnabled {
+                            router.clearOpenScreens()
+                        }
                     }
                 }
             }
