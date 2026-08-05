@@ -77,12 +77,16 @@ public struct MoviesScreen: View {
 
         case .loaded:
             if viewModel.movies.isEmpty {
+                // Aramada çıkış yolu kullanıcının elinde (sorguyu değiştirir);
+                // katalog boşsa değil — o yüzden oraya bir eylem konuyor.
                 EmptyStateView(
                     icon: viewModel.isSearching ? "magnifyingglass" : "film",
                     title: viewModel.isSearching ? "Sonuç yok" : "Film yok",
                     message: viewModel.isSearching
                         ? "Farklı bir arama dene."
-                        : "Bu kaynakta film paketi bulunmuyor olabilir."
+                        : "Bu kaynakta film paketi bulunmuyor olabilir. Kaynağı güncellemeyi dene.",
+                    actionTitle: viewModel.isSearching ? nil : "Ayarlar'a git",
+                    action: viewModel.isSearching ? nil : { router.switchTab(to: .settings) }
                 )
             } else {
                 grid

@@ -56,10 +56,13 @@ public struct FavoritesScreen: View {
 
         case .loaded:
             if viewModel.isEmpty {
+                // Boş ekranda kullanıcıyı bırakmak yerine başlayacağı yere gönder.
                 EmptyStateView(
                     icon: "heart",
                     title: "Favori yok",
-                    message: "Kanal, film ve dizileri kalp simgesiyle favorilerine ekleyebilirsin."
+                    message: "Kanal, film ve dizileri kalp simgesiyle favorilerine ekleyebilirsin.",
+                    actionTitle: "Canlı TV'ye git",
+                    action: { router.switchTab(to: .live) }
                 )
             } else {
                 list

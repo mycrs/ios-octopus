@@ -90,7 +90,9 @@ public struct LiveScreen: View {
             title: viewModel.isSearching ? "Sonuç yok" : "Kanal yok",
             message: viewModel.isSearching
                 ? "Farklı bir arama dene."
-                : "Bu kaynakta kanal bulunamadı. Ayarlar'dan yenilemeyi dene."
+                : "Bu kaynakta kanal bulunamadı. Kaynağı güncellemeyi dene.",
+            actionTitle: viewModel.isSearching ? nil : "Ayarlar'a git",
+            action: viewModel.isSearching ? nil : { router.switchTab(to: .settings) }
         )
     }
 
