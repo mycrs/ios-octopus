@@ -9,12 +9,19 @@ import OctopusDomain
 
 // MARK: - Filmler
 
+/// Film künyesini uzak kaynaktan getirir.
+public protocol MovieDetailLoading: Sendable {
+    func loadDetails(for movie: Movie) async throws -> Movie
+}
+
 public actor GRDBVODRepository: VODRepository {
 
     private let database: AppDatabase
+    private let detailLoader: MovieDetailLoading?
 
-    public init(database: AppDatabase) {
+    public init(database: AppDatabase, detailLoader: MovieDetailLoading? = nil) {
         self.database = database
+        self.detailLoader = detailLoader
     }
 
     public func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] {
@@ -54,11 +61,32 @@ public actor GRDBVODRepository: VODRepository {
         return record?.toDomain()
     }
 
-    /// Faz 2'de: yerelde detay yoksa sağlayıcıdan çekilip yazılacak.
-    /// Şu an yalnızca yereli döndürür.
+    /// Künyeyi getirir ve saklar.
+    ///
+    /// ⚠️ **Önbellekli**: `get_vod_info` her detay açılışında çağrılırsa
+    /// kullanıcı her seferinde bekler. Bir kez çekilen künye yerelde tutulur.
     public func loadDetails(id: Movie.ID) async throws -> Movie {
-        guard let movie = try await movie(id: id) else { throw AppError.notFound }
-        return movie
+        guard let record = try await database.read({ db in
+            try MovieRecord.fetchOne(db, key: id.value)
+        }) else {
+            throw AppError.notFound
+        }
+
+        let stored = record.toDomain()
+        if record.detailsLoadedAt != nil { return stored }
+        guard let detailLoader else { return stored }
+
+        // Detay ucu hata verirse liste verisiyle devam edilir; kullanıcı
+        // en azından afiş ve adı görüp filmi oynatabilmeli.
+        guard let enriched = try? await detailLoader.loadDetails(for: stored) else {
+            Log.network.info("Film künyesi alınamadı, liste verisiyle devam ediliyor")
+            return stored
+        }
+
+        try await database.write { db in
+            try MovieRecord(enriched, detailsLoadedAt: Date()).update(db)
+        }
+        return enriched
     }
 
     public func search(

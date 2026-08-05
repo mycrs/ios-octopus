@@ -107,7 +107,13 @@ final class AppContainer: ObservableObject {
 
             playlists = playlistRepository
             channels = GRDBChannelRepository(database: database)
-            vod = GRDBVODRepository(database: database)
+            vod = GRDBVODRepository(
+                database: database,
+                detailLoader: ProviderMovieDetailLoader(
+                    playlists: playlistRepository,
+                    providerFactory: providerFactory
+                )
+            )
             series = GRDBSeriesRepository(
                 database: database,
                 // Sezon/bölüm ağacı ayrı bir istektir; depo yerel veriden

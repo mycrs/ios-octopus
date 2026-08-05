@@ -130,7 +130,12 @@ struct RootView: View {
         switch route {
         case .channels:
             LiveScreen(dependencies: container.makeLiveDependencies())
-        case .movieDetail, .categoryList:
+        case .movieDetail(let id):
+            MovieDetailView(
+                movieID: id,
+                dependencies: container.makeVODDependencies()
+            )
+        case .categoryList:
             MoviesScreen(dependencies: container.makeVODDependencies())
         case .seriesDetail(let id):
             SeriesDetailView(

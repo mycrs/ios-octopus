@@ -107,9 +107,32 @@ public struct XtreamContentProvider: ContentProvider {
         return movies
     }
 
+    /// Künye ayrı bir istektir; liste ucu yalnızca ad, afiş ve puan verir.
     public func fetchMovieDetails(streamKey: String) async throws -> Movie {
-        // Faz 8: get_vod_info ile özet/oyuncu bilgisi zenginleştirilecek.
-        throw AppError.notFound
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.path = "/player_api.php"
+        components?.queryItems = [
+            URLQueryItem(name: "username", value: username),
+            URLQueryItem(name: "password", value: password),
+            URLQueryItem(name: "action", value: "get_vod_info"),
+            URLQueryItem(name: "vod_id", value: streamKey)
+        ]
+        guard let url = components?.url else {
+            throw AppError.invalidResponse(reason: "Film adresi kurulamadı")
+        }
+
+        let data = try await httpClient.get(url, headers: [:])
+        let dto = try decode(XtreamVODInfoDTO.self, from: data, context: "film ayrıntısı")
+
+        // Zenginleştirilecek taban: yalnızca kimlik ve akış anahtarı bilinir,
+        // gerisi cevaptan gelir. Çağıran bunu mevcut kayıtla birleştirir.
+        let base = Movie(
+            id: EntityID.movie(playlistID: playlistID, rawID: streamKey),
+            playlistID: playlistID,
+            title: dto.movieData?.name ?? "",
+            streamKey: streamKey
+        )
+        return dto.enrich(base)
     }
 
     public func fetchSeries(categoryID: MediaCategory.ID?) async throws -> [Series] {
