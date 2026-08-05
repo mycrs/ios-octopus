@@ -270,6 +270,21 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 > `NullPlaybackEngine` ile derleniyor; AVPlayer/VLCKit implementasyonu
 > Apple geliştirici hesabı ve TestFlight hazır olunca eklenecek.
 
+### Görsel dil
+
+Android sürümüyle aynı kimlik, iOS'a özgü cila. Somut karşılıkları:
+
+| Referanstaki | iOS karşılığı | Nerede |
+|---|---|---|
+| Tam ekran dönen tanıtım | Hero **kartı** (raflar kaydırılabilir kalsın) | `FeatureHome/HomeScreen` |
+| Kart üstü puan | `RatingBadge` — puan yoksa hiç çizilmez | `DesignSystem` |
+| Detay hero'su | `DetailHeaderView` — film **ve** dizi ortak kullanır | `DesignSystem` |
+| Uzun künye satırı | Yatay kaydırılan çipler (`DetailChip`) | `DesignSystem` |
+| — | Haptik: favori/kategori/PIN | `DesignSystem/Haptics` |
+
+⚠️ Detay başlığı **tek** bileşen: ayrı yazılsalardı zamanla birbirinden
+ayrı düşerlerdi — referans projede tam olarak bu olmuştu.
+
 ### Ebeveyn kilidi nerede uygulanır?
 
 Kilit **tek bir yerde tutulur, altı yerde uygulanır**. Bir ekranı atlamak
@@ -308,6 +323,11 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 | Testte sabit `sleep` ile geciktirme beklemek | CI **rastgele** kırmızı: yerelde geçen test yüklü koşucuda 100 ms'e sığmıyor. Kod değişmemişti | Süreyi değil **koşulu** bekle (`waitUntil { … }`). Sabit bekleme yalnızca bir şeyin *olmadığını* doğrularken doğru |
 | `AsyncStream`'e abone olunmadan yayın yapmak | Yayın **sessizce kaybolur** (continuation henüz yok), test zaman aşımına düşer | Önce aboneliği bekle (`waitUntil { stub.isObserving }`), sonra yayınla. Sabit uyku bunu şans eseri örtüyordu — uyku kaldırılınca ortaya çıktı |
 | `@MainActor` sınıfın statik üyesini izolasyonsuz testten çağırmak | `call to main actor-isolated static method … in a synchronous nonisolated context` | Test sınıfını da `@MainActor` yap. `actor` tiplerde sorun yok — onların statikleri zaten izolasyonsuz |
+| Uyarlanır ızgarada sabit genişlikli afiş | Hücreler ekrana göre genişliyor, afiş 104pt'de kalıyor; iPad'de her hücrede boşluk | `Color.clear` + `aspectRatio` ile hücre genişliğini ölç, görseli doldur |
+| Nuke'u yapılandırmadan bırakmak | Afişler **tam boyutta** çözülüyor; 1000×1500 afiş 104pt'lik küçük resim için ~6 MB. Yüz afişte bellek baskısı | `ImageProcessors.Resize(width:)` ile çözme sırasında küçült |
+| Sayfalamada beraberlik bozucusuz sıralama | Aynı adlı içerik (IPTV'de aynı film farklı kalitelerde) sayfa sınırında tekrar edip kaybolur | `ORDER BY title, id` — ve `id`'yi indekse de ekle |
+| Varsayılan görünümün indeksi | `(playlistId, categoryId, sortOrder)` indeksi, kategori süzülmeyince sıralamayı karşılamıyor → tam sıralama | Süzgeçsiz hâl için ayrı indeks: `(playlistId, sortOrder, name)` |
+| `.sensoryFeedback` kullanmak | iOS **17+** — bizde derlenmez | UIKit üreteçleri (`UISelectionFeedbackGenerator` vb.), `prepare()` ile sakla |
 | Sağlayıcının `is_adult` alanına güvenmek | Ebeveyn kilidi kuruluyor ama hiçbir şey gizlenmiyor: M3U'da alan yok, panellerin çoğu doldurmuyor | Kategori adından çıkar (`AdultContentDetector`), damgalamayı senkronizasyonda yap |
 
 > 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
