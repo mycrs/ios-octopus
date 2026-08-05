@@ -154,10 +154,9 @@ jobs:
           sleep 8
           xcrun simctl io booted screenshot screenshots/01-acilis.png
 
-          # Koyu/açık tema farkını da görebilmek için ikinci kare.
-          xcrun simctl ui booted appearance light 2>/dev/null || true
-          sleep 3
-          xcrun simctl io booted screenshot screenshots/02-acik-tema.png
+          # Not: açık tema karesi alınmıyor — uygulama şu an
+          # .preferredColorScheme(.dark) ile koyu temayı zorluyor.
+          # Faz 3'te ThemeController gelince tema kareleri anlamlı olacak.
 
           ls -la screenshots
 

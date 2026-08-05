@@ -60,11 +60,16 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
+	<!--
+	  ⚠️ Bu sözlük BOŞ olmalı, ama var olmalı.
+	  Geçersiz bir içerik (ör. boş UIColorName) iOS'un launch screen'i
+	  bulamamasına yol açar ve uygulama küçük bir ekran boyutunda,
+	  üstte-altta siyah şeritlerle (letterbox) çalışır.
+	  Bu hata yalnızca ekran görüntüsüyle fark edildi — derleme ve
+	  testler sorunsuz geçiyordu.
+	-->
 	<key>UILaunchScreen</key>
-	<dict>
-		<key>UIColorName</key>
-		<string></string>
-	</dict>
+	<dict/>
 
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
