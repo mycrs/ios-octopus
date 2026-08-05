@@ -8,17 +8,21 @@ public struct VODDependencies {
     public let vod: VODRepository
     public let favorites: FavoritesRepository
     public let progress: PlaybackProgressRepository
+    /// Kilit açıkken yetişkin filmler katalogdan gizlenir.
+    public let parental: ParentalControlling
 
     public init(
         playlists: PlaylistRepository,
         vod: VODRepository,
         favorites: FavoritesRepository,
-        progress: PlaybackProgressRepository
+        progress: PlaybackProgressRepository,
+        parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
         self.vod = vod
         self.favorites = favorites
         self.progress = progress
+        self.parental = parental
     }
 }
 

@@ -10,12 +10,14 @@ final class SearchViewModelTests: XCTestCase {
     private var channels: StubChannels!
     private var vod: StubVOD!
     private var series: StubSeries!
+    private var parental: StubParental!
 
     override func setUp() async throws {
         playlists = StubPlaylists()
         channels = StubChannels()
         vod = StubVOD()
         series = StubSeries()
+        parental = StubParental()
     }
 
     private func makeViewModel() -> SearchViewModel {
@@ -24,7 +26,8 @@ final class SearchViewModelTests: XCTestCase {
                 playlists: playlists,
                 channels: channels,
                 vod: vod,
-                series: series
+                series: series,
+                parental: parental
             ),
             debounce: .milliseconds(10)
         )
@@ -32,6 +35,28 @@ final class SearchViewModelTests: XCTestCase {
 
     private func waitABit(_ ms: UInt64 = 120) async {
         try? await Task.sleep(nanoseconds: ms * 1_000_000)
+    }
+
+    /// Koşul gerçekleşene kadar kısa aralıklarla yoklar.
+    ///
+    /// ⚠️ Sabit `sleep` ile beklemek CI'da rastgele kırmızıya yol açıyordu:
+    /// koşucu yüklüyken geciktirme görevi verilen süre içinde sıraya girmiyor.
+    /// Bekleme süresi değil **koşul** ölçülür.
+    /// (Bir şeyin *olmadığını* doğrulayan testlerde hâlâ `waitABit` gerekir.)
+    private func waitUntil(
+        _ description: String,
+        timeoutMS: UInt64 = 3_000,
+        _ condition: () -> Bool
+    ) async {
+        let step: UInt64 = 10
+        var waited: UInt64 = 0
+
+        while waited < timeoutMS {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: step * 1_000_000)
+            waited += step
+        }
+        XCTFail("Zaman aşımı: \(description)")
     }
 
     // MARK: - Temel akış
@@ -44,12 +69,11 @@ final class SearchViewModelTests: XCTestCase {
         let viewModel = makeViewModel()
         await viewModel.prepare()
         viewModel.searchText = "spor"
-        await waitABit()
+        await waitUntil("üç türün sonucu da gelmeli") { viewModel.state == .loaded(3) }
 
         XCTAssertEqual(viewModel.channels.count, 1)
         XCTAssertEqual(viewModel.movies.count, 1)
         XCTAssertEqual(viewModel.series.count, 1)
-        XCTAssertEqual(viewModel.state, .loaded(3))
     }
 
     func test_emptyQueryShowsPrompt() async {
@@ -80,9 +104,49 @@ final class SearchViewModelTests: XCTestCase {
         viewModel.searchText = "sp"
         viewModel.searchText = "spo"
         viewModel.searchText = "spor"
-        await waitABit()
+        await waitUntil("sorgu çalışmalı") { !channels.queries.isEmpty }
 
         XCTAssertEqual(channels.queries, ["spor"], "Yalnızca son sorgu çalışmalı")
+    }
+
+    // MARK: - Ebeveyn kilidi
+
+    /// ⚠️ Arama, kilidi atlatmanın en kolay yoludur: içerik listede gizliyken
+    /// adıyla aratılabilir. Süzme burada da uygulanmalı.
+    func test_lockedSearchHidesAdultResults() async {
+        channels.results = [
+            Channel(id: "c1", playlistID: "p1", name: "Spor TV", streamKey: "1"),
+            Channel(id: "c2", playlistID: "p1", name: "Yetişkin TV", streamKey: "2", isAdult: true)
+        ]
+        vod.results = [
+            Movie(id: "m1", playlistID: "p1", title: "Spor Filmi", streamKey: "1"),
+            Movie(id: "m2", playlistID: "p1", title: "Yetişkin Film", streamKey: "2", isAdult: true)
+        ]
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel()
+        await viewModel.prepare()
+        viewModel.searchText = "spor"
+        await waitUntil("sonuçlar gelmeli") { !viewModel.isEmpty }
+
+        XCTAssertEqual(viewModel.channels.map(\.name), ["Spor TV"])
+        XCTAssertEqual(viewModel.movies.map(\.title), ["Spor Filmi"])
+    }
+
+    func test_unlockedSearchShowsEverything() async {
+        channels.results = [
+            Channel(id: "c2", playlistID: "p1", name: "Yetişkin TV", streamKey: "2", isAdult: true)
+        ]
+        parental.enabled = true
+        parental.unlocked = true
+
+        let viewModel = makeViewModel()
+        await viewModel.prepare()
+        viewModel.searchText = "yetişkin"
+        await waitUntil("sonuç gelmeli") { !viewModel.isEmpty }
+
+        XCTAssertEqual(viewModel.channels.count, 1)
     }
 
     // MARK: - Kısmi başarı
@@ -97,9 +161,8 @@ final class SearchViewModelTests: XCTestCase {
         let viewModel = makeViewModel()
         await viewModel.prepare()
         viewModel.searchText = "kanal"
-        await waitABit()
+        await waitUntil("kanal sonucu gelmeli") { viewModel.channels.count == 1 }
 
-        XCTAssertEqual(viewModel.channels.count, 1)
         XCTAssertTrue(viewModel.movies.isEmpty)
         XCTAssertFalse(viewModel.isEmpty)
     }
@@ -122,11 +185,10 @@ final class SearchViewModelTests: XCTestCase {
         let viewModel = makeViewModel()
         await viewModel.prepare()
         viewModel.searchText = "kanal"
-        await waitABit()
-        XCTAssertFalse(viewModel.isEmpty)
+        await waitUntil("önce sonuç gelmeli") { !viewModel.isEmpty }
 
+        // Temizleme senkron: geciktirme beklenmez.
         viewModel.searchText = ""
-        await waitABit()
 
         XCTAssertTrue(viewModel.isEmpty)
         XCTAssertEqual(viewModel.state, .idle)
@@ -150,6 +212,19 @@ final class SearchViewModelTests: XCTestCase {
 }
 
 // MARK: - Sahteler
+
+private final class StubParental: ParentalControlling, @unchecked Sendable {
+
+    var enabled = false
+    var unlocked = true
+
+    func isEnabled() async -> Bool { enabled }
+    func isUnlocked() async -> Bool { unlocked }
+    func setPIN(_ pin: String) async throws { enabled = true }
+    @discardableResult func unlock(with pin: String) async -> Bool { unlocked = true; return true }
+    func lock() async { unlocked = false }
+    func disable(with pin: String) async throws { enabled = false }
+}
 
 private final class StubPlaylists: PlaylistRepository, @unchecked Sendable {
     var active: Playlist? = Playlist(

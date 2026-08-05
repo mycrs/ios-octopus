@@ -19,6 +19,7 @@ public final class FavoritesViewModel: ObservableObject {
 
     private let dependencies: FavoritesDependencies
     private var activePlaylistID: Playlist.ID?
+    private var parentalFilter = ParentalFilter.open
     private var observationTask: Task<Void, Never>?
 
     public init(dependencies: FavoritesDependencies) {
@@ -39,6 +40,7 @@ public final class FavoritesViewModel: ObservableObject {
                 return
             }
             activePlaylistID = playlist.id
+            parentalFilter = await .current(dependencies.parental)
             try await reload(playlistID: playlist.id)
             observeChanges()
         } catch {
@@ -52,8 +54,12 @@ public final class FavoritesViewModel: ObservableObject {
         async let movieList = dependencies.favorites.favoriteMovies(playlistID: playlistID)
         async let seriesList = dependencies.favorites.favoriteSeries(playlistID: playlistID)
 
-        channels = try await channelList
-        movies = try await movieList
+        let foundChannels = try await channelList
+        let foundMovies = try await movieList
+
+        // Yetişkin içerik favorilenmiş olabilir; kilit burada da geçerli.
+        channels = parentalFilter.filter(foundChannels)
+        movies = parentalFilter.filter(foundMovies)
         series = try await seriesList
         state = .loaded(channels.count + movies.count + series.count)
     }

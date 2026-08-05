@@ -106,4 +106,18 @@ public struct ParentalFilter: Sendable {
         guard hidesAdultContent else { return movies }
         return movies.filter { !$0.isAdult }
     }
+
+    /// Kilidin **o anki** durumundan süzgeç üretir.
+    ///
+    /// Her ekran bu iki soruyu ayrı ayrı sormak yerine burayı çağırır;
+    /// biri unutulursa kilit o ekrandan atlatılabilir hale gelirdi.
+    public static func current(_ control: ParentalControlling) async -> ParentalFilter {
+        ParentalFilter(
+            isEnabled: await control.isEnabled(),
+            isUnlocked: await control.isUnlocked()
+        )
+    }
+
+    /// Kilit kurulmamış varsayılan — ekranlar bununla başlar.
+    public static let open = ParentalFilter(isEnabled: false, isUnlocked: true)
 }

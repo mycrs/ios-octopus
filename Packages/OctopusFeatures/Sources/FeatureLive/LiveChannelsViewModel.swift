@@ -32,7 +32,7 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     private var activePlaylistID: Playlist.ID?
     /// Kilit kurulu ve açılmamışsa yetişkin kanallar süzülür.
-    private var parentalFilter = ParentalFilter(isEnabled: false, isUnlocked: true)
+    private var parentalFilter = ParentalFilter.open
     private var searchTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
     private var favoritesTask: Task<Void, Never>?
@@ -149,9 +149,7 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     /// Kilit durumu değişmiş olabilir (Ayarlar'dan açılıp kapanabiliyor).
     public func refreshParentalFilter() async {
-        let isEnabled = await dependencies.parental.isEnabled()
-        let isUnlocked = await dependencies.parental.isUnlocked()
-        parentalFilter = ParentalFilter(isEnabled: isEnabled, isUnlocked: isUnlocked)
+        parentalFilter = await .current(dependencies.parental)
     }
 
     public func clearSearch() {

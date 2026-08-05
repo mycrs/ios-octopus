@@ -8,17 +8,21 @@ public struct SearchDependencies {
     public let channels: ChannelRepository
     public let vod: VODRepository
     public let series: SeriesRepository
+    /// Kilit açıkken yetişkin içerik sonuçlardan çıkarılır.
+    public let parental: ParentalControlling
 
     public init(
         playlists: PlaylistRepository,
         channels: ChannelRepository,
         vod: VODRepository,
-        series: SeriesRepository
+        series: SeriesRepository,
+        parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
         self.channels = channels
         self.vod = vod
         self.series = series
+        self.parental = parental
     }
 }
 

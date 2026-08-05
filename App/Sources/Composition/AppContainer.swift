@@ -238,7 +238,8 @@ final class AppContainer: ObservableObject {
             vod: vod,
             series: series,
             progress: progress,
-            history: history
+            history: history,
+            parental: parental
         )
     }
 
@@ -257,7 +258,8 @@ final class AppContainer: ObservableObject {
             playlists: playlists,
             vod: vod,
             favorites: favorites,
-            progress: progress
+            progress: progress,
+            parental: parental
         )
     }
 
@@ -271,7 +273,11 @@ final class AppContainer: ObservableObject {
     }
 
     func makeFavoritesDependencies() -> FavoritesDependencies {
-        FavoritesDependencies(playlists: playlists, favorites: favorites)
+        FavoritesDependencies(
+            playlists: playlists,
+            favorites: favorites,
+            parental: parental
+        )
     }
 
     func makeSearchDependencies() -> SearchDependencies {
@@ -279,7 +285,8 @@ final class AppContainer: ObservableObject {
             playlists: playlists,
             channels: channels,
             vod: vod,
-            series: series
+            series: series,
+            parental: parental
         )
     }
 

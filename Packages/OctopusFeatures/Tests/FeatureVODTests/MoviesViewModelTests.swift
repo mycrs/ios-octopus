@@ -9,11 +9,13 @@ final class MoviesViewModelTests: XCTestCase {
     private var playlists: StubPlaylists!
     private var vod: StubVOD!
     private var favorites: StubFavorites!
+    private var parental: StubParental!
 
     override func setUp() async throws {
         playlists = StubPlaylists()
         vod = StubVOD()
         favorites = StubFavorites()
+        parental = StubParental()
     }
 
     private func makeViewModel(pageSize: Int = 5) -> MoviesViewModel {
@@ -22,7 +24,8 @@ final class MoviesViewModelTests: XCTestCase {
                 playlists: playlists,
                 vod: vod,
                 favorites: favorites,
-                progress: NoopProgress()
+                progress: NoopProgress(),
+                parental: parental
             ),
             pageSize: pageSize,
             searchDebounce: .milliseconds(10)
@@ -31,6 +34,27 @@ final class MoviesViewModelTests: XCTestCase {
 
     private func waitABit(_ ms: UInt64 = 100) async {
         try? await Task.sleep(nanoseconds: ms * 1_000_000)
+    }
+
+    /// Koşul gerçekleşene kadar kısa aralıklarla yoklar.
+    ///
+    /// ⚠️ Sabit `sleep` ile beklemek CI'da rastgele kırmızıya yol açıyordu:
+    /// koşucu yüklüyken geciktirme görevi verilen süre içinde sıraya girmiyor.
+    /// Bekleme süresi değil **koşul** ölçülür.
+    private func waitUntil(
+        _ description: String,
+        timeoutMS: UInt64 = 3_000,
+        _ condition: () -> Bool
+    ) async {
+        let step: UInt64 = 10
+        var waited: UInt64 = 0
+
+        while waited < timeoutMS {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: step * 1_000_000)
+            waited += step
+        }
+        XCTFail("Zaman aşımı: \(description)")
     }
 
     private func makeMovies(_ count: Int, prefix: String = "Film") -> [Movie] {
@@ -42,6 +66,108 @@ final class MoviesViewModelTests: XCTestCase {
                 streamKey: "\($0)"
             )
         }
+    }
+
+    private func makeAdultMovies(_ count: Int, prefix: String = "Yetişkin") -> [Movie] {
+        (0..<count).map {
+            Movie(
+                id: Movie.ID("\(prefix)-\($0)"),
+                playlistID: "p1",
+                title: "\(prefix) \($0)",
+                streamKey: "\($0)",
+                isAdult: true
+            )
+        }
+    }
+
+    // MARK: - Ebeveyn kilidi
+
+    func test_lockedCatalogHidesAdultMovies() async {
+        vod.stored = makeMovies(3) + makeAdultMovies(2)
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel(pageSize: 5)
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.movies.count, 3)
+        XCTAssertFalse(viewModel.movies.contains { $0.isAdult })
+    }
+
+    /// ⚠️ Asıl tuzak: ofset **çekilen satır** sayısıdır, görünen değil.
+    /// `movies.count` kullanılsaydı gizlenen her film sonraki sayfayı
+    /// geri kaydırır, aynı filmler tekrar tekrar gelirdi.
+    func test_paginationOffsetCountsHiddenRows() async {
+        // İlk sayfa: 3 normal + 2 yetişkin. İkinci sayfa 5'ten başlamalı.
+        vod.stored = makeMovies(3) + makeAdultMovies(2) + makeMovies(5, prefix: "İkinci")
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel(pageSize: 5)
+        await viewModel.load()
+        XCTAssertEqual(viewModel.movies.count, 3)
+
+        await viewModel.loadMore()
+
+        XCTAssertEqual(
+            vod.pageRequests.map(\.offset),
+            [0, 5],
+            "İkinci sayfa 3'ten değil 5'ten istenmeli"
+        )
+        XCTAssertEqual(viewModel.movies.count, 8, "Tekrar eden film olmamalı")
+        XCTAssertEqual(Set(viewModel.movies.map(\.id)).count, 8)
+    }
+
+    func test_fullyAdultFirstPageKeepsFetching() async {
+        // Kilitliyken ilk sayfanın tamamı gizlenirse ekran boş kalmamalı.
+        vod.stored = makeAdultMovies(5) + makeMovies(5, prefix: "Görünür")
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel(pageSize: 5)
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.movies.count, 5, "Sonraki sayfa da çekilmeliydi")
+        XCTAssertEqual(vod.pageRequests.map(\.offset), [0, 5])
+    }
+
+    func test_entirelyAdultCatalogStopsInsteadOfLooping() async {
+        // Baştan sona gizli katalog: sonsuz döngüye girmemeli.
+        vod.stored = makeAdultMovies(200)
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel(pageSize: 5)
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.movies.isEmpty)
+        XCTAssertLessThanOrEqual(vod.pageRequests.count, 5, "Üst sınır aşılmamalı")
+    }
+
+    func test_searchRespectsParentalLock() async {
+        vod.searchResults = makeMovies(2) + makeAdultMovies(3)
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        viewModel.searchText = "film"
+        await waitUntil("arama sonuçları süzülmüş gelmeli") {
+            viewModel.movies.count == 2
+        }
+        XCTAssertFalse(viewModel.movies.contains { $0.isAdult }, "Kilit aramayla atlatılamamalı")
+    }
+
+    func test_unlockedCatalogShowsEverything() async {
+        vod.stored = makeMovies(3) + makeAdultMovies(2)
+        parental.enabled = true
+        parental.unlocked = true
+
+        let viewModel = makeViewModel(pageSize: 5)
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.movies.count, 5)
     }
 
     // MARK: - Sayfalama
@@ -142,9 +268,10 @@ final class MoviesViewModelTests: XCTestCase {
         await viewModel.load()
 
         viewModel.searchText = "sonuç"
-        await waitABit()
+        await waitUntil("arama sonuçları listeyi değiştirmeli") {
+            viewModel.movies.count == 3
+        }
 
-        XCTAssertEqual(viewModel.movies.count, 3)
         XCTAssertFalse(viewModel.canLoadMore, "Arama sonuçlarında sayfalama olmamalı")
 
         // Arama sırasında loadMore çağrılsa bile liste bozulmamalı.
@@ -160,12 +287,12 @@ final class MoviesViewModelTests: XCTestCase {
         await viewModel.load()
 
         viewModel.searchText = "sonuç"
-        await waitABit()
+        await waitUntil("önce arama sonuçları gelmeli") { viewModel.movies.count == 3 }
+
         viewModel.searchText = ""
-        await waitABit()
+        await waitUntil("katalog geri yüklenmeli") { viewModel.movies.count == 5 }
 
         XCTAssertFalse(viewModel.isSearching)
-        XCTAssertEqual(viewModel.movies.count, 5)
         XCTAssertTrue(viewModel.canLoadMore)
     }
 
@@ -218,6 +345,19 @@ private final class StubPlaylists: PlaylistRepository, @unchecked Sendable {
     func update(_ playlist: Playlist) async throws {}
     func setActive(id: Playlist.ID) async throws {}
     func delete(id: Playlist.ID) async throws {}
+}
+
+private final class StubParental: ParentalControlling, @unchecked Sendable {
+
+    var enabled = false
+    var unlocked = true
+
+    func isEnabled() async -> Bool { enabled }
+    func isUnlocked() async -> Bool { unlocked }
+    func setPIN(_ pin: String) async throws { enabled = true }
+    @discardableResult func unlock(with pin: String) async -> Bool { unlocked = true; return true }
+    func lock() async { unlocked = false }
+    func disable(with pin: String) async throws { enabled = false }
 }
 
 private final class StubVOD: VODRepository, @unchecked Sendable {

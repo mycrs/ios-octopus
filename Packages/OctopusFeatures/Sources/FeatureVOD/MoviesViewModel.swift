@@ -26,6 +26,13 @@ public final class MoviesViewModel: ObservableObject {
     private let searchDebounce: Duration
 
     private var activePlaylistID: Playlist.ID?
+    private var parentalFilter = ParentalFilter.open
+    /// Depodan **çekilen** satır sayısı — `movies.count` değil.
+    ///
+    /// ⚠️ Süzme sonrası liste kısalıyor; ofset olarak `movies.count`
+    /// kullanılsaydı gizlenen her film bir sonraki sayfayı geri kaydırır,
+    /// aynı filmler tekrar tekrar gelirdi.
+    private var fetchedRowCount = 0
     private var isLoadingPage = false
     private var searchTask: Task<Void, Never>?
     private var favoritesTask: Task<Void, Never>?
@@ -60,6 +67,7 @@ public final class MoviesViewModel: ObservableObject {
                 return
             }
             activePlaylistID = playlist.id
+            parentalFilter = await .current(dependencies.parental)
             categories = try await dependencies.vod.categories(playlistID: playlist.id)
             observeFavorites()
             await reloadFirstPage()
@@ -79,19 +87,14 @@ public final class MoviesViewModel: ObservableObject {
         guard let playlistID = activePlaylistID else { return }
 
         canLoadMore = true
+        fetchedRowCount = 0
+        movies = []
         isLoadingPage = true
         defer { isLoadingPage = false }
 
         do {
-            let page = try await dependencies.vod.movies(
-                playlistID: playlistID,
-                categoryID: selectedCategoryID,
-                limit: pageSize,
-                offset: 0
-            )
-            movies = page
-            canLoadMore = page.count == pageSize
-            state = .loaded(page.count)
+            try await fetchVisiblePages(playlistID: playlistID)
+            state = .loaded(movies.count)
         } catch {
             state = .failed(AppError.wrap(error))
         }
@@ -117,21 +120,40 @@ public final class MoviesViewModel: ObservableObject {
         defer { isLoadingPage = false }
 
         do {
-            let page = try await dependencies.vod.movies(
-                playlistID: playlistID,
-                categoryID: selectedCategoryID,
-                limit: pageSize,
-                offset: movies.count
-            )
-            // Sıralama sabit olduğu için sayfalar üst üste binmez.
-            movies.append(contentsOf: page)
-            canLoadMore = page.count == pageSize
+            try await fetchVisiblePages(playlistID: playlistID)
             state = .loaded(movies.count)
         } catch {
             // Sayfa hatası mevcut listeyi düşürmemeli.
             canLoadMore = false
         }
     }
+
+    /// Listeye görünür en az bir film eklenene kadar sayfa çeker.
+    ///
+    /// Ebeveyn kilidi açıkken bir kategorinin tamamı yetişkin içerik
+    /// olabilir. Tek sayfa çekip durmak listeyi boş gösterir, kullanıcı da
+    /// "daha fazla" tetikleyecek bir şey göremediği için orada kalırdı.
+    /// Üst sınır var: baştan sona gizli bir katalogda sonsuza kadar dönmesin.
+    private func fetchVisiblePages(playlistID: Playlist.ID) async throws {
+        for _ in 0..<Self.maxPagesPerFetch {
+            let page = try await dependencies.vod.movies(
+                playlistID: playlistID,
+                categoryID: selectedCategoryID,
+                limit: pageSize,
+                offset: fetchedRowCount
+            )
+            fetchedRowCount += page.count
+            canLoadMore = page.count == pageSize
+
+            // Sıralama sabit olduğu için sayfalar üst üste binmez.
+            let allowed = parentalFilter.filter(page)
+            movies.append(contentsOf: allowed)
+
+            if !allowed.isEmpty || !canLoadMore { return }
+        }
+    }
+
+    private static let maxPagesPerFetch = 5
 
     // MARK: - Arama
 
@@ -165,9 +187,10 @@ public final class MoviesViewModel: ObservableObject {
                 limit: 200
             )
             guard !Task.isCancelled else { return }
-            movies = results
+            // Arama sonuçları da süzülür; aksi halde kilit aramayla atlatılırdı.
+            movies = parentalFilter.filter(results)
             canLoadMore = false
-            state = .loaded(results.count)
+            state = .loaded(movies.count)
         } catch {
             state = .failed(AppError.wrap(error))
         }

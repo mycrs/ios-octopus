@@ -30,6 +30,7 @@ public final class SearchViewModel: ObservableObject {
     private let resultLimit: Int
 
     private var activePlaylistID: Playlist.ID?
+    private var parentalFilter = ParentalFilter.open
     private var searchTask: Task<Void, Never>?
 
     public init(
@@ -49,6 +50,9 @@ public final class SearchViewModel: ObservableObject {
 
     public func prepare() async {
         activePlaylistID = try? await dependencies.playlists.activePlaylist()?.id
+        // Ekran her açıldığında tazelenir: kullanıcı ayarlardan kilidi
+        // değiştirmiş olabilir.
+        parentalFilter = await .current(dependencies.parental)
     }
 
     // MARK: - Arama
@@ -100,10 +104,13 @@ public final class SearchViewModel: ObservableObject {
 
         guard !Task.isCancelled else { return }
 
-        channels = foundChannels
-        movies = foundMovies
+        // ⚠️ Süzme burada şart: arama, kilidi atlatmanın en kolay yoludur —
+        // yetişkin içerik listede gizliyken adıyla aratılabilirdi.
+        channels = parentalFilter.filter(foundChannels)
+        movies = parentalFilter.filter(foundMovies)
         series = foundSeries
-        state = .loaded(foundChannels.count + foundMovies.count + foundSeries.count)
+
+        state = .loaded(channels.count + movies.count + series.count)
     }
 
     public func clearSearch() {

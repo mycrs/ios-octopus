@@ -10,6 +10,11 @@ public struct HomeDependencies {
     public let series: SeriesRepository
     public let progress: PlaybackProgressRepository
     public let history: WatchHistoryRepository
+    /// Kilit açıkken raflardaki yetişkin içerik gizlenir.
+    ///
+    /// ⚠️ "Kaldığın yer" rafı özellikle önemli: kilit kurulmadan önce
+    /// izlenen bir film burada afişiyle durmaya devam ederdi.
+    public let parental: ParentalControlling
 
     public init(
         playlists: PlaylistRepository,
@@ -17,7 +22,8 @@ public struct HomeDependencies {
         vod: VODRepository,
         series: SeriesRepository,
         progress: PlaybackProgressRepository,
-        history: WatchHistoryRepository
+        history: WatchHistoryRepository,
+        parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
         self.channels = channels
@@ -25,6 +31,7 @@ public struct HomeDependencies {
         self.series = series
         self.progress = progress
         self.history = history
+        self.parental = parental
     }
 }
 

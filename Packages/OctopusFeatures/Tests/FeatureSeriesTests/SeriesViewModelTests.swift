@@ -34,6 +34,27 @@ final class SeriesViewModelTests: XCTestCase {
         try? await Task.sleep(nanoseconds: ms * 1_000_000)
     }
 
+    /// Koşul gerçekleşene kadar kısa aralıklarla yoklar.
+    ///
+    /// ⚠️ Sabit `sleep` ile beklemek CI'da rastgele kırmızıya yol açıyordu:
+    /// koşucu paralel iş yüzünden yüklüyken 10 ms'lik geciktirme görevi
+    /// 100 ms içinde sıraya girmiyor. Bekleme süresi değil **koşul** ölçülür.
+    private func waitUntil(
+        _ description: String,
+        timeoutMS: UInt64 = 3_000,
+        _ condition: () -> Bool
+    ) async {
+        let step: UInt64 = 10
+        var waited: UInt64 = 0
+
+        while waited < timeoutMS {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: step * 1_000_000)
+            waited += step
+        }
+        XCTFail("Zaman aşımı: \(description)")
+    }
+
     private func makeSeries(_ count: Int) -> [Series] {
         (0..<count).map {
             Series(
@@ -110,7 +131,9 @@ final class SeriesViewModelTests: XCTestCase {
         await viewModel.load()
 
         viewModel.searchText = "bul"
-        await waitABit()
+        await waitUntil("arama sonuçları listeye yansımalı") {
+            viewModel.series.map(\.title) == ["Bulundu"]
+        }
 
         XCTAssertEqual(viewModel.series.map(\.title), ["Bulundu"])
         XCTAssertFalse(viewModel.canLoadMore)

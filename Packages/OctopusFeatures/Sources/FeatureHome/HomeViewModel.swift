@@ -31,6 +31,7 @@ public final class HomeViewModel: ObservableObject {
 
     private let dependencies: HomeDependencies
     private let shelfLimit: Int
+    private var parentalFilter = ParentalFilter.open
 
     public init(dependencies: HomeDependencies, shelfLimit: Int = 12) {
         self.dependencies = dependencies
@@ -47,6 +48,9 @@ public final class HomeViewModel: ObservableObject {
                 return
             }
 
+            // Raflar süzülmeden önce kilit durumu bilinmeli.
+            parentalFilter = await .current(dependencies.parental)
+
             // Üç raf birbirinden bağımsız; paralel yüklenir.
             async let resume = loadResumeItems(playlistID: playlist.id)
             async let added = dependencies.vod.recentlyAdded(
@@ -59,8 +63,8 @@ public final class HomeViewModel: ObservableObject {
             )
 
             resumeItems = await resume
-            recentlyAdded = (try? await added) ?? []
-            recentChannels = (try? await channels) ?? []
+            recentlyAdded = parentalFilter.filter((try? await added) ?? [])
+            recentChannels = parentalFilter.filter((try? await channels) ?? [])
 
             state = .loaded(resumeItems.count + recentlyAdded.count + recentChannels.count)
         } catch {
@@ -86,7 +90,9 @@ public final class HomeViewModel: ObservableObject {
 
             switch source {
             case .movie(let id):
-                guard let movie = try? await dependencies.vod.movie(id: id) else { continue }
+                guard let movie = try? await dependencies.vod.movie(id: id),
+                      parentalFilter.allows(movie: movie)
+                else { continue }
                 items.append(
                     ResumeItem(
                         id: progress.itemKey,

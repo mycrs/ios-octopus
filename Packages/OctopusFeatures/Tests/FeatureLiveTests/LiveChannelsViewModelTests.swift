@@ -39,6 +39,28 @@ final class LiveChannelsViewModelTests: XCTestCase {
         try? await Task.sleep(nanoseconds: milliseconds * 1_000_000)
     }
 
+    /// Koşul gerçekleşene kadar kısa aralıklarla yoklar.
+    ///
+    /// ⚠️ Sabit `sleep` ile beklemek CI'da rastgele kırmızıya yol açıyordu:
+    /// koşucu paralel iş yüzünden yüklüyken geciktirme görevi verilen süre
+    /// içinde sıraya girmiyor. Bekleme süresi değil **koşul** ölçülür.
+    /// (Bir şeyin *olmadığını* doğrulayan testlerde hâlâ `waitABit` gerekir.)
+    private func waitUntil(
+        _ description: String,
+        timeoutMS: UInt64 = 3_000,
+        _ condition: () -> Bool
+    ) async {
+        let step: UInt64 = 10
+        var waited: UInt64 = 0
+
+        while waited < timeoutMS {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: step * 1_000_000)
+            waited += step
+        }
+        XCTFail("Zaman aşımı: \(description)")
+    }
+
     // MARK: - Yükleme
 
     func test_load_withoutActivePlaylist_showsEmptyNotError() async {
@@ -104,7 +126,9 @@ final class LiveChannelsViewModelTests: XCTestCase {
         viewModel.searchText = "s"
         viewModel.searchText = "sp"
         viewModel.searchText = "spo"
-        await waitABit()
+        await waitUntil("arama sonucu listeye yansımalı") {
+            viewModel.channels.map(\.name) == ["Spor Kanalı"]
+        }
 
         XCTAssertEqual(channels.searchQueries, ["spo"], "Yalnızca son sorgu çalışmalı")
         XCTAssertEqual(viewModel.channels.map(\.name), ["Spor Kanalı"])
@@ -119,14 +143,16 @@ final class LiveChannelsViewModelTests: XCTestCase {
         await waitABit()
 
         viewModel.searchText = "spor"
-        await waitABit()
-        XCTAssertEqual(viewModel.channels.map(\.name), ["Spor Kanalı"])
+        await waitUntil("arama sonucu gelmeli") {
+            viewModel.channels.map(\.name) == ["Spor Kanalı"]
+        }
 
         viewModel.searchText = ""
-        await waitABit()
+        await waitUntil("kategori listesine dönmeli") {
+            viewModel.channels.map(\.name) == ["TRT 1"]
+        }
 
         XCTAssertFalse(viewModel.isSearching)
-        XCTAssertEqual(viewModel.channels.map(\.name), ["TRT 1"], "Kategori listesine dönmeli")
     }
 
     func test_whitespaceOnlySearchIsIgnored() async {
@@ -243,9 +269,9 @@ final class LiveChannelsViewModelTests: XCTestCase {
         await waitABit()
 
         viewModel.searchText = "sonuç"
-        await waitABit()
-
-        XCTAssertEqual(viewModel.channels.map(\.name), ["Normal Sonuç"])
+        await waitUntil("arama sonucu süzülmüş gelmeli") {
+            viewModel.channels.map(\.name) == ["Normal Sonuç"]
+        }
     }
 
     // MARK: - Canlı gözlem

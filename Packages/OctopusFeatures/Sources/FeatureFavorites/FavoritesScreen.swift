@@ -6,10 +6,17 @@ import OctopusNavigation
 public struct FavoritesDependencies {
     public let playlists: PlaylistRepository
     public let favorites: FavoritesRepository
+    /// Yetişkin içerik favorilenmiş olabilir; kilit açıkken o da gizlenir.
+    public let parental: ParentalControlling
 
-    public init(playlists: PlaylistRepository, favorites: FavoritesRepository) {
+    public init(
+        playlists: PlaylistRepository,
+        favorites: FavoritesRepository,
+        parental: ParentalControlling = OpenParentalControl()
+    ) {
         self.playlists = playlists
         self.favorites = favorites
+        self.parental = parental
     }
 }
 
