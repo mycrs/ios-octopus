@@ -111,11 +111,33 @@ jobs:
           echo "::endgroup::"
 
           xcrun simctl install booted "$APP_PATH"
-          xcrun simctl launch booted com.octopus.iptv
 
-          # Açılış animasyonu ve ilk çizim için pay bırak.
-          sleep 8
-          xcrun simctl io booted screenshot screenshots/01-acilis.png
+          # 1) Kaynak eklenmemiş hâl — karşılama ekranı.
+          xcrun simctl launch booted com.octopus.iptv
+          sleep 8   # açılış animasyonu ve ilk çizim
+          xcrun simctl io booted screenshot screenshots/01-karsilama.png
+
+          # 2) İçerikli ekranlar.
+          #
+          # Kaynak eklenmemiş uygulamada tek görülebilen ekran karşılamaydı;
+          # ana sayfa, katalog ızgarası ve kanal listesi hiç kare alınamıyordu
+          # ve tasarım kör yapılıyordu. `-seedDemoData` sahte katalog yazar.
+          #
+          # `-startup.tab` bir NSUserDefaults anahtarıdır: iOS, `-anahtar değer`
+          # biçimindeki açılış argümanlarını otomatik olarak varsayılanlara
+          # yazar. Uygulamada ekstra kod gerekmiyor.
+          shoot() {
+            xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+            xcrun simctl launch booted com.octopus.iptv \
+              -seedDemoData -startup.tab "$1" >/dev/null
+            sleep 6
+            xcrun simctl io booted screenshot "screenshots/$2"
+          }
+
+          shoot home   02-ana-sayfa.png
+          shoot live   03-canli-tv.png
+          shoot movies 04-filmler.png
+          shoot settings 05-ayarlar.png
 
           # Not: açık tema karesi alınmıyor — uygulama şu an
           # .preferredColorScheme(.dark) ile koyu temayı zorluyor.

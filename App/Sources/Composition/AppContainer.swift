@@ -52,6 +52,10 @@ final class AppContainer: ObservableObject {
     /// Ebeveyn kilidi depolamadan bağımsız çalışır (Keychain).
     private let parental: ParentalControlling
 
+    /// Yalnızca CI ekran görüntüsü tohumlaması için saklanır.
+    /// Depolar protokol arkasında; bu referans onların yerine geçmez.
+    private let seedableDatabase: AppDatabase?
+
     // MARK: - Oynatma
 
     private let engineResolver: PlaybackEngineResolver
@@ -95,7 +99,10 @@ final class AppContainer: ObservableObject {
         secrets = secretStore
         parental = KeychainParentalControl(secrets: secretStore)
 
-        if let database = database ?? Self.openDatabase() {
+        let openedDatabase = database ?? Self.openDatabase()
+        seedableDatabase = openedDatabase
+
+        if let database = openedDatabase {
             let playlistRepository = GRDBPlaylistRepository(
                 database: database,
                 secrets: secretStore
@@ -200,6 +207,8 @@ final class AppContainer: ObservableObject {
 
     /// Açılışta kaynak var mı? Yoksa onboarding gösterilir.
     func bootstrap() async {
+        await seedDemoDataIfRequested()
+
         do {
             let active = try await playlists.activePlaylist()
             router.needsOnboarding = (active == nil)
@@ -209,6 +218,17 @@ final class AppContainer: ObservableObject {
         }
 
         await refreshRemoteConfig()
+    }
+
+    /// CI ekran görüntüsü modu: sahte katalog yazılır.
+    ///
+    /// Tasarım kör yapılmasın diye — kaynak eklenmemiş bir uygulamada
+    /// yalnızca karşılama ekranı kare alınabiliyordu.
+    private func seedDemoDataIfRequested() async {
+        #if DEBUG
+        guard DemoCatalogSeeder.isRequested, let database = seedableDatabase else { return }
+        try? await DemoCatalogSeeder.seed(into: database)
+        #endif
     }
 
     /// Panel yapılandırmasını tazeler ve markayı uygular.
