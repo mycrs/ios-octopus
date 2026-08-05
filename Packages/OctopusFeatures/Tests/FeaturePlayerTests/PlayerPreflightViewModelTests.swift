@@ -7,6 +7,10 @@ import OctopusDomain
 /// ⚠️ Xtream adresleri kimlik bilgilerini **yolun içinde** taşır:
 /// `http://sunucu:8080/kullanici/parola/12345.ts`
 /// Bu, IPTV'ye özgü ve kolayca gözden kaçan bir sızıntı yolu.
+///
+/// `@MainActor`: `PlayerPreflightViewModel` MainActor'a bağlı, statik
+/// üyeleri de öyle. İzolasyonsuz bir bağlamdan çağrılamaz.
+@MainActor
 final class PlayerPreflightMaskingTests: XCTestCase {
 
     private func mask(_ raw: String) throws -> String {
