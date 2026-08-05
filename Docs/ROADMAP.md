@@ -67,20 +67,26 @@ derlenmeyen ara durum olmaz. Bir faz bitmeden sonrakine geçilmez.
 
 ---
 
-## Faz 2 — Kaynak sağlayıcıları + ağ dayanıklılığı
+## ✅ Faz 2 — Kaynak sağlayıcıları + ağ dayanıklılığı *(ana gövde tamam)*
 
-- [ ] `XtreamContentProvider` — auth, kategoriler, live/vod/series, `get_short_epg`, `exp_date`
-- [ ] `M3UContentProvider` — `#EXTINF` akış parser'ı (bellek dostu)
-- [ ] `ActivationContentProvider` — `/api/activation/redeem` → hesap bilgisi
-- [ ] `XMLTVParser` — akış halinde parse, parça parça insert, iptal kontrolü
-- [ ] Akış URL kurucuları (`StreamResolving`)
-- [ ] `ContentSyncService` — aşamalı ilerleme
-- [ ] **Ağ katmanı:** zaman aşımı (connect ~10s / read ~15s), üstel geri çekilme, `CancellationError` ayrımı
-- [ ] **DNS failover** — `/api/dns-list` + host probe
-- [ ] Sabit örnek cevaplarla parser testleri
+- [x] **Ağ katmanı:** zaman aşımı, üstel geri çekilme, `CancellationError` ayrımı, `User-Agent`
+- [x] **Tutarsızlığa dayanıklı kod çözme** (`@Lenient`) — panellerin tip tutarsızlığı
+- [x] `XtreamContentProvider` — auth (`auth:0` denetimi dahil), kategoriler, live/vod/series
+- [x] `M3UContentProvider` + `M3UParser` — satır satır, önbellekli
+- [x] `XMLTVParser` — akış halinde, parça parça teslim, iptal denetimli
+- [x] `DefaultContentProviderFactory` — kaynak türü dallanmasının tek yeri
+- [x] `ProviderStreamResolver` — akış adresi + devam noktası + başlıklar
+- [x] `CatalogWriter` + `ContentSyncService` — değiştir stratejisi, kısmi başarı
+- [x] Sabit örnek cevaplarla 90+ test
+- [ ] ~~`ActivationContentProvider`~~ → **Faz 4'e taşındı** (panel API'si orada kuruluyor)
+- [ ] ~~DNS failover~~ → **Faz 4'e taşındı** (`/api/dns-list` panel ucu)
+- [ ] ~~EPG senkronizasyonu~~ → **Faz 7'ye taşındı** (çözümleyici hazır, bağlanacak)
 
-**Bitti tanımı:** Üç kaynak türü de senkronize oluyor. Ölü sunucuda yedeğe geçiliyor.
-Bozuk/eksik alanlar çökmeye sebep olmuyor.
+**Bitti tanımı:** ✅ Xtream ve M3U kaynakları senkronize oluyor, bozuk/eksik
+alanlar çökmeye sebep olmuyor. CI run `30949745419`, 146 test.
+
+> ⚠️ **Gerçek hesapla henüz denenmedi.** Testler sabit örneklerle çalışıyor.
+> İlk gerçek sınav Faz 3'te, kendi hesabın girildiğinde olacak.
 
 ---
 
