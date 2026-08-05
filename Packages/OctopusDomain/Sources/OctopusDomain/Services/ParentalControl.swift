@@ -102,9 +102,18 @@ public struct ParentalFilter: Sendable {
         return channels.filter { !$0.isAdult }
     }
 
+    public func allows(series: Series) -> Bool {
+        !(hidesAdultContent && series.isAdult)
+    }
+
     public func filter(_ movies: [Movie]) -> [Movie] {
         guard hidesAdultContent else { return movies }
         return movies.filter { !$0.isAdult }
+    }
+
+    public func filter(_ series: [Series]) -> [Series] {
+        guard hidesAdultContent else { return series }
+        return series.filter { !$0.isAdult }
     }
 
     /// Kilidin **o anki** durumundan süzgeç üretir.

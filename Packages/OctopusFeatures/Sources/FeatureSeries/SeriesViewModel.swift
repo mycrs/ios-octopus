@@ -32,6 +32,9 @@ public final class SeriesViewModel: ObservableObject {
     private let searchDebounce: Duration
 
     private var activePlaylistID: Playlist.ID?
+    private var parentalFilter = ParentalFilter.open
+    /// Depodan **çekilen** satır sayısı — `series.count` değil.
+    private var fetchedRowCount = 0
     private var isLoadingPage = false
     private var searchTask: Task<Void, Never>?
     private var favoritesTask: Task<Void, Never>?
@@ -64,6 +67,7 @@ public final class SeriesViewModel: ObservableObject {
                 return
             }
             activePlaylistID = playlist.id
+            parentalFilter = await .current(dependencies.parental)
             categories = try await dependencies.series.categories(playlistID: playlist.id)
             observeFavorites()
             await reloadFirstPage()
@@ -83,19 +87,14 @@ public final class SeriesViewModel: ObservableObject {
         guard let playlistID = activePlaylistID else { return }
 
         canLoadMore = true
+        fetchedRowCount = 0
+        series = []
         isLoadingPage = true
         defer { isLoadingPage = false }
 
         do {
-            let page = try await dependencies.series.series(
-                playlistID: playlistID,
-                categoryID: selectedCategoryID,
-                limit: pageSize,
-                offset: 0
-            )
-            series = page
-            canLoadMore = page.count == pageSize
-            state = .loaded(page.count)
+            try await fetchVisiblePages(playlistID: playlistID)
+            state = .loaded(series.count)
         } catch {
             state = .failed(AppError.wrap(error))
         }
@@ -117,19 +116,37 @@ public final class SeriesViewModel: ObservableObject {
         defer { isLoadingPage = false }
 
         do {
-            let page = try await dependencies.series.series(
-                playlistID: playlistID,
-                categoryID: selectedCategoryID,
-                limit: pageSize,
-                offset: series.count
-            )
-            series.append(contentsOf: page)
-            canLoadMore = page.count == pageSize
+            try await fetchVisiblePages(playlistID: playlistID)
             state = .loaded(series.count)
         } catch {
             canLoadMore = false
         }
     }
+
+    /// Listeye görünür en az bir dizi eklenene kadar sayfa çeker.
+    ///
+    /// Kalıp film ekranıyla aynı — gerekçesi de: ofset **çekilen ham satır**
+    /// sayısıdır, görünen değil. Ebeveyn kilidi bir sayfanın tamamını
+    /// gizleyebilir; tek sayfa çekip durmak listeyi boş bırakırdı.
+    private func fetchVisiblePages(playlistID: Playlist.ID) async throws {
+        for _ in 0..<Self.maxPagesPerFetch {
+            let page = try await dependencies.series.series(
+                playlistID: playlistID,
+                categoryID: selectedCategoryID,
+                limit: pageSize,
+                offset: fetchedRowCount
+            )
+            fetchedRowCount += page.count
+            canLoadMore = page.count == pageSize
+
+            let allowed = parentalFilter.filter(page)
+            series.append(contentsOf: allowed)
+
+            if !allowed.isEmpty || !canLoadMore { return }
+        }
+    }
+
+    private static let maxPagesPerFetch = 5
 
     // MARK: - Arama
 
@@ -163,9 +180,10 @@ public final class SeriesViewModel: ObservableObject {
                 limit: 200
             )
             guard !Task.isCancelled else { return }
-            series = results
+            // Arama sonuçları da süzülür; aksi halde kilit aramayla atlatılırdı.
+            series = parentalFilter.filter(results)
             canLoadMore = false
-            state = .loaded(results.count)
+            state = .loaded(series.count)
         } catch {
             state = .failed(AppError.wrap(error))
         }

@@ -108,7 +108,7 @@ public final class SearchViewModel: ObservableObject {
         // yetişkin içerik listede gizliyken adıyla aratılabilirdi.
         channels = parentalFilter.filter(foundChannels)
         movies = parentalFilter.filter(foundMovies)
-        series = foundSeries
+        series = parentalFilter.filter(foundSeries)
 
         state = .loaded(channels.count + movies.count + series.count)
     }

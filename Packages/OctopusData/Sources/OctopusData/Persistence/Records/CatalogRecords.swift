@@ -114,6 +114,7 @@ struct SeriesRecord: Codable, FetchableRecord, PersistableRecord {
     var cast: String
     var releaseDate: Date?
     var lastModified: Date?
+    var isAdult: Bool
     var detailsLoadedAt: Date?
 
     init(_ series: Series, detailsLoadedAt: Date? = nil) {
@@ -130,6 +131,7 @@ struct SeriesRecord: Codable, FetchableRecord, PersistableRecord {
         self.cast = StringListColumn.encode(series.cast)
         self.releaseDate = series.releaseDate
         self.lastModified = series.lastModified
+        self.isAdult = series.isAdult
         self.detailsLoadedAt = detailsLoadedAt
     }
 
@@ -147,7 +149,8 @@ struct SeriesRecord: Codable, FetchableRecord, PersistableRecord {
             genres: StringListColumn.decode(genres),
             cast: StringListColumn.decode(cast),
             releaseDate: releaseDate,
-            lastModified: lastModified
+            lastModified: lastModified,
+            isAdult: isAdult
         )
     }
 }

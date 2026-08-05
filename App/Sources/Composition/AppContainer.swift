@@ -268,7 +268,8 @@ final class AppContainer: ObservableObject {
             playlists: playlists,
             series: series,
             favorites: favorites,
-            progress: progress
+            progress: progress,
+            parental: parental
         )
     }
 

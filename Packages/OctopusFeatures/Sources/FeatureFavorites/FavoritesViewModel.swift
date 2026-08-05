@@ -56,11 +56,12 @@ public final class FavoritesViewModel: ObservableObject {
 
         let foundChannels = try await channelList
         let foundMovies = try await movieList
+        let foundSeries = try await seriesList
 
         // Yetişkin içerik favorilenmiş olabilir; kilit burada da geçerli.
         channels = parentalFilter.filter(foundChannels)
         movies = parentalFilter.filter(foundMovies)
-        series = try await seriesList
+        series = parentalFilter.filter(foundSeries)
         state = .loaded(channels.count + movies.count + series.count)
     }
 

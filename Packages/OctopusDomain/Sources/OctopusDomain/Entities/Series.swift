@@ -26,6 +26,9 @@ public struct Series: Identifiable, Hashable, Codable, Sendable {
     public var releaseDate: Date?
     public var lastModified: Date?
 
+    /// Yetişkin içerik — ebeveyn kilidi bunu okur.
+    public var isAdult: Bool
+
     public init(
         id: ID,
         playlistID: Playlist.ID,
@@ -39,7 +42,8 @@ public struct Series: Identifiable, Hashable, Codable, Sendable {
         genres: [String] = [],
         cast: [String] = [],
         releaseDate: Date? = nil,
-        lastModified: Date? = nil
+        lastModified: Date? = nil,
+        isAdult: Bool = false
     ) {
         self.id = id
         self.playlistID = playlistID
@@ -54,6 +58,7 @@ public struct Series: Identifiable, Hashable, Codable, Sendable {
         self.cast = cast
         self.releaseDate = releaseDate
         self.lastModified = lastModified
+        self.isAdult = isAdult
     }
 }
 

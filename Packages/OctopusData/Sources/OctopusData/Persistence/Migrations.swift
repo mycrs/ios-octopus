@@ -153,6 +153,7 @@ extension AppDatabase {
             t.column("cast", .text).notNull().defaults(to: "[]")
             t.column("releaseDate", .datetime)
             t.column("lastModified", .datetime)
+            t.column("isAdult", .boolean).notNull().defaults(to: false)
             t.column("detailsLoadedAt", .datetime)
         }
         try db.create(

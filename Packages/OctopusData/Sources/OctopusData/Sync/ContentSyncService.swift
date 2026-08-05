@@ -95,7 +95,13 @@ public actor ContentSyncService: ContentSyncing {
         try await writer.replaceLiveCatalog(
             playlistID: playlistID,
             categories: liveCategories,
-            channels: channels
+            // ⚠️ Yetişkin bayrağı burada tamamlanır: sağlayıcıların çoğu
+            // `is_adult` alanını doldurmuyor, M3U'da böyle bir alan hiç yok.
+            // Kategori adı ile içerik ancak bu noktada bir arada.
+            channels: AdultContentDetector.markAdultContent(
+                channels,
+                categories: liveCategories
+            )
         )
 
         // ── Film ve dizi: isteğe bağlı ──────────────────────────────
@@ -110,7 +116,7 @@ public actor ContentSyncService: ContentSyncing {
             try await self.writer.replaceMovieCatalog(
                 playlistID: playlistID,
                 categories: categories,
-                movies: movies
+                movies: AdultContentDetector.markAdultContent(movies, categories: categories)
             )
         }
 
@@ -124,7 +130,7 @@ public actor ContentSyncService: ContentSyncing {
             try await self.writer.replaceSeriesCatalog(
                 playlistID: playlistID,
                 categories: categories,
-                series: series
+                series: AdultContentDetector.markAdultContent(series, categories: categories)
             )
         }
 

@@ -8,17 +8,21 @@ public struct SeriesDependencies {
     public let series: SeriesRepository
     public let favorites: FavoritesRepository
     public let progress: PlaybackProgressRepository
+    /// Kilit açıkken yetişkin diziler katalogdan gizlenir.
+    public let parental: ParentalControlling
 
     public init(
         playlists: PlaylistRepository,
         series: SeriesRepository,
         favorites: FavoritesRepository,
-        progress: PlaybackProgressRepository
+        progress: PlaybackProgressRepository,
+        parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
         self.series = series
         self.favorites = favorites
         self.progress = progress
+        self.parental = parental
     }
 }
 
