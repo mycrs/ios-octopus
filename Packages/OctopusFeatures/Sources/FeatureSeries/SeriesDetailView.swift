@@ -9,6 +9,9 @@ public struct SeriesDetailView: View {
     @StateObject private var viewModel: SeriesDetailViewModel
     @EnvironmentObject private var router: AppRouter
 
+    /// Uzun özetler ekranı doldurmasın; kullanıcı isterse açar.
+    @State private var isPlotExpanded = false
+
     public init(seriesID: Series.ID, dependencies: SeriesDependencies) {
         _viewModel = StateObject(
             wrappedValue: SeriesDetailViewModel(seriesID: seriesID, dependencies: dependencies)
@@ -20,23 +23,9 @@ public struct SeriesDetailView: View {
             Theme.Palette.background.ignoresSafeArea()
             content
         }
-        .navigationTitle(viewModel.series?.title ?? "Dizi")
+        // Başlık boş: dizi adı sinematik başlıkta duruyor, tepede ikinci
+        // kez yazmak arka plan görselini gereksiz yere örtüyordu.
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    Task { await viewModel.toggleFavorite() }
-                } label: {
-                    Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
-                        .foregroundColor(
-                            viewModel.isFavorite ? Theme.Palette.live : Theme.Palette.textSecondary
-                        )
-                }
-                .accessibilityLabel(
-                    viewModel.isFavorite ? "Favorilerden çıkar" : "Favorilere ekle"
-                )
-            }
-        }
         .task { await viewModel.load() }
         .refreshable { await viewModel.refresh() }
     }
@@ -69,13 +58,11 @@ public struct SeriesDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 if let series = viewModel.series {
-                    SeriesHeaderView(
-                        series: series,
-                        resumeEpisode: viewModel.resumeEpisode,
-                        onPlay: { episode in
-                            router.presentPlayer(.episode(episode.id))
-                        }
-                    )
+                    header(series)
+                }
+
+                if let plot = viewModel.series?.plot, !plot.isEmpty {
+                    plotBlock(plot)
                 }
 
                 if viewModel.seasons.count > 1 {
@@ -84,6 +71,7 @@ public struct SeriesDetailView: View {
                         selectedNumber: viewModel.selectedSeasonNumber,
                         onSelect: { number in Task { await viewModel.selectSeason(number) } }
                     )
+                    .padding(.horizontal, Theme.Spacing.md)
                 }
 
                 LazyVStack(spacing: Theme.Spacing.sm) {
@@ -96,65 +84,73 @@ public struct SeriesDetailView: View {
                         )
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.md)
             }
-            .padding(Theme.Spacing.md)
+            .padding(.bottom, Theme.Spacing.xl)
+        }
+        // Arka plan görseli durum çubuğunun altına uzansın.
+        .ignoresSafeArea(edges: .top)
+    }
+
+    private func header(_ series: Series) -> some View {
+        DetailHeaderView(
+            backdropURL: series.backdropURL,
+            posterURL: series.posterURL,
+            title: series.title,
+            subtitle: viewModel.seasonSummary,
+            chips: viewModel.chips
+        ) {
+            actions
         }
     }
-}
 
-/// Künye: afiş, özet, "devam et" düğmesi.
-private struct SeriesHeaderView: View {
-
-    let series: Series
-    let resumeEpisode: Episode?
-    let onPlay: (Episode) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            HStack(alignment: .top, spacing: Theme.Spacing.md) {
-                PosterView(url: series.posterURL, width: 110)
-
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text(series.title)
-                        .font(Theme.Typography.sectionTitle)
-                        .foregroundColor(Theme.Palette.textPrimary)
-
-                    if let rating = series.rating, rating > 0 {
-                        Label(String(format: "%.1f", rating), systemImage: "star.fill")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Palette.warning)
-                    }
-
-                    if !series.genres.isEmpty {
-                        Text(series.genres.joined(separator: " · "))
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Palette.textSecondary)
-                            .lineLimit(2)
-                    }
-
-                    if let resumeEpisode {
-                        Button {
-                            onPlay(resumeEpisode)
-                        } label: {
-                            Label(
-                                "\(resumeEpisode.shortLabel) oynat",
-                                systemImage: "play.fill"
-                            )
-                            .font(Theme.Typography.caption)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(Theme.Palette.accent)
-                        .padding(.top, Theme.Spacing.xs)
-                    }
+    private var actions: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Button {
+                if let episode = viewModel.resumeEpisode {
+                    router.presentPlayer(.episode(episode.id))
                 }
+            } label: {
+                Label(viewModel.playButtonTitle, systemImage: "play.fill")
+                    .font(Theme.Typography.rowTitle)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Theme.Spacing.sm)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.Palette.accent)
+            .disabled(viewModel.resumeEpisode == nil)
 
-            if let plot = series.plot, !plot.isEmpty {
-                Text(plot)
-                    .font(Theme.Typography.rowSubtitle)
-                    .foregroundColor(Theme.Palette.textSecondary)
+            Button {
+                Task { await viewModel.toggleFavorite() }
+            } label: {
+                Image(systemName: viewModel.isFavorite ? "heart.fill" : "heart")
+                    .font(Theme.Typography.rowTitle)
+                    .frame(width: 44)
+                    .padding(.vertical, Theme.Spacing.sm)
+            }
+            .buttonStyle(.bordered)
+            .tint(viewModel.isFavorite ? Theme.Palette.live : Theme.Palette.textSecondary)
+            .accessibilityLabel(viewModel.isFavorite ? "Favorilerden çıkar" : "Favorilere ekle")
+        }
+    }
+
+    private func plotBlock(_ plot: String) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            Text(plot)
+                .font(Theme.Typography.rowSubtitle)
+                .foregroundColor(Theme.Palette.textSecondary)
+                .lineLimit(isPlotExpanded ? nil : 4)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if plot.count > 180 {
+                Button(isPlotExpanded ? "Daha az" : "Devamını oku") {
+                    withAnimation(.easeInOut(duration: 0.2)) { isPlotExpanded.toggle() }
+                }
+                .font(Theme.Typography.caption)
+                .tint(Theme.Palette.accent)
             }
         }
+        .padding(.horizontal, Theme.Spacing.md)
     }
 }
 

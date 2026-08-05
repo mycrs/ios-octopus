@@ -67,21 +67,59 @@ public final class MovieDetailViewModel: ObservableObject {
         resumeFraction == nil ? "Oynat" : "Devam et"
     }
 
+    /// Künye çipleri: puan, yıl, süre, tür.
+    ///
+    /// Tek uzun satır yerine ayrı çipler — uzun tür listelerinde satır
+    /// taşması yerine yatay kaydırma olur ve göz bilgileri ayırt eder.
+    public var chips: [DetailChip] {
+        guard let movie else { return [] }
+        var result: [DetailChip] = []
+
+        if let rating = movie.rating, rating > 0 {
+            result.append(
+                DetailChip(
+                    text: String(format: "%.1f", rating),
+                    icon: "star.fill",
+                    isHighlighted: true
+                )
+            )
+        }
+        if let year = Self.year(of: movie.releaseDate) {
+            result.append(DetailChip(text: year, icon: "calendar"))
+        }
+        if let duration = Self.durationText(movie.durationSeconds) {
+            result.append(DetailChip(text: duration, icon: "clock"))
+        }
+        // İlk üç tür yeter; sağlayıcılar bazen on beş tür yazıyor.
+        for genre in movie.genres.prefix(3) where !genre.isEmpty {
+            result.append(DetailChip(text: genre))
+        }
+
+        return result
+    }
+
+    static func year(of date: Date?) -> String? {
+        guard let date else { return nil }
+        // Sabit takvim ve UTC: cihaz saat dilimi yılı kaydırmasın.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        return String(calendar.component(.year, from: date))
+    }
+
+    static func durationText(_ seconds: Int?) -> String? {
+        guard let seconds, seconds > 0 else { return nil }
+        let hours = seconds / 3_600
+        let minutes = (seconds % 3_600) / 60
+        return hours > 0 ? "\(hours)s \(minutes)dk" : "\(minutes)dk"
+    }
+
     /// "2020 · 1s 47dk" biçiminde künye satırı.
     public var metadataLine: String? {
         guard let movie else { return nil }
         var parts: [String] = []
 
-        if let releaseDate = movie.releaseDate {
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
-            parts.append(String(calendar.component(.year, from: releaseDate)))
-        }
-        if let seconds = movie.durationSeconds, seconds > 0 {
-            let hours = seconds / 3_600
-            let minutes = (seconds % 3_600) / 60
-            parts.append(hours > 0 ? "\(hours)s \(minutes)dk" : "\(minutes)dk")
-        }
+        if let year = Self.year(of: movie.releaseDate) { parts.append(year) }
+        if let duration = Self.durationText(movie.durationSeconds) { parts.append(duration) }
         if !movie.genres.isEmpty {
             parts.append(movie.genres.prefix(2).joined(separator: ", "))
         }

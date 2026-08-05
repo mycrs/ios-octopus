@@ -129,4 +129,59 @@ public final class SeriesDetailViewModel: ObservableObject {
         else { return nil }
         return fraction
     }
+
+    // MARK: - Sunum yardımcıları
+
+    /// Oynat düğmesinin etiketi.
+    ///
+    /// "Devam et" yalnızca gerçekten yarım kalmış bir bölüm varsa yazar;
+    /// hiç izlenmemiş diziye "devam et" demek kullanıcıyı yanıltırdı.
+    public var playButtonTitle: String {
+        guard let episode = resumeEpisode else { return "Oynat" }
+        let fraction = watchedFraction[episode.id.value] ?? 0
+        return fraction > 0.01 ? "\(episode.shortLabel) — devam et" : "\(episode.shortLabel) oynat"
+    }
+
+    /// "3 sezon · 42 bölüm" biçiminde alt başlık.
+    public var seasonSummary: String? {
+        guard !seasons.isEmpty else { return nil }
+
+        let episodeCount = seasons.reduce(0) { $0 + $1.episodeCount }
+        var parts = ["\(seasons.count) sezon"]
+        if episodeCount > 0 { parts.append("\(episodeCount) bölüm") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Künye çipleri: puan, yıl, tür.
+    public var chips: [DetailChip] {
+        guard let series else { return [] }
+        var result: [DetailChip] = []
+
+        if let rating = series.rating, rating > 0 {
+            result.append(
+                DetailChip(
+                    text: String(format: "%.1f", rating),
+                    icon: "star.fill",
+                    isHighlighted: true
+                )
+            )
+        }
+        if let year = Self.year(of: series.releaseDate) {
+            result.append(DetailChip(text: year, icon: "calendar"))
+        }
+        // İlk üç tür yeter; sağlayıcılar bazen on beş tür yazıyor.
+        for genre in series.genres.prefix(3) where !genre.isEmpty {
+            result.append(DetailChip(text: genre))
+        }
+
+        return result
+    }
+
+    static func year(of date: Date?) -> String? {
+        guard let date else { return nil }
+        // Sabit takvim ve UTC: cihaz saat dilimi yılı kaydırmasın.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        return String(calendar.component(.year, from: date))
+    }
 }
