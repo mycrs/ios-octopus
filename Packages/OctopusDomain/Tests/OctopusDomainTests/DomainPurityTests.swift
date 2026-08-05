@@ -104,6 +104,38 @@ final class DomainPurityTests: XCTestCase {
         XCTAssertEqual(keys.count, 3, "Farklı türler aynı anahtarı üretmemeli")
     }
 
+    func test_playbackSource_roundTripsThroughStorageKey() {
+        // "İzlemeye devam et" rafı yalnızca anahtardan içeriği bulur.
+        let sources: [PlaybackItem.Source] = [
+            .liveChannel("p1#live#1"),
+            .movie("p1#vod#9"),
+            .episode("p1#series#77#e#101")
+        ]
+
+        for source in sources {
+            XCTAssertEqual(
+                PlaybackItem.Source(storageKey: source.storageKey),
+                source,
+                "\(source) gidiş-dönüşte bozuldu"
+            )
+        }
+    }
+
+    func test_playbackSource_keyWithColonInIdentifier() {
+        // M3U kaynaklarında akış ADRESİ kimliktir ve iki nokta içerir:
+        // yalnızca İLK iki nokta ayraç sayılmalı.
+        let source = PlaybackItem.Source.liveChannel("p1#live#http://sunucu.example.com/1.ts")
+        let restored = PlaybackItem.Source(storageKey: source.storageKey)
+        XCTAssertEqual(restored, source)
+    }
+
+    func test_playbackSource_rejectsMalformedKeys() {
+        XCTAssertNil(PlaybackItem.Source(storageKey: ""))
+        XCTAssertNil(PlaybackItem.Source(storageKey: "onceksiz"))
+        XCTAssertNil(PlaybackItem.Source(storageKey: "live:"), "Boş kimlik kabul edilmemeli")
+        XCTAssertNil(PlaybackItem.Source(storageKey: "bilinmeyen:123"))
+    }
+
     // MARK: - Hata sınıflandırması
 
     func test_appError_retryPolicy() {

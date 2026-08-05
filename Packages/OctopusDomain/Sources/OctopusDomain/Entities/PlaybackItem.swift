@@ -121,12 +121,35 @@ public struct PlaybackProgress: Hashable, Codable, Sendable {
 }
 
 extension PlaybackItem.Source {
+
     /// Veritabanı anahtarı olarak kullanılabilir kararlı temsil.
     public var storageKey: String {
         switch self {
         case .liveChannel(let id): return "live:\(id.value)"
         case .movie(let id): return "movie:\(id.value)"
         case .episode(let id): return "episode:\(id.value)"
+        }
+    }
+
+    /// Anahtarı geri çözer.
+    ///
+    /// İzleme ilerlemesi kayıtları yalnızca anahtar taşır; "izlemeye devam et"
+    /// rafı bu anahtardan hangi içeriğe ait olduğunu bulur.
+    ///
+    /// - Note: Kimlik değerinin kendisi `:` içerebilir (M3U'da akış adresi
+    ///   kimliktir), bu yüzden yalnızca **ilk** iki nokta üst üste ayraçtır.
+    public init?(storageKey: String) {
+        guard let separatorIndex = storageKey.firstIndex(of: ":") else { return nil }
+
+        let prefix = String(storageKey[storageKey.startIndex..<separatorIndex])
+        let rawID = String(storageKey[storageKey.index(after: separatorIndex)...])
+        guard !rawID.isEmpty else { return nil }
+
+        switch prefix {
+        case "live": self = .liveChannel(Channel.ID(rawID))
+        case "movie": self = .movie(Movie.ID(rawID))
+        case "episode": self = .episode(Episode.ID(rawID))
+        default: return nil
         }
     }
 }
