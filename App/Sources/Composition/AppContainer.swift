@@ -223,7 +223,12 @@ final class AppContainer: ObservableObject {
     }
 
     func makeLiveDependencies() -> LiveDependencies {
-        LiveDependencies(channels: channels, epg: epg, favorites: favorites)
+        LiveDependencies(
+            playlists: playlists,
+            channels: channels,
+            epg: epg,
+            favorites: favorites
+        )
     }
 
     func makeVODDependencies() -> VODDependencies {

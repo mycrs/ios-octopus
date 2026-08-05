@@ -11,17 +11,19 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../OctopusCore"),
-        .package(path: "../OctopusDomain")
-        // Faz 4'te eklenecek (poster grid'leri gelince):
-        // .package(url: "https://github.com/kean/Nuke", from: "12.0.0")
+        .package(path: "../OctopusDomain"),
+        // Kanal logoları ve afişler için önbellekli görsel yükleme.
+        // AsyncImage'ın önbelleği binlerce satırlık listelerde yetersiz
+        // kalıyor: aynı logo her kaydırmada yeniden indiriliyor.
+        .package(url: "https://github.com/kean/Nuke", from: "12.0.0")
     ],
     targets: [
         .target(
             name: "OctopusDesignSystem",
             dependencies: [
                 "OctopusCore",
-                "OctopusDomain"
-                // .product(name: "NukeUI", package: "Nuke")
+                "OctopusDomain",
+                .product(name: "NukeUI", package: "Nuke")
             ]
         )
     ]
