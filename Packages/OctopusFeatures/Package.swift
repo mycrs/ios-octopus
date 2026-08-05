@@ -47,6 +47,11 @@ let package = Package(
         .target(name: "FeatureSeries", dependencies: shared),
         .target(name: "FeatureSearch", dependencies: shared),
         .target(name: "FeaturePlayer", dependencies: sharedWithPlayback),
-        .target(name: "FeatureSettings", dependencies: shared)
+        .target(name: "FeatureSettings", dependencies: shared),
+
+        // ⚠️ Yeni bir feature'a test eklenirse .github/workflows/ci.yml
+        // içindeki paket listesine de eklenmeli — aksi halde test yazılmış
+        // ama hiç koşmamış olur. Bkz. Docs/BRAIN.md § 10.
+        .testTarget(name: "FeatureOnboardingTests", dependencies: ["FeatureOnboarding"])
     ]
 )

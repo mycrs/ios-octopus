@@ -44,6 +44,7 @@ final class AppContainer: ObservableObject {
     private let history: WatchHistoryRepository
     private let streams: StreamResolving
     private let sync: ContentSyncing
+    private let validator: PlaylistValidating
 
     // MARK: - Oynatma
 
@@ -92,6 +93,9 @@ final class AppContainer: ObservableObject {
                 providerFactory: providerFactory,
                 database: database
             )
+            // Doğrulama fabrikadan ayrı: kullanıcının az önce yazdığı parolayla
+            // çalışır, parola henüz Keychain'de değildir.
+            validator = ProviderValidator()
 
             startupFailure = nil
         } else {
@@ -109,6 +113,7 @@ final class AppContainer: ObservableObject {
             // Depolama yokken senkronizasyonun yazacak yeri de yok.
             streams = ScaffoldStreamResolver()
             sync = ScaffoldContentSync()
+            validator = ScaffoldValidator()
             startupFailure = .storage(reason: "Veritabanı açılamadı")
         }
 
@@ -152,7 +157,7 @@ final class AppContainer: ObservableObject {
     // `PlaylistRepository` verilmez — göremediği şeyi yanlışlıkla kullanamaz.
 
     func makeOnboardingDependencies() -> OnboardingDependencies {
-        OnboardingDependencies(playlists: playlists, sync: sync)
+        OnboardingDependencies(playlists: playlists, validator: validator, sync: sync)
     }
 
     func makeHomeDependencies() -> HomeDependencies {

@@ -6,38 +6,85 @@ import OctopusNavigation
 /// Bu feature'ın ihtiyaç duyduğu her şey.
 ///
 /// ⚠️ KALIP: Her feature bağımlılıklarını **protokol** olarak burada beyan eder.
-/// Somut tipleri (`XtreamContentProvider`, `PlaylistRepositoryImpl`…) görmez.
+/// Somut tipleri (`XtreamContentProvider`, `GRDBPlaylistRepository`…) görmez.
 /// Bağlama işi yalnızca `AppContainer`'da yapılır.
-/// Test yazarken bu struct sahte implementasyonlarla doldurulur.
 public struct OnboardingDependencies {
     public let playlists: PlaylistRepository
+    /// Kaynağı **kaydetmeden önce** doğrular — hatalı bilgiyle kayıt oluşmasın.
+    public let validator: PlaylistValidating
     public let sync: ContentSyncing
 
-    public init(playlists: PlaylistRepository, sync: ContentSyncing) {
+    public init(
+        playlists: PlaylistRepository,
+        validator: PlaylistValidating,
+        sync: ContentSyncing
+    ) {
         self.playlists = playlists
+        self.validator = validator
         self.sync = sync
     }
 }
 
 /// Kaynak ekleme akışının giriş noktası.
-/// Faz 3: Xtream/M3U form + doğrulama + ilk senkronizasyon ilerlemesi.
+///
+/// İlk açılışta karşılama gösterilir; kullanıcı başlayınca forma geçilir.
 public struct OnboardingScreen: View {
 
     private let dependencies: OnboardingDependencies
     @EnvironmentObject private var router: AppRouter
+    @State private var showsForm = false
 
     public init(dependencies: OnboardingDependencies) {
         self.dependencies = dependencies
     }
 
     public var body: some View {
-        EmptyStateView(
-            icon: "antenna.radiowaves.left.and.right",
-            title: "Kaynak ekle",
-            message: "Xtream hesabını veya M3U bağlantını ekleyerek başla.",
-            actionTitle: "Kaynak ekle",
-            action: { router.present(.addPlaylist) }
-        )
+        Group {
+            if showsForm {
+                AddPlaylistView(dependencies: dependencies) {
+                    // Kaynak eklendi ve senkronize oldu; ana ekrana geç.
+                    router.needsOnboarding = false
+                }
+            } else {
+                welcome
+            }
+        }
         .background(Theme.Palette.background)
+    }
+
+    private var welcome: some View {
+        VStack(spacing: Theme.Spacing.xl) {
+            Spacer()
+
+            Image(systemName: "antenna.radiowaves.left.and.right")
+                .font(.system(size: 56))
+                .foregroundColor(Theme.Palette.accent)
+
+            VStack(spacing: Theme.Spacing.sm) {
+                Text("Octopus")
+                    .font(Theme.Typography.screenTitle)
+                    .foregroundColor(Theme.Palette.textPrimary)
+
+                Text("Xtream hesabını veya M3U bağlantını ekleyerek başla.")
+                    .font(Theme.Typography.rowSubtitle)
+                    .foregroundColor(Theme.Palette.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+
+            Button {
+                showsForm = true
+            } label: {
+                Text("Kaynak ekle")
+                    .font(Theme.Typography.rowTitle)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Theme.Spacing.md)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.Palette.accent)
+        }
+        .padding(Theme.Spacing.xl)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

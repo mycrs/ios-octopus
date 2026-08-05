@@ -49,10 +49,6 @@ public actor InMemoryPlaylistRepository: PlaylistRepository {
     public func delete(id: Playlist.ID) async throws {
         storage.removeAll { $0.id == id }
     }
-
-    public func validate(_ playlist: Playlist, password: String?) async throws -> ProviderAccount {
-        throw AppError.unknown(reason: "Kaynak doğrulama Faz 2'de eklenecek")
-    }
 }
 
 public actor InMemoryChannelRepository: ChannelRepository {
@@ -372,7 +368,21 @@ public struct ScaffoldStreamResolver: StreamResolving {
     }
 }
 
-/// 🚧 Faz 2'de gerçek senkronizasyonla değişecek.
+/// Depolama kurulamadığında kullanılır: doğrulama yapılamaz çünkü kaynak
+/// zaten kaydedilemeyecek.
+public struct ScaffoldValidator: PlaylistValidating {
+
+    public init() {}
+
+    public func validate(
+        _ playlist: Playlist,
+        password: String?
+    ) async throws -> ProviderAccount {
+        throw AppError.storage(reason: "Depolama kullanılamıyor")
+    }
+}
+
+/// 🚧 Depolama kurulamadığında kullanılır.
 public struct ScaffoldContentSync: ContentSyncing {
 
     public init() {}

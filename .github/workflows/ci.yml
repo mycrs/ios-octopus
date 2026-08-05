@@ -90,11 +90,11 @@ jobs:
       # aksi halde yazılmış ama hiç çalışmayan testler birikir.
       #
       # OctopusDomain burada yok: saf Swift olduğu için Linux işinde koşuyor.
-      # Bunlar UIKit/Security'ye bağlı olduğundan simülatör gerekiyor.
+      # Bunlar UIKit/SwiftUI/Security'ye bağlı olduğundan simülatör gerekiyor.
       - name: Paket testleri (simülatör)
         run: |
           set -o pipefail
-          for pkg in OctopusData OctopusPlayback; do
+          for pkg in OctopusData OctopusPlayback OctopusFeatures; do
             echo "::group::$pkg testleri"
             (
               cd "Packages/$pkg"

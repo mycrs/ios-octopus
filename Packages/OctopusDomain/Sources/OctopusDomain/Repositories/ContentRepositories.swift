@@ -23,8 +23,15 @@ public protocol PlaylistRepository: Sendable {
 
     /// Kaynağı ve ona ait TÜM içeriği siler (cascade).
     func delete(id: Playlist.ID) async throws
+}
 
-    /// Kaydetmeden önce bağlantıyı test eder.
+/// Kaynağı **kaydetmeden önce** doğrular.
+///
+/// Depodan ayrı bir sözleşme olmasının sebebi: doğrulama sırasında parola
+/// henüz Keychain'de değildir, kullanıcının az önce yazdığı değerdir.
+/// Depoya karıştırılsaydı "önce kaydet sonra dene" gibi ters bir akış
+/// gerekirdi ve hatalı bilgiyle kaynak kaydedilmiş olurdu.
+public protocol PlaylistValidating: Sendable {
     func validate(_ playlist: Playlist, password: String?) async throws -> ProviderAccount
 }
 

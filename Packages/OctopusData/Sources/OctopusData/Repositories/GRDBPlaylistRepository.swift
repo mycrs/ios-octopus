@@ -99,13 +99,6 @@ public actor GRDBPlaylistRepository: PlaylistRepository {
         try? secrets.delete(for: "playlist.\(id.value)")
     }
 
-    // MARK: - Doğrulama
-
-    public func validate(_ playlist: Playlist, password: String?) async throws -> ProviderAccount {
-        // Faz 2: ContentProvider üzerinden gerçek kimlik doğrulaması yapılacak.
-        throw AppError.unknown(reason: "Kaynak doğrulama Faz 2'de eklenecek")
-    }
-
     // MARK: - Yardımcılar
 
     private func storePassword(_ password: String, for playlist: Playlist) throws {
