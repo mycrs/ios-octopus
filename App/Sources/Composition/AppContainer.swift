@@ -56,6 +56,28 @@ final class AppContainer: ObservableObject {
     /// Uygulama çalışmaya devam eder ama veriler kalıcı olmaz.
     @Published private(set) var startupFailure: AppError?
 
+    /// Panelden gelen yapılandırma (duyuru, bakım kapısı, marka).
+    @Published private(set) var appConfig: RemoteAppConfig?
+
+    /// Marka rengini yönetir; panel ve kullanıcı seçimi burada birleşir.
+    let themeController = ThemeController()
+
+    private var dismissedAnnouncementID: String? {
+        get { UserDefaults.standard.string(forKey: "announcement.dismissed") }
+        set { UserDefaults.standard.set(newValue, forKey: "announcement.dismissed") }
+    }
+
+    /// Kullanıcının henüz kapatmadığı duyuru.
+    var visibleAnnouncement: Announcement? {
+        guard let announcement = appConfig?.announcement else { return nil }
+        return announcement.id == dismissedAnnouncementID ? nil : announcement
+    }
+
+    func dismissAnnouncement() {
+        dismissedAnnouncementID = appConfig?.announcement?.id
+        objectWillChange.send()
+    }
+
     // MARK: - Kurulum
 
     /// - Parameter database: Testler için enjekte edilir. `nil` ise
@@ -157,6 +179,18 @@ final class AppContainer: ObservableObject {
             Log.app.error("Açılış kontrolü başarısız: \(String(describing: error))")
             router.needsOnboarding = true
         }
+
+        await refreshRemoteConfig()
+    }
+
+    /// Panel yapılandırmasını tazeler ve markayı uygular.
+    ///
+    /// Ağ hatası burada sessizdir: panel erişilemezse son bilinen
+    /// yapılandırma kullanılır, uygulama açılmaya devam eder.
+    func refreshRemoteConfig() async {
+        let config = await remoteConfig.refresh()
+        appConfig = config
+        themeController.apply(branding: config?.branding)
     }
 
     // MARK: - Feature bağımlılıkları

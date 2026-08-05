@@ -1,4 +1,5 @@
 import SwiftUI
+import OctopusDomain
 import OctopusDesignSystem
 import OctopusNavigation
 import FeatureOnboarding
@@ -24,13 +25,23 @@ struct RootView: View {
             // eksik kalsa bile sistem siyahı görünmez.
             Theme.Palette.background.ignoresSafeArea()
 
-            if router.needsOnboarding {
+            if let gate = container.appConfig?.gate, gate.isBlocking {
+                // Panel bakım moduna aldı: içeriğe erişim kesilir ama
+                // kullanıcı sorunun geçici olduğunu ve nereye başvuracağını bilir.
+                MaintenanceGateView(
+                    message: maintenanceMessage(from: gate),
+                    contact: container.appConfig?.contact ?? .empty,
+                    onRetry: { Task { await container.refreshRemoteConfig() } }
+                )
+            } else if router.needsOnboarding {
                 OnboardingScreen(dependencies: container.makeOnboardingDependencies())
             } else {
-                tabs
+                mainContent
             }
         }
-        .tint(Theme.Palette.accent)
+        // Marka rengi: kullanıcı seçimi > bayi paneli > uygulama varsayılanı.
+        .tint(container.themeController.accent)
+        .environment(\.brandColor, container.themeController.accent)
         // Oynatıcı tam ekran sunulur — gezinme yığınına girmez,
         // böylece hangi ekrandan açılırsa açılsın davranışı aynıdır.
         .fullScreenCover(item: $router.player) { presentation in
@@ -44,6 +55,27 @@ struct RootView: View {
             sheetContent(for: sheet)
                 .environmentObject(router)
         }
+    }
+
+    // MARK: - Ana içerik
+
+    /// Sekmeler ve üstünde (varsa) panel duyurusu.
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            if let announcement = container.visibleAnnouncement {
+                AnnouncementBanner(announcement: announcement) {
+                    container.dismissAnnouncement()
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.sm)
+            }
+            tabs
+        }
+    }
+
+    private func maintenanceMessage(from gate: ServiceGate) -> String? {
+        if case .maintenance(let message) = gate { return message }
+        return nil
     }
 
     // MARK: - Sekmeler
