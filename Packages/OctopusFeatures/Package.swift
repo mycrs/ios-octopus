@@ -29,6 +29,7 @@ let package = Package(
         .library(name: "FeatureVOD", targets: ["FeatureVOD"]),
         .library(name: "FeatureSeries", targets: ["FeatureSeries"]),
         .library(name: "FeatureSearch", targets: ["FeatureSearch"]),
+        .library(name: "FeatureFavorites", targets: ["FeatureFavorites"]),
         .library(name: "FeaturePlayer", targets: ["FeaturePlayer"]),
         .library(name: "FeatureSettings", targets: ["FeatureSettings"])
     ],
@@ -46,6 +47,7 @@ let package = Package(
         .target(name: "FeatureVOD", dependencies: shared),
         .target(name: "FeatureSeries", dependencies: shared),
         .target(name: "FeatureSearch", dependencies: shared),
+        .target(name: "FeatureFavorites", dependencies: shared),
         .target(name: "FeaturePlayer", dependencies: sharedWithPlayback),
         .target(name: "FeatureSettings", dependencies: shared),
 
@@ -56,6 +58,7 @@ let package = Package(
         .testTarget(name: "FeatureSettingsTests", dependencies: ["FeatureSettings"]),
         .testTarget(name: "FeatureLiveTests", dependencies: ["FeatureLive"]),
         .testTarget(name: "FeatureVODTests", dependencies: ["FeatureVOD"]),
-        .testTarget(name: "FeatureSeriesTests", dependencies: ["FeatureSeries"])
+        .testTarget(name: "FeatureSeriesTests", dependencies: ["FeatureSeries"]),
+        .testTarget(name: "FeatureFavoritesTests", dependencies: ["FeatureFavorites"])
     ]
 )

@@ -104,6 +104,8 @@ targets:
       - package: OctopusFeatures
         product: FeatureSearch
       - package: OctopusFeatures
+        product: FeatureFavorites
+      - package: OctopusFeatures
         product: FeaturePlayer
       - package: OctopusFeatures
         product: FeatureSettings

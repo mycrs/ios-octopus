@@ -8,6 +8,7 @@ import FeatureLive
 import FeatureVOD
 import FeatureSeries
 import FeatureSearch
+import FeatureFavorites
 import FeaturePlayer
 import FeatureSettings
 
@@ -151,7 +152,9 @@ struct RootView: View {
             )
         case .playlistManager:
             PlaylistManagerView(dependencies: container.makeSettingsDependencies())
-        case .favorites, .about:
+        case .favorites:
+            FavoritesScreen(dependencies: container.makeFavoritesDependencies())
+        case .about:
             SettingsScreen(dependencies: container.makeSettingsDependencies())
         }
     }

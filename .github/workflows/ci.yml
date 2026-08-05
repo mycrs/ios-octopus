@@ -85,40 +85,6 @@ jobs:
             -skipMacroValidation \
             CODE_SIGNING_ALLOWED=NO
 
-      # Paket test hedefleri ana şemaya dahil DEĞİLDİR; `xcodebuild test -scheme
-      # Octopus` onları koşmaz. Her paket kendi dizininde ayrıca test edilir —
-      # aksi halde yazılmış ama hiç çalışmayan testler birikir.
-      #
-      # OctopusDomain burada yok: saf Swift olduğu için Linux işinde koşuyor.
-      # Bunlar UIKit/SwiftUI/Security'ye bağlı olduğundan simülatör gerekiyor.
-      - name: Paket testleri (simülatör)
-        run: |
-          set -o pipefail
-          for pkg in OctopusData OctopusPlayback OctopusFeatures; do
-            echo "::group::$pkg testleri"
-            (
-              cd "Packages/$pkg"
-
-              # Şema adı paketin ürün sayısına göre değişir:
-              # tek ürünlü pakette paket adıyla aynı, çok ürünlü pakette
-              # (OctopusFeatures) yalnızca "<Ad>-Package" toplu şeması
-              # tüm hedefleri — dolayısıyla testleri — içerir.
-              if xcodebuild -list 2>/dev/null | grep -qE "^ *${pkg}-Package *$"; then
-                SCHEME="${pkg}-Package"
-              else
-                SCHEME="$pkg"
-              fi
-              echo "Şema: $SCHEME"
-
-              xcodebuild test \
-                -scheme "$SCHEME" \
-                -destination "platform=iOS Simulator,name=$SIM" \
-                -skipMacroValidation \
-                CODE_SIGNING_ALLOWED=NO
-            ) || { echo "::error::$pkg testleri başarısız"; exit 1; }
-            echo "::endgroup::"
-          done
-
       # Uygulamayı simülatörde çalıştırıp ekran görüntüsü alır.
       #
       # Geliştirme Windows'ta yapıldığı için arayüzün gerçekten çizildiğini
@@ -188,3 +154,60 @@ jobs:
             **/*.xcresult
           retention-days: 5
           if-no-files-found: ignore
+
+  # ── 4) Paket testleri — PARALEL ────────────────────────────────────
+  #
+  # Paket test hedefleri ana şemaya dahil DEĞİLDİR; `xcodebuild test
+  # -scheme Octopus` onları koşmaz. Her paket ayrıca test edilir —
+  # aksi halde yazılmış ama hiç çalışmayan testler birikir.
+  #
+  # Sıralı koşturulduğunda tur başına 20-25 dakika sürüyordu; her paket
+  # kendi runner'ında paralel çalışınca duvar saati üçte bire iniyor.
+  # Genel depoda macOS runner ücretsiz olduğu için ek maliyet yok.
+  #
+  # OctopusDomain burada yok: saf Swift olduğu için Linux işinde koşuyor.
+  package-tests:
+    name: ${{ matrix.package }} testleri
+    runs-on: macos-latest
+    needs: [architecture]
+    strategy:
+      # Bir paket düşse bile diğerlerinin sonucu görülsün.
+      fail-fast: false
+      matrix:
+        package: [OctopusData, OctopusPlayback, OctopusFeatures]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Simülatör seç
+        run: |
+          SIM=$(xcrun simctl list devices available \
+                | grep -oE '^\s+iPhone [^(]+' \
+                | head -1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          if [ -z "$SIM" ]; then
+            echo "::error::Kullanılabilir iPhone simülatörü bulunamadı"
+            exit 1
+          fi
+          echo "SIM=$SIM" >> "$GITHUB_ENV"
+
+      - name: Testleri koş
+        working-directory: Packages/${{ matrix.package }}
+        run: |
+          set -o pipefail
+
+          # Şema adı paketin ürün sayısına göre değişir: tek ürünlü pakette
+          # paket adıyla aynı, çok ürünlü pakette (OctopusFeatures) yalnızca
+          # "<Ad>-Package" toplu şeması tüm hedefleri — dolayısıyla
+          # testleri — içerir.
+          PKG="${{ matrix.package }}"
+          if xcodebuild -list 2>/dev/null | grep -qE "^ *${PKG}-Package *$"; then
+            SCHEME="${PKG}-Package"
+          else
+            SCHEME="$PKG"
+          fi
+          echo "Şema: $SCHEME"
+
+          xcodebuild test \
+            -scheme "$SCHEME" \
+            -destination "platform=iOS Simulator,name=$SIM" \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO

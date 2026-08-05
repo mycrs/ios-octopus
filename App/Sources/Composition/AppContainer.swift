@@ -12,6 +12,7 @@ import FeatureLive
 import FeatureVOD
 import FeatureSeries
 import FeatureSearch
+import FeatureFavorites
 import FeaturePlayer
 import FeatureSettings
 
@@ -263,6 +264,10 @@ final class AppContainer: ObservableObject {
             favorites: favorites,
             progress: progress
         )
+    }
+
+    func makeFavoritesDependencies() -> FavoritesDependencies {
+        FavoritesDependencies(playlists: playlists, favorites: favorites)
     }
 
     func makeSearchDependencies() -> SearchDependencies {
