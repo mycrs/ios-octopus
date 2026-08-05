@@ -55,6 +55,7 @@ let package = Package(
         .testTarget(name: "FeatureOnboardingTests", dependencies: ["FeatureOnboarding"]),
         .testTarget(name: "FeatureSettingsTests", dependencies: ["FeatureSettings"]),
         .testTarget(name: "FeatureLiveTests", dependencies: ["FeatureLive"]),
-        .testTarget(name: "FeatureVODTests", dependencies: ["FeatureVOD"])
+        .testTarget(name: "FeatureVODTests", dependencies: ["FeatureVOD"]),
+        .testTarget(name: "FeatureSeriesTests", dependencies: ["FeatureSeries"])
     ]
 )

@@ -256,12 +256,12 @@ private final class StubFavorites: FavoritesRepository, @unchecked Sendable {
     private var keys: Set<String> = []
     private var continuation: AsyncStream<Set<String>>.Continuation?
 
-    func isFavorite(_ source: PlaybackItem.Source) async throws -> Bool {
-        keys.contains(source.storageKey)
+    func isFavorite(_ target: FavoriteTarget) async throws -> Bool {
+        keys.contains(target.storageKey)
     }
 
-    func toggle(_ source: PlaybackItem.Source) async throws -> Bool {
-        let key = source.storageKey
+    func toggle(_ target: FavoriteTarget) async throws -> Bool {
+        let key = target.storageKey
         let added: Bool
         if keys.contains(key) { keys.remove(key); added = false }
         else { keys.insert(key); added = true }

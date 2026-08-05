@@ -100,16 +100,16 @@ public actor GRDBFavoritesRepository: FavoritesRepository {
         self.database = database
     }
 
-    public func isFavorite(_ source: PlaybackItem.Source) async throws -> Bool {
-        let key = source.storageKey
+    public func isFavorite(_ target: FavoriteTarget) async throws -> Bool {
+        let key = target.storageKey
         return try await database.read { db in
             try FavoriteRecord.filter(Column("itemKey") == key).fetchCount(db) > 0
         }
     }
 
     /// - Returns: İşlem sonrası favori durumu.
-    public func toggle(_ source: PlaybackItem.Source) async throws -> Bool {
-        let key = source.storageKey
+    public func toggle(_ target: FavoriteTarget) async throws -> Bool {
+        let key = target.storageKey
         return try await database.write { db -> Bool in
             if try FavoriteRecord.filter(Column("itemKey") == key).fetchCount(db) > 0 {
                 _ = try FavoriteRecord.deleteOne(db, key: key)

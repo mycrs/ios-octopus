@@ -92,11 +92,11 @@ final class ContentSyncServiceTests: XCTestCase {
         try await service.sync(playlistID: "p1")
 
         let channelID = Channel.ID("p1#live#1")
-        _ = try await favorites.toggle(.liveChannel(channelID))
+        _ = try await favorites.toggle(.channel(channelID))
 
         try await service.sync(playlistID: "p1")
 
-        let isFavorite = try await favorites.isFavorite(.liveChannel(channelID))
+        let isFavorite = try await favorites.isFavorite(.channel(channelID))
         XCTAssertTrue(isFavorite, "Senkronizasyon favorileri silmemeli")
     }
 

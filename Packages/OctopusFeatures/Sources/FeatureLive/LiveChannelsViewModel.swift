@@ -152,14 +152,14 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     public func toggleFavorite(_ channel: Channel) async {
         do {
-            _ = try await dependencies.favorites.toggle(.liveChannel(channel.id))
+            _ = try await dependencies.favorites.toggle(.channel(channel.id))
         } catch {
             state = .failed(AppError.wrap(error))
         }
     }
 
     public func isFavorite(_ channel: Channel) -> Bool {
-        favoriteKeys.contains(PlaybackItem.Source.liveChannel(channel.id).storageKey)
+        favoriteKeys.contains(FavoriteTarget.channel(channel.id).storageKey)
     }
 
     // MARK: - Gözlem

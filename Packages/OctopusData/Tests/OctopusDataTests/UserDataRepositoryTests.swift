@@ -24,17 +24,31 @@ final class UserDataRepositoryTests: XCTestCase {
 
     func test_toggle_addsThenRemoves() async throws {
         let repository = GRDBFavoritesRepository(database: database)
-        let source = PlaybackItem.Source.liveChannel("p1#live#1")
+        let target = FavoriteTarget.channel("p1#live#1")
 
-        let added = try await repository.toggle(source)
+        let added = try await repository.toggle(target)
         XCTAssertTrue(added)
-        let isFavorite = try await repository.isFavorite(source)
+        let isFavorite = try await repository.isFavorite(target)
         XCTAssertTrue(isFavorite)
 
-        let removed = try await repository.toggle(source)
+        let removed = try await repository.toggle(target)
         XCTAssertFalse(removed)
-        let stillFavorite = try await repository.isFavorite(source)
+        let stillFavorite = try await repository.isFavorite(target)
         XCTAssertFalse(stillFavorite)
+    }
+
+    func test_seriesFavoriteUsesOwnKeyspace() async throws {
+        // Dizi oynatılabilir bir öğe değil ama favoriye eklenebilir;
+        // anahtarı kanal ve filmlerinkiyle çakışmamalı.
+        let repository = GRDBFavoritesRepository(database: database)
+
+        _ = try await repository.toggle(.series("p1#series#77"))
+
+        let isSeriesFavorite = try await repository.isFavorite(.series("p1#series#77"))
+        XCTAssertTrue(isSeriesFavorite)
+
+        let asMovie = try await repository.isFavorite(.movie("p1#series#77"))
+        XCTAssertFalse(asMovie, "Farklı türler aynı anahtarı paylaşmamalı")
     }
 
     func test_favoriteChannels_joinsByKeyAndOrdersByAddedTime() async throws {
@@ -42,7 +56,7 @@ final class UserDataRepositoryTests: XCTestCase {
         try await insertChannel(id: "p1#live#2", name: "Sonra")
 
         let repository = GRDBFavoritesRepository(database: database)
-        _ = try await repository.toggle(.liveChannel("p1#live#1"))
+        _ = try await repository.toggle(.channel("p1#live#1"))
         // Sıralamanın deterministik olması için zaman farkı verilir.
         try await database.write { db in
             try db.execute(

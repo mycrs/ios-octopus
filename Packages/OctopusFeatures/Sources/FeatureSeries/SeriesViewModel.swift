@@ -3,12 +3,19 @@ import Combine
 import OctopusDomain
 import OctopusDesignSystem
 
-/// Film kataloğu: kategori, sayfalı liste, arama, favoriler.
+/// Dizi kataloğu: kategori, sayfalı liste, arama, favoriler.
+///
+/// ## Neden `MoviesViewModel` ile ortak bir taban yok?
+/// İki katalog yüzeysel olarak benzer ama farklı depolara, farklı favori
+/// anahtarlarına ve (Faz 8'de) farklı detay akışlarına bağlanıyor.
+/// Ortak generic taban 8+ closure parametresi gerektirir; okunabilirlik
+/// kazancı olmadan davranış riski doğurur. Referans projede de aynı
+/// değerlendirme yapılıp bilinçli olarak pas geçilmiş.
 @MainActor
-public final class MoviesViewModel: ObservableObject {
+public final class SeriesViewModel: ObservableObject {
 
     @Published public private(set) var categories: [MediaCategory] = []
-    @Published public private(set) var movies: [Movie] = []
+    @Published public private(set) var series: [Series] = []
     @Published public private(set) var favoriteKeys: Set<String> = []
     @Published public private(set) var state: LoadableState<Int> = .idle
 
@@ -18,10 +25,9 @@ public final class MoviesViewModel: ObservableObject {
     }
 
     public private(set) var isSearching = false
-    /// Listenin sonuna gelindiğinde daha fazla yüklenebilir mi?
     public private(set) var canLoadMore = true
 
-    private let dependencies: VODDependencies
+    private let dependencies: SeriesDependencies
     private let pageSize: Int
     private let searchDebounce: Duration
 
@@ -31,9 +37,7 @@ public final class MoviesViewModel: ObservableObject {
     private var favoritesTask: Task<Void, Never>?
 
     public init(
-        dependencies: VODDependencies,
-        // Referans projede tüm katalog tek seferde belleğe alınıyordu ve
-        // 20.000 filmlik hesapta uygulama düşüyordu. Sayfa sayfa yüklenir.
+        dependencies: SeriesDependencies,
         pageSize: Int = 60,
         searchDebounce: Duration = .milliseconds(300)
     ) {
@@ -50,17 +54,17 @@ public final class MoviesViewModel: ObservableObject {
     // MARK: - Yükleme
 
     public func load() async {
-        if movies.isEmpty { state = .loading }
+        if series.isEmpty { state = .loading }
 
         do {
             guard let playlist = try await dependencies.playlists.activePlaylist() else {
                 state = .loaded(0)
-                movies = []
+                series = []
                 categories = []
                 return
             }
             activePlaylistID = playlist.id
-            categories = try await dependencies.vod.categories(playlistID: playlist.id)
+            categories = try await dependencies.series.categories(playlistID: playlist.id)
             observeFavorites()
             await reloadFirstPage()
         } catch {
@@ -83,13 +87,13 @@ public final class MoviesViewModel: ObservableObject {
         defer { isLoadingPage = false }
 
         do {
-            let page = try await dependencies.vod.movies(
+            let page = try await dependencies.series.series(
                 playlistID: playlistID,
                 categoryID: selectedCategoryID,
                 limit: pageSize,
                 offset: 0
             )
-            movies = page
+            series = page
             canLoadMore = page.count == pageSize
             state = .loaded(page.count)
         } catch {
@@ -97,14 +101,10 @@ public final class MoviesViewModel: ObservableObject {
         }
     }
 
-    /// Kullanıcı listenin sonuna yaklaştığında çağrılır.
-    public func loadMoreIfNeeded(currentItem movie: Movie) async {
-        // Son öğeye gelinmeden birkaç satır önce tetiklenir ki kaydırma
-        // duraklamasın.
-        guard let index = movies.firstIndex(where: { $0.id == movie.id }),
-              index >= movies.count - 8
+    public func loadMoreIfNeeded(currentItem item: Series) async {
+        guard let index = series.firstIndex(where: { $0.id == item.id }),
+              index >= series.count - 8
         else { return }
-
         await loadMore()
     }
 
@@ -117,18 +117,16 @@ public final class MoviesViewModel: ObservableObject {
         defer { isLoadingPage = false }
 
         do {
-            let page = try await dependencies.vod.movies(
+            let page = try await dependencies.series.series(
                 playlistID: playlistID,
                 categoryID: selectedCategoryID,
                 limit: pageSize,
-                offset: movies.count
+                offset: series.count
             )
-            // Sıralama sabit olduğu için sayfalar üst üste binmez.
-            movies.append(contentsOf: page)
+            series.append(contentsOf: page)
             canLoadMore = page.count == pageSize
-            state = .loaded(movies.count)
+            state = .loaded(series.count)
         } catch {
-            // Sayfa hatası mevcut listeyi düşürmemeli.
             canLoadMore = false
         }
     }
@@ -159,13 +157,13 @@ public final class MoviesViewModel: ObservableObject {
         isSearching = true
 
         do {
-            let results = try await dependencies.vod.search(
+            let results = try await dependencies.series.search(
                 query: query,
                 playlistID: playlistID,
                 limit: 200
             )
             guard !Task.isCancelled else { return }
-            movies = results
+            series = results
             canLoadMore = false
             state = .loaded(results.count)
         } catch {
@@ -181,12 +179,12 @@ public final class MoviesViewModel: ObservableObject {
 
     // MARK: - Favoriler
 
-    public func toggleFavorite(_ movie: Movie) async {
-        _ = try? await dependencies.favorites.toggle(.movie(movie.id))
+    public func toggleFavorite(_ item: Series) async {
+        _ = try? await dependencies.favorites.toggle(.series(item.id))
     }
 
-    public func isFavorite(_ movie: Movie) -> Bool {
-        favoriteKeys.contains(FavoriteTarget.movie(movie.id).storageKey)
+    public func isFavorite(_ item: Series) -> Bool {
+        favoriteKeys.contains(FavoriteTarget.series(item.id).storageKey)
     }
 
     private func observeFavorites() {
@@ -197,15 +195,5 @@ public final class MoviesViewModel: ObservableObject {
                 self.favoriteKeys = keys
             }
         }
-    }
-
-    // MARK: - İzleme ilerlemesi
-
-    /// Afiş üzerinde gösterilecek "kaldığın yer" oranı.
-    public func progressFraction(for movie: Movie) async -> Double? {
-        guard let stored = try? await dependencies.progress.progress(for: .movie(movie.id)),
-              !stored.isFinished, stored.fraction > 0.01
-        else { return nil }
-        return stored.fraction
     }
 }

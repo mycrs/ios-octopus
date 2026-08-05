@@ -241,7 +241,12 @@ final class AppContainer: ObservableObject {
     }
 
     func makeSeriesDependencies() -> SeriesDependencies {
-        SeriesDependencies(series: series, favorites: favorites, progress: progress)
+        SeriesDependencies(
+            playlists: playlists,
+            series: series,
+            favorites: favorites,
+            progress: progress
+        )
     }
 
     func makeSearchDependencies() -> SearchDependencies {

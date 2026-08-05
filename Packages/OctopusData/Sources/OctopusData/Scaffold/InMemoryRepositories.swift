@@ -272,12 +272,12 @@ public actor InMemoryFavoritesRepository: FavoritesRepository {
 
     public init() {}
 
-    public func isFavorite(_ source: PlaybackItem.Source) async throws -> Bool {
-        keys.contains(source.storageKey)
+    public func isFavorite(_ target: FavoriteTarget) async throws -> Bool {
+        keys.contains(target.storageKey)
     }
 
-    public func toggle(_ source: PlaybackItem.Source) async throws -> Bool {
-        let key = source.storageKey
+    public func toggle(_ target: FavoriteTarget) async throws -> Bool {
+        let key = target.storageKey
         if keys.contains(key) {
             keys.remove(key)
             return false

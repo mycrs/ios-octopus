@@ -3,10 +3,32 @@ import Foundation
 // Kullanıcıya ait veriler. Sağlayıcıdan bağımsızdır; kaynak silinse bile
 // (kullanıcı isterse) korunabilir.
 
+/// Favoriye eklenebilecek içerik.
+///
+/// ⚠️ `PlaybackItem.Source`'tan ayrı bir tip: **dizi oynatılabilir değildir**
+/// (bölümü oynatılır) ama favoriye eklenebilir. İkisini aynı tipte
+/// birleştirmek "oynatılamayan oynatma kaynağı" gibi tutarsız bir kavram
+/// üretirdi.
+public enum FavoriteTarget: Hashable, Sendable {
+    case channel(Channel.ID)
+    case movie(Movie.ID)
+    case series(Series.ID)
+
+    /// Veritabanı anahtarı. Önekler `PlaybackItem.Source` ile uyumludur,
+    /// böylece kanal ve film favorileri aynı satırları paylaşır.
+    public var storageKey: String {
+        switch self {
+        case .channel(let id): return "live:\(id.value)"
+        case .movie(let id): return "movie:\(id.value)"
+        case .series(let id): return "series:\(id.value)"
+        }
+    }
+}
+
 /// Favoriler.
 public protocol FavoritesRepository: Sendable {
-    func isFavorite(_ source: PlaybackItem.Source) async throws -> Bool
-    func toggle(_ source: PlaybackItem.Source) async throws -> Bool
+    func isFavorite(_ target: FavoriteTarget) async throws -> Bool
+    func toggle(_ target: FavoriteTarget) async throws -> Bool
     func favoriteChannels(playlistID: Playlist.ID) async throws -> [Channel]
     func favoriteMovies(playlistID: Playlist.ID) async throws -> [Movie]
     func favoriteSeries(playlistID: Playlist.ID) async throws -> [Series]
