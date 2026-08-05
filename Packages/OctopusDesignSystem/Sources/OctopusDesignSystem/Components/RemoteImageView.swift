@@ -185,6 +185,9 @@ public struct RatingBadge: View {
             .padding(.horizontal, Theme.Spacing.xs)
             .padding(.vertical, 2)
             .background(.ultraThinMaterial, in: Capsule())
+            // Yıldız ikonu + sayı ayrı ayrı okunursa anlamsız; tek etiket.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Puan \(String(format: "%.1f", rating))")
         }
     }
 }

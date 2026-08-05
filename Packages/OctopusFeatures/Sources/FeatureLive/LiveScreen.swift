@@ -222,16 +222,31 @@ private struct ChannelRowView: View {
                         .foregroundColor(
                             isFavorite ? Theme.Palette.live : Theme.Palette.textTertiary
                         )
+                        // Dokunma hedefi ikondan büyük: 17pt'lik bir kalbe
+                        // isabet ettirmek zor ve yanlışlıkla satır açılıyordu.
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(isFavorite ? "Favorilerden çıkar" : "Favorilere ekle")
+                // Satır tek bir öğe olarak okunuyor; bu düğme onun içinde
+                // kaybolmasın diye erişilebilirlikten çıkarılıp aşağıda
+                // özel eylem olarak sunuluyor.
+                .accessibilityHidden(true)
             }
             .padding(Theme.Spacing.md)
             .background(Theme.Palette.surface)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
         .buttonStyle(.plain)
+        // ⚠️ VoiceOver: satır **tek** öğe olarak okunur (numara, ad, program
+        // ardı ardına), favori ve rehber ise özel eylem olarak sunulur.
+        // İç içe düğme bırakmak, kullanıcıyı her satırda üç kez durduruyordu.
         .accessibilityElement(children: .combine)
+        .accessibilityAction(
+            named: isFavorite ? "Favorilerden çıkar" : "Favorilere ekle",
+            onToggleFavorite
+        )
+        .accessibilityAction(named: "Yayın akışı", onShowGuide)
         .contextMenu {
             // Rehber uzun basmada: satırda ikinci bir düğme dokunma
             // hedeflerini daraltıyordu.

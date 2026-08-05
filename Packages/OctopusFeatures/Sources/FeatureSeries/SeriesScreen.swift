@@ -152,6 +152,12 @@ private struct SeriesPosterCell: View {
             }
         }
         .buttonStyle(.plain)
+        // Hücre tek öğe olarak okunur; favori özel eylem.
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(
+            named: isFavorite ? "Favorilerden çıkar" : "Favorilere ekle",
+            onToggleFavorite
+        )
         .contextMenu {
             Button {
                 onToggleFavorite()

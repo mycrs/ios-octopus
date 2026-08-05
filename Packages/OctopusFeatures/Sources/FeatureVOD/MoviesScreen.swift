@@ -160,6 +160,13 @@ private struct MoviePosterCell: View {
             }
         }
         .buttonStyle(.plain)
+        // Afiş, kalp ve puan ayrı ayrı okunursa ızgarada gezinmek işkence
+        // olur; hücre tek öğe, favori ise özel eylem.
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(
+            named: isFavorite ? "Favorilerden çıkar" : "Favorilere ekle",
+            onToggleFavorite
+        )
         .contextMenu {
             Button {
                 onToggleFavorite()
