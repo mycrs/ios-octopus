@@ -53,7 +53,7 @@ public struct DetailHeaderView<Actions: View>: View {
     private var backdrop: some View {
         // Arka plan yoksa afişin kendisi kullanılır: boş gri dikdörtgen
         // yerine içeriğin kendi rengi görünsün.
-        RemoteImageView(url: backdropURL ?? posterURL, contentMode: .fill) {
+        RemoteImageView(url: backdropURL ?? posterURL, contentMode: .fill, targetWidth: 480) {
             Theme.Palette.surfaceElevated
         }
         .frame(maxWidth: .infinity)

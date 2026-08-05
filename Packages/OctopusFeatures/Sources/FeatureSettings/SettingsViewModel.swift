@@ -89,6 +89,16 @@ public final class SettingsViewModel: ObservableObject {
         }
     }
 
+    /// Afiş ve logo önbelleğini boşaltır.
+    ///
+    /// Büyük kataloglarda birkaç yüz MB'a çıkabiliyor; kullanıcı yer
+    /// açmak isteyebilir. Veri kaybı yok, görseller yeniden indirilir.
+    public func clearImageCache() async {
+        await perform("Görsel önbelleği temizlendi") {
+            ImageLoading.clearCache()
+        }
+    }
+
     /// Aktif kaynağı yeniden senkronize eder.
     public func resyncActivePlaylist() async {
         guard let playlist = try? await dependencies.playlists.activePlaylist() else {

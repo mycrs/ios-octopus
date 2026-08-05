@@ -1,4 +1,5 @@
 import SwiftUI
+import Nuke
 import NukeUI
 
 /// Önbellekli uzak görsel.
@@ -13,21 +14,27 @@ public struct RemoteImageView<Placeholder: View>: View {
 
     private let url: URL?
     private let contentMode: SwiftUI.ContentMode
+    private let targetWidth: CGFloat?
     private let placeholder: () -> Placeholder
 
+    /// - Parameter targetWidth: Görselin ekranda kaplayacağı **nokta**
+    ///   genişliği. Verilirse indirilen görsel bu boyuta küçültülerek
+    ///   çözülür (aşağıdaki nota bak). Bilinmiyorsa `nil` bırakılabilir.
     public init(
         url: URL?,
         contentMode: SwiftUI.ContentMode = .fit,
+        targetWidth: CGFloat? = nil,
         @ViewBuilder placeholder: @escaping () -> Placeholder
     ) {
         self.url = url
         self.contentMode = contentMode
+        self.targetWidth = targetWidth
         self.placeholder = placeholder
     }
 
     public var body: some View {
         if let url {
-            LazyImage(url: url) { state in
+            LazyImage(request: request(for: url)) { state in
                 if let image = state.image {
                     image.resizable().aspectRatio(contentMode: contentMode)
                 } else {
@@ -37,6 +44,20 @@ public struct RemoteImageView<Placeholder: View>: View {
         } else {
             placeholder()
         }
+    }
+
+    /// ⚠️ **Bellek**: sağlayıcılar 1000×1500 afiş döndürüyor. 104pt'lik bir
+    /// küçük resim için tam boyutta çözmek kare başına ~6 MB demek; yüz
+    /// afişlik bir ızgarada uygulama bellek baskısıyla düşüyor.
+    /// Küçültme çözme (decode) sırasında yapılır — indirilen bayt aynı
+    /// kalır ama bellekteki bitmap ekrandaki boyut kadar olur.
+    private func request(for url: URL) -> ImageRequest {
+        guard let targetWidth else { return ImageRequest(url: url) }
+
+        return ImageRequest(
+            url: url,
+            processors: [ImageProcessors.Resize(width: targetWidth)]
+        )
     }
 }
 
@@ -52,7 +73,7 @@ public struct ChannelLogoView: View {
     }
 
     public var body: some View {
-        RemoteImageView(url: url) {
+        RemoteImageView(url: url, targetWidth: size) {
             ZStack {
                 Theme.Palette.surfaceElevated
                 Image(systemName: "tv")
@@ -78,7 +99,7 @@ public struct PosterView: View {
     }
 
     public var body: some View {
-        RemoteImageView(url: url, contentMode: .fill) {
+        RemoteImageView(url: url, contentMode: .fill, targetWidth: width) {
             ZStack {
                 Theme.Palette.surfaceElevated
                 Image(systemName: "film")

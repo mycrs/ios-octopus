@@ -264,6 +264,14 @@ public struct SettingsScreen: View {
             SettingsRow(icon: "play.slash", title: "Kaldığın yer bilgilerini sil") {
                 confirmingAction = .progress
             }
+            // Onay istemiyor: veri kaybı yok, görseller yeniden indirilir.
+            SettingsRow(
+                icon: "photo.on.rectangle",
+                title: "Görsel önbelleğini temizle",
+                detail: "Afiş ve logolar yeniden indirilir"
+            ) {
+                Task { await viewModel.clearImageCache() }
+            }
         }
     }
 

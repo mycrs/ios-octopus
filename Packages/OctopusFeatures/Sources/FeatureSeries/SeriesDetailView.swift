@@ -203,7 +203,7 @@ private struct EpisodeRowView: View {
         Button(action: onTap) {
             HStack(spacing: Theme.Spacing.md) {
                 ZStack {
-                    RemoteImageView(url: episode.stillURL, contentMode: .fill) {
+                    RemoteImageView(url: episode.stillURL, contentMode: .fill, targetWidth: 96) {
                         ZStack {
                             Theme.Palette.surfaceElevated
                             Image(systemName: "play.rectangle")

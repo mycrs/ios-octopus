@@ -260,7 +260,12 @@ private struct FeaturedHeroView: View {
     }
 
     private var backdrop: some View {
-        RemoteImageView(url: movie.backdropURL ?? movie.posterURL, contentMode: .fill) {
+        RemoteImageView(
+            url: movie.backdropURL ?? movie.posterURL,
+            contentMode: .fill,
+            // Hero kartı ekran genişliğinde; iPad'de de yeterli çözünürlük.
+            targetWidth: 720
+        ) {
             Theme.Palette.surfaceElevated
         }
         .frame(maxWidth: .infinity)

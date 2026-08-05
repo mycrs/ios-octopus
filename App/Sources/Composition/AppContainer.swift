@@ -87,6 +87,10 @@ final class AppContainer: ObservableObject {
     /// - Parameter database: Testler için enjekte edilir. `nil` ise
     ///   diskteki kalıcı veritabanı açılır.
     init(database: AppDatabase? = nil) {
+        // Görsel boru hattı depolardan önce kurulur: ilk ekran açılmadan
+        // hazır olmalı, sonradan değiştirmek yarım kalan indirmeleri iptal eder.
+        ImageLoading.configure()
+
         let secretStore = KeychainSecretStore()
         secrets = secretStore
         parental = KeychainParentalControl(secrets: secretStore)

@@ -23,6 +23,8 @@ let package = Package(
             dependencies: [
                 "OctopusCore",
                 "OctopusDomain",
+                // Nuke: boyut küçültme işlemcisi ve boru hattı ayarı için.
+                .product(name: "Nuke", package: "Nuke"),
                 .product(name: "NukeUI", package: "Nuke")
             ]
         )
