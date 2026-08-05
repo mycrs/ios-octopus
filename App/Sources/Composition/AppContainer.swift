@@ -106,7 +106,10 @@ final class AppContainer: ObservableObject {
             // Kaynak türü dallanması yalnızca bu fabrikada olur.
             let providerFactory = DefaultContentProviderFactory(
                 httpClient: URLSessionHTTPClient(),
-                secrets: secretStore
+                secrets: secretStore,
+                // Sağlayıcılar sunucu adresini sık değiştiriyor; kayıtlı
+                // adres ölünce panelin yedek listesine geçilir.
+                hostResolver: DNSFailoverService()
             )
             streams = ProviderStreamResolver(
                 playlists: playlistRepository,

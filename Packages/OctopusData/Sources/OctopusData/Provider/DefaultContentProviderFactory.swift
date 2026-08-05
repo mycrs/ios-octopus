@@ -17,23 +17,26 @@ public actor DefaultContentProviderFactory: ContentProviderFactory {
     private let httpClient: HTTPClient
     private let secrets: SecretStore
     private let liveFormat: XtreamContentProvider.LiveFormat
+    private let hostResolver: HostResolving
 
     private var cache: [String: ContentProvider] = [:]
 
     public init(
         httpClient: HTTPClient,
         secrets: SecretStore,
-        liveFormat: XtreamContentProvider.LiveFormat = .hls
+        liveFormat: XtreamContentProvider.LiveFormat = .hls,
+        hostResolver: HostResolving = PassthroughHostResolver()
     ) {
         self.httpClient = httpClient
         self.secrets = secrets
         self.liveFormat = liveFormat
+        self.hostResolver = hostResolver
     }
 
     public func makeProvider(for playlist: Playlist) async throws -> ContentProvider {
         if let cached = cache[playlist.id.value] { return cached }
 
-        let provider = try buildProvider(for: playlist)
+        let provider = try await buildProvider(for: playlist)
         cache[playlist.id.value] = provider
         return provider
     }
@@ -49,7 +52,7 @@ public actor DefaultContentProviderFactory: ContentProviderFactory {
 
     // MARK: - Kurulum
 
-    private func buildProvider(for playlist: Playlist) throws -> ContentProvider {
+    private func buildProvider(for playlist: Playlist) async throws -> ContentProvider {
         switch playlist.kind {
 
         case .xtream(let host, let username):
@@ -57,8 +60,11 @@ public actor DefaultContentProviderFactory: ContentProviderFactory {
             guard let password = try readPassword(for: playlist) else {
                 throw AppError.unauthorized
             }
+            // Sağlayıcılar sunucu adresini değiştirebiliyor; kayıtlı adres
+            // ölmüşse panelin yedek listesinden çalışan bulunur.
+            let resolvedHost = await hostResolver.resolve(preferring: host)
             return XtreamContentProvider(
-                baseURL: host,
+                baseURL: resolvedHost,
                 username: username,
                 password: password,
                 playlistID: playlist.id,
