@@ -164,6 +164,10 @@ private struct CategoryStripView: View {
 }
 
 /// Tek kanal satırı.
+///
+/// Referanstaki TV kartının telefon karşılığı: numara, ad, o an yayında
+/// olan program ve kalan süre. TV sürümünde bunlar geniş bir yan panelde
+/// duruyordu; burada tek satıra sığması gerekiyor.
 private struct ChannelRowView: View {
 
     let channel: Channel
@@ -180,24 +184,30 @@ private struct ChannelRowView: View {
                 ChannelLogoView(url: channel.logoURL)
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    Text(channel.name)
-                        .font(Theme.Typography.rowTitle)
-                        .foregroundColor(Theme.Palette.textPrimary)
-                        .lineLimit(1)
+                    HStack(spacing: Theme.Spacing.sm) {
+                        // Kanal numarası her zaman görünür: kullanıcılar
+                        // kanalları numarayla hatırlıyor ve yayın akışı
+                        // olsun olmasın numara aynı yerde durmalı.
+                        if let number = channel.number {
+                            Text("\(number)")
+                                .font(.system(.caption2, design: .monospaced).weight(.semibold))
+                                .foregroundColor(Theme.Palette.textTertiary)
+                                .frame(minWidth: 26, alignment: .trailing)
+                        }
+
+                        Text(channel.name)
+                            .font(Theme.Typography.rowTitle)
+                            .foregroundColor(Theme.Palette.textPrimary)
+                            .lineLimit(1)
+                    }
 
                     if let program {
-                        // Şu an oynayan program + ne kadarının geçtiği.
-                        Text(program.title)
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Palette.textSecondary)
-                            .lineLimit(1)
-
-                        ProgressView(value: program.progress(at: clock))
-                            .progressViewStyle(.linear)
-                            .tint(Theme.Palette.accent)
-                            .frame(height: 2)
-                    } else if let number = channel.number {
-                        Text("Kanal \(number)")
+                        programLine(program)
+                    } else {
+                        // ⚠️ Boş bırakmak yerine sebebi yazılıyor: bazı
+                        // kanalların rehberi sunucuda gerçekten yok, veri
+                        // uydurmak yanıltıcı olur.
+                        Text("Yayın akışı yok")
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Palette.textTertiary)
                     }
@@ -219,6 +229,7 @@ private struct ChannelRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .contextMenu {
             // Rehber uzun basmada: satırda ikinci bir düğme dokunma
             // hedeflerini daraltıyordu.
@@ -233,4 +244,32 @@ private struct ChannelRowView: View {
             }
         }
     }
+
+    /// O an yayında olan program: ad, kalan süre ve ilerleme.
+    private func programLine(_ program: EPGProgram) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Text(program.title)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textSecondary)
+                    .lineLimit(1)
+
+                if let remaining = LiveChannelsViewModel.remainingText(program, at: clock) {
+                    Text(remaining)
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Palette.accent)
+                        .lineLimit(1)
+                        // Program adı uzunsa kalan süre kırpılmasın:
+                        // asıl bilgi "daha ne kadar var".
+                        .layoutPriority(1)
+                }
+            }
+
+            ProgressView(value: program.progress(at: clock))
+                .progressViewStyle(.linear)
+                .tint(Theme.Palette.accent)
+                .frame(height: 2)
+        }
+    }
+
 }

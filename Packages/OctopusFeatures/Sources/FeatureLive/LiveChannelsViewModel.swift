@@ -234,6 +234,24 @@ public final class LiveChannelsViewModel: ObservableObject {
         }
     }
 
+    /// "32 dk" / "1 sa 5 dk" — kalan sürenin okunur hâli.
+    ///
+    /// Kural Domain'de (`EPGProgram.remaining`), biçim burada: satır
+    /// görünümü `private` olduğu için test edilebilir bir yerde durmalı.
+    static func remainingText(_ program: EPGProgram, at date: Date) -> String? {
+        guard let remaining = program.remaining(at: date) else { return nil }
+
+        let minutes = Int(remaining / 60)
+        // Bir dakikanın altını "0 dk" diye yazmak yerine gizle: program
+        // bitmek üzere ve sayı saniyede bir değişip dikkat dağıtır.
+        guard minutes >= 1 else { return nil }
+
+        if minutes < 60 { return "\(minutes) dk" }
+        let hours = minutes / 60
+        let rest = minutes % 60
+        return rest == 0 ? "\(hours) sa" : "\(hours) sa \(rest) dk"
+    }
+
     /// Bir kanalın o anki programı.
     public func currentProgram(for channel: Channel) -> EPGProgram? {
         guard let epgID = channel.epgChannelID else { return nil }

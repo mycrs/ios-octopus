@@ -44,6 +44,15 @@ public struct EPGProgram: Identifiable, Hashable, Codable, Sendable {
     }
 
     /// Programın ne kadarı geçti (0...1). Yayında değilse sınıra sabitlenir.
+    /// Bitmesine kalan süre — geçmişse `nil`.
+    ///
+    /// Sunum katmanı bunu "32 dk kaldı" diye yazar. Hesap burada:
+    /// "kalan süre" bir zaman kuralı, biçimlendirme sunumun işi.
+    public func remaining(at date: Date) -> TimeInterval? {
+        let left = endDate.timeIntervalSince(date)
+        return left > 0 ? left : nil
+    }
+
     public func progress(at date: Date) -> Double {
         guard duration > 0 else { return 0 }
         let elapsed = date.timeIntervalSince(startDate)

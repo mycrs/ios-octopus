@@ -274,6 +274,41 @@ final class LiveChannelsViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - Kalan süre metni
+
+    private func program(startOffset: TimeInterval, endOffset: TimeInterval) -> EPGProgram {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        return EPGProgram(
+            id: "p",
+            epgChannelID: "c",
+            title: "Program",
+            startDate: now.addingTimeInterval(startOffset),
+            endDate: now.addingTimeInterval(endOffset)
+        )
+    }
+
+    private var referenceNow: Date { Date(timeIntervalSince1970: 1_000_000) }
+
+    func test_remainingTextFormats() async {
+        let cases: [(TimeInterval, String?)] = [
+            (32 * 60, "32 dk"),
+            (60 * 60, "1 sa"),
+            (65 * 60, "1 sa 5 dk"),
+            (120 * 60, "2 sa"),
+            (30, nil),          // bir dakikanın altı gizlenir
+            (-60, nil)          // bitmiş program
+        ]
+
+        for (seconds, expected) in cases {
+            let item = program(startOffset: -3_600, endOffset: seconds)
+            XCTAssertEqual(
+                LiveChannelsViewModel.remainingText(item, at: referenceNow),
+                expected,
+                "\(seconds) saniye"
+            )
+        }
+    }
+
     // MARK: - Canlı gözlem
 
     func test_syncWritesAppearWithoutManualRefresh() async {
