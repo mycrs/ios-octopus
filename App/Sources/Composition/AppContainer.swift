@@ -2,6 +2,7 @@ import Foundation
 import OctopusCore
 import OctopusDomain
 import OctopusData
+import OctopusDesignSystem   // ThemeController
 import OctopusNavigation
 import OctopusPlayback
 import OctopusPlaybackVLC
