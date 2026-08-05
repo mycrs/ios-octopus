@@ -271,7 +271,12 @@ final class AppContainer: ObservableObject {
     }
 
     func makeSearchDependencies() -> SearchDependencies {
-        SearchDependencies(channels: channels, vod: vod, series: series)
+        SearchDependencies(
+            playlists: playlists,
+            channels: channels,
+            vod: vod,
+            series: series
+        )
     }
 
     func makePlayerDependencies() -> PlayerDependencies {
