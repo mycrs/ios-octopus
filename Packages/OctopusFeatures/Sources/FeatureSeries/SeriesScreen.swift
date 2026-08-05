@@ -123,25 +123,30 @@ private struct SeriesPosterCell: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                ZStack(alignment: .topTrailing) {
-                    PosterView(url: series.posterURL, width: 104)
-
-                    if isFavorite {
-                        Image(systemName: "heart.fill")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Palette.live)
-                            .padding(Theme.Spacing.xs)
-                            .background(.ultraThinMaterial, in: Circle())
+                GridPosterView(url: series.posterURL)
+                    .overlay(alignment: .topTrailing) {
+                        if isFavorite {
+                            Image(systemName: "heart.fill")
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Palette.live)
+                                .padding(Theme.Spacing.xs)
+                                .background(.ultraThinMaterial, in: Circle())
+                                .padding(Theme.Spacing.xs)
+                        }
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        RatingBadge(rating: series.rating)
                             .padding(Theme.Spacing.xs)
                     }
-                }
 
                 Text(series.title)
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                    .frame(width: 104, alignment: .leading)
+                    // Hücre genişliğini doldur; sabit genişlik iPad'de
+                    // başlıkları afişten dar bırakıyordu.
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .buttonStyle(.plain)

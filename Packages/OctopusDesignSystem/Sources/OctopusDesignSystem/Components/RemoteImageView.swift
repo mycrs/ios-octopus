@@ -112,3 +112,79 @@ public struct PosterView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
     }
 }
+
+/// Kapsayıcı genişliğini **dolduran** afiş — ızgara hücreleri için.
+///
+/// ⚠️ Sabit genişlikli `PosterView` uyarlanır ızgarada (`GridItem.adaptive`)
+/// yanlış duruyordu: hücreler ekrana göre genişliyor ama afiş 104pt'de
+/// kalıyor, iPad'de her hücrede belirgin boşluk oluşuyordu.
+///
+/// `Color.clear` + `aspectRatio` kalıbı kullanılıyor: önce hücre
+/// genişliğinde 2:3'lük bir kutu ölçülüyor, görsel o kutuyu dolduruyor.
+/// Görselin kendi boyutuna göre yerleşim yapmak, yükleme bitene kadar
+/// ızgaranın zıplamasına yol açıyordu.
+public struct GridPosterView: View {
+
+    private let url: URL?
+    private let cornerRadius: CGFloat
+
+    public init(url: URL?, cornerRadius: CGFloat = Theme.Radius.md) {
+        self.url = url
+        self.cornerRadius = cornerRadius
+    }
+
+    public var body: some View {
+        Color.clear
+            .aspectRatio(Theme.AspectRatio.poster, contentMode: .fit)
+            .overlay(
+                RemoteImageView(
+                    url: url,
+                    contentMode: .fill,
+                    // Izgara hücresi ekrana göre değişiyor; iPad'de bile
+                    // yeterli olan sabit bir üst sınır veriliyor.
+                    targetWidth: 240
+                ) {
+                    ZStack {
+                        Theme.Palette.surfaceElevated
+                        Image(systemName: "film")
+                            .font(.title2)
+                            .foregroundColor(Theme.Palette.textTertiary)
+                    }
+                }
+            )
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+/// Afiş üzerine binen puan rozeti.
+///
+/// Referansta puan kartın köşesinde duruyor; katalogda gezerken
+/// "bu iyi mi?" sorusunun cevabı detaya girmeden görünüyor.
+public struct RatingBadge: View {
+
+    private let rating: Double?
+
+    public init(rating: Double?) {
+        self.rating = rating
+    }
+
+    /// Puan yoksa veya sıfırsa rozet **hiç çizilmez** — sağlayıcıların çoğu
+    /// bu alanı boş bırakıyor ve "0.0" yazan bir rozet yanıltıcı olurdu.
+    /// Kontrol burada: her çağıran ayrı ayrı `if let` yazmasın.
+    @ViewBuilder
+    public var body: some View {
+        if let rating, rating > 0 {
+            HStack(spacing: 2) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 8, weight: .bold))
+                Text(String(format: "%.1f", rating))
+                    .font(Theme.Typography.badge)
+            }
+            .foregroundColor(Theme.Palette.warning)
+            .padding(.horizontal, Theme.Spacing.xs)
+            .padding(.vertical, 2)
+            .background(.ultraThinMaterial, in: Capsule())
+        }
+    }
+}
