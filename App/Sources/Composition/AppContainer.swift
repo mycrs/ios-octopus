@@ -232,7 +232,12 @@ final class AppContainer: ObservableObject {
     }
 
     func makeVODDependencies() -> VODDependencies {
-        VODDependencies(vod: vod, favorites: favorites, progress: progress)
+        VODDependencies(
+            playlists: playlists,
+            vod: vod,
+            favorites: favorites,
+            progress: progress
+        )
     }
 
     func makeSeriesDependencies() -> SeriesDependencies {

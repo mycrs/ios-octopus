@@ -54,6 +54,7 @@ let package = Package(
         // ama hiç koşmamış olur. Bkz. Docs/BRAIN.md § 10.
         .testTarget(name: "FeatureOnboardingTests", dependencies: ["FeatureOnboarding"]),
         .testTarget(name: "FeatureSettingsTests", dependencies: ["FeatureSettings"]),
-        .testTarget(name: "FeatureLiveTests", dependencies: ["FeatureLive"])
+        .testTarget(name: "FeatureLiveTests", dependencies: ["FeatureLive"]),
+        .testTarget(name: "FeatureVODTests", dependencies: ["FeatureVOD"])
     ]
 )
