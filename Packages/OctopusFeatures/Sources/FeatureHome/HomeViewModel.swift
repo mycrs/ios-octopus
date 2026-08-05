@@ -29,13 +29,68 @@ public final class HomeViewModel: ObservableObject {
         resumeItems.isEmpty && recentlyAdded.isEmpty && recentChannels.isEmpty
     }
 
+    /// Tepede dönen öne çıkan içerikler.
+    @Published public private(set) var featured: [Movie] = []
+    @Published public private(set) var featuredIndex = 0
+
+    public var featuredItem: Movie? {
+        guard featured.indices.contains(featuredIndex) else { return featured.first }
+        return featured[featuredIndex]
+    }
+
     private let dependencies: HomeDependencies
     private let shelfLimit: Int
+    private let featuredLimit: Int
+    private let featuredRotation: Duration
+    private let now: () -> Date
     private var parentalFilter = ParentalFilter.open
 
-    public init(dependencies: HomeDependencies, shelfLimit: Int = 12) {
+    public init(
+        dependencies: HomeDependencies,
+        shelfLimit: Int = 12,
+        // Beş yeterli: daha fazlası aynı içeriğe dönmeyi geciktirir ve
+        // kullanıcı zaten üstteki tek karta bakıyor.
+        featuredLimit: Int = 5,
+        // Okumaya vakit bırakacak kadar uzun, sıkmayacak kadar kısa.
+        featuredRotation: Duration = .seconds(8),
+        now: @escaping () -> Date = Date.init
+    ) {
         self.dependencies = dependencies
         self.shelfLimit = shelfLimit
+        self.featuredLimit = featuredLimit
+        self.featuredRotation = featuredRotation
+        self.now = now
+    }
+
+    /// Saate göre karşılama — Android sürümüyle aynı davranış.
+    public var greeting: String {
+        switch Calendar.current.component(.hour, from: now()) {
+        case 5..<12: return "Günaydın"
+        case 12..<18: return "İyi günler"
+        case 18..<22: return "İyi akşamlar"
+        default: return "İyi geceler"
+        }
+    }
+
+    /// Kullanıcı sayfa noktalarına dokunarak doğrudan geçebilir.
+    ///
+    /// Dönen bir kartta "az önce gördüğüm şeye geri dön" ihtiyacı doğuyor;
+    /// bir sonraki turu beklemek zorunda kalmasın.
+    public func showFeatured(at index: Int) {
+        guard featured.indices.contains(index) else { return }
+        featuredIndex = index
+    }
+
+    /// Öne çıkan içeriği belirli aralıklarla değiştirir.
+    ///
+    /// Görünüm bunu `.task` içinde çağırır; ekrandan çıkılınca görev iptal
+    /// edilir ve arka planda boşuna dönmez.
+    public func rotateFeatured() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: featuredRotation)
+            guard !Task.isCancelled, featured.count > 1 else { continue }
+            featuredIndex = (featuredIndex + 1) % featured.count
+        }
     }
 
     public func load() async {
@@ -65,6 +120,7 @@ public final class HomeViewModel: ObservableObject {
             resumeItems = await resume
             recentlyAdded = parentalFilter.filter((try? await added) ?? [])
             recentChannels = parentalFilter.filter((try? await channels) ?? [])
+            updateFeatured()
 
             state = .loaded(resumeItems.count + recentlyAdded.count + recentChannels.count)
         } catch {
@@ -127,9 +183,23 @@ public final class HomeViewModel: ObservableObject {
         return items
     }
 
+    /// Öne çıkanları son eklenenlerden seçer.
+    ///
+    /// Görseli olanlar önce gelir: arka planı boş bir hero kartı, olmayan
+    /// bir özelliği varmış gibi görünüp ekranı çirkinleştiriyor.
+    private func updateFeatured() {
+        let withArtwork = recentlyAdded.filter { $0.backdropURL != nil || $0.posterURL != nil }
+        featured = Array(withArtwork.prefix(featuredLimit))
+
+        // Liste kısaldıysa eldeki sıra taşabilir.
+        if featuredIndex >= featured.count { featuredIndex = 0 }
+    }
+
     private func clear() {
         resumeItems = []
         recentlyAdded = []
         recentChannels = []
+        featured = []
+        featuredIndex = 0
     }
 }
