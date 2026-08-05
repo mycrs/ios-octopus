@@ -171,10 +171,9 @@ final class SearchViewModelTests: XCTestCase {
         let viewModel = makeViewModel()
         await viewModel.prepare()
         viewModel.searchText = "bulunamaz"
-        await waitABit()
+        await waitUntil("arama tamamlanmalı") { viewModel.state == .loaded(0) }
 
         XCTAssertTrue(viewModel.isEmpty)
-        XCTAssertEqual(viewModel.state, .loaded(0))
     }
 
     // MARK: - Temizleme

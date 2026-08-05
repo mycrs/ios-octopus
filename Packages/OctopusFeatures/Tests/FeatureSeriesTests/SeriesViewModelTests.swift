@@ -108,13 +108,11 @@ final class SeriesViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("dizi listesi gelmeli") { !viewModel.series.isEmpty }
 
         let item = viewModel.series[0]
         await viewModel.toggleFavorite(item)
-        await waitABit()
-
-        XCTAssertTrue(viewModel.isFavorite(item))
+        await waitUntil("favori durumu yansımalı") { viewModel.isFavorite(item) }
         XCTAssertEqual(favorites.lastKey, "series:s-0")
         XCTAssertNotEqual(favorites.lastKey, "movie:s-0", "Film anahtarıyla karışmamalı")
     }

@@ -315,15 +315,13 @@ final class MoviesViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("film listesi gelmeli") { !viewModel.movies.isEmpty }
 
         let movie = viewModel.movies[0]
         XCTAssertFalse(viewModel.isFavorite(movie))
 
         await viewModel.toggleFavorite(movie)
-        await waitABit()
-
-        XCTAssertTrue(viewModel.isFavorite(movie))
+        await waitUntil("favori durumu yansımalı") { viewModel.isFavorite(movie) }
     }
 }
 

@@ -80,7 +80,7 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("kanallar gelmeli") { viewModel.channels.count == 2 }
 
         XCTAssertEqual(viewModel.categories.map(\.name), ["Spor"])
         XCTAssertEqual(viewModel.channels.map(\.name), ["TRT 1", "Show"])
@@ -94,19 +94,20 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("ilk gözlem başlamalı") { channels.isObserving }
 
         viewModel.selectCategory(MediaCategory.ID("spor"))
-        await waitABit()
+        await waitUntil("kategori gözlemi yenilenmeli") {
+            channels.observedCategoryIDs.last??.value == "spor"
+        }
 
         XCTAssertEqual(viewModel.selectedCategoryID?.value, "spor")
-        XCTAssertEqual(channels.observedCategoryIDs.last??.value, "spor")
     }
 
     func test_selectingSameCategoryTwiceDoesNotReobserve() async {
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("gözlem başlamalı") { channels.isObserving }
 
         let countBefore = channels.observedCategoryIDs.count
         viewModel.selectCategory(nil)   // zaten nil
@@ -173,15 +174,13 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("kanal listesi gelmeli") { !viewModel.channels.isEmpty }
 
         let channel = viewModel.channels[0]
         XCTAssertFalse(viewModel.isFavorite(channel))
 
         await viewModel.toggleFavorite(channel)
-        await waitABit()
-
-        XCTAssertTrue(viewModel.isFavorite(channel))
+        await waitUntil("favori durumu yansımalı") { viewModel.isFavorite(channel) }
     }
 
     // MARK: - Yayın akışı
@@ -196,7 +195,9 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("kanallar ve rehber gelmeli") {
+            viewModel.channels.count == 3 && !viewModel.nowPlaying.isEmpty
+        }
 
         XCTAssertEqual(viewModel.currentProgram(for: viewModel.channels[0])?.title, "Haberler")
         XCTAssertNil(viewModel.currentProgram(for: viewModel.channels[1]))
@@ -213,9 +214,8 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
+        await waitUntil("kanal gelmeli") { viewModel.channels.count == 1 }
 
-        XCTAssertEqual(viewModel.channels.count, 1)
         XCTAssertNil(viewModel.currentProgram(for: viewModel.channels[0]))
     }
 
@@ -231,13 +231,9 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
-
-        XCTAssertEqual(
-            viewModel.channels.map(\.name),
-            ["Normal"],
-            "Kilit açıkken yetişkin kanal listede görünmemeli"
-        )
+        await waitUntil("süzülmüş liste gelmeli") {
+            viewModel.channels.map(\.name) == ["Normal"]
+        }
     }
 
     func test_unlockedParentalControlShowsEverything() async {
@@ -250,9 +246,7 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await waitABit()
-
-        XCTAssertEqual(viewModel.channels.count, 2)
+        await waitUntil("iki kanal da gelmeli") { viewModel.channels.count == 2 }
     }
 
     func test_searchAlsoRespectsParentalLock() async {
