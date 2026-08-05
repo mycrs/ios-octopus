@@ -153,15 +153,21 @@ görüntüsüyle teyit edildiğinde kapanacak.
 
 ---
 
-## Faz 5 — Canlı TV + arama
+## Faz 5 — Canlı TV + arama *(büyük kısmı tamam)*
 
-- [ ] Kategori listesi → kanal listesi (sanal liste, sabit sıralama)
-- [ ] Kanal satırında logo + "şimdi/sırada" EPG şeridi
-- [ ] Nuke ile logo önbelleği
-- [ ] FTS5 destekli birleşik arama + kategori içi arama
-- [ ] Kanal numarası ile geçiş, favori ekleme
+- [x] Kategori şeridi → kanal listesi (`LazyVStack`, sabit sıralama)
+- [x] Nuke ile logo önbelleği (`RemoteImageView`, `ChannelLogoView`, `PosterView`)
+- [x] FTS5 destekli arama, 300 ms geciktirmeli
+- [x] Favori ekleme/çıkarma, canlı gözlemle anında güncelleme
+- [x] Kaynak yokken boş durum (hata değil)
+- [ ] Kanal satırında "şimdi/sırada" EPG şeridi → **Faz 7** (EPG ile birlikte)
+- [ ] Favoriler görünümü
+- [ ] Kanal numarası ile hızlı geçiş
 
 **Bitti tanımı:** 20.000 kanallık listede kaydırma 60 fps.
+⚠️ **Ölçülmedi** — kaydırma performansı simülatörde anlamlı ölçülemiyor,
+gerçek cihaz gerekiyor. `LazyVStack` ve sabit sıralama ile yapısal olarak
+hazır; teyit TestFlight'a çıkınca yapılacak.
 
 ---
 
