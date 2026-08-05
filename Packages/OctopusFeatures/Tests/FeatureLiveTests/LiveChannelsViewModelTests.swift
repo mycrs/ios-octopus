@@ -10,12 +10,14 @@ final class LiveChannelsViewModelTests: XCTestCase {
     private var channels: StubChannels!
     private var favorites: StubFavorites!
     private var epg: StubEPG!
+    private var parental: StubParental!
 
     override func setUp() async throws {
         playlists = StubPlaylists()
         channels = StubChannels()
         favorites = StubFavorites()
         epg = StubEPG()
+        parental = StubParental()
     }
 
     private func makeViewModel() -> LiveChannelsViewModel {
@@ -24,7 +26,8 @@ final class LiveChannelsViewModelTests: XCTestCase {
                 playlists: playlists,
                 channels: channels,
                 epg: epg,
-                favorites: favorites
+                favorites: favorites,
+                parental: parental
             ),
             // Testte beklememek için çok kısa gecikmeler.
             searchDebounce: .milliseconds(10),
@@ -190,6 +193,61 @@ final class LiveChannelsViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.currentProgram(for: viewModel.channels[0]))
     }
 
+    // MARK: - Ebeveyn kilidi
+
+    func test_lockedParentalControlHidesAdultChannels() async {
+        channels.stored = [
+            makeChannel("1", "Normal"),
+            makeAdultChannel("2", "Yetişkin")
+        ]
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await waitABit()
+
+        XCTAssertEqual(
+            viewModel.channels.map(\.name),
+            ["Normal"],
+            "Kilit açıkken yetişkin kanal listede görünmemeli"
+        )
+    }
+
+    func test_unlockedParentalControlShowsEverything() async {
+        channels.stored = [
+            makeChannel("1", "Normal"),
+            makeAdultChannel("2", "Yetişkin")
+        ]
+        parental.enabled = true
+        parental.unlocked = true
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await waitABit()
+
+        XCTAssertEqual(viewModel.channels.count, 2)
+    }
+
+    func test_searchAlsoRespectsParentalLock() async {
+        // Kilit aramayla atlatılamamalı.
+        channels.searchResults = [
+            makeChannel("1", "Normal Sonuç"),
+            makeAdultChannel("2", "Yetişkin Sonuç")
+        ]
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await waitABit()
+
+        viewModel.searchText = "sonuç"
+        await waitABit()
+
+        XCTAssertEqual(viewModel.channels.map(\.name), ["Normal Sonuç"])
+    }
+
     // MARK: - Canlı gözlem
 
     func test_syncWritesAppearWithoutManualRefresh() async {
@@ -216,6 +274,16 @@ final class LiveChannelsViewModelTests: XCTestCase {
             name: name,
             streamKey: id,
             epgChannelID: epgID
+        )
+    }
+
+    private func makeAdultChannel(_ id: String, _ name: String) -> Channel {
+        Channel(
+            id: Channel.ID(id),
+            playlistID: "p1",
+            name: name,
+            streamKey: id,
+            isAdult: true
         )
     }
 
@@ -332,6 +400,19 @@ private final class StubFavorites: FavoritesRepository, @unchecked Sendable {
             continuation.yield(keys)
         }
     }
+}
+
+private final class StubParental: ParentalControlling, @unchecked Sendable {
+
+    var enabled = false
+    var unlocked = true
+
+    func isEnabled() async -> Bool { enabled }
+    func isUnlocked() async -> Bool { unlocked }
+    func setPIN(_ pin: String) async throws { enabled = true }
+    @discardableResult func unlock(with pin: String) async -> Bool { unlocked = true; return true }
+    func lock() async { unlocked = false }
+    func disable(with pin: String) async throws { enabled = false }
 }
 
 private final class StubEPG: EPGRepository, @unchecked Sendable {

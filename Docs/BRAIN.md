@@ -281,6 +281,7 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 | Ham dizgi `#"…"#` + renk kodu | `"#00E676` dizisi dizgiyi erken kapatıyor | İki diyezli sınırlayıcı `##"…"##` |
 | Feature'da `as?` ile Data protokolü | Dönüşüm **asla tutmaz** (feature Data'yı göremez), özellik sessizce çalışmaz | Sözleşmeyi Domain'e taşı |
 | Domain'in iç yardımcısına uzanmak | `inaccessible due to 'internal'` | Dönüşümü sunum katmanına koy, Domain'i açma |
+| `try?` + optional dönen fonksiyon | `initializer for conditional binding must have Optional type, not 'String'` — `String??` sanıp iki kez açtım | `try?` iç içe optional'ı **düzleştirir** (SE-0230); `throws -> String?` tek `if let` ile açılır |
 
 > 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
 > üçüncüde `plutil -p` ile derlenmiş plist okununca cevap tek satırda çıktı.

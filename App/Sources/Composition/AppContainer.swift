@@ -49,6 +49,8 @@ final class AppContainer: ObservableObject {
     private let validator: PlaylistValidating
     private let activation: ActivationRedeeming
     private let remoteConfig: RemoteConfigProviding
+    /// Ebeveyn kilidi depolamadan bağımsız çalışır (Keychain).
+    private let parental: ParentalControlling
 
     // MARK: - Oynatma
 
@@ -87,6 +89,7 @@ final class AppContainer: ObservableObject {
     init(database: AppDatabase? = nil) {
         let secretStore = KeychainSecretStore()
         secrets = secretStore
+        parental = KeychainParentalControl(secrets: secretStore)
 
         if let database = database ?? Self.openDatabase() {
             let playlistRepository = GRDBPlaylistRepository(
@@ -244,7 +247,8 @@ final class AppContainer: ObservableObject {
             playlists: playlists,
             channels: channels,
             epg: epg,
-            favorites: favorites
+            favorites: favorites,
+            parental: parental
         )
     }
 
@@ -298,7 +302,8 @@ final class AppContainer: ObservableObject {
             progress: progress,
             history: history,
             // Destek kanalları panelden gelir; henüz çekilmediyse boş.
-            contact: appConfig?.contact ?? .empty
+            contact: appConfig?.contact ?? .empty,
+            parental: parental
         )
     }
 }

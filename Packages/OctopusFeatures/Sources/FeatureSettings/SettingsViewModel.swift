@@ -13,6 +13,7 @@ public final class SettingsViewModel: ObservableObject {
     @Published public private(set) var isBusy = false
     /// Kullanıcıya gösterilecek son işlem sonucu.
     @Published public private(set) var message: String?
+    @Published public private(set) var isParentalEnabled = false
 
     private let dependencies: SettingsDependencies
     private let now: () -> Date
@@ -30,8 +31,44 @@ public final class SettingsViewModel: ObservableObject {
             let active = all.first(where: \.isActive)
             activePlaylistName = active?.name
             lastSyncedText = Self.relativeText(active?.lastSyncedAt, now: now())
+            isParentalEnabled = await dependencies.parental.isEnabled()
         } catch {
             message = AppError.wrap(error).userMessage
+        }
+    }
+
+    // MARK: - Ebeveyn kilidi
+
+    public func setParentalPIN(_ pin: String) async {
+        do {
+            try await dependencies.parental.setPIN(pin)
+            isParentalEnabled = true
+            message = "Ebeveyn kilidi açıldı."
+        } catch {
+            message = Self.parentalMessage(for: error)
+        }
+    }
+
+    public func disableParental(with pin: String) async {
+        do {
+            try await dependencies.parental.disable(with: pin)
+            isParentalEnabled = false
+            message = "Ebeveyn kilidi kaldırıldı."
+        } catch {
+            message = Self.parentalMessage(for: error)
+        }
+    }
+
+    static func parentalMessage(for error: Error) -> String {
+        switch error as? ParentalControlError {
+        case .invalidFormat:
+            return "PIN 4-8 haneli olmalı ve yalnızca rakam içermeli."
+        case .wrongPIN:
+            return "PIN hatalı."
+        case .notConfigured:
+            return "Ebeveyn kilidi kurulu değil."
+        case .storageFailure, .none:
+            return "İşlem tamamlanamadı."
         }
     }
 

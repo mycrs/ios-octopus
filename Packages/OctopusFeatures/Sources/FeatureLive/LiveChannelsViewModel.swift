@@ -31,6 +31,8 @@ public final class LiveChannelsViewModel: ObservableObject {
     private let searchDebounce: Duration
 
     private var activePlaylistID: Playlist.ID?
+    /// Kilit kurulu ve açılmamışsa yetişkin kanallar süzülür.
+    private var parentalFilter = ParentalFilter(isEnabled: false, isUnlocked: true)
     private var searchTask: Task<Void, Never>?
     private var observationTask: Task<Void, Never>?
     private var favoritesTask: Task<Void, Never>?
@@ -72,6 +74,7 @@ public final class LiveChannelsViewModel: ObservableObject {
                 return
             }
             activePlaylistID = playlist.id
+            await refreshParentalFilter()
 
             categories = try await dependencies.channels.categories(playlistID: playlist.id)
             observeChannels(playlistID: playlist.id, categoryID: selectedCategoryID)
@@ -135,11 +138,20 @@ public final class LiveChannelsViewModel: ObservableObject {
                 limit: 200
             )
             guard !Task.isCancelled else { return }
-            channels = results
-            state = .loaded(results.count)
+            // Arama sonuçları da süzülür; aksi halde kilit aramayla atlatılırdı.
+            let allowed = parentalFilter.filter(results)
+            channels = allowed
+            state = .loaded(allowed.count)
         } catch {
             state = .failed(AppError.wrap(error))
         }
+    }
+
+    /// Kilit durumu değişmiş olabilir (Ayarlar'dan açılıp kapanabiliyor).
+    public func refreshParentalFilter() async {
+        let isEnabled = await dependencies.parental.isEnabled()
+        let isUnlocked = await dependencies.parental.isUnlocked()
+        parentalFilter = ParentalFilter(isEnabled: isEnabled, isUnlocked: isUnlocked)
     }
 
     public func clearSearch() {
@@ -177,8 +189,10 @@ public final class LiveChannelsViewModel: ObservableObject {
                 guard let self, !Task.isCancelled else { return }
                 // Arama sürerken gelen güncelleme sonuçları ezmemeli.
                 guard !self.isSearching else { continue }
-                self.channels = updated
-                self.state = .loaded(updated.count)
+
+                let allowed = self.parentalFilter.filter(updated)
+                self.channels = allowed
+                self.state = .loaded(allowed.count)
             }
         }
     }

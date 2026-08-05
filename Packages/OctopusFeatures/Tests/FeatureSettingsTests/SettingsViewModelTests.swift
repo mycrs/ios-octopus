@@ -10,6 +10,7 @@ final class SettingsViewModelTests: XCTestCase {
     private var sync: SettingsStubSync!
     private var progress: SettingsStubProgress!
     private var history: SettingsStubHistory!
+    private var parental: SettingsStubParental!
 
     private let now = Date(timeIntervalSince1970: 100_000)
 
@@ -18,6 +19,7 @@ final class SettingsViewModelTests: XCTestCase {
         sync = SettingsStubSync()
         progress = SettingsStubProgress()
         history = SettingsStubHistory()
+        parental = SettingsStubParental()
     }
 
     private func makeViewModel() -> SettingsViewModel {
@@ -26,7 +28,8 @@ final class SettingsViewModelTests: XCTestCase {
                 playlists: playlists,
                 sync: sync,
                 progress: progress,
-                history: history
+                history: history,
+                parental: parental
             ),
             now: { self.now }
         )
@@ -140,6 +143,71 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertTrue(sync.syncedIDs.isEmpty)
         XCTAssertNotNil(viewModel.message)
     }
+
+    // MARK: - Ebeveyn kilidi
+
+    func test_loadReflectsExistingLock() async {
+        parental.enabled = true
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.isParentalEnabled)
+    }
+
+    func test_setParentalPINEnablesLock() async {
+        let viewModel = makeViewModel()
+        await viewModel.setParentalPIN("4821")
+
+        XCTAssertTrue(viewModel.isParentalEnabled)
+        XCTAssertEqual(parental.receivedPINs, ["4821"])
+    }
+
+    func test_setParentalPINFailureKeepsLockOff() async {
+        parental.setError = ParentalControlError.invalidFormat
+
+        let viewModel = makeViewModel()
+        await viewModel.setParentalPIN("12")
+
+        XCTAssertFalse(viewModel.isParentalEnabled, "Hatalı PIN kilidi açmamalı")
+        XCTAssertEqual(viewModel.message, "PIN 4-8 haneli olmalı ve yalnızca rakam içermeli.")
+    }
+
+    func test_disableWithWrongPINKeepsLockOn() async {
+        parental.enabled = true
+        parental.disableError = ParentalControlError.wrongPIN
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await viewModel.disableParental(with: "0000")
+
+        XCTAssertTrue(viewModel.isParentalEnabled, "Yanlış PIN kilidi kaldırmamalı")
+        XCTAssertEqual(viewModel.message, "PIN hatalı.")
+    }
+
+    func test_disableWithCorrectPINRemovesLock() async {
+        parental.enabled = true
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await viewModel.disableParental(with: "4821")
+
+        XCTAssertFalse(viewModel.isParentalEnabled)
+    }
+
+    func test_parentalMessageCoversEveryError() {
+        // Bilinmeyen hata da kullanıcıya bir şey söylemeli — boş kalmamalı.
+        XCTAssertFalse(SettingsViewModel.parentalMessage(for: URLError(.timedOut)).isEmpty)
+
+        let messages = [
+            ParentalControlError.invalidFormat,
+            .wrongPIN,
+            .notConfigured,
+            .storageFailure
+        ].map { SettingsViewModel.parentalMessage(for: $0) }
+
+        XCTAssertEqual(Set(messages).count, 4, "Her hata ayrı mesaj vermeli")
+    }
 }
 
 // MARK: - Sahteler
@@ -155,6 +223,33 @@ private final class SettingsStubPlaylists: PlaylistRepository, @unchecked Sendab
     func update(_ playlist: Playlist) async throws {}
     func setActive(id: Playlist.ID) async throws {}
     func delete(id: Playlist.ID) async throws {}
+}
+
+private final class SettingsStubParental: ParentalControlling, @unchecked Sendable {
+
+    var enabled = false
+    var setError: Error?
+    var disableError: Error?
+    private(set) var receivedPINs: [String] = []
+
+    func isEnabled() async -> Bool { enabled }
+    func isUnlocked() async -> Bool { !enabled }
+
+    func setPIN(_ pin: String) async throws {
+        receivedPINs.append(pin)
+        if let setError { throw setError }
+        enabled = true
+    }
+
+    @discardableResult
+    func unlock(with pin: String) async -> Bool { true }
+
+    func lock() async {}
+
+    func disable(with pin: String) async throws {
+        if let disableError { throw disableError }
+        enabled = false
+    }
 }
 
 private final class SettingsStubSync: ContentSyncing, @unchecked Sendable {

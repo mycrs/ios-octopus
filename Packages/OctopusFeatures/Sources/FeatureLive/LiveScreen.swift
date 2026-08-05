@@ -8,17 +8,21 @@ public struct LiveDependencies {
     public let channels: ChannelRepository
     public let epg: EPGRepository
     public let favorites: FavoritesRepository
+    /// Kilit açıkken yetişkin kanallar listeden gizlenir.
+    public let parental: ParentalControlling
 
     public init(
         playlists: PlaylistRepository,
         channels: ChannelRepository,
         epg: EPGRepository,
-        favorites: FavoritesRepository
+        favorites: FavoritesRepository,
+        parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
         self.channels = channels
         self.epg = epg
         self.favorites = favorites
+        self.parental = parental
     }
 }
 

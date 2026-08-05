@@ -10,19 +10,22 @@ public struct SettingsDependencies {
     public let history: WatchHistoryRepository
     /// Bayinin destek kanalları (panelden gelir).
     public let contact: ContactChannels
+    public let parental: ParentalControlling
 
     public init(
         playlists: PlaylistRepository,
         sync: ContentSyncing,
         progress: PlaybackProgressRepository,
         history: WatchHistoryRepository,
-        contact: ContactChannels = .empty
+        contact: ContactChannels = .empty,
+        parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
         self.sync = sync
         self.progress = progress
         self.history = history
         self.contact = contact
+        self.parental = parental
     }
 }
 
@@ -35,6 +38,8 @@ public struct SettingsScreen: View {
 
     private let contact: ContactChannels
     @State private var confirmingAction: DataAction?
+    @State private var isEnteringPIN = false
+    @State private var pinInput = ""
 
     private enum DataAction: String, Identifiable {
         case history
@@ -74,6 +79,7 @@ public struct SettingsScreen: View {
 
                     sourceSection
                     appearanceSection
+                    parentalSection
                     dataSection
                     if contact.hasAny { supportSection }
                     aboutSection
@@ -112,6 +118,33 @@ public struct SettingsScreen: View {
             Button("Vazgeç", role: .cancel) { confirmingAction = nil }
         } message: {
             Text(confirmingAction?.message ?? "")
+        }
+        .alert(
+            viewModel.isParentalEnabled ? "PIN'i gir" : "Yeni PIN belirle",
+            isPresented: $isEnteringPIN
+        ) {
+            // Güvenli alan: PIN ekranda görünmemeli.
+            SecureField("4-8 rakam", text: $pinInput)
+                .keyboardType(.numberPad)
+
+            Button(viewModel.isParentalEnabled ? "Kilidi kaldır" : "Kur") {
+                let pin = pinInput
+                pinInput = ""
+                Task {
+                    if viewModel.isParentalEnabled {
+                        await viewModel.disableParental(with: pin)
+                    } else {
+                        await viewModel.setParentalPIN(pin)
+                    }
+                }
+            }
+            Button("Vazgeç", role: .cancel) { pinInput = "" }
+        } message: {
+            Text(
+                viewModel.isParentalEnabled
+                    ? "Kilidi kaldırmak için mevcut PIN'i gir."
+                    : "Yetişkin içerik listelerden gizlenecek. PIN'i unutursan uygulamayı silip yeniden kurman gerekir."
+            )
         }
     }
 
@@ -174,6 +207,20 @@ public struct SettingsScreen: View {
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Palette.textTertiary)
                 }
+            }
+        }
+    }
+
+    private var parentalSection: some View {
+        section("Ebeveyn kilidi") {
+            SettingsRow(
+                icon: viewModel.isParentalEnabled ? "lock.fill" : "lock.open",
+                title: viewModel.isParentalEnabled ? "Kilidi kaldır" : "Kilit kur",
+                detail: viewModel.isParentalEnabled
+                    ? "Yetişkin içerik listelerde gizleniyor"
+                    : "PIN belirleyerek yetişkin içeriği gizle"
+            ) {
+                isEnteringPIN = true
             }
         }
     }

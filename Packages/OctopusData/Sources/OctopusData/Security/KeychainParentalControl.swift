@@ -26,7 +26,8 @@ public actor KeychainParentalControl: ParentalControlling {
     // MARK: - Durum
 
     public func isEnabled() async -> Bool {
-        (try? secrets.read(for: Self.hashKey)) as? String != nil
+        // `try?` iç içe optional'ı düzleştirir (SE-0230): tip `String??` değil `String?`.
+        (try? secrets.read(for: Self.hashKey)) != nil
     }
 
     public func isUnlocked() async -> Bool {
@@ -59,8 +60,7 @@ public actor KeychainParentalControl: ParentalControlling {
     public func unlock(with pin: String) async -> Bool {
         guard let normalized = Self.normalizePIN(pin),
               let storedHash = try? secrets.read(for: Self.hashKey),
-              let salt = try? secrets.read(for: Self.saltKey),
-              let storedHash, let salt
+              let salt = try? secrets.read(for: Self.saltKey)
         else { return false }
 
         let candidate = Self.hash(pin: normalized, salt: salt)

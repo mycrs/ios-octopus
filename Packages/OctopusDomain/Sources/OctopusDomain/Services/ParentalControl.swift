@@ -30,6 +30,21 @@ public protocol ParentalControlling: Sendable {
     func disable(with pin: String) async throws
 }
 
+/// Kilit kurulmamış varsayılan.
+///
+/// Domain'de tutulur çünkü feature modülleri birbirini import edemez;
+/// her birinde ayrı bir "kilit yok" tipi tanımlamak aynı davranışın
+/// kopyalanması olurdu.
+public struct OpenParentalControl: ParentalControlling {
+    public init() {}
+    public func isEnabled() async -> Bool { false }
+    public func isUnlocked() async -> Bool { true }
+    public func setPIN(_ pin: String) async throws {}
+    @discardableResult public func unlock(with pin: String) async -> Bool { true }
+    public func lock() async {}
+    public func disable(with pin: String) async throws {}
+}
+
 /// Ebeveyn kilidi hataları.
 public enum ParentalControlError: Error, Equatable, Sendable {
     /// PIN en az 4 haneli olmalı ve yalnızca rakam içermeli.
