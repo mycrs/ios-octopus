@@ -54,20 +54,26 @@ targets:
     type: application
     platform: iOS
     # ⚠️ Info.plist KASITLI OLARAK sources dışında (App/ kökünde).
-    # Bir klasör hem `sources` içinde olup hem `info.path` ile gösterilirse
+    # Bir klasör hem `sources` içinde olup hem plist olarak gösterilirse
     # Xcode dosyayı iki kez üretmeye çalışır:
     #   error: Multiple commands produce '.../Octopus.app/Info.plist'
     # Assets.xcassets eklenince buraya `App/Resources` girişi geri gelecek.
     sources:
       - path: App/Sources
-    info:
-      path: App/Info.plist
+    #
+    # ⚠️ `info:` KULLANILMIYOR — KASITLI.
+    # XcodeGen'in `info` bölümü mevcut dosyayı OKUMAZ; plist'i kendisi
+    # üretip verilen yola YAZAR. Elle yazılmış App/Info.plist her
+    # `xcodegen generate` çağrısında varsayılanlarla eziliyordu; sonuçta
+    # UILaunchScreen pakete hiç girmedi ve uygulama 320x480 mantıksal
+    # boyutta (iPhone 4 gibi) çalıştı.
+    # INFOPLIST_FILE doğrudan verilerek dosyanın kendisi kullanılıyor.
     settings:
       base:
+        INFOPLIST_FILE: App/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: com.octopus.iptv
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
         ENABLE_BITCODE: NO
     dependencies:
       # Composition root her modülü görebilen TEK yerdir.
