@@ -116,6 +116,16 @@ public struct ParentalFilter: Sendable {
         return series.filter { !$0.isAdult }
     }
 
+    /// Yetişkin kategorileri şeritten çıkarır.
+    ///
+    /// İçeriği gizleyip kategoriyi bırakmak iki sorun doğuruyordu: kullanıcı
+    /// "XXX" yazan bir sekme görüyordu (kilit varken bile içeriğin varlığı
+    /// belli oluyordu) ve dokununca boş liste açılıyordu.
+    public func filter(_ categories: [MediaCategory]) -> [MediaCategory] {
+        guard hidesAdultContent else { return categories }
+        return categories.filter { !AdultContentDetector.isAdult(categoryName: $0.name) }
+    }
+
     /// Kilidin **o anki** durumundan süzgeç üretir.
     ///
     /// Her ekran bu iki soruyu ayrı ayrı sormak yerine burayı çağırır;

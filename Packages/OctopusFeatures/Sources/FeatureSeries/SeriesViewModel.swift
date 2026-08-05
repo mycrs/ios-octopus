@@ -68,7 +68,9 @@ public final class SeriesViewModel: ObservableObject {
             }
             activePlaylistID = playlist.id
             parentalFilter = await .current(dependencies.parental)
-            categories = try await dependencies.series.categories(playlistID: playlist.id)
+            let allCategories = try await dependencies.series.categories(playlistID: playlist.id)
+            categories = parentalFilter.filter(allCategories)
+            dropSelectionIfHidden()
             observeFavorites()
             await reloadFirstPage()
         } catch {
@@ -147,6 +149,14 @@ public final class SeriesViewModel: ObservableObject {
     }
 
     private static let maxPagesPerFetch = 5
+
+    /// Seçili kategori az önce gizlendiyse "Tümü"ne dön.
+    private func dropSelectionIfHidden() {
+        guard let selected = selectedCategoryID else { return }
+        if !categories.contains(where: { $0.id == selected }) {
+            selectedCategoryID = nil
+        }
+    }
 
     // MARK: - Arama
 

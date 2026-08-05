@@ -76,7 +76,11 @@ public final class LiveChannelsViewModel: ObservableObject {
             activePlaylistID = playlist.id
             await refreshParentalFilter()
 
-            categories = try await dependencies.channels.categories(playlistID: playlist.id)
+            let allCategories = try await dependencies.channels.categories(
+                playlistID: playlist.id
+            )
+            categories = parentalFilter.filter(allCategories)
+            dropSelectionIfHidden()
             observeChannels(playlistID: playlist.id, categoryID: selectedCategoryID)
             observeFavorites()
             startEPGRefresh()
@@ -150,6 +154,17 @@ public final class LiveChannelsViewModel: ObservableObject {
     /// Kilit durumu değişmiş olabilir (Ayarlar'dan açılıp kapanabiliyor).
     public func refreshParentalFilter() async {
         parentalFilter = await .current(dependencies.parental)
+    }
+
+    /// Seçili kategori az önce gizlendiyse "Tümü"ne dön.
+    ///
+    /// Kullanıcı yetişkin bir kategoride dururken kilidi kurmuş olabilir;
+    /// seçim orada kalırsa liste kalıcı olarak boş görünür.
+    private func dropSelectionIfHidden() {
+        guard let selected = selectedCategoryID else { return }
+        if !categories.contains(where: { $0.id == selected }) {
+            selectedCategoryID = nil
+        }
     }
 
     public func clearSearch() {

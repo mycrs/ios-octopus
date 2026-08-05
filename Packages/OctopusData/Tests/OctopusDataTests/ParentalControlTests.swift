@@ -198,6 +198,26 @@ final class ParentalFilterTests: XCTestCase {
         XCTAssertTrue(filter.allows(channel: makeChannel(isAdult: true)))
     }
 
+    private func makeCategory(_ name: String) -> MediaCategory {
+        MediaCategory(id: MediaCategory.ID(name), playlistID: "p1", kind: .live, name: name)
+    }
+
+    func test_lockedFilterHidesAdultCategories() {
+        // İçeriği gizleyip "XXX" sekmesini bırakmak hem içeriğin varlığını
+        // ele veriyor hem de boş liste açıyordu.
+        let filter = ParentalFilter(isEnabled: true, isUnlocked: false)
+        let categories = [makeCategory("Spor"), makeCategory("XXX"), makeCategory("Haber")]
+
+        XCTAssertEqual(filter.filter(categories).map(\.name), ["Spor", "Haber"])
+    }
+
+    func test_unlockedFilterKeepsAllCategories() {
+        let filter = ParentalFilter(isEnabled: true, isUnlocked: true)
+        let categories = [makeCategory("Spor"), makeCategory("XXX")]
+
+        XCTAssertEqual(filter.filter(categories).count, 2)
+    }
+
     func test_filterPreservesOrder() {
         let filter = ParentalFilter(isEnabled: true, isUnlocked: false)
         let movies = [
