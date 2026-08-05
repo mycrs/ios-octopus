@@ -62,9 +62,38 @@ public struct OnboardingScreen: View {
     }
 
     private var welcome: some View {
-        VStack(spacing: Theme.Spacing.xl) {
-            Spacer()
+        ZStack {
+            ambientGlow
 
+            VStack(spacing: Theme.Spacing.xl) {
+                Spacer()
+                brand
+                capabilities
+                Spacer()
+                startButton
+            }
+            .padding(Theme.Spacing.xl)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// Marka renginden gelen yumuşak parıltı.
+    ///
+    /// Referanstaki ambiyans katmanının karşılığı. Düz koyu bir zemin
+    /// uygulamayı "yarım kalmış" gösteriyordu; parıltı marka rengini
+    /// içerik gelmeden önce de hissettiriyor.
+    private var ambientGlow: some View {
+        RadialGradient(
+            colors: [Theme.Palette.accent.opacity(0.22), .clear],
+            center: .top,
+            startRadius: 0,
+            endRadius: 420
+        )
+        .ignoresSafeArea()
+    }
+
+    private var brand: some View {
+        VStack(spacing: Theme.Spacing.md) {
             Image(systemName: "antenna.radiowaves.left.and.right")
                 .font(.system(size: 56))
                 .foregroundColor(Theme.Palette.accent)
@@ -79,21 +108,53 @@ public struct OnboardingScreen: View {
                     .foregroundColor(Theme.Palette.textSecondary)
                     .multilineTextAlignment(.center)
             }
-
-            Spacer()
-
-            Button {
-                showsForm = true
-            } label: {
-                Text("Kaynak ekle")
-                    .font(Theme.Typography.rowTitle)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Theme.Spacing.md)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(Theme.Palette.accent)
         }
-        .padding(Theme.Spacing.xl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Ne alacağını baştan söyler.
+    ///
+    /// Kullanıcı kimlik bilgilerini girmeden önce karşılığını bilmeli —
+    /// boş bir form "bu uygulama ne yapıyor?" sorusunu cevapsız bırakıyordu.
+    private var capabilities: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            capability("tv", "Canlı TV", "Kategoriler, favoriler ve yayın akışı")
+            capability("film", "Film ve dizi", "Kaldığın yerden devam et")
+            capability("lock.shield", "Ebeveyn kilidi", "Yetişkin içeriği gizle")
+        }
+        .padding(.horizontal, Theme.Spacing.sm)
+    }
+
+    private func capability(_ icon: String, _ title: String, _ detail: String) -> some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundColor(Theme.Palette.accent)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                Text(title)
+                    .font(Theme.Typography.rowTitle)
+                    .foregroundColor(Theme.Palette.textPrimary)
+                Text(detail)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textSecondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var startButton: some View {
+        Button {
+            showsForm = true
+        } label: {
+            Text("Kaynak ekle")
+                .font(Theme.Typography.rowTitle)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Theme.Spacing.md)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(Theme.Palette.accent)
     }
 }
