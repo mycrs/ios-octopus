@@ -132,8 +132,18 @@ struct RootView: View {
             LiveScreen(dependencies: container.makeLiveDependencies())
         case .movieDetail, .categoryList:
             MoviesScreen(dependencies: container.makeVODDependencies())
-        case .seriesDetail, .seasonEpisodes:
-            SeriesScreen(dependencies: container.makeSeriesDependencies())
+        case .seriesDetail(let id):
+            SeriesDetailView(
+                seriesID: id,
+                dependencies: container.makeSeriesDependencies()
+            )
+        case .seasonEpisodes(let seriesID, _):
+            // Sezon seçimi detay ekranının içinde yapılır; doğrudan sezona
+            // gelen bir bağlantı da diziyi açar.
+            SeriesDetailView(
+                seriesID: seriesID,
+                dependencies: container.makeSeriesDependencies()
+            )
         case .playlistManager:
             PlaylistManagerView(dependencies: container.makeSettingsDependencies())
         case .favorites, .about:

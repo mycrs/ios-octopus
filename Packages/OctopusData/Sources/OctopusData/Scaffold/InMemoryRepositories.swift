@@ -210,6 +210,7 @@ public actor InMemorySeriesRepository: SeriesRepository {
     }
 
     public func loadDetails(id: Series.ID) async throws {}
+    public func invalidateDetails(id: Series.ID) async throws {}
 
     public func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] {
         allSeries

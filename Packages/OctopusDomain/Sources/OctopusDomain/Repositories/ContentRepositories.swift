@@ -103,7 +103,16 @@ public protocol SeriesRepository: Sendable {
     func episode(id: Episode.ID) async throws -> Episode?
 
     /// Sezon/bölüm ağacını sağlayıcıdan çeker (Xtream'de ayrı bir istektir).
+    ///
+    /// Ağaç yerelde varsa istek atılmaz — bu çağrı sık yapılır ve
+    /// `get_series_info` ağır bir uçtur.
     func loadDetails(id: Series.ID) async throws
+
+    /// Ağacın yeniden çekilmesini zorlar.
+    ///
+    /// Kullanıcı "yenile" dediğinde çağrılır: panelde yeni bölüm
+    /// yayınlanmış olabilir ve önbellek onu göstermez.
+    func invalidateDetails(id: Series.ID) async throws
 
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series]
 }

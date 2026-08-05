@@ -155,9 +155,19 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
 
     func series(id: Series.ID) async throws -> Series? { stored.first { $0.id == id } }
     func seasons(seriesID: Series.ID) async throws -> [Season] { [] }
-    func episodes(seriesID: Series.ID, seasonNumber: Int) async throws -> [Episode] { [] }
+
+    func episodes(seriesID: Series.ID, seasonNumber: Int) async throws -> [Episode] {
+        []
+    }
+
     func episode(id: Episode.ID) async throws -> Episode? { nil }
+
+
+
+
+
     func loadDetails(id: Series.ID) async throws {}
+    func invalidateDetails(id: Series.ID) async throws {}
 
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] {
         searchResults
