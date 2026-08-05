@@ -88,10 +88,9 @@ public actor M3UContentProvider: ContentProvider {
         throw AppError.notFound
     }
 
-    public func fetchEPG() async throws -> [EPGProgram] {
-        // Faz 7: epgURL varsa XMLTV akış halinde çözümlenecek.
-        []
-    }
+    /// M3U kaynaklarında rehber adresi kullanıcıdan alınır (`#EXTM3U x-tvg-url`
+    /// veya kaynak formundaki EPG alanı).
+    public nonisolated var epgSourceURL: URL? { epgURL }
 
     // MARK: - Akış adresleri
     //

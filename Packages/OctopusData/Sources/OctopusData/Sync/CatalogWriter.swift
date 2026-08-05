@@ -92,14 +92,39 @@ struct CatalogWriter {
     ///
     /// XMLTV çözümleyici parçalar hâlinde teslim eder; her parça kendi
     /// işleminde yazılır ki büyük rehberlerde bellek şişmesin.
-    func appendEPGChunk(_ programs: [EPGProgram]) async throws {
+    ///
+    /// ⚠️ **Senkron**: `XMLTVParser` SAX tabanlıdır ve teslim closure'ı
+    /// `async` olamaz. Çözümleme zaten arka plan görevinde çalışır.
+    func appendEPGChunk(_ programs: [EPGProgram]) throws {
         guard !programs.isEmpty else { return }
-        try await database.write { db in
-            for program in programs {
-                // Aynı rehber tekrar çekildiğinde kopya oluşmaz:
-                // kimlik kanal + başlangıç zamanından türetiliyor.
-                try EPGProgramRecord(program).save(db)
+        do {
+            try database.writer.write { db in
+                for program in programs {
+                    // Aynı rehber tekrar çekildiğinde kopya oluşmaz:
+                    // kimlik kanal + başlangıç zamanından türetiliyor.
+                    try EPGProgramRecord(program).save(db)
+                }
             }
+        } catch {
+            Log.database.error("EPG parçası yazılamadı: \(String(describing: error))")
+            throw AppError.storage(reason: "Yayın akışı kaydedilemedi")
+        }
+    }
+
+    /// Süresi geçmiş programları siler.
+    func purgeEPG(before date: Date) throws {
+        _ = try? database.writer.write { db in
+            try EPGProgramRecord.filter(Column("endDate") < date).deleteAll(db)
+        }
+    }
+
+    /// Rehberin ne kadar ileriyi kapsadığı.
+    ///
+    /// Veri hâlâ geleceği kapsıyorsa yeniden indirmeye gerek yok —
+    /// XMLTV dosyaları çok büyük.
+    func latestEPGEnd() throws -> Date? {
+        try? database.writer.read { db in
+            try Date.fetchOne(db, sql: "SELECT MAX(endDate) FROM epgProgram")
         }
     }
 

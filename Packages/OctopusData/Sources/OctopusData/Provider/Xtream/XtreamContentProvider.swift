@@ -129,11 +129,15 @@ public struct XtreamContentProvider: ContentProvider {
         throw AppError.notFound
     }
 
-    public func fetchEPG() async throws -> [EPGProgram] {
-        // Faz 7: xmltv.php akış halinde indirilip parse edilecek.
-        // 14.000 kanallı hesapta XMLTV çok büyük olduğu için tek seferde
-        // belleğe alınmayacak.
-        []
+    /// Xtream panelleri rehberi ayrı bir uçta sunar.
+    public var epgSourceURL: URL? {
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.path = "/xmltv.php"
+        components?.queryItems = [
+            URLQueryItem(name: "username", value: username),
+            URLQueryItem(name: "password", value: password)
+        ]
+        return components?.url
     }
 
     // MARK: - Akış adresleri

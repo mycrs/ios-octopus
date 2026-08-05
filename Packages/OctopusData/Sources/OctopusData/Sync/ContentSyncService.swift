@@ -17,6 +17,9 @@ public actor ContentSyncService: ContentSyncing {
     private let playlists: PlaylistRepository
     private let providerFactory: ContentProviderFactory
     private let writer: CatalogWriter
+    private let httpClient: HTTPClient
+    private let store: UserDefaults
+    private let now: @Sendable () -> Date
 
     /// Aynı kaynağa birden çok abone olabilir (onboarding + ayarlar).
     private var observers: [String: [UUID: AsyncStream<SyncStage>.Continuation]] = [:]
@@ -27,11 +30,17 @@ public actor ContentSyncService: ContentSyncing {
     public init(
         playlists: PlaylistRepository,
         providerFactory: ContentProviderFactory,
-        database: AppDatabase
+        database: AppDatabase,
+        httpClient: HTTPClient? = nil,
+        store: UserDefaults = .standard,
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.playlists = playlists
         self.providerFactory = providerFactory
         self.writer = CatalogWriter(database: database)
+        self.httpClient = httpClient ?? URLSessionHTTPClient()
+        self.store = store
+        self.now = now
     }
 
     // MARK: - Senkronizasyon
@@ -119,7 +128,19 @@ public actor ContentSyncService: ContentSyncing {
             )
         }
 
-        let finishedAt = Date()
+        // ── Yayın akışı: isteğe bağlı ───────────────────────────────
+        // Referans dersi: rehber yalnızca manuel butondan çekildiği için
+        // her yerde "Bilgi yok" yazıyordu. Artık senkronizasyonun parçası,
+        // ama başarısızlığı katalogu geçersiz kılmıyor.
+        do {
+            try await syncEPG(playlistID: playlistID)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            Log.sync.info("EPG alınamadı, atlanıyor: \(String(describing: error))")
+        }
+
+        let finishedAt = now()
         try await writer.markSynced(playlistID: playlistID, at: finishedAt)
         publish(.finished(at: finishedAt), for: playlistID)
     }
@@ -143,9 +164,77 @@ public actor ContentSyncService: ContentSyncing {
         }
     }
 
+    /// Yayın akışını (EPG) tazeler.
+    ///
+    /// ## Neden bu kadar temkinli?
+    /// XMLTV dosyaları 14.000 kanallı hesapta yüzlerce megabayt olabiliyor.
+    /// Referans projede rehber yalnızca Ayarlar'daki manuel butondan
+    /// çekiliyordu ve sonuçta her yerde "Bilgi yok" yazıyordu; otomatik
+    /// hâle getirilince de her açılışta indirme sorunu doğdu.
+    ///
+    /// İki kapı var:
+    /// 1. **Kapsam**: rehber hâlâ ileriyi kapsıyorsa indirme yapılmaz
+    /// 2. **Kısıtlama**: kaynak başına en fazla 6 saatte bir denenir
     public func syncEPG(playlistID: Playlist.ID) async throws {
-        // Faz 7: xmltv.php akış halinde indirilip parça parça yazılacak.
-        // XMLTVParser ve CatalogWriter.appendEPGChunk hazır.
+        guard let playlist = try await playlists.playlist(id: playlistID) else {
+            throw AppError.notFound
+        }
+        let provider = try await providerFactory.makeProvider(for: playlist)
+
+        // Kaynak rehber sunmuyor olabilir; bu bir hata değil.
+        guard let epgURL = provider.epgSourceURL else { return }
+        guard shouldRefreshEPG(playlistID: playlistID) else { return }
+
+        publish(.fetchingEPG, for: playlistID)
+        markEPGAttempt(playlistID: playlistID)
+
+        let data = try await httpClient.get(epgURL, headers: provider.streamHeaders)
+        try Task.checkCancellation()
+
+        // Çözümleme ve yazma senkron; ana iş parçacığını meşgul etmemek için
+        // ayrı bir görevde çalıştırılır.
+        let writer = self.writer
+        let total = try await Task.detached(priority: .utility) {
+            try XMLTVParser.parse(data: data, chunkSize: XMLTVParser.defaultChunkSize) { chunk in
+                try writer.appendEPGChunk(chunk)
+            }
+        }.value
+
+        // Geçmiş programlar birikmesin. Biraz geriye pay bırakılır:
+        // kullanıcı "az önce ne oynadı" bilgisini görebilmeli.
+        try? writer.purgeEPG(before: now().addingTimeInterval(-6 * 3_600))
+
+        Log.sync.info("EPG güncellendi: \(total) program")
+    }
+
+    // MARK: - EPG kapıları
+
+    private func shouldRefreshEPG(playlistID: Playlist.ID) -> Bool {
+        // Kapsam: rehber en az 2 saat ileriyi kapsıyorsa yeniden indirme.
+        if let latest = try? writer.latestEPGEnd(),
+           latest > now().addingTimeInterval(2 * 3_600) {
+            Log.sync.debug("EPG hâlâ güncel, indirme atlandı")
+            return false
+        }
+
+        // Kısıtlama: başarısız denemeler de sayılır, yoksa kopuk sunucuda
+        // her açılışta yüzlerce megabayt denemesi yapılır.
+        let key = Self.epgAttemptKey(playlistID)
+        if let last = store.object(forKey: key) as? Date,
+           now().timeIntervalSince(last) < 6 * 3_600 {
+            Log.sync.debug("EPG denemesi kısıtlama nedeniyle atlandı")
+            return false
+        }
+
+        return true
+    }
+
+    private func markEPGAttempt(playlistID: Playlist.ID) {
+        store.set(now(), forKey: Self.epgAttemptKey(playlistID))
+    }
+
+    private static func epgAttemptKey(_ playlistID: Playlist.ID) -> String {
+        "epg.lastAttempt.\(playlistID.value)"
     }
 
     // MARK: - İlerleme yayını

@@ -26,8 +26,12 @@ public protocol ContentProvider: Sendable {
     /// Dizi ağacı tek istekte gelir (Xtream davranışı).
     func fetchSeriesDetails(streamKey: String) async throws -> (seasons: [Season], episodes: [Episode])
 
-    /// XMLTV veya Xtream EPG. Kaynak EPG sunmuyorsa boş dizi döner.
-    func fetchEPG() async throws -> [EPGProgram]
+    /// XMLTV rehber dosyasının adresi. Kaynak EPG sunmuyorsa `nil`.
+    ///
+    /// ⚠️ Dosyanın kendisi burada **indirilmez**. 14.000 kanallı hesapta
+    /// XMLTV yüzlerce megabayt olabiliyor; indirme ve çözümleme
+    /// senkronizasyon servisinde akış halinde yapılır.
+    var epgSourceURL: URL? { get }
 
     // MARK: - Akış adresi kurulumu
 

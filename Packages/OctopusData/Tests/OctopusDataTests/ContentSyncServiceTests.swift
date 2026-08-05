@@ -220,6 +220,8 @@ actor FakeProvider: ContentProvider {
     private let authError: Error?
     private let movieError: Error?
     private let seriesError: Error?
+    /// `nonisolated` erişim için `let`: sağlayıcı kurulduktan sonra değişmez.
+    private let epgURL: URL?
 
     private(set) var authenticateCount = 0
 
@@ -228,13 +230,15 @@ actor FakeProvider: ContentProvider {
         liveCategories: [MediaCategory] = [],
         authError: Error? = nil,
         movieError: Error? = nil,
-        seriesError: Error? = nil
+        seriesError: Error? = nil,
+        epgURL: URL? = nil
     ) {
         self.channels = channels
         self.liveCategories = liveCategories
         self.authError = authError
         self.movieError = movieError
         self.seriesError = seriesError
+        self.epgURL = epgURL
     }
 
     func setChannels(_ newChannels: [Channel]) {
@@ -280,7 +284,7 @@ actor FakeProvider: ContentProvider {
         throw AppError.notFound
     }
 
-    func fetchEPG() async throws -> [EPGProgram] { [] }
+    nonisolated var epgSourceURL: URL? { epgURL }
 
     nonisolated func streamURL(for channel: Channel) -> URL? { URL(string: channel.streamKey) }
     nonisolated func streamURL(for movie: Movie) -> URL? { nil }
