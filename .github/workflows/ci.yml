@@ -16,7 +16,7 @@ jobs:
     name: Mimari kuralları
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Demir kuralları denetle
         run: bash Scripts/check-architecture.sh
 
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     container: swift:5.9
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Domain testlerini koş
         run: swift test --package-path Packages/OctopusDomain
 
@@ -39,7 +39,7 @@ jobs:
     runs-on: macos-latest
     needs: [architecture]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Xcode sürümünü göster
         run: xcodebuild -version
@@ -125,7 +125,7 @@ jobs:
 
       - name: Ekran görüntülerini yükle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ekran-goruntuleri
           path: screenshots/
@@ -135,7 +135,7 @@ jobs:
       # Derleme patlarsa günlükleri indirip inceleyebilmek için.
       - name: Hata günlüklerini yükle
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: xcodebuild-logs
           path: |
@@ -165,7 +165,7 @@ jobs:
       matrix:
         package: [OctopusData, OctopusPlayback, OctopusFeatures]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Simülatör seç
         run: |
