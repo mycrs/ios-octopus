@@ -180,7 +180,7 @@ public final class LiveChannelsViewModel: ObservableObject {
         do {
             let added = try await dependencies.favorites.toggle(.channel(channel.id))
             // Eklemek onaylanır, çıkarmak hafifçe hissedilir.
-            added ? Haptics.success() : Haptics.light()
+            if added { Haptics.success() } else { Haptics.light() }
         } catch {
             state = .failed(AppError.wrap(error))
         }
