@@ -52,6 +52,7 @@ let package = Package(
         // ⚠️ Yeni bir feature'a test eklenirse .github/workflows/ci.yml
         // içindeki paket listesine de eklenmeli — aksi halde test yazılmış
         // ama hiç koşmamış olur. Bkz. Docs/BRAIN.md § 10.
-        .testTarget(name: "FeatureOnboardingTests", dependencies: ["FeatureOnboarding"])
+        .testTarget(name: "FeatureOnboardingTests", dependencies: ["FeatureOnboarding"]),
+        .testTarget(name: "FeatureSettingsTests", dependencies: ["FeatureSettings"])
     ]
 )

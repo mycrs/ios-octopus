@@ -98,7 +98,9 @@ struct RootView: View {
             MoviesScreen(dependencies: container.makeVODDependencies())
         case .seriesDetail, .seasonEpisodes:
             SeriesScreen(dependencies: container.makeSeriesDependencies())
-        case .favorites, .playlistManager, .about:
+        case .playlistManager:
+            PlaylistManagerView(dependencies: container.makeSettingsDependencies())
+        case .favorites, .about:
             SettingsScreen(dependencies: container.makeSettingsDependencies())
         }
     }
@@ -107,7 +109,18 @@ struct RootView: View {
     private func sheetContent(for sheet: AppSheet) -> some View {
         switch sheet {
         case .addPlaylist, .editPlaylist:
-            OnboardingScreen(dependencies: container.makeOnboardingDependencies())
+            // Kaynak yönetiminden de onboarding'den de aynı form açılır.
+            NavigationStack {
+                AddPlaylistView(dependencies: container.makeOnboardingDependencies()) {
+                    router.dismissSheet()
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Vazgeç") { router.dismissSheet() }
+                            .tint(Theme.Palette.accent)
+                    }
+                }
+            }
         case .trackSelection, .parentalLock:
             SettingsScreen(dependencies: container.makeSettingsDependencies())
         }
