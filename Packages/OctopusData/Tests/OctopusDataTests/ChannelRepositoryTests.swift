@@ -160,16 +160,93 @@ final class ChannelRepositoryTests: XCTestCase {
         category: String?,
         name: String,
         sortOrder: Int,
+        playlist: String = "p1",
+        number: Int? = nil
+    ) async throws {
+        try await database.write { db in
+            try db.execute(
+                sql: """
+                    INSERT INTO channel
+                        (id, playlistId, name, streamKey, categoryId, sortOrder, number, isAdult)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                    """,
+                arguments: [id, playlist, name, "raw-\(id)", category, sortOrder, number]
+            )
+        }
+    }
+}
+
+/// Numarayla kanal bulma — "205'e geç" akışı.
+final class ChannelNumberLookupTests: XCTestCase {
+
+    private var database: AppDatabase!
+    private var repository: GRDBChannelRepository!
+
+    override func setUp() async throws {
+        database = try AppDatabase.makeInMemory()
+        repository = GRDBChannelRepository(database: database)
+
+        try await database.write { db in
+            for id in ["p1", "p2"] {
+                try db.execute(
+                    sql: """
+                        INSERT INTO playlist (id, name, kindType, createdAt, isActive)
+                        VALUES (?, ?, 'm3u', '2026-01-01 00:00:00', 0)
+                        """,
+                    arguments: [id, "Kaynak \(id)"]
+                )
+            }
+        }
+    }
+
+    func test_findsChannelByNumber() async throws {
+        try await insert(id: "c1", name: "Bir", number: 1, sortOrder: 0)
+        try await insert(id: "c205", name: "İki Yüz Beş", number: 205, sortOrder: 1)
+
+        let found = try await repository.channel(number: 205, playlistID: "p1")
+        XCTAssertEqual(found?.name, "İki Yüz Beş")
+    }
+
+    func test_missingNumberReturnsNil() async throws {
+        try await insert(id: "c1", name: "Bir", number: 1, sortOrder: 0)
+        let found = try await repository.channel(number: 999, playlistID: "p1")
+        XCTAssertNil(found)
+    }
+
+    func test_numberIsScopedToPlaylist() async throws {
+        // Kaynaklar aynı numarayı kullanır; başka kaynağın kanalı gelmemeli.
+        try await insert(id: "a", name: "Kaynak 1", number: 5, sortOrder: 0, playlist: "p1")
+        try await insert(id: "b", name: "Kaynak 2", number: 5, sortOrder: 0, playlist: "p2")
+
+        let found = try await repository.channel(number: 5, playlistID: "p2")
+        XCTAssertEqual(found?.name, "Kaynak 2")
+    }
+
+    func test_duplicateNumberReturnsFirstInListOrder() async throws {
+        // ⚠️ Numara benzersiz değil: sağlayıcılar SD/HD için tekrar ediyor.
+        // Liste sırasındaki ilki dönmeli — kullanıcının beklediği o.
+        try await insert(id: "hd", name: "Kanal HD", number: 5, sortOrder: 9)
+        try await insert(id: "sd", name: "Kanal SD", number: 5, sortOrder: 2)
+
+        let found = try await repository.channel(number: 5, playlistID: "p1")
+        XCTAssertEqual(found?.name, "Kanal SD")
+    }
+
+    private func insert(
+        id: String,
+        name: String,
+        number: Int,
+        sortOrder: Int,
         playlist: String = "p1"
     ) async throws {
         try await database.write { db in
             try db.execute(
                 sql: """
                     INSERT INTO channel
-                        (id, playlistId, name, streamKey, categoryId, sortOrder, isAdult)
+                        (id, playlistId, name, streamKey, sortOrder, number, isAdult)
                     VALUES (?, ?, ?, ?, ?, ?, 0)
                     """,
-                arguments: [id, playlist, name, "raw-\(id)", category, sortOrder]
+                arguments: [id, playlist, name, "raw-\(id)", sortOrder, number]
             )
         }
     }

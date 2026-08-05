@@ -143,13 +143,44 @@ public final class LiveChannelsViewModel: ObservableObject {
                 limit: 200
             )
             guard !Task.isCancelled else { return }
+
             // Arama sonuçları da süzülür; aksi halde kilit aramayla atlatılırdı.
-            let allowed = parentalFilter.filter(results)
+            var allowed = parentalFilter.filter(results)
+
+            // Numara yazıldıysa o kanal en üste alınır.
+            if let match = try await numberMatch(for: query, playlistID: playlistID) {
+                allowed.removeAll { $0.id == match.id }
+                allowed.insert(match, at: 0)
+            }
+
+            guard !Task.isCancelled else { return }
             channels = allowed
             state = .loaded(allowed.count)
         } catch {
             state = .failed(AppError.wrap(error))
         }
+    }
+
+    /// Sorgu bir kanal numarasıysa o kanalı bulur.
+    ///
+    /// IPTV kullanıcıları kanalları numarayla hatırlıyor ("205'e geç").
+    /// Ad araması bunu karşılamıyor: "205" yazınca FTS **adında** 205 geçen
+    /// kanalları buluyor, 205 numaralı kanalı değil. İkisi birleştiriliyor —
+    /// numara eşleşmesi üstte, ad eşleşmeleri altında.
+    ///
+    /// Kilitli yetişkin kanal numarayla da açılmamalı: süzgeçten geçiriliyor.
+    private func numberMatch(
+        for query: String,
+        playlistID: Playlist.ID
+    ) async throws -> Channel? {
+        guard let number = Int(query), number > 0 else { return nil }
+
+        guard let channel = try await dependencies.channels.channel(
+            number: number,
+            playlistID: playlistID
+        ) else { return nil }
+
+        return parentalFilter.allows(channel: channel) ? channel : nil
     }
 
     /// Kilit durumu değişmiş olabilir (Ayarlar'dan açılıp kapanabiliyor).

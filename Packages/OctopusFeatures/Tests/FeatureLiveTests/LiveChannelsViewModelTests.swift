@@ -274,6 +274,69 @@ final class LiveChannelsViewModelTests: XCTestCase {
         }
     }
 
+    // MARK: - Numarayla geçiş
+
+    func test_numberQueryPutsMatchingChannelFirst() async {
+        // "205" yazınca FTS adında 205 geçenleri buluyor; asıl istenen
+        // 205 numaralı kanal ve o en üstte olmalı.
+        channels.searchResults = [makeChannel("x", "Kanal 2050")]
+        channels.byNumber = [205: makeChannel("hedef", "Hedef Kanal", number: 205)]
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        viewModel.searchText = "205"
+        await waitUntil("numara eşleşmesi üstte olmalı") {
+            viewModel.channels.first?.name == "Hedef Kanal"
+        }
+
+        XCTAssertEqual(viewModel.channels.map(\.name), ["Hedef Kanal", "Kanal 2050"])
+        XCTAssertEqual(channels.numberLookups, [205])
+    }
+
+    func test_numberMatchIsNotDuplicated() async {
+        // Aynı kanal hem ad aramasından hem numaradan gelirse iki kez çıkmamalı.
+        let target = makeChannel("hedef", "Hedef", number: 7)
+        channels.searchResults = [target]
+        channels.byNumber = [7: target]
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        viewModel.searchText = "7"
+        await waitUntil("sonuç gelmeli") { !viewModel.channels.isEmpty }
+
+        XCTAssertEqual(viewModel.channels.count, 1)
+    }
+
+    func test_textQueryDoesNotTriggerNumberLookup() async {
+        channels.searchResults = [makeChannel("1", "Spor")]
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        viewModel.searchText = "spor"
+        await waitUntil("sonuç gelmeli") { !viewModel.channels.isEmpty }
+
+        XCTAssertTrue(channels.numberLookups.isEmpty, "Metin sorgusunda numara aranmamalı")
+    }
+
+    func test_lockedAdultChannelIsNotReachableByNumber() async {
+        // ⚠️ Numarayla geçiş, kilidi atlatmanın bir başka yolu olurdu.
+        channels.searchResults = []
+        channels.byNumber = [99: makeAdultChannel("gizli", "Yetişkin", number: 99)]
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        viewModel.searchText = "99"
+        await waitABit()
+
+        XCTAssertTrue(viewModel.channels.isEmpty, "Kilitliyken numarayla da açılmamalı")
+    }
+
     // MARK: - Kalan süre metni
 
     private func program(startOffset: TimeInterval, endOffset: TimeInterval) -> EPGProgram {
@@ -329,22 +392,29 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
     // MARK: - Yardımcılar
 
-    private func makeChannel(_ id: String, _ name: String, epgID: String? = nil) -> Channel {
+    private func makeChannel(
+        _ id: String,
+        _ name: String,
+        epgID: String? = nil,
+        number: Int? = nil
+    ) -> Channel {
         Channel(
             id: Channel.ID(id),
             playlistID: "p1",
             name: name,
             streamKey: id,
-            epgChannelID: epgID
+            epgChannelID: epgID,
+            number: number
         )
     }
 
-    private func makeAdultChannel(_ id: String, _ name: String) -> Channel {
+    private func makeAdultChannel(_ id: String, _ name: String, number: Int? = nil) -> Channel {
         Channel(
             id: Channel.ID(id),
             playlistID: "p1",
             name: name,
             streamKey: id,
+            number: number,
             isAdult: true
         )
     }
@@ -390,6 +460,9 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
     var stored: [Channel] = []
     var categories: [MediaCategory] = []
     var searchResults: [Channel] = []
+    /// Numarayla geçiş testleri için.
+    var byNumber: [Int: Channel] = [:]
+    private(set) var numberLookups: [Int] = []
 
     private(set) var searchQueries: [String] = []
     private(set) var observedCategoryIDs: [MediaCategory.ID?] = []
@@ -405,6 +478,11 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
 
     func channel(id: Channel.ID) async throws -> Channel? {
         stored.first { $0.id == id }
+    }
+
+    func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel? {
+        numberLookups.append(number)
+        return byNumber[number]
     }
 
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Channel] {

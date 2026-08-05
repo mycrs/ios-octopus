@@ -115,6 +115,12 @@ extension AppDatabase {
         )
         // EPG eşleştirmesi bu kolon üzerinden yapılır.
         try db.create(index: "channel_byEpgId", on: "channel", columns: ["epgChannelId"])
+        // Numarayla hızlı geçiş ("205'e geç").
+        try db.create(
+            index: "channel_byNumber",
+            on: "channel",
+            columns: ["playlistId", "number", "sortOrder"]
+        )
 
         try db.create(table: "movie") { t in
             t.primaryKey("id", .text)

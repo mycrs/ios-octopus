@@ -174,6 +174,9 @@ private final class GuideStubChannels: ChannelRepository, @unchecked Sendable {
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
     func channels(playlistID: Playlist.ID, categoryID: MediaCategory.ID?) async throws -> [Channel] { stored }
     func channel(id: Channel.ID) async throws -> Channel? { stored.first { $0.id == id } }
+    func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel? {
+        stored.first { $0.number == number }
+    }
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Channel] { [] }
     func observeChannels(
         playlistID: Playlist.ID,

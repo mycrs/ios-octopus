@@ -80,6 +80,10 @@ public actor InMemoryChannelRepository: ChannelRepository {
         storedChannels.first { $0.id == id }
     }
 
+    public func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel? {
+        storedChannels.first { $0.number == number && $0.playlistID == playlistID }
+    }
+
     public func search(
         query: String,
         playlistID: Playlist.ID,

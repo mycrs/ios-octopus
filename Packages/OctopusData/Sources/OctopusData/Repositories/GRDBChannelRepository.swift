@@ -44,6 +44,22 @@ public actor GRDBChannelRepository: ChannelRepository {
         return record?.toDomain()
     }
 
+    /// Numaraya göre kanal.
+    ///
+    /// ⚠️ Numara **benzersiz değil**: sağlayıcılar aynı numarayı farklı
+    /// kalitelerde (SD/HD) tekrar kullanıyor. Liste sırasındaki ilki
+    /// döndürülür — kullanıcının "205" deyince beklediği kanal odur.
+    public func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel? {
+        let record = try await database.read { db in
+            try ChannelRecord
+                .filter(Column("playlistId") == playlistID.value)
+                .filter(Column("number") == number)
+                .order(Column("sortOrder"))
+                .fetchOne(db)
+        }
+        return record?.toDomain()
+    }
+
     // MARK: - Arama
 
     /// FTS5 destekli ad araması.

@@ -48,6 +48,13 @@ public protocol ChannelRepository: Sendable {
 
     func channel(id: Channel.ID) async throws -> Channel?
 
+    /// Kanal numarasına göre bulur.
+    ///
+    /// IPTV kullanıcıları kanalları **numarayla** hatırlıyor ("205'e geç").
+    /// Ad araması bunu karşılamıyor: "205" yazınca FTS adında 205 geçen
+    /// kanalları buluyor, 205 numaralı kanalı değil.
+    func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel?
+
     /// Ad üzerinden arama (FTS destekli).
     func search(
         query: String,

@@ -435,6 +435,7 @@ private struct StubChannels: ChannelRepository {
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
     func channels(playlistID: Playlist.ID, categoryID: MediaCategory.ID?) async throws -> [Channel] { [] }
     func channel(id: Channel.ID) async throws -> Channel? { nil }
+    func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel? { nil }
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Channel] { [] }
     func observeChannels(
         playlistID: Playlist.ID,
