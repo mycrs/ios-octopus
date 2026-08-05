@@ -11,6 +11,8 @@ import OctopusDesignSystem   // AppError.userMessage sunum uzantısı
 public final class AddPlaylistViewModel: ObservableObject {
 
     public enum SourceKind: String, CaseIterable, Identifiable, Sendable {
+        /// Bayi kodu en başta: müşterilerin çoğu sunucu adresi değil kod alıyor.
+        case activationCode
         case xtream
         case m3u
 
@@ -18,8 +20,9 @@ public final class AddPlaylistViewModel: ObservableObject {
 
         public var title: String {
             switch self {
-            case .xtream: return "Xtream Codes"
-            case .m3u: return "M3U Bağlantısı"
+            case .activationCode: return "Kod"
+            case .xtream: return "Xtream"
+            case .m3u: return "M3U"
             }
         }
     }
@@ -48,6 +51,7 @@ public final class AddPlaylistViewModel: ObservableObject {
     @Published public var password = ""
     @Published public var m3uURL = ""
     @Published public var epgURL = ""
+    @Published public var activationCode = ""
 
     // MARK: - Durum
 
@@ -55,11 +59,15 @@ public final class AddPlaylistViewModel: ObservableObject {
     @Published public private(set) var errorMessage: String?
     /// Doğrulama başarılıysa hesap bilgisi (abonelik bitişi vb.).
     @Published public private(set) var account: ProviderAccount?
+    /// Kod ile girişte bayinin müşteri kaydındaki ad — karşılamada gösterilir.
+    @Published public private(set) var customerName: String?
 
     /// Kaydet butonunun etkin olup olmadığı — ağ isteği yapmadan, anında.
     public var canSubmit: Bool {
         guard !step.isBusy else { return false }
         switch sourceKind {
+        case .activationCode:
+            return activationCode.trimmed.count >= 4
         case .xtream:
             return !host.trimmed.isEmpty && !username.trimmed.isEmpty && !password.isEmpty
         case .m3u:
@@ -91,22 +99,14 @@ public final class AddPlaylistViewModel: ObservableObject {
     public func submit() async {
         errorMessage = nil
 
-        let draft = makeDraft()
-        let playlist: Playlist
-        let password: String?
-
-        // 1. Form doğrulaması — ağa çıkmadan.
-        do {
-            (playlist, password) = try draft.build(id: makeID(), createdAt: now())
-        } catch let error as PlaylistDraftError {
-            errorMessage = error.userMessage
-            return
-        } catch {
-            errorMessage = AppError.wrap(error).userMessage
-            return
-        }
+        // 1. Erişim bilgilerini elde et.
+        //    Kod ile girişte bunlar panelden gelir; diğerlerinde kullanıcı yazar.
+        guard let resolved = await resolveCredentials() else { return }
+        let (playlist, password) = resolved
 
         // 2. Sunucu doğrulaması — kaydetmeden önce.
+        //    Kod ile girişte de yapılır: panel bilgileri doğru olsa bile
+        //    yayın sunucusuna gerçekten bağlanılabildiği kanıtlanmalı.
         step = .validating
         do {
             account = try await dependencies.validator.validate(playlist, password: password)
@@ -165,9 +165,51 @@ public final class AddPlaylistViewModel: ObservableObject {
         step = .form
     }
 
+    /// Kaynak türüne göre erişim bilgilerini hazırlar.
+    ///
+    /// - Returns: Başarısızsa `nil` — hata mesajı zaten ayarlanmış olur.
+    private func resolveCredentials() async -> (Playlist, String?)? {
+        switch sourceKind {
+
+        case .activationCode:
+            step = .validating
+            do {
+                let result = try await dependencies.activation.redeem(code: activationCode)
+                customerName = result.customerName
+                let playlist = Playlist(
+                    id: makeID(),
+                    name: result.displayName,
+                    kind: result.kind,
+                    createdAt: now()
+                )
+                return (playlist, result.password)
+            } catch let error as ActivationError {
+                step = .form
+                errorMessage = error.userMessage
+                return nil
+            } catch {
+                step = .form
+                errorMessage = AppError.wrap(error).userMessage
+                return nil
+            }
+
+        case .xtream, .m3u:
+            // Form doğrulaması ağa çıkmadan yapılır.
+            do {
+                return try makeDraft().build(id: makeID(), createdAt: now())
+            } catch let error as PlaylistDraftError {
+                errorMessage = error.userMessage
+                return nil
+            } catch {
+                errorMessage = AppError.wrap(error).userMessage
+                return nil
+            }
+        }
+    }
+
     private func makeDraft() -> PlaylistDraft {
         switch sourceKind {
-        case .xtream:
+        case .xtream, .activationCode:
             return PlaylistDraft(
                 name: name,
                 kind: .xtream(host: host, username: username, password: password)
@@ -177,6 +219,31 @@ public final class AddPlaylistViewModel: ObservableObject {
                 name: name,
                 kind: .m3u(url: m3uURL, epgURL: epgURL)
             )
+        }
+    }
+}
+
+// MARK: - Aktivasyon hata metinleri
+
+extension ActivationError {
+    /// Her durum farklı bir eylem öneriyor — "tekrar dene" ile
+    /// "bayine başvur" aynı şey değil.
+    var userMessage: String {
+        switch self {
+        case .notFound:
+            return "Bu kod bulunamadı. Kodu kontrol et veya bayinle iletişime geç."
+        case .expired:
+            return "Bu kodun süresi dolmuş. Yeni kod için bayinle iletişime geç."
+        case .alreadyUsed:
+            return "Bu kod daha önce kullanılmış. Yeni kod için bayinle iletişime geç."
+        case .tooManyAttempts:
+            return "Çok fazla deneme yapıldı. Bir süre bekleyip tekrar dene."
+        case .rateLimited:
+            return "Sunucu şu an yoğun. Birkaç dakika sonra tekrar dene."
+        case .invalidFormat:
+            return "Kod biçimi geçersiz. Harf, rakam ve tire kullanılır."
+        case .unknown:
+            return "Kod doğrulanamadı. Tekrar dene."
         }
     }
 }

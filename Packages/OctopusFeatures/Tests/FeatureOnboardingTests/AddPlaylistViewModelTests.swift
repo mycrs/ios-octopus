@@ -8,11 +8,13 @@ final class AddPlaylistViewModelTests: XCTestCase {
 
     private var playlists: SpyPlaylistRepository!
     private var validator: StubValidator!
+    private var activation: StubActivation!
     private var sync: SpySync!
 
     override func setUp() async throws {
         playlists = SpyPlaylistRepository()
         validator = StubValidator()
+        activation = StubActivation()
         sync = SpySync()
     }
 
@@ -21,6 +23,7 @@ final class AddPlaylistViewModelTests: XCTestCase {
             dependencies: OnboardingDependencies(
                 playlists: playlists,
                 validator: validator,
+                activation: activation,
                 sync: sync
             ),
             makeID: { "p1" },
@@ -135,6 +138,83 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.errorMessage, "Kullanıcı sorunu bilmeli")
     }
 
+    // MARK: - Aktivasyon kodu ile giriş
+
+    func test_activationCode_resolvesCredentialsFromPanel() async {
+        // Kullanıcı sunucu adresi veya parola girmiyor; panel çözüyor.
+        activation.result = .success(
+            ActivationResult(
+                kind: .xtream(
+                    host: URL(string: "http://panel.example.com")!,
+                    username: "cozulmus_kullanici"
+                ),
+                password: "cozulmus_parola",
+                displayName: "Bayi Listesi",
+                customerName: "Ali Veli"
+            )
+        )
+
+        let viewModel = makeViewModel()
+        viewModel.sourceKind = .activationCode
+        viewModel.activationCode = "abc-123"
+
+        await viewModel.submit()
+
+        XCTAssertEqual(activation.receivedCodes, ["abc-123"])
+        XCTAssertEqual(playlists.addedPlaylists.first?.name, "Bayi Listesi")
+        XCTAssertEqual(playlists.addedPasswords.first, "cozulmus_parola")
+        XCTAssertEqual(viewModel.customerName, "Ali Veli")
+        XCTAssertEqual(viewModel.step, .done)
+    }
+
+    func test_activationCode_isStillValidatedAgainstServer() async {
+        // Panel bilgileri doğru olsa bile yayın sunucusuna gerçekten
+        // bağlanılabildiği kanıtlanmalı.
+        activation.result = .success(
+            ActivationResult(
+                kind: .m3u(url: URL(string: "http://liste.example.com/p.m3u")!),
+                password: nil,
+                displayName: "Liste"
+            )
+        )
+
+        let viewModel = makeViewModel()
+        viewModel.sourceKind = .activationCode
+        viewModel.activationCode = "ABC-123"
+
+        await viewModel.submit()
+
+        XCTAssertEqual(validator.callCount, 1, "Kod ile girişte de sunucu doğrulanmalı")
+    }
+
+    func test_activationFailure_showsActionableMessage() async {
+        // Süresi dolmuş kod için "tekrar dene" demek yanlış olur.
+        activation.result = .failure(ActivationError.expired)
+
+        let viewModel = makeViewModel()
+        viewModel.sourceKind = .activationCode
+        viewModel.activationCode = "ABC-123"
+
+        await viewModel.submit()
+
+        XCTAssertEqual(viewModel.step, .form)
+        XCTAssertTrue(playlists.addedPlaylists.isEmpty)
+        let message = viewModel.errorMessage ?? ""
+        XCTAssertTrue(message.contains("süresi dolmuş"), "Beklenen mesaj gelmedi: \(message)")
+        XCTAssertTrue(message.contains("bayi"), "Kullanıcı ne yapacağını bilmeli: \(message)")
+    }
+
+    func test_activationCode_requiresMinimumLength() {
+        let viewModel = makeViewModel()
+        viewModel.sourceKind = .activationCode
+
+        viewModel.activationCode = "AB"
+        XCTAssertFalse(viewModel.canSubmit)
+
+        viewModel.activationCode = "ABC-123"
+        XCTAssertTrue(viewModel.canSubmit)
+    }
+
     // MARK: - Ad üretimi
 
     func test_emptyName_fallsBackToHost() async {
@@ -192,6 +272,17 @@ private final class StubValidator: PlaylistValidating, @unchecked Sendable {
     func validate(_ playlist: Playlist, password: String?) async throws -> ProviderAccount {
         callCount += 1
         receivedPassword = password
+        return try result.get()
+    }
+}
+
+private final class StubActivation: ActivationRedeeming, @unchecked Sendable {
+
+    var result: Result<ActivationResult, Error> = .failure(ActivationError.notFound)
+    private(set) var receivedCodes: [String] = []
+
+    func redeem(code: String) async throws -> ActivationResult {
+        receivedCodes.append(code)
         return try result.get()
     }
 }

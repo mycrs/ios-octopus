@@ -12,15 +12,19 @@ public struct OnboardingDependencies {
     public let playlists: PlaylistRepository
     /// Kaynağı **kaydetmeden önce** doğrular — hatalı bilgiyle kayıt oluşmasın.
     public let validator: PlaylistValidating
+    /// Bayi aktivasyon kodunu gerçek erişim bilgilerine çevirir.
+    public let activation: ActivationRedeeming
     public let sync: ContentSyncing
 
     public init(
         playlists: PlaylistRepository,
         validator: PlaylistValidating,
+        activation: ActivationRedeeming,
         sync: ContentSyncing
     ) {
         self.playlists = playlists
         self.validator = validator
+        self.activation = activation
         self.sync = sync
     }
 }

@@ -11,7 +11,7 @@ public struct AddPlaylistView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case host, username, password, url, epg, name
+        case code, host, username, password, url, epg, name
     }
 
     public init(dependencies: OnboardingDependencies, onFinished: @escaping () -> Void) {
@@ -73,6 +73,19 @@ public struct AddPlaylistView: View {
     private var fields: some View {
         VStack(spacing: Theme.Spacing.md) {
             switch viewModel.sourceKind {
+            case .activationCode:
+                FormFieldView(
+                    title: "Aktivasyon kodu",
+                    placeholder: "ABC-1234",
+                    text: $viewModel.activationCode
+                )
+                .focused($focusedField, equals: .code)
+
+                InlineMessageView(
+                    text: "Bayinden aldığın kodu gir. Sunucu adresi ve parola otomatik ayarlanır.",
+                    kind: .info
+                )
+
             case .xtream:
                 FormFieldView(
                     title: "Sunucu adresi",
@@ -116,12 +129,15 @@ public struct AddPlaylistView: View {
                 .focused($focusedField, equals: .epg)
             }
 
-            FormFieldView(
-                title: "Kaynak adı",
-                placeholder: "isteğe bağlı",
-                text: $viewModel.name
-            )
-            .focused($focusedField, equals: .name)
+            // Kod ile girişte ad panelden gelir; kullanıcıya sorulmaz.
+            if viewModel.sourceKind != .activationCode {
+                FormFieldView(
+                    title: "Kaynak adı",
+                    placeholder: "isteğe bağlı",
+                    text: $viewModel.name
+                )
+                .focused($focusedField, equals: .name)
+            }
         }
         .disabled(viewModel.step.isBusy)
     }

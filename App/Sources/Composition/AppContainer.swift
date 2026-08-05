@@ -45,6 +45,8 @@ final class AppContainer: ObservableObject {
     private let streams: StreamResolving
     private let sync: ContentSyncing
     private let validator: PlaylistValidating
+    private let activation: ActivationRedeeming
+    private let remoteConfig: RemoteConfigProviding
 
     // MARK: - Oynatma
 
@@ -96,6 +98,8 @@ final class AppContainer: ObservableObject {
             // Doğrulama fabrikadan ayrı: kullanıcının az önce yazdığı parolayla
             // çalışır, parola henüz Keychain'de değildir.
             validator = ProviderValidator()
+            activation = PanelActivationService()
+            remoteConfig = PanelRemoteConfigService()
 
             startupFailure = nil
         } else {
@@ -114,6 +118,10 @@ final class AppContainer: ObservableObject {
             streams = ScaffoldStreamResolver()
             sync = ScaffoldContentSync()
             validator = ScaffoldValidator()
+            // Panel servisleri depolamadan bağımsız çalışır; markalama ve
+            // aktivasyon bu durumda da kullanılabilir olmalı.
+            activation = PanelActivationService()
+            remoteConfig = PanelRemoteConfigService()
             startupFailure = .storage(reason: "Veritabanı açılamadı")
         }
 
@@ -157,7 +165,12 @@ final class AppContainer: ObservableObject {
     // `PlaylistRepository` verilmez — göremediği şeyi yanlışlıkla kullanamaz.
 
     func makeOnboardingDependencies() -> OnboardingDependencies {
-        OnboardingDependencies(playlists: playlists, validator: validator, sync: sync)
+        OnboardingDependencies(
+            playlists: playlists,
+            validator: validator,
+            activation: activation,
+            sync: sync
+        )
     }
 
     func makeHomeDependencies() -> HomeDependencies {
