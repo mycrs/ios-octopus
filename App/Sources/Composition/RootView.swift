@@ -19,7 +19,11 @@ struct RootView: View {
     @EnvironmentObject private var router: AppRouter
 
     var body: some View {
-        Group {
+        ZStack {
+            // Uygulama genelinde taban renk. Tek tek ekranların arka planı
+            // eksik kalsa bile sistem siyahı görünmez.
+            Theme.Palette.background.ignoresSafeArea()
+
             if router.needsOnboarding {
                 OnboardingScreen(dependencies: container.makeOnboardingDependencies())
             } else {

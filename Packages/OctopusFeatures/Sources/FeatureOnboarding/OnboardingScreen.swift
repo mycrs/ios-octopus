@@ -39,7 +39,13 @@ public struct OnboardingScreen: View {
     }
 
     public var body: some View {
-        Group {
+        ZStack {
+            // ⚠️ `ignoresSafeArea()` şart: yalnızca `.background(...)` verilirse
+            // renk güvenli alanla sınırlı kalır ve durum çubuğu ile ana ekran
+            // göstergesi bölgesi sistem siyahında görünür — ekran ortada
+            // "kutu içinde" duruyormuş gibi olur.
+            Theme.Palette.background.ignoresSafeArea()
+
             if showsForm {
                 AddPlaylistView(dependencies: dependencies) {
                     // Kaynak eklendi ve senkronize oldu; ana ekrana geç.
@@ -49,7 +55,6 @@ public struct OnboardingScreen: View {
                 welcome
             }
         }
-        .background(Theme.Palette.background)
     }
 
     private var welcome: some View {
