@@ -126,13 +126,30 @@ görüntüsüyle teyit edildiğinde kapanacak.
 
 ---
 
-## Faz 4 — Panel entegrasyonu (bayi altyapısı)
+## ✅ Faz 4 — Panel entegrasyonu *(tamam)*
 
-- [ ] `RemoteConfigProviding` — `/api/app-config` + çevrimdışı önbellek
-- [ ] **Bayi marka rengi** teması ezer (doygun kırmızı = "seçilmemiş" kuralı dahil)
-- [ ] **Duyuru sistemi** — öncelik: bayi > admin > ipucu
-- [ ] **Bakım modu / zorunlu güncelleme kapısı**
-- [ ] Bayi bilgileri: müşteri adı, iletişim kanalları
+- [x] `RemoteConfigProviding` — `/api/app-config` + çevrimdışı önbellek
+- [x] **Bayi marka rengi** (doygun kırmızı = "seçilmemiş" kuralı dahil)
+- [x] `ThemeController` — kullanıcı seçimi > panel > uygulama varsayılanı
+- [x] **Duyuru şeridi** — kapatılan duyuru kimliğiyle hatırlanır
+- [x] **Bakım kapısı** + bayinin destek kanalları
+- [x] **Aktivasyon kodu ile giriş** — `/api/activation/redeem`, 7 hata durumu ayrı ayrı
+- [x] **DNS failover** — `/api/dns-list`, çalışan sunucu yoklaması
+
+**Bitti tanımı:** ✅ **Doğrulandı** — 2026-08-05, CI run `31005787630`, 239 test.
+
+| Test hedefi | Nerede | Adet |
+|---|---|---|
+| `OctopusDomainTests` | Linux | 35 |
+| `OctopusDataTests` | Simülatör | 168 |
+| `FeatureSettingsTests` | Simülatör | 17 |
+| `FeatureOnboardingTests` | Simülatör | 11 |
+| `OctopusPlaybackTests` | Simülatör | 4 |
+| `OctopusTests` | Simülatör | 4 |
+
+> ⚠️ **Gerçek panelle denenmedi.** Tüm testler sabit örneklerle çalışıyor.
+> Panel API'sinin şekli Android sürümünün kaynak kodundan çıkarıldı;
+> canlı cevaplarda sürpriz alanlar çıkabilir.
 
 ---
 
