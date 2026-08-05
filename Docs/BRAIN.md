@@ -253,17 +253,40 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 
 | Faz | İçerik | Durum |
 |---|---|---|
-| **0** | Beyin haritası + modül iskeleti + protokoller | 🔨 şimdi |
-| **1** | Domain entity'leri + GRDB şema/migration | ⏳ |
-| **2** | Xtream + M3U provider, Repository impl | ⏳ |
-| **3** | Onboarding: kaynak ekle → senkronize et | ⏳ |
-| **4** | Canlı TV listesi + kategori + arama | ⏳ |
-| **5** | Player (AVPlayer → VLC fallback) | ⏳ |
-| **6** | EPG (XMLTV + Xtream short_epg) | ⏳ |
-| **7** | VOD + Dizi (sezon/bölüm) | ⏳ |
-| **8** | Favoriler, izleme geçmişi, kaldığın yerden devam | ⏳ |
-| **9** | PiP, AirPlay, arka plan sesi, Now Playing | ⏳ |
-| **10** | Çoklu profil, ebeveyn kilidi, tema | ⏳ |
+| **0** | Beyin haritası + modül iskeleti + protokoller | ✅ |
+| **1** | Domain entity'leri + GRDB şema/migration | ✅ |
+| **2** | Xtream + M3U provider, Repository impl | ✅ |
+| **3** | Onboarding: kaynak ekle → senkronize et | ✅ |
+| **4** | Canlı TV listesi + kategori + arama | ✅ |
+| **5** | Player (AVPlayer → VLC fallback) | 🚧 **Mac/cihaz bekliyor** |
+| **6** | EPG (XMLTV + Xtream short_epg) + rehber ekranı | ✅ |
+| **7** | VOD + Dizi (sezon/bölüm) | ✅ |
+| **8** | Favoriler, izleme geçmişi, kaldığın yerden devam | ✅ |
+| **9** | PiP, AirPlay, arka plan sesi, Now Playing | ⏳ (Faz 5'e bağlı) |
+| **10** | Ebeveyn kilidi ✅ · tema ✅ · çoklu profil ⏳ | 🔨 |
+
+> 🚧 **Faz 5 neden bekliyor:** oynatıcı motoru gerçek cihazda
+> doğrulanmadan yazılmamalı. `PlaybackEngineResolver` yerinde,
+> `NullPlaybackEngine` ile derleniyor; AVPlayer/VLCKit implementasyonu
+> Apple geliştirici hesabı ve TestFlight hazır olunca eklenecek.
+
+### Ebeveyn kilidi nerede uygulanır?
+
+Kilit **tek bir yerde tutulur, altı yerde uygulanır**. Bir ekranı atlamak
+kilidi o ekrandan atlatılabilir kılar — bu yüzden liste burada:
+
+| Ekran | Süzülen |
+|---|---|
+| Canlı TV | kanal listesi **ve** arama sonuçları |
+| Filmler | katalog sayfaları **ve** arama sonuçları |
+| Diziler | katalog sayfaları **ve** arama sonuçları |
+| Ara (birleşik) | üç türün sonucu da |
+| Ana Sayfa | "kaldığın yer", "son eklenenler", "son izlenenler" |
+| Favoriler | üç tür de |
+
+⚠️ Sayfalı listelerde ofset **çekilen ham satır** sayısını takip eder,
+görünen öğe sayısını değil. Aksi halde gizlenen her öğe sonraki sayfayı
+geri kaydırır ve aynı içerik tekrar tekrar gelir.
 
 ---
 
@@ -282,6 +305,8 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 | Feature'da `as?` ile Data protokolü | Dönüşüm **asla tutmaz** (feature Data'yı göremez), özellik sessizce çalışmaz | Sözleşmeyi Domain'e taşı |
 | Domain'in iç yardımcısına uzanmak | `inaccessible due to 'internal'` | Dönüşümü sunum katmanına koy, Domain'i açma |
 | `try?` + optional dönen fonksiyon | `initializer for conditional binding must have Optional type, not 'String'` — `String??` sanıp iki kez açtım | `try?` iç içe optional'ı **düzleştirir** (SE-0230); `throws -> String?` tek `if let` ile açılır |
+| Testte sabit `sleep` ile geciktirme beklemek | CI **rastgele** kırmızı: yerelde geçen test yüklü koşucuda 100 ms'e sığmıyor. Kod değişmemişti | Süreyi değil **koşulu** bekle (`waitUntil { … }`). Sabit bekleme yalnızca bir şeyin *olmadığını* doğrularken doğru |
+| Sağlayıcının `is_adult` alanına güvenmek | Ebeveyn kilidi kuruluyor ama hiçbir şey gizlenmiyor: M3U'da alan yok, panellerin çoğu doldurmuyor | Kategori adından çıkar (`AdultContentDetector`), damgalamayı senkronizasyonda yap |
 
 > 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
 > üçüncüde `plutil -p` ile derlenmiş plist okununca cevap tek satırda çıktı.
