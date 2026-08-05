@@ -49,13 +49,9 @@ public final class ThemeController: ObservableObject {
     /// `BrandConfiguration.effectiveColorHex`) burada zaten elenmiş olur.
     public func apply(branding: BrandConfiguration?) {
         resellerName = branding?.resellerName
-        guard let hex = branding?.effectiveColorHex,
-              let rgb = BrandConfiguration.parseHex(hex)
-        else {
-            remoteColor = nil
-            return
-        }
-        remoteColor = Color(.sRGB, red: rgb.r, green: rgb.g, blue: rgb.b, opacity: 1)
+        // `effectiveColorHex` zaten doğrulanmış ve "seçilmemiş" sayılan
+        // renkleri elemiş olarak gelir.
+        remoteColor = branding?.effectiveColorHex.flatMap { Color(hexString: $0) }
     }
 }
 

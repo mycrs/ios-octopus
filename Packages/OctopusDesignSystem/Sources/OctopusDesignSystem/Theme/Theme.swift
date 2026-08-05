@@ -102,6 +102,18 @@ public enum Theme {
 }
 
 extension Color {
+
+    /// `"#RRGGBB"` veya `"RRGGBB"` biçimindeki metinden renk.
+    ///
+    /// Panelden gelen marka renkleri metin olarak taşınır. Dönüşüm burada
+    /// yapılır ki Domain kendi ayrıştırıcısını dışa açmak zorunda kalmasın.
+    public init?(hexString: String) {
+        var text = hexString.trimmingCharacters(in: .whitespaces)
+        if text.hasPrefix("#") { text.removeFirst() }
+        guard text.count == 6, let value = UInt32(text, radix: 16) else { return nil }
+        self.init(hex: value)
+    }
+
     /// `0xRRGGBB` biçiminden renk. Tasarım sabitlerini okunur tutmak için.
     init(hex: UInt32, opacity: Double = 1) {
         self.init(
