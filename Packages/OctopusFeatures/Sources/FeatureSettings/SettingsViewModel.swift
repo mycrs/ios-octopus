@@ -44,8 +44,11 @@ public final class SettingsViewModel: ObservableObject {
             try await dependencies.parental.setPIN(pin)
             isParentalEnabled = true
             message = "Ebeveyn kilidi açıldı."
+            Haptics.success()
         } catch {
             message = Self.parentalMessage(for: error)
+            // Yanlış PIN parmakta da karşılık bulsun; ekrana bakmadan anlaşılır.
+            Haptics.warning()
         }
     }
 
@@ -54,8 +57,10 @@ public final class SettingsViewModel: ObservableObject {
             try await dependencies.parental.disable(with: pin)
             isParentalEnabled = false
             message = "Ebeveyn kilidi kaldırıldı."
+            Haptics.success()
         } catch {
             message = Self.parentalMessage(for: error)
+            Haptics.warning()
         }
     }
 

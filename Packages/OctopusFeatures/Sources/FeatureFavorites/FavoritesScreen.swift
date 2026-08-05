@@ -174,14 +174,14 @@ private struct FavoritePoster: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                PosterView(url: posterURL, width: 104)
+                GridPosterView(url: posterURL)
 
                 Text(title)
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                    .frame(width: 104, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .buttonStyle(.plain)

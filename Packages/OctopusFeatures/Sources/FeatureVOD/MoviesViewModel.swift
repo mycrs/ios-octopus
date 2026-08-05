@@ -218,7 +218,10 @@ public final class MoviesViewModel: ObservableObject {
     // MARK: - Favoriler
 
     public func toggleFavorite(_ movie: Movie) async {
-        _ = try? await dependencies.favorites.toggle(.movie(movie.id))
+        guard let added = try? await dependencies.favorites.toggle(.movie(movie.id)) else {
+            return
+        }
+        added ? Haptics.success() : Haptics.light()
     }
 
     public func isFavorite(_ movie: Movie) -> Bool {

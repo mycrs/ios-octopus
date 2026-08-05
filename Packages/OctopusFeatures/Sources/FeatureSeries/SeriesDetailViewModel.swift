@@ -96,6 +96,7 @@ public final class SeriesDetailViewModel: ObservableObject {
             return
         }
         isFavorite = current
+        current ? Haptics.success() : Haptics.light()
     }
 
     /// Kullanıcı "yenile" derse ağaç yeniden çekilir.

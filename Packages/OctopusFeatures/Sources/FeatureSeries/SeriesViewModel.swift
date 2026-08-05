@@ -208,7 +208,10 @@ public final class SeriesViewModel: ObservableObject {
     // MARK: - Favoriler
 
     public func toggleFavorite(_ item: Series) async {
-        _ = try? await dependencies.favorites.toggle(.series(item.id))
+        guard let added = try? await dependencies.favorites.toggle(.series(item.id)) else {
+            return
+        }
+        added ? Haptics.success() : Haptics.light()
     }
 
     public func isFavorite(_ item: Series) -> Bool {

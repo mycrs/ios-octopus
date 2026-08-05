@@ -52,6 +52,7 @@ public final class MovieDetailViewModel: ObservableObject {
             return
         }
         isFavorite = current
+        current ? Haptics.success() : Haptics.light()
     }
 
     /// İzleme kaydını siler — kullanıcı baştan başlamak isteyebilir.

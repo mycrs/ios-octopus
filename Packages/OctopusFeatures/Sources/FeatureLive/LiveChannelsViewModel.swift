@@ -96,6 +96,7 @@ public final class LiveChannelsViewModel: ObservableObject {
     /// sıfırlanmasına yol açmıştı.
     public func selectCategory(_ id: MediaCategory.ID?) {
         guard selectedCategoryID != id else { return }
+        Haptics.selection()
         selectedCategoryID = id
         clearSearch()
 
@@ -177,7 +178,9 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     public func toggleFavorite(_ channel: Channel) async {
         do {
-            _ = try await dependencies.favorites.toggle(.channel(channel.id))
+            let added = try await dependencies.favorites.toggle(.channel(channel.id))
+            // Eklemek onaylanır, çıkarmak hafifçe hissedilir.
+            added ? Haptics.success() : Haptics.light()
         } catch {
             state = .failed(AppError.wrap(error))
         }
