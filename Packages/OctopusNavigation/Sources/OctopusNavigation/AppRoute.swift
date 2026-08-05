@@ -11,6 +11,34 @@ public enum AppTab: String, CaseIterable, Hashable, Sendable, Identifiable {
     case settings
 
     public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .home: return "Ana Sayfa"
+        case .live: return "Canlı TV"
+        case .movies: return "Filmler"
+        case .series: return "Diziler"
+        case .search: return "Ara"
+        case .settings: return "Ayarlar"
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .live: return "tv.fill"
+        case .movies: return "film.fill"
+        case .series: return "rectangle.stack.fill"
+        case .search: return "magnifyingglass"
+        case .settings: return "gearshape.fill"
+        }
+    }
+
+    /// Açılışta gösterilebilecek sekmeler.
+    ///
+    /// Arama ve ayarlar dışarıda: ikisi de bir **işi** başlatmak için açılır,
+    /// uygulamayı orada karşılamak kullanıcıyı içerikten uzağa koyar.
+    public static let startupOptions: [AppTab] = [.home, .live, .movies, .series]
 }
 
 /// Uygulama içi hedefler.

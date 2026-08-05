@@ -85,32 +85,33 @@ struct RootView: View {
 
     private var tabs: some View {
         TabView(selection: $router.selectedTab) {
-            tab(.home, title: "Ana Sayfa", icon: "house.fill") {
+            tab(.home) {
                 HomeScreen(dependencies: container.makeHomeDependencies())
             }
-            tab(.live, title: "Canlı TV", icon: "tv.fill") {
+            tab(.live) {
                 LiveScreen(dependencies: container.makeLiveDependencies())
             }
-            tab(.movies, title: "Filmler", icon: "film.fill") {
+            tab(.movies) {
                 MoviesScreen(dependencies: container.makeVODDependencies())
             }
-            tab(.series, title: "Diziler", icon: "rectangle.stack.fill") {
+            tab(.series) {
                 SeriesScreen(dependencies: container.makeSeriesDependencies())
             }
-            tab(.search, title: "Ara", icon: "magnifyingglass") {
+            tab(.search) {
                 SearchScreen(dependencies: container.makeSearchDependencies())
             }
-            tab(.settings, title: "Ayarlar", icon: "gearshape.fill") {
+            tab(.settings) {
                 SettingsScreen(dependencies: container.makeSettingsDependencies())
             }
         }
     }
 
     /// Her sekme kendi `NavigationStack`'ine sahiptir; sekme değişince yığın korunur.
+    ///
+    /// Başlık ve ikon `AppTab`'ten okunur — ayarlar ekranındaki açılış
+    /// tercihiyle aynı kaynaktan, ikisi ayrı düşmesin.
     private func tab<Content: View>(
         _ item: AppTab,
-        title: String,
-        icon: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
         NavigationStack(path: router.binding(for: item)) {
@@ -119,7 +120,7 @@ struct RootView: View {
                     destination(for: route)
                 }
         }
-        .tabItem { Label(title, systemImage: icon) }
+        .tabItem { Label(item.title, systemImage: item.icon) }
         .tag(item)
     }
 

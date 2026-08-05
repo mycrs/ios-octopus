@@ -79,6 +79,7 @@ public struct SettingsScreen: View {
 
                     sourceSection
                     appearanceSection
+                    startupSection
                     parentalSection
                     dataSection
                     if contact.hasAny { supportSection }
@@ -208,6 +209,31 @@ public struct SettingsScreen: View {
                         .foregroundColor(Theme.Palette.textTertiary)
                 }
             }
+        }
+    }
+
+    private var startupSection: some View {
+        section("Açılış") {
+            // Menü seçici: dört başlık segment'e sığmıyor, dar ekranda
+            // "Ana Say…" gibi kırpılıyordu.
+            Picker(selection: $router.startupTab) {
+                ForEach(AppTab.startupOptions) { tab in
+                    Label(tab.title, systemImage: tab.icon).tag(tab)
+                }
+            } label: {
+                HStack(spacing: Theme.Spacing.md) {
+                    Image(systemName: "arrow.right.to.line")
+                        .foregroundColor(Theme.Palette.accent)
+                        .frame(width: 24)
+                    Text("Açılış ekranı")
+                        .font(Theme.Typography.rowTitle)
+                        .foregroundColor(Theme.Palette.textPrimary)
+                }
+            }
+            .pickerStyle(.menu)
+            .padding(Theme.Spacing.md)
+            .background(Theme.Palette.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
     }
 

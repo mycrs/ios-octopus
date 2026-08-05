@@ -13,11 +13,22 @@ import OctopusDomain
 public final class AppRouter: ObservableObject {
 
     /// Aktif sekme. Aynı sekmeye tekrar dokunmak kökene döner (iOS alışkanlığı).
-    @Published public var selectedTab: AppTab = .home {
+    @Published public var selectedTab: AppTab {
         didSet {
             if oldValue == selectedTab { popToRoot(in: selectedTab) }
         }
     }
+
+    /// Uygulamanın hangi sekmeyle açılacağı.
+    ///
+    /// Referans projede herkes ana sayfadan karşılanıyordu ama kullanıcıların
+    /// çoğu doğrudan Canlı TV'ye geçiyordu — her açılışta bir dokunuş israfı.
+    @Published public var startupTab: AppTab {
+        didSet { store.set(startupTab.rawValue, forKey: Self.startupTabKey) }
+    }
+
+    private let store: UserDefaults
+    private static let startupTabKey = "startup.tab"
 
     /// Her sekmenin kendi gezinme yığını vardır — sekme değişince yığın korunur.
     @Published public var paths: [AppTab: NavigationPath] = [:]
@@ -28,7 +39,16 @@ public final class AppRouter: ObservableObject {
     /// Kaynak yoksa onboarding gösterilir. App başlangıçta belirler.
     @Published public var needsOnboarding: Bool = false
 
-    public init() {}
+    public init(store: UserDefaults = .standard) {
+        self.store = store
+
+        // Kayıtlı tercih geçersizse (sekme kaldırılmış olabilir) ana sayfaya düşer.
+        let saved = store.string(forKey: Self.startupTabKey).flatMap(AppTab.init(rawValue:))
+        let tab = saved.map { AppTab.startupOptions.contains($0) ? $0 : .home } ?? .home
+
+        self.startupTab = tab
+        self.selectedTab = tab
+    }
 
     // MARK: - Yığın işlemleri
 
@@ -89,6 +109,6 @@ public final class AppRouter: ObservableObject {
         paths = [:]
         player = nil
         sheet = nil
-        selectedTab = .home
+        selectedTab = startupTab
     }
 }

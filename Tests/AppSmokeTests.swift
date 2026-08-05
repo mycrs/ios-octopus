@@ -2,6 +2,7 @@ import XCTest
 import OctopusCore
 import OctopusData
 import OctopusDomain
+import OctopusNavigation
 @testable import Octopus
 
 /// Uygulama kabuğu testleri.
@@ -75,6 +76,59 @@ final class AppSmokeTests: XCTestCase {
             container.router.needsOnboarding,
             "Kayıtlı aktif kaynak varken onboarding gösterilmemeli"
         )
+    }
+}
+
+/// Açılış sekmesi tercihi — kalıcılık ve bozuk değere dayanıklılık.
+@MainActor
+final class StartupTabTests: XCTestCase {
+
+    /// Her test kendi kutusunda çalışır; `.standard` kirlenmemeli.
+    private func makeStore(_ name: String = UUID().uuidString) throws -> UserDefaults {
+        try XCTUnwrap(UserDefaults(suiteName: name))
+    }
+
+    func test_defaultsToHome() throws {
+        let router = AppRouter(store: try makeStore())
+        XCTAssertEqual(router.startupTab, .home)
+        XCTAssertEqual(router.selectedTab, .home)
+    }
+
+    func test_savedPreferenceIsRestored() throws {
+        let store = try makeStore()
+
+        let first = AppRouter(store: store)
+        first.startupTab = .live
+
+        let second = AppRouter(store: store)
+        XCTAssertEqual(second.startupTab, .live)
+        XCTAssertEqual(second.selectedTab, .live, "Uygulama seçilen sekmeyle açılmalı")
+    }
+
+    func test_unsupportedSavedTabFallsBackToHome() throws {
+        // Ayarlar sekmesi açılış seçeneği değil; eski sürümden kalmış olabilir.
+        let store = try makeStore()
+        store.set(AppTab.settings.rawValue, forKey: "startup.tab")
+
+        let router = AppRouter(store: store)
+        XCTAssertEqual(router.startupTab, .home)
+    }
+
+    func test_garbageValueFallsBackToHome() throws {
+        let store = try makeStore()
+        store.set("bozuk", forKey: "startup.tab")
+
+        XCTAssertEqual(AppRouter(store: store).startupTab, .home)
+    }
+
+    func test_playlistChangeReturnsToStartupTab() throws {
+        let router = AppRouter(store: try makeStore())
+        router.startupTab = .movies
+        router.selectedTab = .search
+
+        router.resetAfterPlaylistChange()
+
+        XCTAssertEqual(router.selectedTab, .movies, "Ana sayfaya değil, tercihe dönmeli")
     }
 }
 
