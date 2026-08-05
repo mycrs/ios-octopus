@@ -102,15 +102,24 @@ alanlar çökmeye sebep olmuyor. CI run `30949745419`, 146 test.
 - [ ] ~~Dinamik tema~~ → **Faz 4'e taşındı** (bayi marka rengiyle birlikte anlamlı)
 - [ ] Aktivasyon kodu ile giriş → Faz 4
 
-> 🐞 **Görsel doğrulamanın ilk kazancı:** İlk ekran görüntüsü, arka planın
-> durum çubuğu ve ana ekran göstergesi bölgesine uzanmadığını, ekranın
-> "kutu içinde" durduğunu ortaya çıkardı. Sebep eksik `ignoresSafeArea()`.
-> Derleme geçiyor, 166 test yeşil, hiç uyarı yoktu — bu hata yalnızca
-> ekrana bakılarak bulunabilirdi.
+> 🐞 **Görsel doğrulamanın ilk kazancı — üç turluk hata avı**
 >
-> Not: ilk teşhis "letterbox / geçersiz `UILaunchScreen`" idi ve yanlıştı;
-> ikinci ekran görüntüsü onu çürüttü. `UILaunchScreen` düzeltmesi yine de
-> doğruydu ve korundu.
+> İlk ekran görüntüsü uygulamanın 320×480 mantıksal boyutta (iPhone 4 gibi)
+> çalıştığını, üstte ve altta siyah şeritlerle göründüğünü ortaya çıkardı.
+>
+> **Kök neden:** XcodeGen'in `info:` bölümü mevcut plist'i **okumaz** —
+> kendisi üretip o yola **yazar**. Elle yazılan `App/Info.plist` her
+> `xcodegen generate` çağrısında varsayılanlarla eziliyordu.
+> `UILaunchScreen`, orientation **ve ATS ayarlarının** hiçbiri pakete
+> girmiyordu. Çözüm: `info:` kaldırıldı, `INFOPLIST_FILE` doğrudan verildi.
+>
+> ⚠️ ATS ayarlarının da kaybolduğuna dikkat: bu fark edilmeseydi Faz 6'da
+> HTTP yayınların hiçbiri açılmayacak ve sebebi kolayca bulunamayacaktı.
+>
+> **Ders:** İlk iki tur tahminle geçti (`UILaunchScreen` içeriği, eksik
+> `ignoresSafeArea`). Üçüncüde derlenmiş paketin plist'i okununca cevap tek
+> satırda çıktı. Daha erken ölçülmeliydi. Derleme geçiyor, 166 test yeşil,
+> hiç uyarı yoktu — bu hata yalnızca ekrana bakılarak bulunabilirdi.
 
 **Bitti tanımı:** Gerçek bir hesapla uçtan uca akış denenip ekran
 görüntüsüyle teyit edildiğinde kapanacak.
