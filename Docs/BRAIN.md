@@ -328,11 +328,22 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 | Sayfalamada beraberlik bozucusuz sıralama | Aynı adlı içerik (IPTV'de aynı film farklı kalitelerde) sayfa sınırında tekrar edip kaybolur | `ORDER BY title, id` — ve `id`'yi indekse de ekle |
 | Varsayılan görünümün indeksi | `(playlistId, categoryId, sortOrder)` indeksi, kategori süzülmeyince sıralamayı karşılamıyor → tam sıralama | Süzgeçsiz hâl için ayrı indeks: `(playlistId, sortOrder, name)` |
 | `.sensoryFeedback` kullanmak | iOS **17+** — bizde derlenmez | UIKit üreteçleri (`UISelectionFeedbackGenerator` vb.), `prepare()` ile sakla |
+| Kaynaksız uygulamanın karesini almak | Tek görülebilen ekran karşılama; ana sayfa/ızgara/detay **kör** yazılıyor | `-seedDemoData` ile sahte katalog yaz, `-startup.tab <ad>` ile her sekmenin karesini al |
+
+> 💡 **iOS numarası:** `xcrun simctl launch … -anahtar değer` biçimindeki
+> argümanları iOS otomatik olarak `NSUserDefaults`'a yazar. Açılış sekmesi
+> tercihi zaten oradan okunduğu için sekme sekme kare almak **sıfır satır**
+> ek uygulama kodu gerektirdi.
 | Sağlayıcının `is_adult` alanına güvenmek | Ebeveyn kilidi kuruluyor ama hiçbir şey gizlenmiyor: M3U'da alan yok, panellerin çoğu doldurmuyor | Kategori adından çıkar (`AdultContentDetector`), damgalamayı senkronizasyonda yap |
 
 > 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
 > üçüncüde `plutil -p` ile derlenmiş plist okununca cevap tek satırda çıktı.
 > Belirti tekrar ediyorsa tahmini bırak, ölç.
+
+> 🔍 **İkinci yöntem dersi:** Favoriler testi "yavaş" sanılıp bekleme süresi
+> uzatılabilirdi. Süre yerine **koşul** beklenince gerçek sebep ortaya çıktı:
+> yayın, abone olunmadan yapılıyordu ve sessizce kayboluyordu. Sabit uyku
+> hatayı düzeltmiyor, **saklıyordu**.
 
 ---
 
