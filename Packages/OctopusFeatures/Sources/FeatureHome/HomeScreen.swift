@@ -98,8 +98,6 @@ public struct HomeScreen: View {
                         onDetail: { router.push(.movieDetail(item.id)) },
                         onSelectPage: viewModel.showFeatured(at:)
                     )
-                    // Kart değişince yumuşak geçiş; ani sıçrama göz yorar.
-                    .animation(.easeInOut(duration: 0.45), value: viewModel.featuredIndex)
                 }
 
                 if !viewModel.resumeItems.isEmpty {
@@ -271,9 +269,17 @@ private struct FeaturedHeroView: View {
         .frame(maxWidth: .infinity)
         .frame(height: height)
         .clipped()
-        // Görselin kimliği yansısın ama metin önde kalsın.
+        // ⚠️ Animasyon yalnızca burada, karttaki metne sızmıyor.
+        //
+        // Bu bilerek `HStack`/kart seviyesinde değil, yalnızca görselde:
+        // referans projede de yalnızca arka plan crossfade oluyordu, başlık
+        // anlık değişiyordu. Kartın tamamına animasyon verilmişti önce —
+        // rotasyon sırasında VStack'in yüksekliği eski/yeni başlık için
+        // farklı olduğundan iki metin bir kare boyunca üst üste bindi
+        // (ekran görüntüsünde yakalandı). Metin şimdi anlık değişiyor.
         .id(movie.id)
         .transition(.opacity)
+        .animation(.easeInOut(duration: 0.5), value: movie.id)
     }
 
     private var scrim: some View {
