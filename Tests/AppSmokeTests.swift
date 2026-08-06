@@ -105,10 +105,11 @@ final class StartupTabTests: XCTestCase {
         XCTAssertEqual(second.selectedTab, .live, "Uygulama seçilen sekmeyle açılmalı")
     }
 
-    func test_unsupportedSavedTabFallsBackToHome() throws {
-        // Favoriler açılış seçeneği değil; eski sürümden kalmış olabilir.
+    func test_removedTabFallsBackToHome() throws {
+        // "settings" ve "search" bir zamanlar birer sekmeydi, artık
+        // AppTab case'i değiller — eski sürümden kalmış bir kayıt olabilir.
         let store = try makeStore()
-        store.set(AppTab.favorites.rawValue, forKey: "startup.tab")
+        store.set("settings", forKey: "startup.tab")
 
         let router = AppRouter(store: store)
         XCTAssertEqual(router.startupTab, .home)

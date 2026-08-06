@@ -31,11 +31,12 @@ public enum AppTab: String, CaseIterable, Hashable, Sendable, Identifiable {
         }
     }
 
-    /// Açılışta gösterilebilecek sekmeler.
+    /// Açılışta gösterilebilecek sekmeler — artık `CaseIterable` ile aynı.
     ///
-    /// Arama ve ayarlar dışarıda: ikisi de bir **işi** başlatmak için açılır,
-    /// uygulamayı orada karşılamak kullanıcıyı içerikten uzağa koyar.
-    public static let startupOptions: [AppTab] = [.home, .live, .movies, .series]
+    /// Arama ve ayarlar hiç sekme değil (üst bar ikonu), o yüzden zaten
+    /// burada olamazlar. Favoriler içerik gösteren bir ekran — Netflix'in
+    /// "Listem"i gibi kullanıcı doğrudan oradan açılmak isteyebilir.
+    public static let startupOptions: [AppTab] = allCases
 }
 
 /// Uygulama içi hedefler.
