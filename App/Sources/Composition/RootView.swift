@@ -83,6 +83,10 @@ struct RootView: View {
 
     // MARK: - Sekmeler
 
+    /// ⚠️ Tam olarak 5 sekme: iOS altıncı sekmeden itibaren gezinme
+    /// çubuğunu otomatik olarak "Daha Fazla" listesine çeviriyor.
+    /// Referansta da arama ve ayarlar sekme değil, üst bar ikonuydu —
+    /// burada da öyle (bkz. `tab(_:content:)`).
     private var tabs: some View {
         TabView(selection: $router.selectedTab) {
             tab(.home) {
@@ -97,11 +101,8 @@ struct RootView: View {
             tab(.series) {
                 SeriesScreen(dependencies: container.makeSeriesDependencies())
             }
-            tab(.search) {
-                SearchScreen(dependencies: container.makeSearchDependencies())
-            }
-            tab(.settings) {
-                SettingsScreen(dependencies: container.makeSettingsDependencies())
+            tab(.favorites) {
+                FavoritesScreen(dependencies: container.makeFavoritesDependencies())
             }
         }
     }
@@ -110,6 +111,10 @@ struct RootView: View {
     ///
     /// Başlık ve ikon `AppTab`'ten okunur — ayarlar ekranındaki açılış
     /// tercihiyle aynı kaynaktan, ikisi ayrı düşmesin.
+    ///
+    /// Arama ve ayarlar ikonu yalnızca sekmenin **kök** ekranında görünür;
+    /// bir detaya girildiğinde iOS bu toolbar'ı otomatik gizler ve o
+    /// ekranın kendi eylemlerini (ör. favori düğmesi) gösterir.
     private func tab<Content: View>(
         _ item: AppTab,
         @ViewBuilder content: () -> Content
@@ -118,6 +123,24 @@ struct RootView: View {
             content()
                 .navigationDestination(for: AppRoute.self) { route in
                     destination(for: route)
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            router.push(.search, in: item)
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                        }
+                        .accessibilityLabel("Ara")
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            router.push(.about, in: item)
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                        .accessibilityLabel("Ayarlar")
+                    }
                 }
         }
         .tabItem { Label(item.title, systemImage: item.icon) }
@@ -160,8 +183,8 @@ struct RootView: View {
             )
         case .playlistManager:
             PlaylistManagerView(dependencies: container.makeSettingsDependencies())
-        case .favorites:
-            FavoritesScreen(dependencies: container.makeFavoritesDependencies())
+        case .search:
+            SearchScreen(dependencies: container.makeSearchDependencies())
         case .about:
             SettingsScreen(dependencies: container.makeSettingsDependencies())
         }

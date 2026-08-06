@@ -83,7 +83,7 @@ public struct SeriesScreen: View {
                         ? "Farklı bir arama dene."
                         : "Bu kaynakta dizi paketi bulunmuyor olabilir. Kaynağı güncellemeyi dene.",
                     actionTitle: viewModel.isSearching ? nil : "Ayarlar'a git",
-                    action: viewModel.isSearching ? nil : { router.switchTab(to: .settings) }
+                    action: viewModel.isSearching ? nil : { router.push(.about) }
                 )
             } else {
                 grid

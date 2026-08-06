@@ -92,7 +92,7 @@ public struct LiveScreen: View {
                 ? "Farklı bir arama dene."
                 : "Bu kaynakta kanal bulunamadı. Kaynağı güncellemeyi dene.",
             actionTitle: viewModel.isSearching ? nil : "Ayarlar'a git",
-            action: viewModel.isSearching ? nil : { router.switchTab(to: .settings) }
+            action: viewModel.isSearching ? nil : { router.push(.about) }
         )
     }
 

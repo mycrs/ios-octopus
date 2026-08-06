@@ -7,8 +7,7 @@ public enum AppTab: String, CaseIterable, Hashable, Sendable, Identifiable {
     case live
     case movies
     case series
-    case search
-    case settings
+    case favorites
 
     public var id: String { rawValue }
 
@@ -18,8 +17,7 @@ public enum AppTab: String, CaseIterable, Hashable, Sendable, Identifiable {
         case .live: return "Canlı TV"
         case .movies: return "Filmler"
         case .series: return "Diziler"
-        case .search: return "Ara"
-        case .settings: return "Ayarlar"
+        case .favorites: return "Favoriler"
         }
     }
 
@@ -29,8 +27,7 @@ public enum AppTab: String, CaseIterable, Hashable, Sendable, Identifiable {
         case .live: return "tv.fill"
         case .movies: return "film.fill"
         case .series: return "rectangle.stack.fill"
-        case .search: return "magnifyingglass"
-        case .settings: return "gearshape.fill"
+        case .favorites: return "heart.fill"
         }
     }
 
@@ -54,7 +51,8 @@ public enum AppRoute: Hashable, Sendable {
     case categoryList(kind: MediaCategory.Kind)
     /// Bir kanalın gün boyu yayın akışı.
     case channelGuide(Channel.ID)
-    case favorites
+    /// Birleşik arama — sekme değil, üst bar ikonuyla açılır.
+    case search
     case playlistManager
     case about
 }

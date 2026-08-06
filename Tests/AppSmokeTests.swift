@@ -106,9 +106,9 @@ final class StartupTabTests: XCTestCase {
     }
 
     func test_unsupportedSavedTabFallsBackToHome() throws {
-        // Ayarlar sekmesi açılış seçeneği değil; eski sürümden kalmış olabilir.
+        // Favoriler açılış seçeneği değil; eski sürümden kalmış olabilir.
         let store = try makeStore()
-        store.set(AppTab.settings.rawValue, forKey: "startup.tab")
+        store.set(AppTab.favorites.rawValue, forKey: "startup.tab")
 
         let router = AppRouter(store: store)
         XCTAssertEqual(router.startupTab, .home)
@@ -122,16 +122,16 @@ final class StartupTabTests: XCTestCase {
     }
 
     func test_clearOpenScreensKeepsTabButClosesStacks() throws {
-        // Ebeveyn kilidi kurulunca çağrılır: kullanıcı Ayarlar'da kalmalı
-        // ama yığında duran içerik ekranları kapanmalı.
+        // Ebeveyn kilidi kurulunca çağrılır: kullanıcı bulunduğu sekmede
+        // kalmalı ama yığında duran içerik ekranları kapanmalı.
         let router = AppRouter(store: try makeStore())
-        router.selectedTab = .settings
+        router.selectedTab = .favorites
         router.push(.movieDetail("m1"), in: .movies)
         router.presentPlayer(.movie("m1"))
 
         router.clearOpenScreens()
 
-        XCTAssertEqual(router.selectedTab, .settings, "Sekme korunmalı")
+        XCTAssertEqual(router.selectedTab, .favorites, "Sekme korunmalı")
         XCTAssertNil(router.player)
         XCTAssertTrue(router.paths.isEmpty, "Yığınlar temizlenmeli")
     }
@@ -139,7 +139,7 @@ final class StartupTabTests: XCTestCase {
     func test_playlistChangeReturnsToStartupTab() throws {
         let router = AppRouter(store: try makeStore())
         router.startupTab = .movies
-        router.selectedTab = .search
+        router.selectedTab = .favorites
 
         router.resetAfterPlaylistChange()
 
