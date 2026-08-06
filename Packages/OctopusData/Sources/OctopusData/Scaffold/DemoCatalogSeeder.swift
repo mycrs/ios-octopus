@@ -28,20 +28,28 @@ public enum DemoCatalogSeeder {
         ProcessInfo.processInfo.arguments.contains("-seedDemoData")
     }
 
-    public static func seed(into database: AppDatabase) async throws {
+    public static func seed(into database: AppDatabase, secrets: SecretStore) async throws {
         let playlistID: Playlist.ID = "demo"
 
-        try await database.write { db in
-            try db.execute(
-                sql: """
-                    INSERT OR REPLACE INTO playlist
-                        (id, name, kindType, m3uURL, createdAt, isActive)
-                    VALUES (?, 'Demo Kaynak', 'm3u', 'http://example.com/demo.m3u',
-                            '2026-01-01 00:00:00', 1)
-                    """,
-                arguments: [playlistID.value]
-            )
-        }
+        // Ham SQL yerine gerçek repository: tablo şeması burada tekrar
+        // tahmin edilmiyor, üretimdeki aynı kod yolu kullanılıyor.
+        let playlists = GRDBPlaylistRepository(database: database, secrets: secrets)
+
+        // CI her sekme için uygulamayı ayrı ayrı başlatıyor; kaynak önceki
+        // çalıştırmadan zaten diskte kalmış olabilir. Sil-sonra-ekle,
+        // birincil anahtar çakışmasını engeller.
+        try? await playlists.delete(id: playlistID)
+
+        try await playlists.add(
+            Playlist(
+                id: playlistID,
+                name: "Demo Kaynak",
+                kind: .m3u(url: URL(string: "http://example.com/demo.m3u")!),
+                createdAt: Date(),
+                isActive: true
+            ),
+            password: nil
+        )
 
         let writer = CatalogWriter(database: database)
         try await writer.replaceLiveCatalog(

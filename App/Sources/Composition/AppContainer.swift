@@ -227,7 +227,11 @@ final class AppContainer: ObservableObject {
     private func seedDemoDataIfRequested() async {
         #if DEBUG
         guard DemoCatalogSeeder.isRequested, let database = seedableDatabase else { return }
-        try? await DemoCatalogSeeder.seed(into: database)
+        do {
+            try await DemoCatalogSeeder.seed(into: database, secrets: secrets)
+        } catch {
+            Log.app.error("Demo katalog tohumlanamadı: \(String(describing: error))")
+        }
         #endif
     }
 
