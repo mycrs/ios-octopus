@@ -126,6 +126,14 @@ public enum DemoCatalogSeeder {
                 playlistID: playlistID,
                 title: title,
                 streamKey: "\(index)",
+                // ⚠️ Gerçek bir görsel yüklenmesi beklenmiyor — `example.com`
+                // resim döndürmez, `RemoteImageView` yer tutucuya düşer.
+                // Adres yalnızca **dolu olsun** diye var: ana sayfanın öne
+                // çıkan bölümü yalnızca görseli olan içeriği seçiyor
+                // (sağlayıcı poster vermemişse hero'da boş kutu olmasın diye)
+                // — demo veri de bu kuralı geçmeli, aksi hâlde hero hiç
+                // görünmez ve o bölüm doğrulanamaz.
+                posterURL: URL(string: "https://example.com/poster/\(index).jpg"),
                 categoryID: EntityID.category(
                     playlistID: playlistID,
                     kind: .movie,

@@ -126,17 +126,23 @@ jobs:
           # `-startup.tab` bir NSUserDefaults anahtarıdır: iOS, `-anahtar değer`
           # biçimindeki açılış argümanlarını otomatik olarak varsayılanlara
           # yazar. Uygulamada ekstra kod gerekmiyor.
+          #
+          # ⚠️ Yalnızca `AppTab.startupOptions` (home/live/movies/series)
+          # geçerli — arama ve ayarlar kasıtlı olarak dışarıda (bkz.
+          # AppRoute.swift): "iş başlatan" ekranlar, açılışta karşılanmamalı.
+          # Listede olmayan bir sekme verilirse kod sessizce home'a düşer.
           shoot() {
             xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
             xcrun simctl launch booted com.octopus.iptv \
               -seedDemoData -startup.tab "$1" >/dev/null
-            sleep 6
+            sleep 8
             xcrun simctl io booted screenshot "screenshots/$2"
           }
 
           shoot home   02-ana-sayfa.png
           shoot live   03-canli-tv.png
           shoot movies 04-filmler.png
+          shoot series 05-diziler.png
           shoot settings 05-ayarlar.png
 
           # Not: açık tema karesi alınmıyor — uygulama şu an
