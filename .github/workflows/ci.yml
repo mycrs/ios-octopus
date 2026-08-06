@@ -143,7 +143,6 @@ jobs:
           shoot live   03-canli-tv.png
           shoot movies 04-filmler.png
           shoot series 05-diziler.png
-          shoot settings 05-ayarlar.png
 
           # Not: açık tema karesi alınmıyor — uygulama şu an
           # .preferredColorScheme(.dark) ile koyu temayı zorluyor.
