@@ -30,18 +30,23 @@ public struct SettingsDependencies {
 }
 
 /// Ayarlar: kaynak, görünüm, veri ve künye.
+///
+/// Bölümler (`sourceSection`, `appearanceSection`, …) `SettingsSections.swift`
+/// içinde bir `extension` olarak tanımlı, `SettingsRow` ise `SettingsRow.swift`
+/// içinde — bu yüzden aşağıdaki depolama özellikleri `private` değil,
+/// aynı modüldeki o dosyalar da erişebilsin diye modül-içi (varsayılan) erişimde.
 public struct SettingsScreen: View {
 
-    @StateObject private var viewModel: SettingsViewModel
-    @EnvironmentObject private var router: AppRouter
-    @EnvironmentObject private var theme: ThemeController
+    @StateObject var viewModel: SettingsViewModel
+    @EnvironmentObject var router: AppRouter
+    @EnvironmentObject var theme: ThemeController
 
-    private let contact: ContactChannels
-    @State private var confirmingAction: DataAction?
-    @State private var isEnteringPIN = false
-    @State private var pinInput = ""
+    let contact: ContactChannels
+    @State var confirmingAction: DataAction?
+    @State var isEnteringPIN = false
+    @State var pinInput = ""
 
-    private enum DataAction: String, Identifiable {
+    enum DataAction: String, Identifiable {
         case history
         case progress
 
@@ -152,202 +157,5 @@ public struct SettingsScreen: View {
                     : "Yetişkin içerik listelerden gizlenecek. PIN'i unutursan uygulamayı silip yeniden kurman gerekir."
             )
         }
-    }
-
-    // MARK: - Bölümler
-
-    private var sourceSection: some View {
-        section("Kaynak") {
-            SettingsRow(
-                icon: "antenna.radiowaves.left.and.right",
-                title: viewModel.activePlaylistName ?? "Kaynak seçilmedi",
-                detail: viewModel.lastSyncedText
-            ) {
-                router.push(.playlistManager)
-            }
-
-            SettingsRow(icon: "arrow.clockwise", title: "Şimdi güncelle") {
-                Task { await viewModel.resyncActivePlaylist() }
-            }
-
-            if viewModel.playlistCount > 1 {
-                Text("\(viewModel.playlistCount) kaynak kayıtlı")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
-        }
-    }
-
-    private var appearanceSection: some View {
-        section("Görünüm") {
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text("Vurgu rengi")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Palette.textSecondary)
-
-                HStack(spacing: Theme.Spacing.md) {
-                    ForEach(Theme.BrandColor.allCases, id: \.self) { option in
-                        Button {
-                            theme.select(option)
-                        } label: {
-                            Circle()
-                                .fill(option.color)
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Circle()
-                                        .strokeBorder(
-                                            theme.selection == option
-                                                ? Theme.Palette.textPrimary
-                                                : Color.clear,
-                                            lineWidth: 2
-                                        )
-                                )
-                        }
-                        .accessibilityLabel(option.rawValue)
-                    }
-                }
-
-                // Bayi markası varsa "Varsayılan" onun rengini kullanır.
-                if let resellerName = theme.resellerName {
-                    Text("Varsayılan renk \(resellerName) tarafından belirleniyor.")
-                        .font(Theme.Typography.caption)
-                        .foregroundColor(Theme.Palette.textTertiary)
-                }
-            }
-        }
-    }
-
-    private var startupSection: some View {
-        section("Açılış") {
-            // Menü seçici: dört başlık segment'e sığmıyor, dar ekranda
-            // "Ana Say…" gibi kırpılıyordu.
-            Picker(selection: $router.startupTab) {
-                ForEach(AppTab.startupOptions) { tab in
-                    Label(tab.title, systemImage: tab.icon).tag(tab)
-                }
-            } label: {
-                HStack(spacing: Theme.Spacing.md) {
-                    Image(systemName: "arrow.right.to.line")
-                        .foregroundColor(Theme.Palette.accent)
-                        .frame(width: 24)
-                    Text("Açılış ekranı")
-                        .font(Theme.Typography.rowTitle)
-                        .foregroundColor(Theme.Palette.textPrimary)
-                }
-            }
-            .pickerStyle(.menu)
-            .padding(Theme.Spacing.md)
-            .background(Theme.Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-        }
-    }
-
-    private var parentalSection: some View {
-        section("Ebeveyn kilidi") {
-            SettingsRow(
-                icon: viewModel.isParentalEnabled ? "lock.fill" : "lock.open",
-                title: viewModel.isParentalEnabled ? "Kilidi kaldır" : "Kilit kur",
-                detail: viewModel.isParentalEnabled
-                    ? "Yetişkin içerik listelerde gizleniyor"
-                    : "PIN belirleyerek yetişkin içeriği gizle"
-            ) {
-                isEnteringPIN = true
-            }
-        }
-    }
-
-    private var dataSection: some View {
-        section("Veriler") {
-            SettingsRow(icon: "clock.arrow.circlepath", title: "İzleme geçmişini sil") {
-                confirmingAction = .history
-            }
-            SettingsRow(icon: "play.slash", title: "Kaldığın yer bilgilerini sil") {
-                confirmingAction = .progress
-            }
-            // Onay istemiyor: veri kaybı yok, görseller yeniden indirilir.
-            SettingsRow(
-                icon: "photo.on.rectangle",
-                title: "Görsel önbelleğini temizle",
-                detail: "Afiş ve logolar yeniden indirilir"
-            ) {
-                Task { await viewModel.clearImageCache() }
-            }
-        }
-    }
-
-    private var supportSection: some View {
-        section("Destek") {
-            ContactLinksView(contact: contact)
-        }
-    }
-
-    private var aboutSection: some View {
-        section("Uygulama") {
-            HStack {
-                Text("Sürüm")
-                    .font(Theme.Typography.rowSubtitle)
-                    .foregroundColor(Theme.Palette.textSecondary)
-                Spacer()
-                Text(viewModel.appVersion)
-                    .font(Theme.Typography.rowSubtitle)
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-        }
-    }
-
-    private func section<Content: View>(
-        _ title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(title)
-                .font(Theme.Typography.sectionTitle)
-                .foregroundColor(Theme.Palette.textPrimary)
-            content()
-        }
-    }
-}
-
-private struct SettingsRow: View {
-
-    let icon: String
-    let title: String
-    var detail: String?
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: Theme.Spacing.md) {
-                Image(systemName: icon)
-                    .foregroundColor(Theme.Palette.accent)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    Text(title)
-                        .font(Theme.Typography.rowTitle)
-                        .foregroundColor(Theme.Palette.textPrimary)
-                        .multilineTextAlignment(.leading)
-
-                    if let detail {
-                        Text(detail)
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Palette.textTertiary)
-                    }
-                }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-        }
-        .buttonStyle(.plain)
     }
 }

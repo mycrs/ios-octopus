@@ -1,0 +1,102 @@
+import SwiftUI
+import OctopusDomain
+import OctopusDesignSystem
+
+/// Film ızgarasındaki tekil afiş.
+struct MoviePosterCell: View {
+
+    let movie: Movie
+    let isFavorite: Bool
+    let onTap: () -> Void
+    let onToggleFavorite: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                GridPosterView(url: movie.posterURL)
+                    .overlay(alignment: .topTrailing) {
+                        if isFavorite {
+                            Image(systemName: "heart.fill")
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Palette.live)
+                                .padding(Theme.Spacing.xs)
+                                .background(.ultraThinMaterial, in: Circle())
+                                .padding(Theme.Spacing.xs)
+                        }
+                    }
+                    .overlay(alignment: .bottomLeading) {
+                        RatingBadge(rating: movie.rating)
+                            .padding(Theme.Spacing.xs)
+                    }
+
+                Text(movie.title)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textPrimary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    // Hücre genişliğini doldur; sabit genişlik iPad'de
+                    // başlıkları afişten dar bırakıyordu.
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+        // Afiş, kalp ve puan ayrı ayrı okunursa ızgarada gezinmek işkence
+        // olur; hücre tek öğe, favori ise özel eylem.
+        .accessibilityElement(children: .combine)
+        .accessibilityAction(
+            named: isFavorite ? "Favorilerden çıkar" : "Favorilere ekle",
+            onToggleFavorite
+        )
+        .contextMenu {
+            Button {
+                onToggleFavorite()
+            } label: {
+                Label(
+                    isFavorite ? "Favorilerden çıkar" : "Favorilere ekle",
+                    systemImage: isFavorite ? "heart.slash" : "heart"
+                )
+            }
+        }
+    }
+}
+
+/// Film ve dizi ekranlarında ortak kategori şeridi.
+struct MediaCategoryStrip: View {
+
+    let categories: [MediaCategory]
+    let selectedID: MediaCategory.ID?
+    let onSelect: (MediaCategory.ID?) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Theme.Spacing.sm) {
+                chip(title: "Tümü", isSelected: selectedID == nil) { onSelect(nil) }
+
+                ForEach(categories) { category in
+                    chip(title: category.name, isSelected: selectedID == category.id) {
+                        onSelect(category.id)
+                    }
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+        }
+    }
+
+    private func chip(
+        title: String,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.Typography.caption)
+                .lineLimit(1)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(isSelected ? Theme.Palette.accentMuted : Theme.Palette.surface)
+                .foregroundColor(isSelected ? Theme.Palette.accent : Theme.Palette.textSecondary)
+                .clipShape(Capsule())
+        }
+    }
+}
