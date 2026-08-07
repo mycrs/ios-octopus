@@ -17,28 +17,18 @@ struct ChannelRowView: View {
     let onToggleFavorite: () -> Void
     let onShowGuide: () -> Void
 
+    /// ⚠️ Kareyle ölçüldü: en büyük erişilebilirlik yazı boyutunda numara
+    /// ve ad aynı satıra sığmıyordu, ad neredeyse tamamen kırpılıyordu
+    /// ("100 TR…"). Bu boyutlarda ikisi alt alta yerleşir.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: Theme.Spacing.md) {
                 ChannelLogoView(url: channel.logoURL)
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        // Kanal numarası her zaman görünür: kullanıcılar
-                        // kanalları numarayla hatırlıyor ve yayın akışı
-                        // olsun olmasın numara aynı yerde durmalı.
-                        if let number = channel.number {
-                            Text("\(number)")
-                                .font(.system(.caption2, design: .monospaced).weight(.semibold))
-                                .foregroundColor(Theme.Palette.textTertiary)
-                                .frame(minWidth: 26, alignment: .trailing)
-                        }
-
-                        Text(channel.name)
-                            .font(Theme.Typography.rowTitle)
-                            .foregroundColor(Theme.Palette.textPrimary)
-                            .lineLimit(1)
-                    }
+                    titleLine
 
                     if let program {
                         programLine(program)
@@ -124,5 +114,39 @@ struct ChannelRowView: View {
                 .tint(Theme.Palette.accent)
                 .frame(height: 2)
         }
+    }
+
+    /// Kanal numarası + ad. Normal boyutta yan yana, erişilebilirlik
+    /// boyutlarında alt alta — aksi hâlde numara adı ekrandan taşırıyor.
+    @ViewBuilder
+    private var titleLine: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) {
+                numberLabel
+                nameLabel.lineLimit(2)
+            }
+        } else {
+            HStack(spacing: Theme.Spacing.sm) {
+                numberLabel.frame(minWidth: 26, alignment: .trailing)
+                nameLabel.lineLimit(1)
+            }
+        }
+    }
+
+    /// Kanal numarası her zaman görünür: kullanıcılar kanalları numarayla
+    /// hatırlıyor ve yayın akışı olsun olmasın numara aynı yerde durmalı.
+    @ViewBuilder
+    private var numberLabel: some View {
+        if let number = channel.number {
+            Text("\(number)")
+                .font(.system(.caption2, design: .monospaced).weight(.semibold))
+                .foregroundColor(Theme.Palette.textTertiary)
+        }
+    }
+
+    private var nameLabel: some View {
+        Text(channel.name)
+            .font(Theme.Typography.rowTitle)
+            .foregroundColor(Theme.Palette.textPrimary)
     }
 }

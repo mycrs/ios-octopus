@@ -31,6 +31,13 @@ struct FeaturedHeroView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         .padding(.horizontal, Theme.Spacing.md)
         .accessibilityElement(children: .contain)
+        // ⚠️ Kareyle ölçüldü: erişilebilirlik boyutlarında (accessibility1+)
+        // kartın sabit yüksekliği aşılıyor, "ÖNE ÇIKAN" etiketi üstte kesiliyor,
+        // "İzle"/"Detay" buton metinleri kırpılıyordu. Bu kart dekoratif bir
+        // tanıtım alanı — kritik bilgi (film adı, puan, tür) zaten detay
+        // ekranında sınırsız büyüyebiliyor. HIG da sınırlı alanlı kartlar için
+        // bir üst sınırı kabul ediyor; xxxLarge standart ölçeğin son basamağı.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     private var backdrop: some View {
