@@ -145,6 +145,17 @@ jobs:
           shoot series 05-diziler.png
           shoot favorites 06-favoriler.png
 
+          # 3) Dynamic Type — büyük erişilebilirlik yazı boyutu.
+          #
+          # Kod tabanında bunu ele alan neredeyse hiçbir şey yok
+          # (`minimumScaleFactor` tek bir yerde). Tahmin etmek yerine
+          # gerçek bir kareyle ölçülüyor: metin yoğun iki ekran
+          # (kanal satırı + hero kartı) en büyük boyutta nasıl davranıyor?
+          xcrun simctl ui booted content_size accessibility-extra-extra-extra-large
+          shoot home 07-buyuk-yazi-ana-sayfa.png
+          shoot live 08-buyuk-yazi-canli-tv.png
+          xcrun simctl ui booted content_size large
+
           # Not: açık tema karesi alınmıyor — uygulama şu an
           # .preferredColorScheme(.dark) ile koyu temayı zorluyor.
           # Faz 3'te ThemeController gelince tema kareleri anlamlı olacak.
