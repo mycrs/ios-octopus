@@ -20,6 +20,12 @@ struct ShelfView<Content: View>: View {
                     content()
                 }
                 .padding(.horizontal, Theme.Spacing.md)
+                // ⚠️ Kareyle ölçüldü: erişilebilirlik yazı boyutunda sabit
+                // genişlikli kart başlıkları neredeyse tamamen kırpılıyordu
+                // ("Gölg", "Son", "Kayıp"). Kartlar dekoratif bir önizleme —
+                // kullanıcı dokunduğunda tam bilgiyi sınırsız boyutta
+                // detay ekranında görür.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
         }
     }
