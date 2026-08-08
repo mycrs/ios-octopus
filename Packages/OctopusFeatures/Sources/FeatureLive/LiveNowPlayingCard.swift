@@ -45,8 +45,16 @@ struct LiveNowPlayingCard: View {
     }
 
     private var backdrop: some View {
+        // ⚠️ Kareyle görüldü: logosu olmayan kanalda (M3U'da sık rastlanır)
+        // yer tutucu düz renk olduğunda kart tamamen boş görünüyordu.
+        // ChannelLogoView'ın kullandığı "tv" ikonu buraya da eklendi.
         RemoteImageView(url: channel.logoURL, contentMode: .fit, targetWidth: 320) {
-            Theme.Palette.surfaceElevated
+            ZStack {
+                Theme.Palette.surfaceElevated
+                Image(systemName: "tv")
+                    .font(.system(size: 40))
+                    .foregroundColor(Theme.Palette.textTertiary)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
