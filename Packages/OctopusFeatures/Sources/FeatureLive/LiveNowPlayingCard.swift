@@ -107,6 +107,10 @@ struct LiveNowPlayingCard: View {
                     .lineLimit(1)
             }
         }
-        .padding(Theme.Spacing.md)
+        // ⚠️ Kart kenara yapışık olduğu için metin de ekran kenarına
+        // dayanıyordu. Yatay boşluk liste satırlarıyla aynı hizada
+        // (Spacing.md) tutuluyor ki sol kenarlar dikey bir çizgi oluştursun.
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.bottom, Theme.Spacing.md)
     }
 }
