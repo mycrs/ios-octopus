@@ -280,10 +280,35 @@ Android sürümüyle aynı kimlik, iOS'a özgü cila. Somut karşılıkları:
 | Kart üstü puan | `RatingBadge` — puan yoksa hiç çizilmez | `DesignSystem` |
 | Detay hero'su | `DetailHeaderView` — film **ve** dizi ortak kullanır | `DesignSystem` |
 | Uzun künye satırı | Yatay kaydırılan çipler (`DetailChip`) | `DesignSystem` |
+| Üstte gömülü video | `LiveNowPlayingCard` — kaldığın kanal önizlemesi | `FeatureLive` |
 | — | Haptik: favori/kategori/PIN | `DesignSystem/Haptics` |
 
 ⚠️ Detay başlığı **tek** bileşen: ayrı yazılsalardı zamanla birbirinden
 ayrı düşerlerdi — referans projede tam olarak bu olmuştu.
+
+#### Canlı TV yerleşimi
+
+Referanstaki sıra birebir alındı: **video → kategoriler → arama → liste**.
+Üç karar bunu mümkün kıldı:
+
+1. **Gezinme çubuğu gizli** (`.toolbar(.hidden, for: .navigationBar)`) —
+   önizleme kartı ekranın üst kenarına yapışsın, durum çubuğunun altına
+   uzansın diye. Yan etkisi: bu sekmede arama/ayarlar ikonu görünmez;
+   ayarlara diğer dört sekmenin üst barından erişilir.
+2. **`.searchable` kullanılmıyor** — o değiştirici aramayı gezinme
+   çubuğuna koyar, biz kategorilerin **altında** istiyoruz. Yerine
+   `DesignSystem/SearchField`.
+3. **Kart `ScrollView`'in dışında** — referansta video sabit, liste
+   altında kayıyor.
+
+⚠️ Video **gömülemez**: `FeaturePlayer` ayrı modül ve feature'lar
+birbirini import edemez (demir kural 3). Kart aynı hissi mimariyi
+bozmadan verir.
+
+⚠️ İki tuzak: (a) kart yokken üst güvenli alan korunmalı
+(`edges: showsPreview ? .top : []`), yoksa kategori şeridi durum
+çubuğunun altında kalır; (b) buradan açılan ekranlara
+`.toolbar(.visible)` verilmeli, yoksa geri düğmesi kaybolur.
 
 ### Ebeveyn kilidi nerede uygulanır?
 
