@@ -26,6 +26,15 @@ public protocol PlaybackEngine: AnyObject {
     var audioTracks: [MediaTrack] { get }
     var subtitleTracks: [MediaTrack] { get }
 
+    /// Şu an çalan izler.
+    ///
+    /// ⚠️ Seçim yalnızca kullanıcı `select(track:)` çağırdığında değişmez:
+    /// sistem, cihaz diline ve erişilebilirlik ayarlarına göre açılışta
+    /// kendisi bir iz seçer. Menüde işaretli satırı göstermek için motorun
+    /// **gerçek** seçimini sormak gerekir, en son ne istediğimizi değil.
+    var selectedAudioTrack: MediaTrack? { get }
+    var selectedSubtitleTrack: MediaTrack? { get }
+
     /// AVPictureInPicture desteği. VLC için `false`.
     var supportsPictureInPicture: Bool { get }
 

@@ -20,6 +20,8 @@ public final class NullPlaybackEngine: PlaybackEngine {
     public private(set) var currentState: PlaybackState = .idle
     public private(set) var audioTracks: [MediaTrack] = []
     public private(set) var subtitleTracks: [MediaTrack] = []
+    public let selectedAudioTrack: MediaTrack? = nil
+    public let selectedSubtitleTrack: MediaTrack? = nil
     public let supportsPictureInPicture = false
 
     public init(identifier: String = "null") {

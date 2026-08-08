@@ -87,6 +87,8 @@ private final class StubEngine: PlaybackEngine {
     private(set) var currentState: PlaybackState = .idle
     private(set) var audioTracks: [MediaTrack] = []
     private(set) var subtitleTracks: [MediaTrack] = []
+    let selectedAudioTrack: MediaTrack? = nil
+    let selectedSubtitleTrack: MediaTrack? = nil
     let supportsPictureInPicture = false
 
     init(identifier: String) {

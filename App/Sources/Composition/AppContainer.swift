@@ -185,7 +185,7 @@ final class AppContainer: ObservableObject {
         // Motor zinciri: AVPlayer her zaman var, VLC yalnızca bağlıysa eklenir.
         // VLC yoksa uygulama AVPlayer'la çalışmaya devam eder — çökmez.
         engineResolver = PlaybackEngineResolver(
-            native: { NullPlaybackEngine(identifier: "native") },  // 🚧 Faz 5: AVPlayerEngine()
+            native: { AVPlayerEngine() },
             fallback: VLCEngineFactory.isAvailable ? { VLCEngineFactory.makeEngine() } : nil
         )
 
