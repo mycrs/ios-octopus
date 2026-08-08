@@ -30,12 +30,22 @@ public struct LiveDependencies {
     }
 }
 
-/// Canlı TV: kategori şeridi + kanal listesi + arama.
+/// Canlı TV: üstte gömülü önizleme, altında kategori şeridi, arama ve liste.
+///
+/// ## Yerleşim referansla aynı
+/// Referans uygulamada sıra şöyle: **video → kategoriler → arama → liste**,
+/// ve video ekranın üst kenarına yapışık. Burada da öyle:
+/// - Gezinme çubuğu **gizli** — önizleme kartı durum çubuğunun altına uzansın
+///   (bu yüzden bu sekmede arama/ayarlar ikonu da görünmez; ayarlara diğer
+///   sekmelerin üst barından erişiliyor).
+/// - Arama kutusu `.searchable` yerine kendi alanımız: `.searchable` aramayı
+///   gezinme çubuğuna koyuyor, biz kategorilerin **altında** istiyoruz.
 ///
 /// ⚠️ Bu ekran oynatıcıyı doğrudan **açmaz**; `router.presentPlayer(...)`
 /// çağırır. `FeaturePlayer`'ı import etmez, bu yüzden ikisi bağımsız derlenir.
 ///
-/// Alt bileşenler ayrı dosyalarda: `CategoryStripView.swift`, `ChannelRowView.swift`.
+/// Alt bileşenler ayrı dosyalarda: `CategoryStripView.swift`,
+/// `ChannelRowView.swift`, `LiveNowPlayingCard.swift`.
 public struct LiveScreen: View {
 
     @StateObject private var viewModel: LiveChannelsViewModel
@@ -45,28 +55,53 @@ public struct LiveScreen: View {
         _viewModel = StateObject(wrappedValue: LiveChannelsViewModel(dependencies: dependencies))
     }
 
+    /// Önizleme kartı görünüyor mu?
+    ///
+    /// Arama sırasında gizlenir: kullanıcı belirli bir kanalı ararken üstte
+    /// alakasız bir önizleme yer kaplamamalı.
+    private var showsPreview: Bool {
+        !viewModel.isSearching && viewModel.lastWatchedChannel != nil
+    }
+
     public var body: some View {
         ZStack {
             Theme.Palette.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                if !viewModel.categories.isEmpty && !viewModel.isSearching {
+                if showsPreview, let lastWatched = viewModel.lastWatchedChannel {
+                    LiveNowPlayingCard(
+                        channel: lastWatched,
+                        program: viewModel.currentProgram(for: lastWatched),
+                        onTap: { router.presentPlayer(.liveChannel(lastWatched.id)) }
+                    )
+                }
+
+                // ⚠️ Arama sırasında da görünür kalır. Eskiden gizleniyordu
+                // ama arama kutusu artık kategorilerin **altında**; gizlemek
+                // kullanıcı yazmaya başlar başlamaz kutuyu yukarı zıplatırdı.
+                // Referansta da şerit her zaman duruyor.
+                if !viewModel.categories.isEmpty {
                     CategoryStripView(
                         categories: viewModel.categories,
                         selectedID: viewModel.selectedCategoryID,
                         onSelect: viewModel.selectCategory
                     )
                 }
+
+                SearchField(text: $viewModel.searchText, placeholder: "Kanal ara")
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.bottom, Theme.Spacing.sm)
+                    // Önizleme yokken kategori şeridi üstte kalıyor ve arama
+                    // ona yapışıyor; araya nefes payı gerekiyor.
+                    .padding(.top, showsPreview ? Theme.Spacing.sm : 0)
+
                 content
             }
         }
-        .navigationTitle("Canlı TV")
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(
-            text: $viewModel.searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Kanal ara"
-        )
+        // Kart yokken üst güvenli alan korunur — aksi hâlde kategori şeridi
+        // durum çubuğunun altında kalırdı.
+        .ignoresSafeArea(edges: showsPreview ? .top : [])
+        .toolbar(.hidden, for: .navigationBar)
         .task { await viewModel.load() }
     }
 
@@ -104,16 +139,10 @@ public struct LiveScreen: View {
 
     private var channelList: some View {
         ScrollView {
-            // Arama sırasında gösterilmez: kullanıcı belirli bir kanalı
-            // ararken üstte alakasız bir önizleme yer kaplamamalı.
-            if !viewModel.isSearching, let lastWatched = viewModel.lastWatchedChannel {
-                LiveNowPlayingCard(
-                    channel: lastWatched,
-                    program: viewModel.currentProgram(for: lastWatched),
-                    onTap: { router.presentPlayer(.liveChannel(lastWatched.id)) }
-                )
-            }
-
+            // ⚠️ Önizleme kartı burada **değil**: referansta video sabit
+            // duruyor, liste onun altında kayıyor. Kart artık `body`'de,
+            // ScrollView'in dışında.
+            //
             // LazyVStack: 20.000 kanallı listede yalnızca görünen satırlar
             // oluşturulur.
             LazyVStack(spacing: Theme.Spacing.xs) {

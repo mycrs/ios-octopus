@@ -15,13 +15,18 @@ import OctopusDesignSystem
 /// Bu kart aynı hissi mimariyi bozmadan veriyor: son izlenen kanalı
 /// büyük bir önizleme olarak gösterir, dokunulduğunda gerçek oynatıcıya
 /// (şu an ön kontrol ekranına) götürür.
+///
+/// ⚠️ **Kenara yapışık, köşesiz** — referanstaki gömülü video gibi. Yatay
+/// boşluk ve köşe yuvarlaması yok; ekranın üst kenarına dayanır ve durum
+/// çubuğunun altına uzanır (bkz. `LiveScreen.ignoresSafeArea`).
 struct LiveNowPlayingCard: View {
 
     let channel: Channel
     let program: EPGProgram?
     let onTap: () -> Void
 
-    private let height: CGFloat = 180
+    /// Durum çubuğunun altına uzanan kısım da dahil.
+    private let height: CGFloat = 220
 
     var body: some View {
         Button(action: onTap) {
@@ -32,11 +37,9 @@ struct LiveNowPlayingCard: View {
             }
             .frame(height: height)
             .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .clipped()
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.top, Theme.Spacing.sm)
         .accessibilityElement(children: .combine)
         .accessibilityHint("Oynatıcıyı açar")
         // Kart dekoratif bir önizleme; erişilebilirlik yazı boyutunda
@@ -63,11 +66,21 @@ struct LiveNowPlayingCard: View {
     }
 
     private var scrim: some View {
-        LinearGradient(
-            colors: [.black.opacity(0.1), .black.opacity(0.75)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        ZStack {
+            LinearGradient(
+                colors: [.black.opacity(0.1), .black.opacity(0.75)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            // ⚠️ Kart durum çubuğunun altına uzanıyor; açık renkli bir kanal
+            // logosunda saat ve pil ikonları okunmaz hâle geliyordu.
+            // (DetailHeaderView'da da aynı perde var, aynı sebeple.)
+            LinearGradient(
+                colors: [.black.opacity(0.55), .clear],
+                startPoint: .top,
+                endPoint: .center
+            )
+        }
     }
 
     private var info: some View {

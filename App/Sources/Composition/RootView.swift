@@ -124,6 +124,11 @@ struct RootView: View {
             content()
                 .navigationDestination(for: AppRoute.self) { route in
                     destination(for: route)
+                        // ⚠️ Açıkça görünür: Canlı TV kök ekranı gezinme
+                        // çubuğunu gizliyor (video üst kenara yapışsın diye).
+                        // Bu olmadan oradan açılan ekranlarda geri düğmesi
+                        // kaybolur ve kullanıcı sıkışırdı.
+                        .toolbar(.visible, for: .navigationBar)
                 }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
