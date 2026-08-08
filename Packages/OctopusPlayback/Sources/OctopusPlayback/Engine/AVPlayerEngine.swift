@@ -64,12 +64,20 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// `play()` doğrudan `rate` atar.
     private var preferredRate: Float = 1.0
 
+    /// - Parameter audioSession: Testlerde sahte oturum verilebilsin diye
+    ///   dışarıdan alınır.
+    ///
+    /// ⚠️ Varsayılan değer **imzada değil, gövdede** üretiliyor:
+    /// `AudioSessionController` `@MainActor` izole ve varsayılan parametre
+    /// ifadeleri izolasyonsuz bağlamda değerlendirilir — imzaya yazılınca
+    /// "call to main actor-isolated initializer in a synchronous
+    /// nonisolated context" hatası veriyordu.
     public init(
         identifier: String = "avplayer",
-        audioSession: AudioSessionController = AudioSessionController()
+        audioSession: AudioSessionController? = nil
     ) {
         self.identifier = identifier
-        self.audioSession = audioSession
+        self.audioSession = audioSession ?? AudioSessionController()
         self.player = AVPlayer()
 
         var capturedContinuation: AsyncStream<PlaybackEvent>.Continuation!

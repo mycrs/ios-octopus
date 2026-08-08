@@ -158,16 +158,4 @@ final class AVPlayerEngineTests: XCTestCase {
             .appendingPathComponent("yok-\(UUID().uuidString).mp4")
     }
 
-    /// Koşul sağlanana kadar kısa aralıklarla yoklar.
-    private func waitUntil(
-        timeout: TimeInterval = 5,
-        _ condition: @MainActor () -> Bool
-    ) async -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if condition() { return true }
-            try? await Task.sleep(nanoseconds: 20_000_000)   // 20 ms
-        }
-        return condition()
-    }
 }

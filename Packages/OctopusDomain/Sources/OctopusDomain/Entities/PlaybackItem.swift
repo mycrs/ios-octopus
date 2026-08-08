@@ -92,6 +92,28 @@ public struct PlaybackItem: Hashable, Sendable {
     }
 }
 
+extension PlaybackItem {
+
+    /// Aynı içeriğin, kaldığı yerden başlayan kopyası.
+    ///
+    /// Akış adresini üreten katman (`StreamResolving`) izleme geçmişini
+    /// bilmez — bilmemeli de. Devam konumu oynatma başlarken eklenir.
+    /// Canlı yayında `init` zaten `nil`'e çeker.
+    public func resuming(at seconds: TimeInterval?) -> PlaybackItem {
+        PlaybackItem(
+            source: source,
+            url: url,
+            format: format,
+            title: title,
+            subtitle: subtitle,
+            artworkURL: artworkURL,
+            isLive: isLive,
+            resumeAt: seconds,
+            headers: headers
+        )
+    }
+}
+
 /// Bir içeriğin ne kadarının izlendiği.
 public struct PlaybackProgress: Hashable, Codable, Sendable {
     public let itemKey: String          // Source'un kararlı string karşılığı
