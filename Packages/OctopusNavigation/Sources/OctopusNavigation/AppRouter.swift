@@ -94,6 +94,31 @@ public final class AppRouter: ObservableObject {
         player = nil
     }
 
+    #if DEBUG
+    /// Açılışta doğrudan oynatıcıyı açar — **yalnızca ekran görüntüsü için**.
+    ///
+    /// ## Neden var?
+    /// Geliştirme Windows'ta yapılıyor; oynatıcının gerçekten çizildiğini
+    /// görmenin tek yolu CI'daki simülatörden kare almak. Ama oynatıcıya
+    /// girmek bir kanala **dokunmayı** gerektiriyor ve `simctl` dokunma
+    /// üretemiyor. Bu kapı olmadan Faz 5 kör yazılırdı.
+    ///
+    /// Değer `PlaybackItem.Source.storageKey` biçimindedir
+    /// (`live:<id>` / `movie:<id>` / `episode:<id>`) ve iOS'un
+    /// `-anahtar değer` açılış argümanlarını `NSUserDefaults`'a yazma
+    /// davranışıyla okunur — uygulama tarafında ek koda gerek yok.
+    ///
+    /// ⚠️ `#if DEBUG`: yayın derlemesinde hiç derlenmez.
+    public func openStartupPlayerIfRequested() {
+        guard
+            let key = store.string(forKey: "startup.player"),
+            let source = PlaybackItem.Source(storageKey: key)
+        else { return }
+
+        presentPlayer(source)
+    }
+    #endif
+
     // MARK: - Modal
 
     public func present(_ sheet: AppSheet) {

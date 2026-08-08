@@ -88,6 +88,19 @@ public enum DemoCatalogSeeder {
         }
     }
 
+    /// Apple'ın herkese açık HLS örnek akışı.
+    ///
+    /// ⚠️ Bu, demo verideki **tek gerçek ağ bağımlılığı** ve kasıtlı:
+    /// oynatıcının gerçekten video çizdiğini Windows'tan görmenin başka
+    /// yolu yok. Yalnızca ilk kanal kullanıyor; akış erişilemezse kare
+    /// "yayın açılamadı" gösterir — CI kırmızıya dönmez, çünkü hata
+    /// ekranının kendisi de doğrulanması gereken bir durumdur.
+    ///
+    /// Diğer kanallar sahte anahtarla kalıyor: liste ekranlarının karesi
+    /// için adresin geçerli olması gerekmiyor.
+    static let demoStreamURL =
+        "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8"
+
     private static func channels(_ playlistID: Playlist.ID) -> [Channel] {
         let names = [
             "TRT 1", "Show TV", "Star TV", "Kanal D", "ATV",
@@ -98,7 +111,7 @@ public enum DemoCatalogSeeder {
                 id: EntityID.channel(playlistID: playlistID, rawID: "\(index)"),
                 playlistID: playlistID,
                 name: name,
-                streamKey: "\(index)",
+                streamKey: index == 0 ? demoStreamURL : "\(index)",
                 categoryID: EntityID.category(
                     playlistID: playlistID,
                     kind: .live,

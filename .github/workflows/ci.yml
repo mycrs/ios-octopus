@@ -145,6 +145,23 @@ jobs:
           shoot series 05-diziler.png
           shoot favorites 06-favoriler.png
 
+          # 2b) Oynatıcı — açılışta doğrudan açılır.
+          #
+          # Oynatıcıya girmek normalde bir kanala **dokunmayı** gerektirir
+          # ve `simctl` dokunma üretemez; bu yüzden `-startup.player`
+          # (yalnızca DEBUG) diye bir kapı var. Değer
+          # `PlaybackItem.Source.storageKey` biçimindedir ve demo kaynağın
+          # kimlik şeması `<playlist>#<tür>#<hamId>` olduğu için
+          # ilk kanal `live:demo#live#0` olur.
+          #
+          # Demo kaynağın ilk kanalı Apple'ın açık HLS örneğine bakar —
+          # yani bu kare oynatıcının gerçekten video çizdiğini gösterir.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -startup.player "live:demo#live#0" >/dev/null
+          sleep 14   # ağdan segment indirme + ilk kare
+          xcrun simctl io booted screenshot screenshots/09-oynatici.png
+
           # 3) Dynamic Type — büyük erişilebilirlik yazı boyutu.
           #
           # Kod tabanında bunu ele alan neredeyse hiçbir şey yok

@@ -218,6 +218,14 @@ final class AppContainer: ObservableObject {
         }
 
         await refreshRemoteConfig()
+
+        #if DEBUG
+        // Ekran görüntüsü modu: açılışta doğrudan oynatıcıyı açar.
+        // Onboarding gösteriliyorsa atlanır — oynatacak kaynak yok.
+        if !router.needsOnboarding {
+            router.openStartupPlayerIfRequested()
+        }
+        #endif
     }
 
     /// CI ekran görüntüsü modu: sahte katalog yazılır.

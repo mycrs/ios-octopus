@@ -97,7 +97,12 @@ final class AVPlayerEngineTests: XCTestCase {
 
         engine.teardown()
 
-        XCTAssertTrue(await drained.value, "teardown olay akışını kapatmalı")
+        // ⚠️ Önce `await`, sonra assert: `XCTAssert…` bir autoclosure alır
+        // ve autoclosure içinde `await` kullanılamaz
+        // ("'async' property access in an autoclosure that does not support
+        // concurrency" — aynı tuzak `XCTUnwrap(try await …)` ile de yaşandı).
+        let didDrain = await drained.value
+        XCTAssertTrue(didDrain, "teardown olay akışını kapatmalı")
     }
 
     func test_stop_returnsToIdle() async {
