@@ -3,26 +3,26 @@ import Combine
 import OctopusDomain
 import OctopusDesignSystem
 
-/// Oynatıcı motoru gelene kadar zinciri doğrulayan ön kontrol.
+/// Oynatıcının **hazırlık** aşaması: içerikten oynatılabilir adrese.
 ///
-/// Faz 5 gerçek cihaz gerektirdiği için oynatıcı boş duruyor. Ama
-/// oynatıcıdan **önceki** her şey — kaynak, senkronizasyon, akış adresi
-/// üretimi — şimdiden test edilebilir durumda. Bu ekran onu görünür kılar:
-/// adres üretilebiliyorsa sorun oynatıcıda olacak, üretilemiyorsa sorun
-/// zaten daha yukarıda.
+/// Oynatmanın kendisi `PlayerController`'ın (OctopusPlayback) işi. Burada
+/// yalnızca "hangi içerik, hangi adres" sorusu cevaplanır — bu soru
+/// repository'lere bağlı olduğu için feature katmanında kalır.
 ///
-/// Kullanıcı adresi kopyalayıp harici bir oynatıcıda deneyebilir; bu,
-/// motor yazılmadan önce panelin gerçekten çalıştığını kanıtlar.
+/// Ayrım pratikte şunu sağlıyor: adres üretilemediğinde hata **oynatıcıya
+/// hiç girmeden** gösterilir ve kullanıcı adresi kopyalayıp harici bir
+/// oynatıcıda deneyebilir. Sorunun kaynakta mı motorda mı olduğu böylece
+/// tek bakışta ayrılır.
 @MainActor
-public final class PlayerPreflightViewModel: ObservableObject {
+public final class PlayerViewModel: ObservableObject {
 
-    public enum Outcome: Equatable {
-        case checking
+    public enum Phase: Equatable {
+        case resolving
         case ready(PlaybackItem)
         case failed(String)
     }
 
-    @Published public private(set) var outcome: Outcome = .checking
+    @Published public private(set) var phase: Phase = .resolving
 
     private let dependencies: PlayerDependencies
     private let source: PlaybackItem.Source
@@ -32,22 +32,12 @@ public final class PlayerPreflightViewModel: ObservableObject {
         self.source = source
     }
 
-    public func run() async {
-        outcome = .checking
-
+    public func resolve() async {
+        phase = .resolving
         do {
-            let item = try await resolveItem()
-            outcome = .ready(item)
-
-            // ⚠️ Adres çözüldüğünde kaydedilir, gerçek oynatma başladığında
-            // değil — Faz 5'e kadar "başladı" anı elimizde yok. Kullanıcı
-            // kanala/filme dokunmuş ve adres gerçekten üretilmiş olması
-            // "izleme geçmişi" ve "son izlenen" rafı için yeterli sinyal.
-            // Hata yutuluyor: geçmiş kaydı başarısız olsa da oynatıcı akışı
-            // durmamalı.
-            try? await dependencies.history.record(source, at: Date())
+            phase = .ready(try await resolveItem())
         } catch {
-            outcome = .failed(AppError.wrap(error).userMessage)
+            phase = .failed(AppError.wrap(error).userMessage)
         }
     }
 
@@ -116,5 +106,23 @@ public final class PlayerPreflightViewModel: ObservableObject {
         }
 
         return components.url?.absoluteString ?? url.absoluteString
+    }
+
+    /// Saniyeyi `s:dd` / `sa:dd:ss` biçimine çevirir.
+    ///
+    /// ⚠️ `DateComponentsFormatter` burada kullanılmıyor: canlı yayında
+    /// süre `nil` ve bilinmeyen değerler için "--:--" göstermek gerekiyor;
+    /// formatter bu durumda boş dizgi döndürüp çubuğu bozuyordu.
+    public static func timeLabel(_ seconds: TimeInterval?) -> String {
+        guard let seconds, seconds.isFinite, seconds >= 0 else { return "--:--" }
+
+        let total = Int(seconds.rounded())
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%d:%02d", minutes, secs)
     }
 }

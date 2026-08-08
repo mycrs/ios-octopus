@@ -43,6 +43,7 @@ public final class PlayerController: ObservableObject {
     private let resolver: PlaybackEngineResolver
     private let progress: PlaybackProgressRepository
     private let history: WatchHistoryRepository
+    private let nowPlaying: NowPlayingCenter
     private let saveInterval: TimeInterval
     private let now: () -> Date
 
@@ -60,16 +61,21 @@ public final class PlayerController: ObservableObject {
     private var lastSavedAt: Date?
     private var didRecordHistory = false
 
+    /// ⚠️ `nowPlaying` varsayılanı **gövdede** üretiliyor: `@MainActor`
+    /// izole bir tipin örneği varsayılan parametre ifadesi olamaz
+    /// (bkz. `AVPlayerEngine.init`, aynı tuzak CI'da yakalandı).
     public init(
         resolver: PlaybackEngineResolver,
         progress: PlaybackProgressRepository,
         history: WatchHistoryRepository,
+        nowPlaying: NowPlayingCenter? = nil,
         saveInterval: TimeInterval = 5,
         now: @escaping () -> Date = Date.init
     ) {
         self.resolver = resolver
         self.progress = progress
         self.history = history
+        self.nowPlaying = nowPlaying ?? NowPlayingCenter()
         self.saveInterval = saveInterval
         self.now = now
     }
@@ -86,7 +92,25 @@ public final class PlayerController: ObservableObject {
         item = prepared
         decision = resolver.decide(for: prepared.format)
 
+        attachRemoteCommands(isLive: prepared.isLive)
         await attach(resolver.makeEngine(for: prepared.format), loading: prepared)
+    }
+
+    /// Kilit ekranı düğmelerini bu oturuma bağlar.
+    private func attachRemoteCommands(isLive: Bool) {
+        nowPlaying.attach(
+            handlers: NowPlayingCenter.Handlers(
+                play: { [weak self] in self?.play() },
+                pause: { [weak self] in self?.pause() },
+                skip: { [weak self] delta in
+                    Task { await self?.skip(by: delta) }
+                },
+                seek: { [weak self] position in
+                    Task { await self?.seek(to: position) }
+                }
+            ),
+            isLive: isLive
+        )
     }
 
     /// Kaydedilmiş konumu içeriğe iliştirir.
@@ -135,6 +159,8 @@ public final class PlayerController: ObservableObject {
         eventTask = nil
         engine?.teardown()
         engine = nil
+        // Atlanırsa kilit ekranında çalmayan bir içerik asılı kalır.
+        nowPlaying.clear()
         state = .idle
     }
 
@@ -161,6 +187,8 @@ public final class PlayerController: ObservableObject {
 
     public func seek(to seconds: TimeInterval) async {
         await engine?.seek(to: seconds)
+        // Aramadan sonra kilit ekranı gerçek konumu göstermeli.
+        refreshNowPlaying()
     }
 
     /// İleri/geri sarma. Sınırlar burada uygulanır ki her düğme
@@ -194,9 +222,15 @@ public final class PlayerController: ObservableObject {
         case .stateChanged(let newState):
             state = newState
             if newState == .playing { recordHistoryOnce() }
+            refreshNowPlaying()
 
         case .timeChanged(let newTime):
+            let learnedDuration = time.duration == nil && newTime.duration != nil
             time = newTime
+            // ⚠️ Kilit ekranı her yarım saniyede tazelenmez: sistem konumu
+            // `playbackRate` üzerinden kendi ilerletir. Yalnızca süre ilk
+            // kez öğrenildiğinde yazmak yeterli — sık yazmak çubuğu titretir.
+            if learnedDuration { refreshNowPlaying() }
             Task { await saveProgress(force: false) }
 
         case .tracksDiscovered(let audio, let subtitle):
@@ -233,6 +267,16 @@ public final class PlayerController: ObservableObject {
         // Kaldığı yer korunur: kullanıcı motor değiştiğini fark etmemeli.
         let resumed = target.resuming(at: time.current > 1 ? time.current : target.resumeAt)
         await attach(fallback, loading: resumed)
+    }
+
+    private func refreshNowPlaying() {
+        guard let item else { return }
+        nowPlaying.update(
+            item: item,
+            time: time,
+            isPlaying: state == .playing,
+            rate: rate
+        )
     }
 
     private func recordHistoryOnce() {

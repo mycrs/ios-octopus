@@ -36,21 +36,37 @@ public struct PlayerDependencies {
 /// Tam ekran oynatıcı.
 ///
 /// ⚠️ Bu ekran **hangi motorun** çalıştığını bilmez. `PlaybackEngineResolver`
-/// karar verir, `PlaybackEngine` protokolü üzerinden kontrol edilir.
-/// AVPlayer'dan VLC'ye düşüş burada değil, `PlayerController`'da yönetilir.
-/// Faz 5'te doldurulacak.
+/// karar verir, `PlayerController` yürütür, video yüzeyi motordan gelir.
+/// AVPlayer'dan VLC'ye düşüş burada değil, koordinatörde yönetilir —
+/// bu dosyada ne AVFoundation ne VLCKit adı geçer.
+///
+/// Alt bileşenler ayrı dosyalarda: `PlayerControlsOverlay`, `PlayerScrubBar`,
+/// `PlayerTrackPicker`, `VideoSurfaceView`.
 public struct PlayerScreen: View {
 
-    @StateObject private var viewModel: PlayerPreflightViewModel
+    @StateObject private var viewModel: PlayerViewModel
+    @StateObject private var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
 
-    @State private var didCopy = false
+    @State private var showsControls = true
+    @State private var hideControlsTask: Task<Void, Never>?
+    @State private var isShowingTracks = false
+
+    /// Denetimlerin kendiliğinden kaybolma süresi.
+    private let autoHideDelay: Duration = .seconds(3.5)
 
     public init(presentation: PlayerPresentation, dependencies: PlayerDependencies) {
         _viewModel = StateObject(
-            wrappedValue: PlayerPreflightViewModel(
+            wrappedValue: PlayerViewModel(
                 dependencies: dependencies,
                 source: presentation.source
+            )
+        )
+        _controller = StateObject(
+            wrappedValue: PlayerController(
+                resolver: dependencies.resolver,
+                progress: dependencies.progress,
+                history: dependencies.history
             )
         )
     }
@@ -60,84 +76,186 @@ public struct PlayerScreen: View {
             Color.black.ignoresSafeArea()
             content
         }
-        .task { await viewModel.run() }
+        // Oynatıcı her zaman koyu; sistem teması burada geçersiz.
+        .preferredColorScheme(.dark)
+        .statusBarHidden(showsControls == false)
+        .task { await viewModel.resolve() }
+        .sheet(isPresented: $isShowingTracks) { trackPicker }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch viewModel.outcome {
-        case .checking:
-            LoadingStateView(message: "Yayın adresi çözülüyor")
+        switch viewModel.phase {
+        case .resolving:
+            LoadingStateView(message: "Yayın hazırlanıyor")
 
         case .failed(let message):
-            EmptyStateView(
-                icon: "exclamationmark.triangle",
-                title: "Yayın adresi alınamadı",
-                message: message,
-                actionTitle: "Kapat",
-                action: { router.dismissPlayer() }
-            )
+            resolveFailure(message)
 
         case .ready(let item):
-            readyState(item)
+            playback(item)
         }
     }
 
-    /// Zincir çalışıyor: adres üretildi, sıra oynatıcıda.
-    private func readyState(_ item: PlaybackItem) -> some View {
-        VStack(spacing: Theme.Spacing.lg) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 44))
-                .foregroundColor(Theme.Palette.accent)
+    // MARK: - Oynatma
 
-            VStack(spacing: Theme.Spacing.xs) {
-                Text(item.title)
-                    .font(Theme.Typography.sectionTitle)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
+    private func playback(_ item: PlaybackItem) -> some View {
+        ZStack {
+            // ⚠️ `.id`: motor değiştiğinde (native → VLC) yüzey baştan
+            // kurulmalı; aynı görünüm yeniden kullanılırsa yeni motorun
+            // katmanı hiç eklenmez ve ekran siyah kalır.
+            VideoSurfaceView(makeSurface: controller.makeVideoView)
+                .id(controller.engineIdentifier)
+                .ignoresSafeArea()
 
-                // Format Domain'de ham değer; görünen ad sunum katmanının işi.
-                Text("Yayın adresi hazır · \(item.format.rawValue.uppercased())")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Palette.textSecondary)
-            }
-
-            // Kimlik bilgileri maskeli: ekran görüntüsü hesabı ele vermemeli.
-            Text(PlayerPreflightViewModel.maskedURL(item.url))
-                .font(.system(.caption, design: .monospaced))
-                .foregroundColor(Theme.Palette.textTertiary)
-                .multilineTextAlignment(.center)
-                .padding(Theme.Spacing.md)
-                .frame(maxWidth: .infinity)
-                .background(Theme.Palette.surface)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-
-            Text(
-                "Oynatıcı motoru henüz eklenmedi (Faz 5, gerçek cihaz gerekiyor). "
-                + "Adresi kopyalayıp harici bir oynatıcıda deneyebilirsin — "
-                + "açılıyorsa kaynak, senkronizasyon ve adres üretimi çalışıyor demektir."
-            )
-            .font(Theme.Typography.caption)
-            .foregroundColor(Theme.Palette.textSecondary)
-            .multilineTextAlignment(.center)
-
-            VStack(spacing: Theme.Spacing.sm) {
-                Button {
-                    UIPasteboard.general.string = item.url.absoluteString
-                    didCopy = true
-                } label: {
-                    Label(
-                        didCopy ? "Kopyalandı" : "Adresi kopyala",
-                        systemImage: didCopy ? "checkmark" : "doc.on.doc"
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Kapat") { router.dismissPlayer() }
-                    .foregroundColor(Theme.Palette.textSecondary)
+            if case .failed(let error) = controller.state {
+                playbackFailure(error, item: item)
+            } else {
+                controlsLayer(item)
             }
         }
-        .padding(Theme.Spacing.xl)
+        .task {
+            await controller.start(item)
+            scheduleControlsHide()
+        }
+        .onDisappear {
+            hideControlsTask?.cancel()
+            // Motoru bırakmak ve son konumu yazmak: ikisi de atlanamaz.
+            // Ekran kapanırken görev iptal edilmesin diye `Task.detached`
+            // değil, controller'ın kendi ömrüne bağlı bir görev kullanılıyor.
+            Task { await controller.finish() }
+        }
+    }
+
+    private func controlsLayer(_ item: PlaybackItem) -> some View {
+        ZStack {
+            // Dokunma alanı tüm ekran: kullanıcı düğmeyi aramak zorunda kalmasın.
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture { toggleControls() }
+
+            if showsControls {
+                PlayerControlsOverlay(
+                    title: item.title,
+                    subtitle: item.subtitle,
+                    isLive: item.isLive,
+                    state: controller.state,
+                    time: controller.time,
+                    hasTracks: hasSelectableTracks,
+                    onClose: close,
+                    onTogglePlay: {
+                        controller.togglePlayPause()
+                        scheduleControlsHide()
+                    },
+                    onSkip: { delta in
+                        Task { await controller.skip(by: delta) }
+                        scheduleControlsHide()
+                    },
+                    onSeek: { position in
+                        Task { await controller.seek(to: position) }
+                        scheduleControlsHide()
+                    },
+                    onShowTracks: {
+                        hideControlsTask?.cancel()
+                        isShowingTracks = true
+                    }
+                )
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: showsControls)
+    }
+
+    private var hasSelectableTracks: Bool {
+        controller.audioTracks.count > 1 || !controller.subtitleTracks.isEmpty
+    }
+
+    @ViewBuilder
+    private var trackPicker: some View {
+        PlayerTrackPicker(
+            audioTracks: controller.audioTracks,
+            subtitleTracks: controller.subtitleTracks,
+            selectedAudio: controller.selectedAudioTrack,
+            selectedSubtitle: controller.selectedSubtitleTrack,
+            onSelect: controller.select
+        )
+    }
+
+    // MARK: - Hatalar
+
+    /// Adres üretilemedi — sorun oynatıcıdan **önce**.
+    private func resolveFailure(_ message: String) -> some View {
+        EmptyStateView(
+            icon: "exclamationmark.triangle",
+            title: "Yayın adresi alınamadı",
+            message: message,
+            actionTitle: "Kapat",
+            action: close
+        )
+    }
+
+    /// Adres üretildi ama açılamadı — sorun akışta ya da motorda.
+    ///
+    /// Adres kopyalanabilir bırakılıyor: harici bir oynatıcıda açılıyorsa
+    /// sorun bizde, açılmıyorsa kaynakta. Bu ayrım destek için kritik.
+    private func playbackFailure(_ error: AppError, item: PlaybackItem) -> some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            EmptyStateView(
+                icon: "play.slash",
+                title: "Yayın açılamadı",
+                message: error.userMessage,
+                actionTitle: "Tekrar dene",
+                action: { Task { await controller.start(item) } }
+            )
+
+            Text(PlayerViewModel.maskedURL(item.url))
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundColor(Theme.Palette.textTertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Spacing.md)
+
+            HStack(spacing: Theme.Spacing.md) {
+                Button {
+                    UIPasteboard.general.string = item.url.absoluteString
+                } label: {
+                    Label("Adresi kopyala", systemImage: "doc.on.doc")
+                }
+                Button("Kapat", action: close)
+                    .foregroundColor(Theme.Palette.textSecondary)
+            }
+            .font(Theme.Typography.caption)
+        }
+        .padding(Theme.Spacing.lg)
+    }
+
+    // MARK: - Denetim görünürlüğü
+
+    private func toggleControls() {
+        showsControls.toggle()
+        if showsControls {
+            scheduleControlsHide()
+        } else {
+            hideControlsTask?.cancel()
+        }
+    }
+
+    /// Denetimleri belirli bir süre sonra gizler.
+    ///
+    /// ⚠️ Duraklatılmışken gizlenmez: ekranda hiçbir ipucu kalmaz ve
+    /// kullanıcı videonun donduğunu sanır.
+    private func scheduleControlsHide() {
+        hideControlsTask?.cancel()
+        showsControls = true
+
+        hideControlsTask = Task {
+            try? await Task.sleep(for: autoHideDelay)
+            guard !Task.isCancelled, controller.state == .playing else { return }
+            showsControls = false
+        }
+    }
+
+    private func close() {
+        hideControlsTask?.cancel()
+        router.dismissPlayer()
     }
 }

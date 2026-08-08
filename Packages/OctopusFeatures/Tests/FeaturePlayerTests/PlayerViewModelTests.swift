@@ -8,14 +8,14 @@ import OctopusDomain
 /// `http://sunucu:8080/kullanici/parola/12345.ts`
 /// Bu, IPTV'ye özgü ve kolayca gözden kaçan bir sızıntı yolu.
 ///
-/// `@MainActor`: `PlayerPreflightViewModel` MainActor'a bağlı, statik
+/// `@MainActor`: `PlayerViewModel` MainActor'a bağlı, statik
 /// üyeleri de öyle. İzolasyonsuz bir bağlamdan çağrılamaz.
 @MainActor
-final class PlayerPreflightMaskingTests: XCTestCase {
+final class PlayerMaskingTests: XCTestCase {
 
     private func mask(_ raw: String) throws -> String {
         let url = try XCTUnwrap(URL(string: raw))
-        return PlayerPreflightViewModel.maskedURL(url)
+        return PlayerViewModel.maskedURL(url)
     }
 
     func test_masksXtreamPathCredentials() throws {
@@ -46,6 +46,22 @@ final class PlayerPreflightMaskingTests: XCTestCase {
     func test_shortPathIsNotMangled() throws {
         let raw = "http://example.com/akis.ts"
         XCTAssertEqual(try mask(raw), raw)
+    }
+
+    // MARK: - Süre etiketi
+
+    func test_timeLabel_formatsBelowAndAboveAnHour() {
+        XCTAssertEqual(PlayerViewModel.timeLabel(0), "0:00")
+        XCTAssertEqual(PlayerViewModel.timeLabel(65), "1:05")
+        XCTAssertEqual(PlayerViewModel.timeLabel(3661), "1:01:01")
+    }
+
+    /// ⚠️ Canlı yayında süre `nil` gelir; çubuk "--:--" göstermeli.
+    /// `DateComponentsFormatter` burada boş dizgi döndürüp yerleşimi bozuyordu.
+    func test_timeLabel_handlesUnknownDuration() {
+        XCTAssertEqual(PlayerViewModel.timeLabel(nil), "--:--")
+        XCTAssertEqual(PlayerViewModel.timeLabel(.nan), "--:--")
+        XCTAssertEqual(PlayerViewModel.timeLabel(-5), "--:--")
     }
 
     func test_maskingNeverLeaksOriginalCredentials() throws {

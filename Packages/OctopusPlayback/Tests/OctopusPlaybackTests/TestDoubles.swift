@@ -11,10 +11,13 @@ extension XCTestCase {
     /// ⚠️ Sabit `sleep` **kullanılmaz**: yerelde geçen test yüklü bir CI
     /// koşucusunda rastgele kırmızıya döner. Süreyi değil koşulu bekle
     /// (bkz. BRAIN.md § 11.1).
+    /// - Note: `@escaping` zorunlu — `@MainActor` işaretli bir fonksiyon
+    ///   aktöre atlarken parametrelerini kaçırmış sayılır:
+    ///   "escaping local function captures non-escaping value".
     @MainActor
     func waitUntil(
         timeout: TimeInterval = 5,
-        _ condition: @MainActor () -> Bool
+        _ condition: @escaping @MainActor () -> Bool
     ) async -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
