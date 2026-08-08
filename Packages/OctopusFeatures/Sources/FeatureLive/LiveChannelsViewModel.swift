@@ -17,6 +17,15 @@ public final class LiveChannelsViewModel: ObservableObject {
     /// İlerleme çubuklarının canlı görünmesi için kullanılan referans an.
     @Published public private(set) var clock = Date()
 
+    /// Son izlenen kanal — ekranın tepesindeki önizleme kartı bunu gösterir.
+    ///
+    /// Referans projede oynatıcı ekranın üstünde **her zaman** gömülü
+    /// duruyordu; kullanıcı kanal gezinirken de görmeye devam ediyordu.
+    /// Bizim mimarimizde oynatıcı ayrı bir modül (`FeaturePlayer`) ve
+    /// feature'lar birbirini import edemez — video gömülemez. Bunun yerine
+    /// kaldığı kanalı hatırlatan bir kart aynı hissi, mimariyi bozmadan verir.
+    @Published public private(set) var lastWatchedChannel: Channel?
+
     /// `nil` = tüm kanallar.
     @Published public private(set) var selectedCategoryID: MediaCategory.ID?
     @Published public var searchText = "" {
@@ -84,6 +93,7 @@ public final class LiveChannelsViewModel: ObservableObject {
             observeChannels(playlistID: playlist.id, categoryID: selectedCategoryID)
             observeFavorites()
             startEPGRefresh()
+            await refreshLastWatched(playlistID: playlist.id)
         } catch {
             state = .failed(AppError.wrap(error))
         }
@@ -186,6 +196,21 @@ public final class LiveChannelsViewModel: ObservableObject {
     /// Kilit durumu değişmiş olabilir (Ayarlar'dan açılıp kapanabiliyor).
     public func refreshParentalFilter() async {
         parentalFilter = await .current(dependencies.parental)
+    }
+
+    /// Üstteki önizleme kartını doldurur.
+    ///
+    /// ⚠️ Kilitli yetişkin kanal önizlemede de görünmemeli — kilidi
+    /// atlatmanın bir başka yolu olurdu, aynen numarayla aramada olduğu gibi.
+    private func refreshLastWatched(playlistID: Playlist.ID) async {
+        guard let recent = try? await dependencies.history.recentChannels(
+            playlistID: playlistID,
+            limit: 1
+        ).first else {
+            lastWatchedChannel = nil
+            return
+        }
+        lastWatchedChannel = parentalFilter.allows(channel: recent) ? recent : nil
     }
 
     /// Seçili kategori az önce gizlendiyse "Tümü"ne dön.

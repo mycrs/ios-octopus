@@ -63,6 +63,14 @@ public enum DemoCatalogSeeder {
             movies: movies(playlistID)
         )
 
+        // Canlı TV'nin "kaldığın kanal" önizleme kartı bu kayıt olmadan
+        // hiç görünmez — kare almadan önce doğrulanamazdı.
+        let history = GRDBWatchHistoryRepository(database: database)
+        try? await history.record(
+            .liveChannel(EntityID.channel(playlistID: playlistID, rawID: "0")),
+            at: Date()
+        )
+
         Log.app.info("Demo katalog yazıldı — ekran görüntüsü modu")
     }
 

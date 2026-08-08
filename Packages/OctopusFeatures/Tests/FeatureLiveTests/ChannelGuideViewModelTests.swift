@@ -24,7 +24,8 @@ final class ChannelGuideViewModelTests: XCTestCase {
                 playlists: GuideStubPlaylists(),
                 channels: channels,
                 epg: epg,
-                favorites: GuideStubFavorites()
+                favorites: GuideStubFavorites(),
+                history: GuideStubHistory()
             ),
             now: { self.now }
         )
@@ -220,4 +221,10 @@ private struct GuideStubFavorites: FavoritesRepository {
     func favoriteMovies(playlistID: Playlist.ID) async throws -> [Movie] { [] }
     func favoriteSeries(playlistID: Playlist.ID) async throws -> [Series] { [] }
     func observeFavoriteKeys() -> AsyncStream<Set<String>> { AsyncStream { $0.finish() } }
+}
+
+private struct GuideStubHistory: WatchHistoryRepository {
+    func record(_ source: PlaybackItem.Source, at date: Date) async throws {}
+    func recentChannels(playlistID: Playlist.ID, limit: Int) async throws -> [Channel] { [] }
+    func clearAll() async throws {}
 }

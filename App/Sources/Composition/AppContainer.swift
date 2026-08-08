@@ -277,6 +277,7 @@ final class AppContainer: ObservableObject {
             channels: channels,
             epg: epg,
             favorites: favorites,
+            history: history,
             parental: parental
         )
     }

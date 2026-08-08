@@ -10,6 +10,7 @@ final class LiveChannelsViewModelTests: XCTestCase {
     private var channels: StubChannels!
     private var favorites: StubFavorites!
     private var epg: StubEPG!
+    private var history: StubHistory!
     private var parental: StubParental!
 
     override func setUp() async throws {
@@ -17,6 +18,7 @@ final class LiveChannelsViewModelTests: XCTestCase {
         channels = StubChannels()
         favorites = StubFavorites()
         epg = StubEPG()
+        history = StubHistory()
         parental = StubParental()
     }
 
@@ -27,6 +29,7 @@ final class LiveChannelsViewModelTests: XCTestCase {
                 channels: channels,
                 epg: epg,
                 favorites: favorites,
+                history: history,
                 parental: parental
             ),
             // Testte beklememek için çok kısa gecikmeler.
@@ -331,6 +334,42 @@ final class LiveChannelsViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.channels.isEmpty, "Kilitliyken numarayla da açılmamalı")
     }
 
+    // MARK: - Kaldığın kanal önizlemesi
+
+    func test_lastWatchedChannelIsLoaded() async {
+        channels.stored = [makeChannel("1", "TRT 1")]
+        history.channels = [makeChannel("1", "TRT 1")]
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await waitUntil("son izlenen kanal yüklenmeli") {
+            viewModel.lastWatchedChannel != nil
+        }
+
+        XCTAssertEqual(viewModel.lastWatchedChannel?.name, "TRT 1")
+    }
+
+    func test_noWatchHistoryMeansNoPreview() async {
+        history.channels = []
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        XCTAssertNil(viewModel.lastWatchedChannel)
+    }
+
+    func test_lockedAdultChannelDoesNotAppearAsLastWatched() async {
+        // ⚠️ Önizleme kartı da kilidi atlatmanın bir yolu olurdu.
+        history.channels = [makeAdultChannel("gizli", "Yetişkin")]
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        XCTAssertNil(viewModel.lastWatchedChannel)
+    }
+
     // MARK: - Kalan süre metni
 
     private func program(startOffset: TimeInterval, endOffset: TimeInterval) -> EPGProgram {
@@ -538,6 +577,17 @@ private final class StubFavorites: FavoritesRepository, @unchecked Sendable {
             continuation.yield(keys)
         }
     }
+}
+
+private final class StubHistory: WatchHistoryRepository, @unchecked Sendable {
+
+    var channels: [Channel] = []
+
+    func record(_ source: PlaybackItem.Source, at date: Date) async throws {}
+    func recentChannels(playlistID: Playlist.ID, limit: Int) async throws -> [Channel] {
+        Array(channels.prefix(limit))
+    }
+    func clearAll() async throws {}
 }
 
 private final class StubParental: ParentalControlling, @unchecked Sendable {

@@ -8,6 +8,8 @@ public struct LiveDependencies {
     public let channels: ChannelRepository
     public let epg: EPGRepository
     public let favorites: FavoritesRepository
+    /// Son izlenen kanalı bulmak için — üstteki önizleme kartı bunu kullanır.
+    public let history: WatchHistoryRepository
     /// Kilit açıkken yetişkin kanallar listeden gizlenir.
     public let parental: ParentalControlling
 
@@ -16,12 +18,14 @@ public struct LiveDependencies {
         channels: ChannelRepository,
         epg: EPGRepository,
         favorites: FavoritesRepository,
+        history: WatchHistoryRepository,
         parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
         self.channels = channels
         self.epg = epg
         self.favorites = favorites
+        self.history = history
         self.parental = parental
     }
 }
@@ -100,6 +104,16 @@ public struct LiveScreen: View {
 
     private var channelList: some View {
         ScrollView {
+            // Arama sırasında gösterilmez: kullanıcı belirli bir kanalı
+            // ararken üstte alakasız bir önizleme yer kaplamamalı.
+            if !viewModel.isSearching, let lastWatched = viewModel.lastWatchedChannel {
+                LiveNowPlayingCard(
+                    channel: lastWatched,
+                    program: viewModel.currentProgram(for: lastWatched),
+                    onTap: { router.presentPlayer(.liveChannel(lastWatched.id)) }
+                )
+            }
+
             // LazyVStack: 20.000 kanallı listede yalnızca görünen satırlar
             // oluşturulur.
             LazyVStack(spacing: Theme.Spacing.xs) {

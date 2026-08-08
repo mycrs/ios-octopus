@@ -36,7 +36,16 @@ public final class PlayerPreflightViewModel: ObservableObject {
         outcome = .checking
 
         do {
-            outcome = .ready(try await resolveItem())
+            let item = try await resolveItem()
+            outcome = .ready(item)
+
+            // ⚠️ Adres çözüldüğünde kaydedilir, gerçek oynatma başladığında
+            // değil — Faz 5'e kadar "başladı" anı elimizde yok. Kullanıcı
+            // kanala/filme dokunmuş ve adres gerçekten üretilmiş olması
+            // "izleme geçmişi" ve "son izlenen" rafı için yeterli sinyal.
+            // Hata yutuluyor: geçmiş kaydı başarısız olsa da oynatıcı akışı
+            // durmamalı.
+            try? await dependencies.history.record(source, at: Date())
         } catch {
             outcome = .failed(AppError.wrap(error).userMessage)
         }
