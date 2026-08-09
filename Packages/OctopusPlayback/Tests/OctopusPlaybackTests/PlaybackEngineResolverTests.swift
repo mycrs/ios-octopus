@@ -104,6 +104,7 @@ private final class StubEngine: PlaybackEngine {
     func setVolume(_ volume: Float) {}
     func setRate(_ rate: Float) {}
     func select(track: MediaTrack) {}
+    func setVideoFit(_ fit: VideoFit) {}
     func makeVideoView() -> UIView { UIView() }
     func teardown() {}
 }

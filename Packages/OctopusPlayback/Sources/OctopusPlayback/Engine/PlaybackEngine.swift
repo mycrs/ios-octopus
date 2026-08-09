@@ -53,6 +53,9 @@ public protocol PlaybackEngine: AnyObject {
 
     func select(track: MediaTrack)
 
+    /// Görüntünün çerçeveye yerleşimi. Motor desteklemiyorsa yok sayabilir.
+    func setVideoFit(_ fit: VideoFit)
+
     /// Video katmanını taşıyan UIKit görünümü.
     /// SwiftUI tarafında `VideoSurfaceView` (UIViewRepresentable) ile sarılır.
     func makeVideoView() -> UIView

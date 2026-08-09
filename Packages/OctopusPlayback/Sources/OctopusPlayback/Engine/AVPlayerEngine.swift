@@ -56,6 +56,8 @@ public final class AVPlayerEngine: PlaybackEngine {
 
     private var isLiveContent = false
     private var didReachEnd = false
+    private var videoFit: VideoFit = .fit
+    private weak var layerView: PlayerLayerView?
 
     /// Kullanıcının seçtiği oynatma hızı.
     ///
@@ -193,7 +195,21 @@ public final class AVPlayerEngine: PlaybackEngine {
     public func makeVideoView() -> UIView {
         let view = PlayerLayerView()
         view.player = player
+        view.videoGravity = Self.gravity(for: videoFit)
+        // Zayıf tutulur: yüzeyin ömrü SwiftUI'ın elinde, motor onu
+        // hayatta tutmamalı — aksi hâlde ekran kapandıktan sonra da
+        // katman bellekte kalırdı.
+        layerView = view
         return view
+    }
+
+    public func setVideoFit(_ fit: VideoFit) {
+        videoFit = fit
+        layerView?.videoGravity = Self.gravity(for: fit)
+    }
+
+    private static func gravity(for fit: VideoFit) -> AVLayerVideoGravity {
+        fit == .fill ? .resizeAspectFill : .resizeAspect
     }
 
     public func teardown() {

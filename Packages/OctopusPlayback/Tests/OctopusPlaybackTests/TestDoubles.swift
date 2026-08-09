@@ -53,6 +53,7 @@ final class TestEngine: PlaybackEngine {
     private(set) var didTeardown = false
     private(set) var seekedTo: [TimeInterval] = []
     private(set) var selectedTracks: [MediaTrack] = []
+    private(set) var videoFit: VideoFit = .fit
 
     private let continuation: AsyncStream<PlaybackEvent>.Continuation
 
@@ -76,6 +77,7 @@ final class TestEngine: PlaybackEngine {
     func setVolume(_ volume: Float) {}
     func setRate(_ rate: Float) {}
     func select(track: MediaTrack) { selectedTracks.append(track) }
+    func setVideoFit(_ fit: VideoFit) { videoFit = fit }
     func makeVideoView() -> UIView { UIView() }
 
     func teardown() {

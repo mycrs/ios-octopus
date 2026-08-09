@@ -38,6 +38,12 @@ public final class PlayerController: ObservableObject {
     /// Kullanıcının seçtiği oynatma hızı (canlıda kullanılmaz).
     @Published public private(set) var rate: Float = 1.0
 
+    /// Görüntünün çerçeveye yerleşimi.
+    ///
+    /// ⚠️ Motor değişse bile korunur: kullanıcı 4:3 bir yayında ekranı
+    /// doldurmayı seçtiyse, yedeğe düşüldüğünde tercihi kaybolmamalı.
+    @Published public private(set) var videoFit: VideoFit = .fit
+
     // MARK: - Bağımlılıklar
 
     private let resolver: PlaybackEngineResolver
@@ -136,6 +142,8 @@ public final class PlayerController: ObservableObject {
         engine = newEngine
         engineIdentifier = newEngine.identifier
         rate = 1.0
+        // Yerleşim tercihi kullanıcıya ait, motora değil — yeni motora taşınır.
+        newEngine.setVideoFit(videoFit)
 
         // ⚠️ Abonelik yüklemeden **önce** kurulur. Ters sırada, yükleme
         // sırasında düşen olaylar (ör. anında gelen hata) kaybolurdu:
@@ -208,6 +216,11 @@ public final class PlayerController: ObservableObject {
     public func setRate(_ newRate: Float) {
         engine?.setRate(newRate)
         rate = newRate
+    }
+
+    public func toggleVideoFit() {
+        videoFit = videoFit.toggled
+        engine?.setVideoFit(videoFit)
     }
 
     /// Video yüzeyi. Motor yoksa `nil` — çağıran siyah zemin gösterir.

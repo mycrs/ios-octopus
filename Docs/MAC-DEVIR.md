@@ -52,28 +52,51 @@ favoriler, "kaldığın kanal" kartı) sahte veriyle doldurur.
 
 ## 2. Şu an tam olarak nerede kaldık
 
-Faz 0–4, 6–8 ve 10'un büyük kısmı **tamamlandı** (bkz. BRAIN.md §11
-Yol Haritası). Tek gerçek açık iş **Faz 5: Oynatıcı motoru** —
-şimdiye kadar Windows'ta derlenemediği, gerçek cihaz/Mac gerektirdiği
-için bekletildi. Şu an bekleyen kesin bu:
+**Oynatıcı çalışıyor.** Sen Xcode'u indirirken Faz 5'in AVPlayer tarafı
+yazıldı ve CI'da doğrulandı: `09-oynatici.png` karesi Apple'ın test
+akışını 16. saniyesinde oynarken gösteriyor.
 
-- `OctopusPlayback/Engine/PlaybackEngineResolver.swift` yerinde ama
-  `NullPlaybackEngine` ile derleniyor — gerçek oynatma yapmıyor.
-- `OctopusPlaybackVLC/Package.swift` içinde VLCKit bağımlılığı
-  **yorum satırı** olarak duruyor:
-  ```swift
-  // .package(url: "https://github.com/videolan/VLCKit", from: "4.0.0")
-  ```
-  Mac'te güncel sürümü doğrulayıp yorumdan çıkarman gerekiyor.
-- `PlayerPreflightViewModel` şu an sadece akış adresini çözüp
-  gösteren bir "ön kontrol" ekranı — gerçek `AVPlayer`/VLCKit'e
-  henüz bağlı değil.
-- Faz 9 (PiP, AirPlay, arka plan sesi, Now Playing) Faz 5'e bağımlı,
-  o da bekliyor.
+> Not: "Faz 5 gerçek cihaz bekliyor" varsayımı yanlıştı. AVFoundation
+> bir sistem çerçevesi; CI'daki macOS runner derliyor, test ediyor,
+> simülatörde çalıştırıp kare alıyor. Bu yüzden Mac'e geçmeyi
+> beklemeden bitirildi.
 
-Faz 5'i tamamlarken **CLAUDE.md'nin demir kurallarına** özellikle
-dikkat: 3rd-party bağımlılık (VLCKit) sadece `OctopusPlaybackVLC`
-içinde kalmalı, somut motor seçimi sadece `AppContainer`'da yapılmalı.
+Bugün çalışan: gerçek oynatma, denetimler (oynat/duraklat, ±10 sn,
+sürüklenebilir ilerleme çubuğu), ses/altyazı seçimi, kaldığı yerden
+devam, izleme geçmişi, arka planda ses, kilit ekranı denetimleri.
+
+### Mac'te yapılacak tek büyük iş: VLCKit
+
+MPEG-TS / MKV / RTSP yayınlar AVPlayer'ın açamadığı formatlar ve IPTV'de
+çok yaygın. Yedek motor yolu **yazılı ve test edilmiş** durumda; eksik
+olan yalnızca binary'nin kendisi (~60 MB, SPM entegrasyonu kırılgan —
+bu yüzden Mac'e bırakıldı).
+
+Adımlar:
+1. `Packages/OctopusPlaybackVLC/Package.swift` içindeki yorumlu satırı aç:
+   ```swift
+   .package(url: "https://github.com/videolan/VLCKit", from: "4.0.0")
+   ```
+   Sürümü Mac'te doğrula — 4.x hâlâ ön sürüm olabilir, 3.x daha kararlı.
+2. `VLCEngineFactory.makeEngine()` içine gerçek `VLCPlaybackEngine`'i yaz
+   (`PlaybackEngine` protokolüne uy, `AVPlayerEngine`'i örnek al).
+3. `VLCEngineFactory.isAvailable` → `true`.
+
+**Başka hiçbir dosyaya dokunma.** Resolver zinciri, çalışma zamanı
+yedeğe düşme ve "kaldığı yerden sürdür" mantığı zaten yazılı ve
+`PlayerControllerTests` içinde test edilmiş durumda. VLCKit ileride
+sorun çıkarırsa tek yapılacak şey `isAvailable`'ı kapatmak — uygulama
+AVPlayer'la çalışmaya devam eder.
+
+⚠️ Demir kural: VLCKit **yalnızca** `OctopusPlaybackVLC` içinde geçebilir.
+
+### Kalan küçük işler
+
+- **PiP** (`AVPictureInPictureController`) — simülatörde çalışmıyor,
+  gerçek cihazda doğrulanmalı. `supportsPictureInPicture` şu an bilerek
+  `false`.
+- **Çoklu profil** (Faz 10) — başlanmadı.
+- **Localizable.strings** — kullanıcı metinleri hâlâ kodun içinde.
 
 ---
 
@@ -96,13 +119,21 @@ Faz 5 gibi cihaz gerektiren işler için asıl fark burada.
 Apple Developer hesabı/imzalama durumu teyit edilmedi. TestFlight'a
 yüklemeden önce bunu netleştirmek gerekecek.
 
+**Oynatıcıyı simülatörde hızlı açmak** (kanal listesinde gezinmeden):
+Xcode → Scheme Edit → Arguments Passed On Launch:
+```
+-seedDemoData -startup.player live:demo#live#0
+```
+Demo kaynağın ilk kanalı Apple'ın açık HLS örneğine bakar, yani
+oynatıcı gerçekten video çizer. Bu argümanlar `#if DEBUG` altında.
+
 ---
 
 ## 4. Bilinen tuzaklar — tekrar keşfetme
 
 `Docs/BRAIN.md` §11.1 "Sahada Öğrenilen Tuzaklar" tablosu bu projede
-gerçekten yaşanmış, derlemenin yakalamadığı hatalar. Faz 5'e
-başlamadan önce en azından şu ikisine göz at, doğrudan ilgili:
+gerçekten yaşanmış, derlemenin yakalamadığı hatalar. VLC işine
+başlamadan önce şunlara göz at — hepsi doğrudan ilgili:
 
 - **`.sensoryFeedback` kullanma** — iOS 17+, bizde derlenmez. Haptik
   için `UISelectionFeedbackGenerator` vb. kullan (DesignSystem/Haptics
@@ -110,11 +141,16 @@ başlamadan önce en azından şu ikisine göz at, doğrudan ilgili:
 - **XcodeGen `info:` bölümünü kullanma** — `Info.plist` sessizce
   eziliyor. `App/Info.plist` zaten `INFOPLIST_FILE` ile doğru
   bağlanmış durumda, elleme.
+- **Motor değişince video yüzeyini yenile** — VLC devreye girdiğinde
+  ilk karşılaşacağın tuzak bu: ses gelir, ekran siyah kalır. Çözüm
+  yazılı (`.id(engineIdentifier)`), bozmamaya dikkat et.
+- **`@MainActor` izole bir tipin örneği varsayılan parametre değeri
+  olamaz** — VLC motorunu yazarken üç kez karşılaşırsın. Parametreyi
+  `Optional` yap, varsayılanı gövdede üret.
 
 ---
 
 ## 5. Bu dosyanın ömrü
 
-Faz 5 bittiğinde bu dosyayı silebilirsin (ya da "tamamlandı" diye
-işaretleyip arşivleyebilirsin) — kalıcı bilgi zaten BRAIN.md'ye
-taşınmış olacak. Bu sadece geçiş anının fotoğrafı.
+VLCKit bağlandığında bu dosyayı silebilirsin — kalıcı bilgi zaten
+BRAIN.md'ye taşınmış durumda. Bu sadece geçiş anının fotoğrafı.

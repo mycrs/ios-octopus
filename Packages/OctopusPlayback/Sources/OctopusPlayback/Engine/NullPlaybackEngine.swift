@@ -49,6 +49,7 @@ public final class NullPlaybackEngine: PlaybackEngine {
     public func setVolume(_ volume: Float) {}
     public func setRate(_ rate: Float) {}
     public func select(track: MediaTrack) {}
+    public func setVideoFit(_ fit: VideoFit) {}
 
     public func makeVideoView() -> UIView {
         let view = UIView()

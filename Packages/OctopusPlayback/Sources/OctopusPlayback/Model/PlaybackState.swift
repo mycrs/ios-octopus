@@ -47,6 +47,20 @@ public struct PlaybackTime: Hashable, Sendable {
     }
 }
 
+/// Görüntünün çerçeveye nasıl yerleşeceği.
+///
+/// ⚠️ IPTV'de gerçek bir ihtiyaç, süs değil: pek çok kanal 4:3 yayın
+/// yapar ya da yayına kendi siyah bantlarını gömer. Sığdırma modunda
+/// kullanıcı 16:9 ekranın ortasında küçücük bir görüntü izler.
+public enum VideoFit: String, Hashable, Sendable, CaseIterable {
+    /// En-boy oranı korunur; kenarlarda siyah bant kalabilir.
+    case fit
+    /// Çerçeve doldurulur; taşan kenarlar kırpılır.
+    case fill
+
+    public var toggled: VideoFit { self == .fit ? .fill : .fit }
+}
+
 /// Ses / altyazı / video izi.
 public struct MediaTrack: Identifiable, Hashable, Sendable {
     public enum Kind: String, Hashable, Sendable {

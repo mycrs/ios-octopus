@@ -201,6 +201,28 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
+    // MARK: - Görüntü yerleşimi
+
+    /// ⚠️ Yerleşim kullanıcıya ait bir tercih, motora ait değil: 4:3 bir
+    /// yayında ekranı doldurmayı seçen kullanıcı, yedeğe düşüldüğünde
+    /// tercihini kaybetmemeli.
+    func test_videoFit_survivesEngineSwitch() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(native: native, fallback: fallback)
+
+        await controller.start(makeItem(url: URL(string: "http://x/y")))
+        controller.toggleVideoFit()
+
+        XCTAssertEqual(controller.videoFit, .fill)
+        XCTAssertEqual(native.videoFit, .fill)
+
+        native.emit(.unrecoverableFailure(.playbackFailed(reason: "codec")))
+        _ = await waitUntil { controller.engineIdentifier == "fallback" }
+
+        XCTAssertEqual(fallback.videoFit, .fill, "Tercih yeni motora taşınmalı")
+    }
+
     // MARK: - Sarma sınırları
 
     func test_skip_staysWithinBounds() async {

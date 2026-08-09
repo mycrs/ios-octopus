@@ -16,12 +16,14 @@ struct PlayerControlsOverlay: View {
     let state: PlaybackState
     let time: PlaybackTime
     let hasTracks: Bool
+    let videoFit: VideoFit
 
     let onClose: () -> Void
     let onTogglePlay: () -> Void
     let onSkip: (TimeInterval) -> Void
     let onSeek: (TimeInterval) -> Void
     let onShowTracks: () -> Void
+    let onToggleFit: () -> Void
 
     /// İleri/geri sarma adımı. 10 sn sektör standardı; reklam atlamaya
     /// yetecek kadar büyük, sahne kaçırmayacak kadar küçük.
@@ -77,17 +79,39 @@ struct PlayerControlsOverlay: View {
 
             Spacer(minLength: 0)
 
+            // ⚠️ IPTV'de gerçek bir ihtiyaç: pek çok kanal 4:3 yayın yapar
+            // ya da yayına kendi siyah bantlarını gömer.
+            iconButton(
+                systemName: videoFit == .fill
+                    ? "arrow.down.right.and.arrow.up.left"
+                    : "arrow.up.left.and.arrow.down.right",
+                label: videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
+                action: onToggleFit
+            )
+
             if hasTracks {
-                Button(action: onShowTracks) {
-                    Image(systemName: "captions.bubble")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(.black.opacity(0.35)))
-                }
-                .accessibilityLabel("Ses ve altyazı")
+                iconButton(
+                    systemName: "captions.bubble",
+                    label: "Ses ve altyazı",
+                    action: onShowTracks
+                )
             }
         }
+    }
+
+    private func iconButton(
+        systemName: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(.black.opacity(0.35)))
+        }
+        .accessibilityLabel(label)
     }
 
     // MARK: - Orta

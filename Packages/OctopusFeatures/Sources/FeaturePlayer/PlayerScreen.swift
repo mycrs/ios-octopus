@@ -142,6 +142,7 @@ public struct PlayerScreen: View {
                     state: controller.state,
                     time: controller.time,
                     hasTracks: hasSelectableTracks,
+                    videoFit: controller.videoFit,
                     onClose: close,
                     onTogglePlay: {
                         controller.togglePlayPause()
@@ -158,6 +159,10 @@ public struct PlayerScreen: View {
                     onShowTracks: {
                         hideControlsTask?.cancel()
                         isShowingTracks = true
+                    },
+                    onToggleFit: {
+                        controller.toggleVideoFit()
+                        scheduleControlsHide()
                     }
                 )
                 .transition(.opacity)
