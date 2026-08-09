@@ -118,9 +118,15 @@ graph TD
 **ASLA yapmaz:** Ekran bilmez, `Color`/`View` döndürmez.
 
 ### ▶️ OctopusPlayback / 📼 OctopusPlaybackVLC
-**Yapar:** `PlaybackEngine` protokolü, `AVPlayerEngine`, `EngineResolver` (URL/format → motor seçimi), Now Playing + PiP + uzaktan kumanda.
+**Yapar:** `PlaybackEngine` protokolü, `AVPlayerEngine`, `EngineResolver` (URL/format → motor seçimi), `PlayerController`, `NowPlayingCenter`, `AudioSessionController`.
 VLC ayrı target: VLCKit patlarsa çekirdek etkilenmez.
 **ASLA yapmaz:** Player **UI**'ı çizmez — o `FeaturePlayer`'ın işi.
+
+> **Motor mu, koordinatör mü?** Motor tek bir işi bilir: verilen adresi
+> açmak. Şu üçü onun işi **değil**, `PlayerController`'ın işidir:
+> hangi motor (açamazsa yedeğe geçmek), nerede kalmıştı (devam konumu),
+> SwiftUI'a nasıl anlatılır (`AsyncStream` → `@Published`).
+> Bunlar motora konsaydı her yeni motor aynı mantığı baştan yazardı.
 
 ### 🧭 OctopusNavigation
 `AppRoute` enum + `Router`. Route'lar **sadece ID taşır**, entity taşımaz (deeplink/state-restore için).
@@ -164,13 +170,32 @@ Kullanıcı boş ekran görmez.
 PlaybackItem(url, format)
         │
    EngineResolver
-        ├─ .hls (.m3u8)          → AVPlayerEngine   ✅ PiP, AirPlay, arka plan
+        ├─ .hls (.m3u8)          → AVPlayerEngine   ✅ AirPlay, arka plan ses
         ├─ .mp4 / .mov           → AVPlayerEngine
         ├─ .mpegTS (.ts) / rtsp  → VLCPlaybackEngine
         └─ bilinmiyor            → AVPlayer dene → hata → VLC'ye düş 🔁
 ```
 
 `FeaturePlayer` **hangi motorun** çalıştığını bilmez; sadece `PlaybackEngine` protokolüne bakar.
+
+Çalışma zamanı zinciri:
+
+```
+PlayerScreen ─── PlayerViewModel ──→ StreamResolving      "hangi adres?"
+      │                                    ↓
+      └───────── PlayerController ──→ PlaybackEngine      "aç ve çal"
+                        ├──→ PlaybackProgressRepository   "nerede kalmıştı"
+                        ├──→ WatchHistoryRepository       "izlendi"
+                        └──→ NowPlayingCenter             "kilit ekranı"
+```
+
+⚠️ Yedeğe **yalnızca bir kez** düşülür (`didAttemptFallback`); ikisi de
+açamazsa hata kullanıcıya gider. Aksi hâlde iki motor birbirini sonsuza
+kadar tetikleyebilirdi.
+
+⚠️ Video yüzeyine `.id(engineIdentifier)` verilir. Motor değişince SwiftUI
+aynı `UIViewRepresentable`'ı yeniden kullanır; yeni motorun katmanı hiç
+eklenmez ve **ekran siyah kalır**.
 
 ---
 
@@ -258,17 +283,32 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 | **2** | Xtream + M3U provider, Repository impl | ✅ |
 | **3** | Onboarding: kaynak ekle → senkronize et | ✅ |
 | **4** | Canlı TV listesi + kategori + arama | ✅ |
-| **5** | Player (AVPlayer → VLC fallback) | 🚧 **Mac/cihaz bekliyor** |
+| **5** | Player (AVPlayer → VLC fallback) | ✅ AVPlayer · 🚧 VLC Mac'te |
 | **6** | EPG (XMLTV + Xtream short_epg) + rehber ekranı | ✅ |
 | **7** | VOD + Dizi (sezon/bölüm) | ✅ |
 | **8** | Favoriler, izleme geçmişi, kaldığın yerden devam | ✅ |
-| **9** | PiP, AirPlay, arka plan sesi, Now Playing | ⏳ (Faz 5'e bağlı) |
+| **9** | Arka plan sesi ✅ · Now Playing ✅ · AirPlay ✅ · PiP ⏳ | 🔨 |
 | **10** | Ebeveyn kilidi ✅ · tema ✅ · çoklu profil ⏳ | 🔨 |
 
-> 🚧 **Faz 5 neden bekliyor:** oynatıcı motoru gerçek cihazda
-> doğrulanmadan yazılmamalı. `PlaybackEngineResolver` yerinde,
-> `NullPlaybackEngine` ile derleniyor; AVPlayer/VLCKit implementasyonu
-> Apple geliştirici hesabı ve TestFlight hazır olunca eklenecek.
+> ✅ **Faz 5 neden artık beklemiyor:** "gerçek cihaz gerekiyor" varsayımı
+> yanlıştı. AVFoundation bir **sistem çerçevesi**; CI'daki macOS runner
+> onu derliyor, test ediyor ve simülatörde çalıştırıp kare alıyor. Cihaz
+> gerçekten gereken tek parça VLCKit (~60 MB binary, SPM entegrasyonu
+> kırılgan) — o hâlâ Mac'i bekliyor.
+>
+> Bu, projenin en pahalı yanlış varsayımıydı: fazlarca "cihaz yok" diye
+> ertelendi. **Dersi:** "yapamayız" demeden önce hangi parçanın gerçekten
+> engellendiğini ayrıştır.
+
+> 🚧 **VLC bağlanınca yapılacak:** `OctopusPlaybackVLC/Package.swift`
+> içindeki yorumlu bağımlılığı aç, `VLCEngineFactory.isAvailable`'ı
+> `true` yap. Başka hiçbir dosyaya dokunulmaz — resolver zinciri ve
+> `PlayerController`'ın yedek yolu zaten yazılı ve test edilmiş durumda.
+
+> ⏳ **PiP neden hâlâ yok:** `AVPictureInPictureController` gerçek
+> cihazda doğrulanmadan bağlanmamalı (simülatörde çalışmıyor).
+> `supportsPictureInPicture` bilerek `false` — olmayan bir düğmeyi
+> vaat etmemek için.
 
 ### Görsel dil
 
@@ -340,7 +380,11 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 | XcodeGen `info:` bölümü | `Info.plist` sessizce **eziliyor**; ATS ve launch screen pakete girmiyor, uygulama 320×480 boyutta açılıyor | `info:` kullanma, `INFOPLIST_FILE` build ayarını ver |
 | Eksik `ignoresSafeArea()` | Arka plan durum çubuğuna uzanmıyor, ekran "kutu içinde" duruyor | Kök görünümde `ZStack` + `ignoresSafeArea()` |
 | Çok ürünlü SPM paketi | `xcodebuild -scheme OctopusFeatures` diye bir şema **yok**, testler koşmuyor | `<Ad>-Package` toplu şemasını kullan |
-| `XCTUnwrap(try await …)` | `'async' call in an autoclosure` | Önce `await`, sonra unwrap |
+| `XCTUnwrap(try await …)` · `XCTAssertTrue(await …)` | `'async' call in an autoclosure that does not support concurrency` | Tüm `XCTAssert…` ailesi **autoclosure** alır; içinde `await` olamaz. Önce `let x = await …`, sonra assert |
+| `@MainActor` tipin örneğini varsayılan parametre değeri yapmak | `call to main actor-isolated initializer in a synchronous nonisolated context` — varsayılan ifadeler izolasyonsuz bağlamda değerlendirilir | Parametreyi `Optional` yap, varsayılanı **gövdede** üret: `self.x = x ?? X()` |
+| `@MainActor` fonksiyona non-escaping closure parametresi | `escaping local function captures non-escaping value` — aktöre atlarken parametre kaçmış sayılır | Closure'ı `@escaping` işaretle |
+| Motor değişince video yüzeyini yeniden kurmamak | Yedeğe düşülüyor, ses geliyor ama **ekran siyah**: SwiftUI aynı `UIViewRepresentable`'ı yeniden kullanıyor, yeni motorun katmanı hiç eklenmiyor | Yüzeye `.id(engineIdentifier)` ver |
+| İzleme geçmişini adres çözülünce yazmak | Açılmayan yayınlar da "izlendi" sayılıyor; "kaldığın kanal" kartı hiç izlenmemiş kanalı gösteriyor | Kaydı `.playing` durumuna **ilk geçişte** yaz |
 | Ham dizgi `#"…"#` + renk kodu | `"#00E676` dizisi dizgiyi erken kapatıyor | İki diyezli sınırlayıcı `##"…"##` |
 | Feature'da `as?` ile Data protokolü | Dönüşüm **asla tutmaz** (feature Data'yı göremez), özellik sessizce çalışmaz | Sözleşmeyi Domain'e taşı |
 | Domain'in iç yardımcısına uzanmak | `inaccessible due to 'internal'` | Dönüşümü sunum katmanına koy, Domain'i açma |
@@ -354,6 +398,7 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 | Varsayılan görünümün indeksi | `(playlistId, categoryId, sortOrder)` indeksi, kategori süzülmeyince sıralamayı karşılamıyor → tam sıralama | Süzgeçsiz hâl için ayrı indeks: `(playlistId, sortOrder, name)` |
 | `.sensoryFeedback` kullanmak | iOS **17+** — bizde derlenmez | UIKit üreteçleri (`UISelectionFeedbackGenerator` vb.), `prepare()` ile sakla |
 | Kaynaksız uygulamanın karesini almak | Tek görülebilen ekran karşılama; ana sayfa/ızgara/detay **kör** yazılıyor | `-seedDemoData` ile sahte katalog yaz, `-startup.tab <ad>` ile her sekmenin karesini al |
+| Dokunma gerektiren ekranın karesini alamamak | Oynatıcıya girmek bir kanala dokunmayı gerektiriyor, `simctl` dokunma üretmiyor → oynatıcı kör yazılıyor | `-startup.player <storageKey>` ile açılışta doğrudan sun (`#if DEBUG`). Demo kaynağın ilk kanalı gerçek bir HLS akışına bakıyor, böylece kare video çizildiğini de kanıtlıyor |
 
 > 💡 **iOS numarası:** `xcrun simctl launch … -anahtar değer` biçimindeki
 > argümanları iOS otomatik olarak `NSUserDefaults`'a yazar. Açılış sekmesi
@@ -364,6 +409,14 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 > 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
 > üçüncüde `plutil -p` ile derlenmiş plist okununca cevap tek satırda çıktı.
 > Belirti tekrar ediyorsa tahmini bırak, ölç.
+
+> 🔍 **Üçüncü yöntem dersi — en pahalısı:** Faz 5 fazlarca "gerçek cihaz
+> gerekiyor" diye ertelendi. Varsayım hiç sınanmadı. Sınandığında ortaya
+> çıktı ki AVFoundation bir **sistem çerçevesi**: CI'daki macOS runner onu
+> derliyor, test ediyor, simülatörde çalıştırıp video karesi alıyor.
+> Gerçekten engellenen tek parça VLCKit'ti (60 MB binary).
+> **Dersi:** "yapamayız" demeden önce hangi parçanın gerçekten
+> engellendiğini ayrıştır — engel çoğu zaman sanılandan küçüktür.
 
 > 🔍 **İkinci yöntem dersi:** Favoriler testi "yavaş" sanılıp bekleme süresi
 > uzatılabilirdi. Süre yerine **koşul** beklenince gerçek sebep ortaya çıktı:

@@ -162,6 +162,19 @@ jobs:
           sleep 14   # ağdan segment indirme + ilk kare
           xcrun simctl io booted screenshot screenshots/09-oynatici.png
 
+          # Denetim katmanı yukarıdaki karede **yok** ve bu doğru: 3,5 sn
+          # sonra kendiliğinden gizleniyor. Ama yerleşimini de görmek
+          # gerekiyor — ikinci kare erken alınıyor.
+          #
+          # ⚠️ Erken kare deterministik: gizleme yalnızca oynatma
+          # gerçekten başladıysa çalışıyor (`state == .playing`), 2 sn'de
+          # daha yükleniyor. Yani denetimler kesin görünür.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -startup.player "live:demo#live#0" >/dev/null
+          sleep 2
+          xcrun simctl io booted screenshot screenshots/10-oynatici-denetimler.png
+
           # 3) Dynamic Type — büyük erişilebilirlik yazı boyutu.
           #
           # Kod tabanında bunu ele alan neredeyse hiçbir şey yok
