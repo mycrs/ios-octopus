@@ -31,6 +31,9 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// düğmeyi vaat etmek olurdu.
     public let supportsPictureInPicture = false
 
+    /// AVPlayer sistem route'unu kullanır — video Apple TV'ye gider.
+    public let supportsAirPlay = true
+
     public private(set) var currentState: PlaybackState = .idle
     public private(set) var audioTracks: [MediaTrack] = []
     public private(set) var subtitleTracks: [MediaTrack] = []

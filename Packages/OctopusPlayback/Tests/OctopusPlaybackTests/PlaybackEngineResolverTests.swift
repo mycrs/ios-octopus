@@ -90,6 +90,7 @@ private final class StubEngine: PlaybackEngine {
     let selectedAudioTrack: MediaTrack? = nil
     let selectedSubtitleTrack: MediaTrack? = nil
     let supportsPictureInPicture = false
+    let supportsAirPlay = false
 
     init(identifier: String) {
         self.identifier = identifier

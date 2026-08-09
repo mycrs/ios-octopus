@@ -45,6 +45,7 @@ final class TestEngine: PlaybackEngine {
     var selectedAudioTrack: MediaTrack?
     var selectedSubtitleTrack: MediaTrack?
     let supportsPictureInPicture = false
+    var supportsAirPlay = false
 
     // Kayıt: koordinatörün motoru doğru güttüğünü doğrulamak için.
     private(set) var loadedItems: [PlaybackItem] = []

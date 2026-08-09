@@ -23,6 +23,7 @@ public final class NullPlaybackEngine: PlaybackEngine {
     public let selectedAudioTrack: MediaTrack? = nil
     public let selectedSubtitleTrack: MediaTrack? = nil
     public let supportsPictureInPicture = false
+    public let supportsAirPlay = false
 
     public init(identifier: String = "null") {
         self.identifier = identifier

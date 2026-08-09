@@ -35,6 +35,9 @@ public final class PlayerController: ObservableObject {
     /// SwiftUI tarafı bunu `.id()` olarak kullanır.
     @Published public private(set) var engineIdentifier: String = ""
 
+    /// Çalışan motor AirPlay destekliyor mu? Düğmenin görünürlüğü buna bağlı.
+    @Published public private(set) var supportsAirPlay = false
+
     /// Kullanıcının seçtiği oynatma hızı (canlıda kullanılmaz).
     @Published public private(set) var rate: Float = 1.0
 
@@ -52,6 +55,13 @@ public final class PlayerController: ObservableObject {
     private let nowPlaying: NowPlayingCenter
     private let saveInterval: TimeInterval
     private let now: () -> Date
+
+    /// Ekranın kendiliğinden kararmasını engeller.
+    ///
+    /// ⚠️ Video izlerken **zorunlu**: iOS varsayılan olarak birkaç dakika
+    /// sonra ekranı kapatır ve kullanıcı filmin ortasında karanlığa bakar.
+    /// Kapanış olarak alınıyor ki testler `UIApplication`'a dokunmasın.
+    private let setScreenAwake: @MainActor (Bool) -> Void
 
     // MARK: - İç durum
 
@@ -76,7 +86,12 @@ public final class PlayerController: ObservableObject {
         history: WatchHistoryRepository,
         nowPlaying: NowPlayingCenter? = nil,
         saveInterval: TimeInterval = 5,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        // Varsayılan bir **kapanış**; `UIApplication.shared`'a ancak
+        // çağrıldığında dokunur. Bu yüzden izolasyon tuzağına düşmez.
+        setScreenAwake: @escaping @MainActor (Bool) -> Void = { keepAwake in
+            UIApplication.shared.isIdleTimerDisabled = keepAwake
+        }
     ) {
         self.resolver = resolver
         self.progress = progress
@@ -84,6 +99,7 @@ public final class PlayerController: ObservableObject {
         self.nowPlaying = nowPlaying ?? NowPlayingCenter()
         self.saveInterval = saveInterval
         self.now = now
+        self.setScreenAwake = setScreenAwake
     }
 
     // MARK: - Yaşam döngüsü
@@ -141,6 +157,7 @@ public final class PlayerController: ObservableObject {
 
         engine = newEngine
         engineIdentifier = newEngine.identifier
+        supportsAirPlay = newEngine.supportsAirPlay
         rate = 1.0
         // Yerleşim tercihi kullanıcıya ait, motora değil — yeni motora taşınır.
         newEngine.setVideoFit(videoFit)
@@ -169,6 +186,9 @@ public final class PlayerController: ObservableObject {
         engine = nil
         // Atlanırsa kilit ekranında çalmayan bir içerik asılı kalır.
         nowPlaying.clear()
+        // ⚠️ Atlanırsa ekran **uygulama boyunca** hiç kararmaz: bayrak
+        // süreç genelindedir, oynatıcıya ait değil.
+        setScreenAwake(false)
         state = .idle
     }
 
@@ -235,6 +255,9 @@ public final class PlayerController: ObservableObject {
         case .stateChanged(let newState):
             state = newState
             if newState == .playing { recordHistoryOnce() }
+            // Yalnızca gerçekten oynarken: duraklatılmış bir videonun
+            // başında uyuyakalan kullanıcının pili bitmemeli.
+            setScreenAwake(newState == .playing)
             refreshNowPlaying()
 
         case .timeChanged(let newTime):

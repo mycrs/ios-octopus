@@ -38,6 +38,14 @@ public protocol PlaybackEngine: AnyObject {
     /// AVPictureInPicture desteği. VLC için `false`.
     var supportsPictureInPicture: Bool { get }
 
+    /// AirPlay ile yayınlanabilir mi?
+    ///
+    /// ⚠️ Motora bağlı: AVPlayer sistem route'unu kullanır ve videoyu
+    /// Apple TV'ye gönderir; VLC kendi çözdüğü kareleri ekrana çizdiği
+    /// için yalnızca ses gider. Düğmeyi motor desteklemiyorken göstermek,
+    /// çalışmayan bir özellik vaat etmek olur.
+    var supportsAirPlay: Bool { get }
+
     /// İçeriği yükler. Otomatik oynatmaz — `play()` çağrılmalıdır.
     func load(_ item: PlaybackItem) async
 

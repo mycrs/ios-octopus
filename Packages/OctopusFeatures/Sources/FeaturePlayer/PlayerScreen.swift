@@ -142,6 +142,7 @@ public struct PlayerScreen: View {
                     state: controller.state,
                     time: controller.time,
                     hasTracks: hasSelectableTracks,
+                    showsAirPlay: controller.supportsAirPlay,
                     videoFit: controller.videoFit,
                     onClose: close,
                     onTogglePlay: {

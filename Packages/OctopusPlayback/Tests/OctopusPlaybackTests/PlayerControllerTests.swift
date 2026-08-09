@@ -201,6 +201,31 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
+    // MARK: - Ekranın kararması
+
+    /// ⚠️ Bayrak süreç genelinde: oynatıcı kapandıktan sonra bırakılmazsa
+    /// ekran **uygulama boyunca** hiç kararmaz ve pil erir.
+    func test_screenStaysAwakeOnlyWhilePlaying() async {
+        let native = TestEngine(identifier: "native")
+        var awakeLog: [Bool] = []
+
+        let controller = makeController(native: native, setScreenAwake: { awakeLog.append($0) })
+        await controller.start(makeItem())
+
+        native.emit(.stateChanged(.playing))
+        _ = await waitUntil { awakeLog.last == true }
+
+        native.emit(.stateChanged(.paused))
+        _ = await waitUntil { awakeLog.last == false }
+
+        native.emit(.stateChanged(.playing))
+        _ = await waitUntil { awakeLog.last == true }
+
+        await controller.finish()
+
+        XCTAssertEqual(awakeLog.last, false, "Kapanışta bayrak bırakılmalı")
+    }
+
     // MARK: - Görüntü yerleşimi
 
     /// ⚠️ Yerleşim kullanıcıya ait bir tercih, motora ait değil: 4:3 bir
@@ -250,7 +275,8 @@ final class PlayerControllerTests: XCTestCase {
         fallback: TestEngine? = nil,
         progress: TestProgressRepository = TestProgressRepository(),
         history: TestHistoryRepository = TestHistoryRepository(),
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        setScreenAwake: @escaping @MainActor (Bool) -> Void = { _ in }
     ) -> PlayerController {
         // Tip açıkça yazılıyor: `() -> TestEngine` kendiliğinden
         // `() -> PlaybackEngine`'e dönüşmez.
@@ -268,7 +294,8 @@ final class PlayerControllerTests: XCTestCase {
             progress: progress,
             history: history,
             saveInterval: 5,
-            now: now
+            now: now,
+            setScreenAwake: setScreenAwake
         )
     }
 

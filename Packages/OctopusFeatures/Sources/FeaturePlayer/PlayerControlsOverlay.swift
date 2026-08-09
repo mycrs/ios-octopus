@@ -16,6 +16,7 @@ struct PlayerControlsOverlay: View {
     let state: PlaybackState
     let time: PlaybackTime
     let hasTracks: Bool
+    let showsAirPlay: Bool
     let videoFit: VideoFit
 
     let onClose: () -> Void
@@ -78,6 +79,13 @@ struct PlayerControlsOverlay: View {
             }
 
             Spacer(minLength: 0)
+
+            if showsAirPlay {
+                AirPlayButton()
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(.black.opacity(0.35)))
+                    .accessibilityLabel("AirPlay")
+            }
 
             // ⚠️ IPTV'de gerçek bir ihtiyaç: pek çok kanal 4:3 yayın yapar
             // ya da yayına kendi siyah bantlarını gömer.
