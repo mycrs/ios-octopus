@@ -28,6 +28,12 @@ public struct MovieDetailView: View {
         // Başlık boş: film adı zaten sinematik başlıkta duruyor, tepede
         // ikinci kez yazmak arka plan görselini gereksiz yere örtüyordu.
         .navigationBarTitleDisplayMode(.inline)
+        // ⚠️ Çubuğun opak zemini arka plan görselinin **üst kısmını ve
+        // afişin tepesini** örtüyordu: görsel ekranın tepesinden başladığı
+        // hâlde ilk ~110pt'si koyu bir bant olarak görünüyor, afiş oradan
+        // kesiliyordu. Zemin gizlenince görsel duruma çubuğuna kadar uzanır;
+        // geri düğmesinin okunurluğunu `DetailHeaderView`'ın üst perdesi taşır.
+        .toolbarBackground(.hidden, for: .navigationBar)
         .task { await viewModel.load() }
     }
 

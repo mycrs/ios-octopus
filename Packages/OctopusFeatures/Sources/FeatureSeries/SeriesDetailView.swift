@@ -28,6 +28,10 @@ public struct SeriesDetailView: View {
         // Başlık boş: dizi adı sinematik başlıkta duruyor, tepede ikinci
         // kez yazmak arka plan görselini gereksiz yere örtüyordu.
         .navigationBarTitleDisplayMode(.inline)
+        // ⚠️ Film detayıyla **aynı** ayar: opak çubuk zemini görselin üst
+        // kısmını ve afişin tepesini örtüyordu (bkz. MovieDetailView).
+        // İkisi ayrı düşerse görsel dil bozulur.
+        .toolbarBackground(.hidden, for: .navigationBar)
         .task { await viewModel.load() }
         .refreshable { await viewModel.refresh() }
     }

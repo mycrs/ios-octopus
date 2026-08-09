@@ -19,8 +19,14 @@ public struct DetailHeaderView<Actions: View>: View {
     private let chips: [DetailChip]
     private let actions: Actions
 
-    /// Arka planın yüksekliği. Afiş bunun alt kenarına biner.
-    private let backdropHeight: CGFloat = 220
+    /// Arka planın en-boy oranı. Afiş bunun alt kenarına biner.
+    ///
+    /// ⚠️ Sabit yükseklik (eski hâli: 220pt) cihaz genişliğine göre
+    /// ölçeklenmiyordu: dar telefonda kaba, geniş telefonda cılız kalıyordu.
+    /// Ayrıca üst kısmı durum çubuğunun altına düştüğü için geriye çok kısa
+    /// bir şerit kalıyordu. 3:2 kutu, 16:9 görseli üstten/alttan hafifçe
+    /// kırparak doldurur — afişlerde beklenen sinematik oran budur.
+    private let backdropAspectRatio: CGFloat = 3.0 / 2.0
     private let posterWidth: CGFloat = 108
 
     public init(
@@ -53,13 +59,24 @@ public struct DetailHeaderView<Actions: View>: View {
     private var backdrop: some View {
         // Arka plan yoksa afişin kendisi kullanılır: boş gri dikdörtgen
         // yerine içeriğin kendi rengi görünsün.
-        RemoteImageView(url: backdropURL ?? posterURL, contentMode: .fill, targetWidth: 480) {
-            Theme.Palette.surfaceElevated
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: backdropHeight)
-        .clipped()
-        .overlay(scrim)
+        // ⚠️ Oran **boş bir kutuya** uygulanıyor, görsele değil. Doğrudan
+        // görsele verilince görsel kendi doğal genişliğini dayatıyor ve
+        // başlık bloğu ekrandan taşıyor (afiş ve başlık soldan kesiliyordu).
+        // Boş kutu esnektir: genişliği ekrandan alır, yüksekliği orandan.
+        Color.clear
+            .aspectRatio(backdropAspectRatio, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                RemoteImageView(
+                    url: backdropURL ?? posterURL,
+                    contentMode: .fill,
+                    targetWidth: 480
+                ) {
+                    Theme.Palette.surfaceElevated
+                }
+            }
+            .clipped()
+            .overlay(scrim)
         .overlay(alignment: .bottomLeading) {
             PosterView(url: posterURL, width: posterWidth)
                 .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
@@ -75,20 +92,29 @@ public struct DetailHeaderView<Actions: View>: View {
 
     private var scrim: some View {
         ZStack {
+            // Alt perde: başlık ve afiş her görselin üstünde okunsun.
+            // ⚠️ Koyulaşma alt yarıda başlıyor (eski hâlinde tepeden
+            // itibaren tüm görseli soluklaştırıyordu). Görselin üst yarısı
+            // artık net duruyor, perde yalnızca gerektiği yerde çalışıyor.
             LinearGradient(
-                colors: [
-                    Theme.Palette.background.opacity(0),
-                    Theme.Palette.background.opacity(0.55),
-                    Theme.Palette.background
+                stops: [
+                    .init(color: Theme.Palette.background.opacity(0), location: 0),
+                    .init(color: Theme.Palette.background.opacity(0.25), location: 0.45),
+                    .init(color: Theme.Palette.background.opacity(0.85), location: 0.8),
+                    .init(color: Theme.Palette.background, location: 1)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            // Üstteki ince perde: durum çubuğu ikonları görselde kaybolmasın.
+            // Üst perde: gezinme çubuğu artık şeffaf, geri düğmesi ve durum
+            // çubuğu ikonları açık renkli bir karede kaybolmasın.
             LinearGradient(
-                colors: [Theme.Palette.background.opacity(0.6), .clear],
+                stops: [
+                    .init(color: Theme.Palette.background.opacity(0.65), location: 0),
+                    .init(color: .clear, location: 0.35)
+                ],
                 startPoint: .top,
-                endPoint: .center
+                endPoint: .bottom
             )
         }
     }

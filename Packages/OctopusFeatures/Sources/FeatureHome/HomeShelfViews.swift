@@ -114,3 +114,28 @@ struct RecentMovieCard: View {
         .buttonStyle(.plain)
     }
 }
+
+/// Son eklenen dizi kartı.
+///
+/// ⚠️ Film kartıyla **aynı ölçü ve ritim**: iki raf alt alta duruyor,
+/// kartlar farklı boyda olsaydı sayfa dalgalı görünürdü. Ayrı bir tip
+/// olmasının sebebi yalnızca farklı bir varlık (`Series`) taşıması.
+struct RecentSeriesCard: View {
+
+    let series: Series
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                PosterView(url: series.posterURL, width: 104)
+                Text(series.title)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textPrimary)
+                    .lineLimit(2)
+                    .frame(width: 104, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}

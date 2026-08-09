@@ -43,6 +43,8 @@ public struct HomeScreen: View {
 
     @StateObject private var viewModel: HomeViewModel
     @EnvironmentObject private var router: AppRouter
+    /// Bayi adı ve vurgu rengi başlıktan okunuyor.
+    @EnvironmentObject private var theme: ThemeController
 
     public init(dependencies: HomeDependencies) {
         _viewModel = StateObject(wrappedValue: HomeViewModel(dependencies: dependencies))
@@ -58,9 +60,6 @@ public struct HomeScreen: View {
         // Ekrana her dönüşte tazelenir: kullanıcı bir bölüm izleyip
         // geri geldiğinde "devam et" rafı güncel olmalı.
         .task { await viewModel.load() }
-        // Ayrı görev: ekrandan çıkılınca iptal edilir, döngü arka planda
-        // boşuna dönmez.
-        .task { await viewModel.rotateFeatured() }
         .refreshable { await viewModel.load() }
     }
 
@@ -93,17 +92,15 @@ public struct HomeScreen: View {
     private var shelves: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                if let item = viewModel.featuredItem {
-                    FeaturedHeroView(
-                        movie: item,
-                        greeting: viewModel.greeting,
-                        pageCount: viewModel.featured.count,
-                        pageIndex: viewModel.featuredIndex,
-                        onPlay: { router.presentPlayer(.movie(item.id)) },
-                        onDetail: { router.push(.movieDetail(item.id)) },
-                        onSelectPage: viewModel.showFeatured(at:)
-                    )
-                }
+                // ⚠️ Burada eskiden **dönen tanıtım afişi** vardı; kaldırıldı.
+                // Ana sayfanın tepesi "neredeyim, hesabım ne durumda"
+                // sorusunu cevaplamalı — içerik zaten altındaki raflarda
+                // ve orada kullanıcı ne göreceğini seçebiliyor.
+                HomeHeaderView(
+                    account: viewModel.account,
+                    greeting: viewModel.greeting,
+                    brandName: theme.resellerName
+                )
 
                 if !viewModel.resumeItems.isEmpty {
                     ShelfView(title: "İzlemeye devam et") {
@@ -130,6 +127,16 @@ public struct HomeScreen: View {
                         ForEach(viewModel.recentlyAdded) { movie in
                             RecentMovieCard(movie: movie) {
                                 router.push(.movieDetail(movie.id))
+                            }
+                        }
+                    }
+                }
+
+                if !viewModel.recentSeries.isEmpty {
+                    ShelfView(title: "Son eklenen diziler") {
+                        ForEach(viewModel.recentSeries) { series in
+                            RecentSeriesCard(series: series) {
+                                router.push(.seriesDetail(series.id))
                             }
                         }
                     }

@@ -22,43 +22,36 @@ public final class HomeViewModel: ObservableObject {
 
     @Published public private(set) var resumeItems: [ResumeItem] = []
     @Published public private(set) var recentlyAdded: [Movie] = []
+    /// Son eklenen diziler — filmlerin altındaki raf.
+    @Published public private(set) var recentSeries: [Series] = []
+
+    /// Hero'daki hesap satırı: kullanıcı adı ve aboneliğe kalan gün.
+    ///
+    /// Referans uygulamada bu bilgi kocaman bir mor kartın içinde iki
+    /// kutuya bölünmüştü. Burada tek satır: iOS'ta ikincil bilgi sessiz
+    /// durur, yalnızca **acil olduğunda** (abonelik bitmek üzere) renk alır.
+    @Published public private(set) var account: HomeAccount?
     @Published public private(set) var recentChannels: [Channel] = []
     @Published public private(set) var state: LoadableState<Int> = .idle
 
     public var isEmpty: Bool {
-        resumeItems.isEmpty && recentlyAdded.isEmpty && recentChannels.isEmpty
+        resumeItems.isEmpty && recentlyAdded.isEmpty
+            && recentSeries.isEmpty && recentChannels.isEmpty
     }
 
-    /// Tepede dönen öne çıkan içerikler.
-    @Published public private(set) var featured: [Movie] = []
-    @Published public private(set) var featuredIndex = 0
-
-    public var featuredItem: Movie? {
-        guard featured.indices.contains(featuredIndex) else { return featured.first }
-        return featured[featuredIndex]
-    }
 
     private let dependencies: HomeDependencies
     private let shelfLimit: Int
-    private let featuredLimit: Int
-    private let featuredRotation: Duration
     private let now: () -> Date
     private var parentalFilter = ParentalFilter.open
 
     public init(
         dependencies: HomeDependencies,
         shelfLimit: Int = 12,
-        // Beş yeterli: daha fazlası aynı içeriğe dönmeyi geciktirir ve
-        // kullanıcı zaten üstteki tek karta bakıyor.
-        featuredLimit: Int = 5,
-        // Okumaya vakit bırakacak kadar uzun, sıkmayacak kadar kısa.
-        featuredRotation: Duration = .seconds(8),
         now: @escaping () -> Date = Date.init
     ) {
         self.dependencies = dependencies
         self.shelfLimit = shelfLimit
-        self.featuredLimit = featuredLimit
-        self.featuredRotation = featuredRotation
         self.now = now
     }
 
@@ -72,26 +65,6 @@ public final class HomeViewModel: ObservableObject {
         }
     }
 
-    /// Kullanıcı sayfa noktalarına dokunarak doğrudan geçebilir.
-    ///
-    /// Dönen bir kartta "az önce gördüğüm şeye geri dön" ihtiyacı doğuyor;
-    /// bir sonraki turu beklemek zorunda kalmasın.
-    public func showFeatured(at index: Int) {
-        guard featured.indices.contains(index) else { return }
-        featuredIndex = index
-    }
-
-    /// Öne çıkan içeriği belirli aralıklarla değiştirir.
-    ///
-    /// Görünüm bunu `.task` içinde çağırır; ekrandan çıkılınca görev iptal
-    /// edilir ve arka planda boşuna dönmez.
-    public func rotateFeatured() async {
-        while !Task.isCancelled {
-            try? await Task.sleep(for: featuredRotation)
-            guard !Task.isCancelled, featured.count > 1 else { continue }
-            featuredIndex = (featuredIndex + 1) % featured.count
-        }
-    }
 
     public func load() async {
         if isEmpty { state = .loading }
@@ -105,10 +78,15 @@ public final class HomeViewModel: ObservableObject {
 
             // Raflar süzülmeden önce kilit durumu bilinmeli.
             parentalFilter = await .current(dependencies.parental)
+            account = HomeAccount(playlist: playlist, now: Date())
 
-            // Üç raf birbirinden bağımsız; paralel yüklenir.
+            // Raflar birbirinden bağımsız; paralel yüklenir.
             async let resume = loadResumeItems(playlistID: playlist.id)
             async let added = dependencies.vod.recentlyAdded(
+                playlistID: playlist.id,
+                limit: shelfLimit
+            )
+            async let series = dependencies.series.recentlyAdded(
                 playlistID: playlist.id,
                 limit: shelfLimit
             )
@@ -119,10 +97,15 @@ public final class HomeViewModel: ObservableObject {
 
             resumeItems = await resume
             recentlyAdded = parentalFilter.filter((try? await added) ?? [])
+            // ⚠️ Diziler de süzülür: kilit yalnızca filmlerde uygulansaydı
+            // yetişkin bir dizi ana sayfada afişiyle durmaya devam ederdi.
+            recentSeries = parentalFilter.filter((try? await series) ?? [])
             recentChannels = parentalFilter.filter((try? await channels) ?? [])
-            updateFeatured()
 
-            state = .loaded(resumeItems.count + recentlyAdded.count + recentChannels.count)
+            state = .loaded(
+                resumeItems.count + recentlyAdded.count
+                    + recentSeries.count + recentChannels.count
+            )
         } catch {
             state = .failed(AppError.wrap(error))
         }
@@ -183,23 +166,11 @@ public final class HomeViewModel: ObservableObject {
         return items
     }
 
-    /// Öne çıkanları son eklenenlerden seçer.
-    ///
-    /// Görseli olanlar önce gelir: arka planı boş bir hero kartı, olmayan
-    /// bir özelliği varmış gibi görünüp ekranı çirkinleştiriyor.
-    private func updateFeatured() {
-        let withArtwork = recentlyAdded.filter { $0.backdropURL != nil || $0.posterURL != nil }
-        featured = Array(withArtwork.prefix(featuredLimit))
-
-        // Liste kısaldıysa eldeki sıra taşabilir.
-        if featuredIndex >= featured.count { featuredIndex = 0 }
-    }
-
     private func clear() {
+        account = nil
         resumeItems = []
         recentlyAdded = []
+        recentSeries = []
         recentChannels = []
-        featured = []
-        featuredIndex = 0
     }
 }

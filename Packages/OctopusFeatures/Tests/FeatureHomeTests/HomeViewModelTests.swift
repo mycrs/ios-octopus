@@ -54,140 +54,8 @@ final class HomeViewModelTests: XCTestCase {
         return Calendar.current.date(from: components) ?? Date(timeIntervalSince1970: 0)
     }
 
-    // MARK: - Öne çıkan içerik
 
-    func test_featuredOnlyIncludesItemsWithArtwork() async {
-        // Görseli olmayan içerik hero'da boş bir kutu olarak görünürdü.
-        vod.recent = [
-            makeMovie("1", poster: false),
-            makeMovie("2"),
-            makeMovie("3")
-        ]
 
-        let viewModel = makeViewModel()
-        await viewModel.load()
-
-        XCTAssertEqual(viewModel.featured.map(\.id.value), ["2", "3"])
-    }
-
-    func test_featuredRespectsLimit() async {
-        vod.recent = (1...10).map { makeMovie("\($0)") }
-
-        let viewModel = HomeViewModel(
-            dependencies: HomeDependencies(
-                playlists: playlists,
-                channels: StubChannels(),
-                vod: vod,
-                series: series,
-                progress: progress,
-                history: history
-            ),
-            featuredLimit: 3
-        )
-        await viewModel.load()
-
-        XCTAssertEqual(viewModel.featured.count, 3)
-    }
-
-    func test_featuredIndexResetsWhenListShrinks() async {
-        // Kaynak değişince liste kısalabilir; eldeki sıra taşarsa
-        // featuredItem çökerdi.
-        vod.recent = (1...5).map { makeMovie("\($0)") }
-
-        let viewModel = makeViewModel()
-        await viewModel.load()
-        viewModel.showFeatured(at: 4)
-        XCTAssertEqual(viewModel.featuredIndex, 4)
-
-        vod.recent = [makeMovie("1")]
-        await viewModel.load()
-
-        XCTAssertEqual(viewModel.featuredIndex, 0)
-        XCTAssertNotNil(viewModel.featuredItem)
-    }
-
-    func test_showFeaturedIgnoresOutOfRangeIndex() async {
-        vod.recent = [makeMovie("1"), makeMovie("2")]
-
-        let viewModel = makeViewModel()
-        await viewModel.load()
-
-        viewModel.showFeatured(at: 99)
-        XCTAssertEqual(viewModel.featuredIndex, 0, "Geçersiz sıra yok sayılmalı")
-    }
-
-    func test_rotationAdvancesAndWrapsAround() async {
-        vod.recent = [makeMovie("1"), makeMovie("2")]
-
-        let viewModel = HomeViewModel(
-            dependencies: HomeDependencies(
-                playlists: playlists,
-                channels: StubChannels(),
-                vod: vod,
-                series: series,
-                progress: progress,
-                history: history
-            ),
-            featuredRotation: .milliseconds(10)
-        )
-        await viewModel.load()
-
-        let rotation = Task { await viewModel.rotateFeatured() }
-        defer { rotation.cancel() }
-
-        // Süre değil koşul beklenir; yüklü koşucuda sabit uyku yetmiyor.
-        await waitUntil("ikinci içeriğe geçmeli") { viewModel.featuredIndex == 1 }
-        await waitUntil("başa dönmeli") { viewModel.featuredIndex == 0 }
-    }
-
-    func test_singleFeaturedItemDoesNotRotate() async {
-        vod.recent = [makeMovie("1")]
-
-        let viewModel = HomeViewModel(
-            dependencies: HomeDependencies(
-                playlists: playlists,
-                channels: StubChannels(),
-                vod: vod,
-                series: series,
-                progress: progress,
-                history: history
-            ),
-            featuredRotation: .milliseconds(5)
-        )
-        await viewModel.load()
-
-        let rotation = Task { await viewModel.rotateFeatured() }
-        defer { rotation.cancel() }
-
-        try? await Task.sleep(nanoseconds: 60 * 1_000_000)
-        XCTAssertEqual(viewModel.featuredIndex, 0, "Tek içerikte dönmemeli")
-    }
-
-    /// Koşul gerçekleşene kadar kısa aralıklarla yoklar.
-    private func waitUntil(
-        _ description: String,
-        timeoutMS: UInt64 = 3_000,
-        _ condition: () -> Bool
-    ) async {
-        let step: UInt64 = 5
-        var waited: UInt64 = 0
-
-        while waited < timeoutMS {
-            if condition() { return }
-            try? await Task.sleep(nanoseconds: step * 1_000_000)
-            waited += step
-        }
-        XCTFail("Zaman aşımı: \(description)")
-    }
-
-    func test_emptyCatalogHasNoFeaturedItem() async {
-        vod.recent = []
-
-        let viewModel = makeViewModel()
-        await viewModel.load()
-
-        XCTAssertNil(viewModel.featuredItem)
-    }
 
     func test_greetingFollowsHour() async {
         let cases: [(Int, String)] = [
@@ -405,6 +273,7 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
     func loadDetails(id: Series.ID) async throws {}
     func invalidateDetails(id: Series.ID) async throws {}
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
+    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
 }
 
 private final class StubProgress: PlaybackProgressRepository, @unchecked Sendable {
