@@ -25,6 +25,7 @@ extension PlayerScreen {
                     time: controller.time,
                     hasTracks: hasSelectableTracks,
                     showsAirPlay: controller.supportsAirPlay,
+                    showsPictureInPicture: controller.canUsePictureInPicture,
                     canZap: viewModel.canZap,
                     videoFit: controller.videoFit,
                     onClose: close,
@@ -47,6 +48,12 @@ extension PlayerScreen {
                     onToggleFit: {
                         controller.toggleVideoFit()
                         scheduleControlsHide()
+                    },
+                    onPictureInPicture: {
+                        controller.startPictureInPicture()
+                        // Küçük pencereye geçilirken denetimler ekranda
+                        // asılı kalmasın.
+                        showsControls = false
                     },
                     onZap: { step in
                         Task { await viewModel.zap(by: step) }

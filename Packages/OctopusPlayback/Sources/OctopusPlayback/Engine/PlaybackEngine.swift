@@ -38,6 +38,16 @@ public protocol PlaybackEngine: AnyObject {
     /// AVPictureInPicture desteği. VLC için `false`.
     var supportsPictureInPicture: Bool { get }
 
+    /// PiP **şu an** başlatılabilir mi?
+    ///
+    /// ⚠️ `supportsPictureInPicture` ile aynı şey değil: motor destekliyor
+    /// olabilir ama simülatörde donanım yok, ya da video henüz yüklenmemiş
+    /// olabilir. Düğmenin görünürlüğü buna bakmalı — desteklenip de
+    /// başlatılamayan bir düğme sessizce hiçbir şey yapar.
+    var isPictureInPicturePossible: Bool { get }
+
+    func setPictureInPictureActive(_ active: Bool)
+
     /// AirPlay ile yayınlanabilir mi?
     ///
     /// ⚠️ Motora bağlı: AVPlayer sistem route'unu kullanır ve videoyu

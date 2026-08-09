@@ -91,6 +91,8 @@ private final class StubEngine: PlaybackEngine {
     let selectedSubtitleTrack: MediaTrack? = nil
     let supportsPictureInPicture = false
     let supportsAirPlay = false
+    let isPictureInPicturePossible = false
+    func setPictureInPictureActive(_ active: Bool) {}
 
     init(identifier: String) {
         self.identifier = identifier

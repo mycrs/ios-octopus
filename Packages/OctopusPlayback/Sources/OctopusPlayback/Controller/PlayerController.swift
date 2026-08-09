@@ -38,6 +38,13 @@ public final class PlayerController: ObservableObject {
     /// Çalışan motor AirPlay destekliyor mu? Düğmenin görünürlüğü buna bağlı.
     @Published public private(set) var supportsAirPlay = false
 
+    /// PiP **şu an** başlatılabilir mi?
+    ///
+    /// ⚠️ Zamanla değişir: video yüklenene kadar `false`. Bu yüzden
+    /// durum her değiştiğinde motora yeniden soruluyor — bir kez okuyup
+    /// saklamak, düğmenin hiç çıkmamasına yol açardı.
+    @Published public private(set) var canUsePictureInPicture = false
+
     /// Kullanıcının seçtiği oynatma hızı (canlıda kullanılmaz).
     @Published public private(set) var rate: Float = 1.0
 
@@ -158,6 +165,7 @@ public final class PlayerController: ObservableObject {
         engine = newEngine
         engineIdentifier = newEngine.identifier
         supportsAirPlay = newEngine.supportsAirPlay
+        canUsePictureInPicture = false
         rate = 1.0
         // Yerleşim tercihi kullanıcıya ait, motora değil — yeni motora taşınır.
         newEngine.setVideoFit(videoFit)
@@ -247,6 +255,11 @@ public final class PlayerController: ObservableObject {
         await saveProgress(force: true)
     }
 
+    /// PiP'i başlatır. Kullanıcı küçük pencereyi kendisi kapatır.
+    public func startPictureInPicture() {
+        engine?.setPictureInPictureActive(true)
+    }
+
     public func toggleVideoFit() {
         videoFit = videoFit.toggled
         engine?.setVideoFit(videoFit)
@@ -267,6 +280,7 @@ public final class PlayerController: ObservableObject {
             // Yalnızca gerçekten oynarken: duraklatılmış bir videonun
             // başında uyuyakalan kullanıcının pili bitmemeli.
             setScreenAwake(newState == .playing)
+            canUsePictureInPicture = engine?.isPictureInPicturePossible ?? false
             refreshNowPlaying()
 
         case .timeChanged(let newTime):

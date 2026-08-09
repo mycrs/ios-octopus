@@ -24,6 +24,8 @@ public final class NullPlaybackEngine: PlaybackEngine {
     public let selectedSubtitleTrack: MediaTrack? = nil
     public let supportsPictureInPicture = false
     public let supportsAirPlay = false
+    public let isPictureInPicturePossible = false
+    public func setPictureInPictureActive(_ active: Bool) {}
 
     public init(identifier: String = "null") {
         self.identifier = identifier

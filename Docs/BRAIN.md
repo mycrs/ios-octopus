@@ -287,7 +287,7 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 | **6** | EPG (XMLTV + Xtream short_epg) + rehber ekranı | ✅ |
 | **7** | VOD + Dizi (sezon/bölüm) | ✅ |
 | **8** | Favoriler, izleme geçmişi, kaldığın yerden devam | ✅ |
-| **9** | Arka plan sesi ✅ · Now Playing ✅ · AirPlay ✅ · PiP ⏳ | 🔨 |
+| **9** | Arka plan sesi ✅ · Now Playing ✅ · AirPlay ✅ · PiP ✅* | ✅ |
 | **10** | Ebeveyn kilidi ✅ · tema ✅ · çoklu profil ⏳ | 🔨 |
 
 > ✅ **Faz 5 neden artık beklemiyor:** "gerçek cihaz gerekiyor" varsayımı
@@ -305,10 +305,17 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 > `true` yap. Başka hiçbir dosyaya dokunulmaz — resolver zinciri ve
 > `PlayerController`'ın yedek yolu zaten yazılı ve test edilmiş durumda.
 
-> ⏳ **PiP neden hâlâ yok:** `AVPictureInPictureController` gerçek
-> cihazda doğrulanmadan bağlanmamalı (simülatörde çalışmıyor).
-> `supportsPictureInPicture` bilerek `false` — olmayan bir düğmeyi
-> vaat etmemek için.
+> ✅* **PiP yazıldı, gerçek cihazda doğrulanmadı:** simülatörde
+> `AVPictureInPictureController.isPictureInPictureSupported()` **false**
+> döner; kontrolör hiç kurulmaz ve düğme çıkmaz. Kod bu durumu sessizce
+> kabul ediyor — yani simülatörde "çalışmıyor" görünmesi normaldir.
+> Mac'te iPhone'a kurup doğrulanması gerekiyor.
+>
+> ⚠️ İki ayrı kavram karıştırılmamalı: `supportsPictureInPicture`
+> **motorun** yeteneği (VLC'de `false`), `isPictureInPicturePossible`
+> ise **o an** başlatılabilirlik (video yüklenene kadar `false`).
+> Düğmenin görünürlüğü ikincisine bakar; birincisine baksaydı
+> simülatörde tıklanan ama hiçbir şey yapmayan bir düğme olurdu.
 
 ### Görsel dil
 

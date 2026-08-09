@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import AVKit
 import UIKit
 import OctopusCore
 import OctopusDomain
@@ -26,10 +27,10 @@ public final class AVPlayerEngine: PlaybackEngine {
     public let identifier: String
     public let events: AsyncStream<PlaybackEvent>
 
-    /// PiP Faz 9'da bağlanacak; şu an UI'da tetikleyici yok.
-    /// AVPlayer teknik olarak destekliyor — `true` yazmak, olmayan bir
-    /// düğmeyi vaat etmek olurdu.
-    public let supportsPictureInPicture = false
+    /// ⚠️ Bu bayrak "cihaz destekliyor mu" demek **değil**: simülatörde
+    /// PiP yok ve kontrolör hiç kurulmaz. Düğmenin görünürlüğü
+    /// `isPictureInPicturePossible` ile belirlenir (bkz. +PictureInPicture).
+    public let supportsPictureInPicture = true
 
     /// AVPlayer sistem route'unu kullanır — video Apple TV'ye gider.
     public let supportsAirPlay = true
@@ -61,6 +62,8 @@ public final class AVPlayerEngine: PlaybackEngine {
     private var didReachEnd = false
     private var videoFit: VideoFit = .fit
     private weak var layerView: PlayerLayerView?
+    /// AVKit'e bağımlı tek parça — `AVPlayerEngine+PictureInPicture.swift`.
+    var pictureInPictureController: AVPictureInPictureController?
 
     /// Kullanıcının seçtiği oynatma hızı.
     ///
@@ -203,6 +206,9 @@ public final class AVPlayerEngine: PlaybackEngine {
         // hayatta tutmamalı — aksi hâlde ekran kapandıktan sonra da
         // katman bellekte kalırdı.
         layerView = view
+        // PiP bir **katmana** bağlıdır; katman her yenilendiğinde kontrolör
+        // de yenilenmeli, yoksa ölü bir katmanı işaret eder.
+        attachPictureInPicture(to: view)
         return view
     }
 
@@ -216,6 +222,7 @@ public final class AVPlayerEngine: PlaybackEngine {
     }
 
     public func teardown() {
+        pictureInPictureController = nil
         trackDiscovery?.cancel()
         trackDiscovery = nil
         releaseCurrentItem()

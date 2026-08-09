@@ -17,6 +17,7 @@ struct PlayerControlsOverlay: View {
     let time: PlaybackTime
     let hasTracks: Bool
     let showsAirPlay: Bool
+    let showsPictureInPicture: Bool
     let canZap: Bool
     let videoFit: VideoFit
 
@@ -26,6 +27,7 @@ struct PlayerControlsOverlay: View {
     let onSeek: (TimeInterval) -> Void
     let onShowTracks: () -> Void
     let onToggleFit: () -> Void
+    let onPictureInPicture: () -> Void
     /// Canlı yayında kanal değiştirir: -1 önceki, +1 sonraki.
     let onZap: (Int) -> Void
 
@@ -82,6 +84,14 @@ struct PlayerControlsOverlay: View {
             }
 
             Spacer(minLength: 0)
+
+            if showsPictureInPicture {
+                iconButton(
+                    systemName: "pip.enter",
+                    label: "Resim içinde resim",
+                    action: onPictureInPicture
+                )
+            }
 
             if showsAirPlay {
                 AirPlayButton()
