@@ -26,7 +26,15 @@ extension AVPlayerEngine {
             let layer = view.playerLayer
         else { return }
 
-        let controller = AVPictureInPictureController(playerLayer: layer)
+        // ⚠️ Başlatıcı **failable**: katman bir oynatıcıya bağlı değilse
+        // ya da sistem PiP'i reddederse `nil` döner. `try!`/force unwrap
+        // yasak (CLAUDE.md), zaten burada çökmek de gereksiz — PiP
+        // kurulamazsa düğme çıkmaz, oynatma etkilenmez.
+        guard let controller = AVPictureInPictureController(playerLayer: layer) else {
+            Log.playback.notice("PiP kontrolörü kurulamadı")
+            return
+        }
+
         // Kullanıcı uygulamadan çıkınca video kendiliğinden küçük pencereye
         // geçsin — PiP'in beklenen davranışı bu; elle düğmeye basmak değil.
         controller.canStartPictureInPictureAutomaticallyFromInline = true
