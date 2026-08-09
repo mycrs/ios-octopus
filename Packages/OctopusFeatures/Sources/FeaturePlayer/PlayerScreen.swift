@@ -47,6 +47,7 @@ public struct PlayerScreen: View {
     @StateObject private var viewModel: PlayerViewModel
     @StateObject private var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var showsControls = true
     @State private var hideControlsTask: Task<Void, Never>?
@@ -81,6 +82,14 @@ public struct PlayerScreen: View {
         .statusBarHidden(showsControls == false)
         .task { await viewModel.resolve() }
         .sheet(isPresented: $isShowingTracks) { trackPicker }
+        // ⚠️ Konum normalde 5 sn'de bir yazılıyor. Kullanıcı uygulamayı
+        // arka plana alıp sistem onu öldürürse son 5 saniye kaybolurdu —
+        // filmi tekrar açtığında biraz geriden başlardı. Arka plana geçiş
+        // "şimdi yaz" için son güvenilir an.
+        .onChange(of: scenePhase) { phase in
+            guard phase != .active else { return }
+            Task { await controller.persistPosition() }
+        }
     }
 
     @ViewBuilder

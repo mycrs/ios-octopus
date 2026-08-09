@@ -238,6 +238,15 @@ public final class PlayerController: ObservableObject {
         rate = newRate
     }
 
+    /// Konumu hemen yazar — arka plana geçerken çağrılır.
+    ///
+    /// Normal akışta konum ~5 sn'de bir kaydediliyor; uygulama arka planda
+    /// öldürülürse aradaki fark kaybolur. Bu, "şimdi yaz" için son
+    /// güvenilir an.
+    public func persistPosition() async {
+        await saveProgress(force: true)
+    }
+
     public func toggleVideoFit() {
         videoFit = videoFit.toggled
         engine?.setVideoFit(videoFit)

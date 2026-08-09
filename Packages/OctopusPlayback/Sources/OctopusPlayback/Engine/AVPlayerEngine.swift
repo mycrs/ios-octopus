@@ -305,9 +305,7 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         switch playerItem.status {
         case .failed:
-            let reason = playerItem.error?.localizedDescription
-                ?? "Yayın açılamadı (bilinmeyen sebep)"
-            fail(with: .playbackFailed(reason: reason))
+            fail(with: Self.classify(playerItem))
         case .readyToPlay:
             syncPlaybackState()
         case .unknown:
@@ -342,6 +340,47 @@ public final class AVPlayerEngine: PlaybackEngine {
             transition(to: .buffering)
         @unknown default:
             break
+        }
+    }
+
+    /// Açılamama sebebini kullanıcının anlayacağı bir hataya çevirir.
+    ///
+    /// ⚠️ IPTV'de bu ayrım çok önemli: `AVFoundation`'ın kendi metni
+    /// ("The operation could not be completed") kullanıcıya hiçbir şey
+    /// söylemez. Oysa sebep neredeyse her zaman üç şeyden biridir:
+    /// abonelik bitmiş, aynı anda çok fazla cihaz bağlı, ya da yayın
+    /// gerçekten kapanmış. HTTP durum kodu bunları ayırt etmeye yeter.
+    ///
+    /// Durum kodu `errorLog()` üzerinden okunur — `AVPlayerItem.error`
+    /// HTTP katmanını taşımaz.
+    nonisolated static func classify(_ playerItem: AVPlayerItem) -> AppError {
+        let statusCode = playerItem.errorLog()?.events.last?.errorStatusCode ?? 0
+
+        switch statusCode {
+        case 401:
+            return .unauthorized
+
+        case 403:
+            // ⚠️ 403 tek başına `unauthorized` sayılmıyor: o hata
+            // "kaynağı yeniden yapılandır" demek (`requiresReauthentication`)
+            // ve kullanıcıyı gereksizce kurulum ekranına yollardı. Panellerin
+            // çoğu bağlantı sınırında da 403 döner — sebep belirsiz, mesaj
+            // ikisini birden anlatmalı.
+            return .playbackFailed(reason:
+                "Sunucu erişimi reddetti (403). Aboneliğin süresi dolmuş ya da "
+                + "aynı anda izin verilen cihaz sayısı aşılmış olabilir."
+            )
+
+        case 404, 410:
+            return .playbackFailed(reason: "Yayın sunucuda bulunamadı. Kaynağı güncellemeyi dene.")
+
+        case 500...599:
+            return .network(reason: "Sunucu şu an yanıt veremiyor (\(statusCode)).")
+
+        default:
+            let detail = playerItem.error?.localizedDescription
+            // Durum kodu yoksa sorun genelde ağın kendisidir (DNS, zaman aşımı).
+            return .playbackFailed(reason: detail ?? "Yayın açılamadı (bilinmeyen sebep).")
         }
     }
 
