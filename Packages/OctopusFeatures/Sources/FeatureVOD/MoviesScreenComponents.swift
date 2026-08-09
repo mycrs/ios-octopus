@@ -78,7 +78,7 @@ struct MediaCategoryStrip: View {
                         chip(title: category.name, isSelected: selectedID == category.id) {
                             onSelect(category.id)
                         }
-                        .id(category.id)
+                        .id(category.id.value)
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
@@ -89,7 +89,10 @@ struct MediaCategoryStrip: View {
             // kalıyor ama içerik 20. kategoriye ait oluyordu.
             .onChange(of: selectedID) { newValue in
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    proxy.scrollTo(newValue ?? allChipID, anchor: .center)
+                    // ⚠️ Kimlikler **aynı tipte** olmalı: `MediaCategory.ID`
+                    // ile `String` karıştırılınca `scrollTo` hiçbir şey
+                    // bulamaz (derleyici de kabul etmiyor). Hepsi String.
+                    proxy.scrollTo(newValue?.value ?? allChipID, anchor: .center)
                 }
             }
         }
