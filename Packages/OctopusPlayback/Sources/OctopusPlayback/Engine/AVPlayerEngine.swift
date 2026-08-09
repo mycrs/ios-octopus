@@ -52,6 +52,8 @@ public final class AVPlayerEngine: PlaybackEngine {
 
     private let continuation: AsyncStream<PlaybackEvent>.Continuation
     private let audioSession: AudioSessionController
+    /// Kullanıcı tercihleri; verilmezse varsayılan davranış sürer.
+    private let preferences: PlaybackPreferences?
 
     private var observations: [NSKeyValueObservation] = []
     private var timeObserver: Any?
@@ -60,6 +62,17 @@ public final class AVPlayerEngine: PlaybackEngine {
 
     private var isLiveContent = false
     private var didReachEnd = false
+
+    /// Bu içerikten hiç görüntü karesi geldi mi?
+    ///
+    /// ⚠️ "Açıldı" ile "görüntü var" aynı şey **değil**. HEVC/UHD yayınlarda
+    /// AVPlayer sesi çözer, videoyu çözemez ve `status` yine `readyToPlay`
+    /// kalır — hata hiç düşmez. Bu bayrak olmadan kullanıcı siyah ekranda
+    /// ses dinler, yedek motor da hiç devreye girmez.
+    private var didRenderVideo = false
+
+    /// Görüntüsüz oynatmayı yakalayan gözcü.
+    private var videoWatchdog: Task<Void, Never>?
     private var videoFit: VideoFit = .fit
     private weak var layerView: PlayerLayerView?
     /// AVKit'e bağımlı tek parça — `AVPlayerEngine+PictureInPicture.swift`.
@@ -82,18 +95,19 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// nonisolated context" hatası veriyordu.
     public init(
         identifier: String = "avplayer",
-        audioSession: AudioSessionController? = nil
+        audioSession: AudioSessionController? = nil,
+        preferences: PlaybackPreferences? = nil
     ) {
         self.identifier = identifier
         self.audioSession = audioSession ?? AudioSessionController()
+        self.preferences = preferences
         self.player = AVPlayer()
 
         var capturedContinuation: AsyncStream<PlaybackEvent>.Continuation!
         self.events = AsyncStream { capturedContinuation = $0 }
         self.continuation = capturedContinuation
 
-        // Kanal değiştirirken sesin bir an patlamasını önler.
-        player.automaticallyWaitsToMinimizeStalling = true
+        // Gerçek değer içeriğe göre `load()`'da belirleniyor (canlı ≠ VOD).
         observeInterruptions()
     }
 
@@ -102,7 +116,13 @@ public final class AVPlayerEngine: PlaybackEngine {
     public func load(_ item: PlaybackItem) async {
         releaseCurrentItem()
 
+        // ⚠️ Önceki içeriğin iz keşfi **iptal edilmeli**. Edilmezse kanal
+        // değiştikten sonra tamamlanıp eski yayının ses/altyazı izlerini
+        // yayınlıyor; iz seçici yanlış listeyi gösteriyordu.
+        trackDiscovery?.cancel()
+
         didReachEnd = false
+        didRenderVideo = false
         isLiveContent = item.isLive
         audioTracks = []
         subtitleTracks = []
@@ -114,6 +134,20 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         let asset = Self.makeAsset(for: item)
         let playerItem = AVPlayerItem(asset: asset)
+
+        // ⚠️ KANAL GEÇİŞ HIZI: canlıda tampon beklemek her zapta gecikmedir.
+        // "Hızlı"da hiç beklenmez (kopma riski karşılığında), "Kararlı"da
+        // AVPlayer kendi tamponunu doldurur. VOD'da her zaman beklenir —
+        // orada akıcılık gecikmeden önemli.
+        let buffer = preferences?.liveBuffer ?? .balanced
+        player.automaticallyWaitsToMinimizeStalling = !item.isLive || buffer == .stable
+
+        // Canlıda hedef tampon: seçilen süre. AVPlayer bunu bir **öneri**
+        // olarak alır, garanti değildir.
+        if item.isLive {
+            playerItem.preferredForwardBufferDuration = buffer.seconds
+        }
+
         player.replaceCurrentItem(with: playerItem)
 
         audioSession.activate()
@@ -276,6 +310,9 @@ public final class AVPlayerEngine: PlaybackEngine {
     }
 
     private func releaseCurrentItem() {
+        videoWatchdog?.cancel()
+        videoWatchdog = nil
+
         observations.forEach { $0.invalidate() }
         observations = []
 
@@ -412,6 +449,54 @@ public final class AVPlayerEngine: PlaybackEngine {
         guard state != currentState else { return }
         currentState = state
         continuation.yield(.stateChanged(state))
+
+        if state == .playing { startVideoWatchdogIfNeeded() }
+    }
+
+    // MARK: - Görüntüsüz oynatma gözcüsü
+
+    /// Ses çalıyor ama görüntü hiç gelmiyorsa bunu **başarısızlık** sayar.
+    ///
+    /// ## Neden gerekli?
+    /// AVPlayer, çözemediği bir video izini sessizce atlar: `status`
+    /// `readyToPlay` kalır, `error` boştur, ses akmaya devam eder.
+    /// HEVC/UHD IPTV kanallarında tipik sonuç budur. Hata düşmediği için
+    /// `PlayerController` yedek motoru hiç denemez ve kullanıcı siyah
+    /// ekranda ses dinler — bildirilen hata tam olarak buydu.
+    ///
+    /// ⚠️ Yalnızca **oynatma gerçekten başladıktan** sonra sayılır:
+    /// tamponlama sırasında görüntü boyutu zaten `.zero`'dur ve erken
+    /// karar açılmakta olan yayınları boşuna yedeğe yollardı.
+    private func startVideoWatchdogIfNeeded() {
+        guard !didRenderVideo, videoWatchdog == nil else { return }
+
+        videoWatchdog = Task { [weak self] in
+            // Karar süresi: **oynatma başladıktan** sonra sayılıyor, yani
+            // ses çoktan akıyor. O noktada 3 saniye boyunca hiç kare
+            // gelmediyse video izi çözülmüyor demektir. Daha uzun beklemek
+            // (önceki hâli 5 sn) zaplarken kullanıcıyı siyah ekranda tutuyor.
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            // `Task` ana aktör bağlamını miras alır — `await` gerekmiyor.
+            self?.failIfStillBlind()
+        }
+    }
+
+    /// Gözcünün kararı. Ayrı metot: `Task` gövdesinden izole çağrı gerekiyor.
+    private func failIfStillBlind() {
+        videoWatchdog = nil
+
+        guard !didRenderVideo, case .playing = currentState else { return }
+
+        // ⚠️ Sesli yayınlar (radyo kanalları) da boyutsuzdur ve buraya
+        // düşer. Yedek motor onları sorunsuz açtığı için zarar yok;
+        // "video izi var mı" sorusunu HLS'te AVFoundation zaten
+        // cevaplamıyor, o yüzden ayrım yapılamıyor.
+        Log.playback.notice("Ses var, görüntü yok — yedek motora yönlendiriliyor")
+
+        fail(with: .playbackFailed(reason:
+            "Görüntü çözülemedi (muhtemelen HEVC/H.265). Yedek oynatıcı deneniyor."
+        ))
     }
 
     // MARK: - Zaman ve boyut
@@ -442,6 +527,11 @@ public final class AVPlayerEngine: PlaybackEngine {
         guard let size = player.currentItem?.presentationSize,
               size.width > 0, size.height > 0
         else { return }
+
+        // Görüntü geldi: gözcünün işi bitti.
+        didRenderVideo = true
+        videoWatchdog?.cancel()
+        videoWatchdog = nil
 
         continuation.yield(.naturalSizeChanged(
             width: Double(size.width),

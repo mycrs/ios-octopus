@@ -15,9 +15,13 @@ let package = Package(
     dependencies: [
         .package(path: "../OctopusCore"),
         .package(path: "../OctopusDomain"),
-        .package(path: "../OctopusPlayback")
-        // Faz 5'te Mac'te eklenecek. Sürümü orada doğrula:
-        // .package(url: "https://github.com/videolan/VLCKit", from: "4.0.0")
+        .package(path: "../OctopusPlayback"),
+        // ⚠️ NEDEN videolan/VLCKit DEĞİL: resmî depoda `Package.swift` yok
+        // (4.0.0a21 dahil hiçbir etikette), yani SPM ile çözülemiyor. Resmî
+        // dağıtım CocoaPods/tarball üzerinden ve bu proje SPM + XcodeGen.
+        // Bu depo aynı VLCKit binary'sini checksum'lı bir XCFramework olarak
+        // paketliyor; iOS'ta `MobileVLCKit`'i yeniden dışa aktarır.
+        .package(url: "https://github.com/tylerjonesio/vlckit-spm", .upToNextMajor(from: "3.6.0"))
     ],
     targets: [
         .target(
@@ -25,8 +29,8 @@ let package = Package(
             dependencies: [
                 "OctopusCore",
                 "OctopusDomain",
-                "OctopusPlayback"
-                // .product(name: "VLCKit", package: "VLCKit")
+                "OctopusPlayback",
+                .product(name: "VLCKitSPM", package: "vlckit-spm")
             ]
         )
     ]
