@@ -43,13 +43,19 @@ let package = Package(
     targets: [
         .target(name: "FeatureOnboarding", dependencies: shared),
         .target(name: "FeatureHome", dependencies: shared),
-        .target(name: "FeatureLive", dependencies: shared),
+        // ⚠️ Canlı TV gömülü mini oynatıcı taşıyor → oynatma modülü gerekli.
+        // Bu **FeaturePlayer'a bağımlılık değil**: motor sözleşmesi
+        // `OctopusPlayback`'te, iki ekran birbirini görmüyor.
+        .target(name: "FeatureLive", dependencies: sharedWithPlayback),
         .target(name: "FeatureVOD", dependencies: shared),
         .target(name: "FeatureSeries", dependencies: shared),
         .target(name: "FeatureSearch", dependencies: shared),
         .target(name: "FeatureFavorites", dependencies: shared),
         .target(name: "FeaturePlayer", dependencies: sharedWithPlayback),
-        .target(name: "FeatureSettings", dependencies: shared),
+        // ⚠️ Ayarlar oynatma tercihlerini düzenliyor → oynatma modülü gerekli.
+        // Bu **FeaturePlayer'a bağımlılık değil**: `PlaybackPreferences`
+        // `OctopusPlayback`'te, iki ekran birbirini görmüyor.
+        .target(name: "FeatureSettings", dependencies: sharedWithPlayback),
 
         // ⚠️ Yeni bir feature'a test eklenirse .github/workflows/ci.yml
         // içindeki paket listesine de eklenmeli — aksi halde test yazılmış

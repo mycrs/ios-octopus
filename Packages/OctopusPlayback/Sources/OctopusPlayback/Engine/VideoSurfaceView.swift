@@ -4,20 +4,36 @@ import UIKit
 /// Motorun ürettiği UIKit video görünümünü SwiftUI'a taşır.
 ///
 /// ⚠️ Görünüm **motor tarafından** üretilir; burada AVFoundation ya da
-/// VLCKit adı geçmez. Oynatıcı ekranı hangi motorun çalıştığını bilmez —
-/// mimarinin bu ekranda görünen karşılığı tam olarak budur.
+/// VLCKit adı geçmez. Çağıran taraf hangi motorun çalıştığını bilmez —
+/// mimarinin bu dosyada görünen karşılığı tam olarak budur.
 ///
 /// ⚠️ Motor değiştiğinde (native → VLC) yeni bir yüzey gerekir. SwiftUI
 /// aynı `UIViewRepresentable`'ı yeniden kullanacağından, çağıran taraf
 /// `.id(engineIdentifier)` vererek görünümü baştan kurdurur.
-struct VideoSurfaceView: UIViewRepresentable {
+///
+/// ## Neden `FeaturePlayer`'da değil?
+/// Canlı TV ekranındaki gömülü mini oynatıcı da bu yüzeye ihtiyaç duyuyor
+/// ve feature'lar birbirini import edemez (bkz. CLAUDE.md demir kural 3).
+/// Yüzey oynatma modülüne taşındı: iki ekran da `OctopusPlayback` üzerinden
+/// görüyor, aralarında bağ kurulmuyor.
+public struct VideoSurfaceView: UIViewRepresentable {
 
     /// Motordan yüzey isteyen kapanış. `nil` dönerse siyah zemin çizilir.
-    let makeSurface: () -> UIView?
+    private let makeSurface: () -> UIView?
 
-    func makeUIView(context: Context) -> UIView {
+    public init(makeSurface: @escaping () -> UIView?) {
+        self.makeSurface = makeSurface
+    }
+
+    public func makeUIView(context: Context) -> UIView {
         let container = UIView()
         container.backgroundColor = .black
+
+        // Video yüzeyi dokunuş almaz: denetim katmanı üstte ve tüm
+        // dokunuşlar ona ait. Kapalı bir üst görünüm `hitTest`'i tüm alt
+        // ağaç için `nil` yaptığından motorun eklediği alt görünümler
+        // (ör. VLC'nin GL görünümü) de kapsanır.
+        container.isUserInteractionEnabled = false
 
         guard let surface = makeSurface() else { return container }
 
@@ -36,7 +52,7 @@ struct VideoSurfaceView: UIViewRepresentable {
         return container
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {
+    public func updateUIView(_ uiView: UIView, context: Context) {
         // Yüzeyin içeriğini motor günceller; SwiftUI tarafında yapılacak
         // bir şey yok. Boş bırakmak kasıtlı.
     }

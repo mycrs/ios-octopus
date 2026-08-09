@@ -31,9 +31,18 @@ public final class PlayerController: ObservableObject {
     /// Videonun en/boy oranı — siyah bantları doğru hesaplamak için.
     @Published public private(set) var aspectRatio: Double?
 
-    /// Hangi motor çalışıyor? Video yüzeyi motor değişince yeniden kurulmalı,
-    /// SwiftUI tarafı bunu `.id()` olarak kullanır.
+    /// Hangi motor çalışıyor? (Loglama ve hata ayıklama için.)
     @Published public private(set) var engineIdentifier: String = ""
+
+    /// Video yüzeyinin kimliği — SwiftUI tarafı bunu `.id()` olarak kullanır.
+    ///
+    /// ⚠️ `engineIdentifier` bu iş için **yetmez**: her `attach` yeni bir
+    /// motor **örneği** üretir ama kimlik dizgesi aynı kalabilir
+    /// (AVPlayer → AVPlayer, kanal değiştirirken olan tam olarak budur).
+    /// Kimlik değişmeyince SwiftUI yüzeyi yeniden kurmaz ve ekranda
+    /// bırakılmış eski motorun katmanı kalır — kanal değişir, ses gelir,
+    /// görüntü donar. Sayaç her motorda artar, bu yüzden güvenli.
+    @Published public private(set) var surfaceGeneration = 0
 
     /// Çalışan motor AirPlay destekliyor mu? Düğmenin görünürlüğü buna bağlı.
     @Published public private(set) var supportsAirPlay = false
@@ -59,6 +68,8 @@ public final class PlayerController: ObservableObject {
     private let resolver: PlaybackEngineResolver
     private let progress: PlaybackProgressRepository
     private let history: WatchHistoryRepository
+    /// Kullanıcı tercihleri; verilmezse varsayılan davranış sürer.
+    private let preferences: PlaybackPreferences?
     private let nowPlaying: NowPlayingCenter
     private let saveInterval: TimeInterval
     private let now: () -> Date
@@ -81,6 +92,22 @@ public final class PlayerController: ObservableObject {
     /// hata kullanıcıya gösterilir. Aksi hâlde sonsuz döngü riski var.
     private var didAttemptFallback = false
 
+    /// Kopan canlı yayına kaç kez yeniden bağlanmayı denedik?
+    /// Oynatma gerçekten başladığında sıfırlanır.
+    private var reconnectAttempts = 0
+
+    /// Kullanıcı otomatik yeniden bağlanmayı kapattıysa hiç denenmez.
+    private var maxReconnectAttempts: Int {
+        (preferences?.autoReconnect ?? true) ? 3 : 0
+    }
+
+    /// Açılış ölçümünün başladığı an.
+    ///
+    /// Kanal geçiş hızı "hızlı/yavaş" diye tartışılamaz; ölçülür. İlk kare
+    /// geldiğinde geçen süre loglanır, böylece yavaşlığın motorda mı,
+    /// yedeğe düşmede mi, yoksa sunucuda mı olduğu ayrılabilir.
+    private var openStartedAt: Date?
+
     private var lastSavedAt: Date?
     private var didRecordHistory = false
 
@@ -91,6 +118,7 @@ public final class PlayerController: ObservableObject {
         resolver: PlaybackEngineResolver,
         progress: PlaybackProgressRepository,
         history: WatchHistoryRepository,
+        preferences: PlaybackPreferences? = nil,
         nowPlaying: NowPlayingCenter? = nil,
         saveInterval: TimeInterval = 5,
         now: @escaping () -> Date = Date.init,
@@ -103,6 +131,10 @@ public final class PlayerController: ObservableObject {
         self.resolver = resolver
         self.progress = progress
         self.history = history
+        self.preferences = preferences
+        // Kullanıcının son seçtiği yerleşimle başla — her yayında yeniden
+        // "ekranı doldur" demek zorunda kalmasın.
+        self.videoFit = preferences?.videoFit ?? .fit
         self.nowPlaying = nowPlaying ?? NowPlayingCenter()
         self.saveInterval = saveInterval
         self.now = now
@@ -115,14 +147,51 @@ public final class PlayerController: ObservableObject {
     public func start(_ requested: PlaybackItem) async {
         didAttemptFallback = false
         didRecordHistory = false
+        reconnectAttempts = 0
         lastSavedAt = nil
+        openStartedAt = now()
 
         let prepared = await withResumePosition(requested)
         item = prepared
-        decision = resolver.decide(for: prepared.format)
+        let wanted = resolver.decide(for: prepared.format)
 
         attachRemoteCommands(isLive: prepared.isLive)
+
+        // ⚠️ KANAL GEÇİŞ HIZI: aynı motor zaten çalışıyorsa **yeniden
+        // kurulmuyor**, yalnızca yeni içerik yükleniyor.
+        //
+        // Her geçişte yeni motor üretmek şunları da beraberinde getiriyordu:
+        // eski motorun `teardown`'ı (VLC'de `stop()` ana iş parçacığını
+        // tıkar), yeni `AVPlayer`, ses oturumunun yeniden etkinleştirilmesi,
+        // PiP kontrolörünün yeniden kurulması ve `surfaceGeneration`
+        // arttığı için SwiftUI'ın video yüzeyini baştan yaratması.
+        // Zaplarken hepsi her kanalda tekrarlanıyordu.
+        if let engine, wanted == decision {
+            await reload(prepared, on: engine)
+            return
+        }
+
+        decision = wanted
         await attach(resolver.makeEngine(for: prepared.format), loading: prepared)
+    }
+
+    /// Çalışan motora yeni içerik yükler.
+    ///
+    /// Motor korunuyor ama **içeriğe ait yayınlanmış durum sıfırlanmalı**:
+    /// aksi hâlde yeni kanalda bir önceki yayının izleri, süresi ve
+    /// en-boy oranı ekranda asılı kalır.
+    private func reload(_ target: PlaybackItem, on engine: PlaybackEngine) async {
+        audioTracks = []
+        subtitleTracks = []
+        selectedAudioTrack = nil
+        selectedSubtitleTrack = nil
+        aspectRatio = nil
+        time = .zero
+        canUsePictureInPicture = false
+        rate = 1.0
+
+        await engine.load(target)
+        engine.play()
     }
 
     /// Kilit ekranı düğmelerini bu oturuma bağlar.
@@ -164,6 +233,7 @@ public final class PlayerController: ObservableObject {
 
         engine = newEngine
         engineIdentifier = newEngine.identifier
+        surfaceGeneration += 1
         supportsAirPlay = newEngine.supportsAirPlay
         canUsePictureInPicture = false
         rate = 1.0
@@ -262,6 +332,8 @@ public final class PlayerController: ObservableObject {
 
     public func toggleVideoFit() {
         videoFit = videoFit.toggled
+        // Seçim kalıcı: bir sonraki yayında da aynı yerleşimle açılsın.
+        preferences?.videoFit = videoFit
         engine?.setVideoFit(videoFit)
     }
 
@@ -276,7 +348,14 @@ public final class PlayerController: ObservableObject {
         switch event {
         case .stateChanged(let newState):
             state = newState
-            if newState == .playing { recordHistoryOnce() }
+            if newState == .playing {
+                reportOpenDuration()
+                recordHistoryOnce()
+                // ⚠️ Sıfırlama şart: saatlerce izlenen bir kanalda arada
+                // yaşanan kopmalar birikip hakkı tüketirdi. Sayaç
+                // "art arda başarısız deneme" sayar, "toplam kopma" değil.
+                reconnectAttempts = 0
+            }
             // Yalnızca gerçekten oynarken: duraklatılmış bir videonun
             // başında uyuyakalan kullanıcının pili bitmemeli.
             setScreenAwake(newState == .playing)
@@ -306,26 +385,87 @@ public final class PlayerController: ObservableObject {
         }
     }
 
-    /// Native motor açamadı — yedeği dene.
+    /// Önce yedek motoru dene, o da yoksa canlı yayında yeniden bağlan.
     private func handleFailure(_ error: AppError) async {
-        guard
+        if
             !didAttemptFallback,
+            // Kullanıcı yedek motoru kapattıysa hiç denenmez — teşhis için
+            // bilinçli bir seçim (bkz. `PlaybackPreferences.useFallbackEngine`).
+            preferences?.useFallbackEngine ?? true,
             resolver.canRetryWithFallback(after: decision),
             let fallback = resolver.makeRuntimeFallbackEngine(),
             let target = item
-        else {
-            // Yedek yok ya da o da başarısız: hata zaten `state`'te.
-            Log.playback.error("Oynatma başarısız, yedek denenemedi")
+        {
+            didAttemptFallback = true
+            decision = .fallback
+            Log.playback.notice("Native motor açamadı, yedeğe geçiliyor: \(String(describing: error))")
+
+            // Kaldığı yer korunur: kullanıcı motor değiştiğini fark etmemeli.
+            let resumed = target.resuming(at: time.current > 1 ? time.current : target.resumeAt)
+            await attach(fallback, loading: resumed)
             return
         }
 
-        didAttemptFallback = true
-        decision = .fallback
-        Log.playback.notice("Native motor açamadı, yedeğe geçiliyor: \(String(describing: error))")
+        await reconnectIfLive()
+    }
 
-        // Kaldığı yer korunur: kullanıcı motor değiştiğini fark etmemeli.
-        let resumed = target.resuming(at: time.current > 1 ? time.current : target.resumeAt)
-        await attach(fallback, loading: resumed)
+    /// Kopan canlı yayına sessizce yeniden bağlanır.
+    ///
+    /// ## Neden gerekli?
+    /// IPTV'de anlık kopma olağan: sunucu segmenti geciktirir, bağlantı
+    /// düşer, kanal bir an kapanır. Kullanıcıya hemen hata ekranı gösterip
+    /// "Tekrar dene" düğmesine bastırmak, elle yapılabilecek bir işi ona
+    /// yıkmak olur — kopmaların çoğu birkaç saniyede kendiliğinden düzelir.
+    ///
+    /// ⚠️ Yalnızca **canlı** yayında: VOD'da kopma genelde kalıcı bir
+    /// sebeptendir (dosya yok, abonelik bitti) ve sessizce tekrar denemek
+    /// sorunu gizler.
+    ///
+    /// ⚠️ Deneme sayısı sınırlı ve gecikme artıyor: ölü bir kanalda sonsuz
+    /// döngüye girip sunucuyu dövmemek için.
+    private func reconnectIfLive() async {
+        guard
+            let target = item, target.isLive,
+            reconnectAttempts < maxReconnectAttempts,
+            engine != nil
+        else {
+            Log.playback.error("Oynatma başarısız, yeniden bağlanılamadı")
+            return
+        }
+
+        reconnectAttempts += 1
+        let attempt = reconnectAttempts
+
+        // Hata ekranı yerine spinner: kullanıcı için bu bir kesinti değil,
+        // tamponlama gibi görünmeli.
+        state = .buffering
+        Log.playback.notice("Canlı yayın koptu, yeniden bağlanılıyor (\(attempt))")
+
+        try? await Task.sleep(for: .seconds(2 * attempt))
+
+        // Bekleme sırasında ekran kapanmış ya da kanal değişmiş olabilir.
+        guard
+            !Task.isCancelled,
+            let engine,
+            let current = item, current.url == target.url
+        else { return }
+
+        await reload(current, on: engine)
+    }
+
+    /// İlk kareye kadar geçen süreyi bir kez yazar.
+    ///
+    /// Hangi motorun açtığı da yazılıyor: yedeğe düşülen kanallarda süre
+    /// doğal olarak uzundur (önce native denenir), bu ayrım olmadan sayı
+    /// yanıltıcı olur.
+    private func reportOpenDuration() {
+        guard let openStartedAt else { return }
+        self.openStartedAt = nil
+
+        let elapsed = Int(now().timeIntervalSince(openStartedAt) * 1000)
+        Log.playback.notice(
+            "Açılış: \(elapsed) ms · motor \(self.engineIdentifier, privacy: .public)"
+        )
     }
 
     private func refreshNowPlaying() {

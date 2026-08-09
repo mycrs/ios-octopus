@@ -1,0 +1,108 @@
+import Foundation
+import Combine
+import OctopusDomain
+
+/// Kullanıcının oynatma tercihleri.
+///
+/// ⚠️ Buraya **yalnızca gerçekten bir davranışı değiştiren** ayar girer.
+/// İşlevsiz bir anahtar, hiç olmayan anahtardan kötüdür: kullanıcı
+/// denediğinde bir şey değişmeyince uygulamanın tamamına güveni sarsılır.
+/// Her alanın karşılığı yorumda yazılı.
+///
+/// `UserDefaults`: tercihler cihaza ait, hesaba değil — panel değişse de
+/// kullanıcının seçtiği tampon süresi onun telefonu için doğru kalır.
+@MainActor
+public final class PlaybackPreferences: ObservableObject {
+
+    /// Canlı yayında ilk kareden önce doldurulacak tampon.
+    ///
+    /// Doğrudan **kanal geçiş hızıdır**: tampon ne kadar büyükse yayın o
+    /// kadar geç açılır ama takılma o kadar az olur. Bağlantısı iyi olan
+    /// kullanıcı "Hızlı"yı, dalgalı hatta olan "Kararlı"yı ister.
+    public enum LiveBuffer: String, CaseIterable, Identifiable, Sendable {
+        case fast
+        case balanced
+        case stable
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .fast: return "Hızlı"
+            case .balanced: return "Dengeli"
+            case .stable: return "Kararlı"
+            }
+        }
+
+        public var detail: String {
+            switch self {
+            case .fast: return "En kısa açılış, dalgalı hatta takılabilir"
+            case .balanced: return "Önerilen"
+            case .stable: return "Geç açılır, en az takılma"
+            }
+        }
+
+        /// VLC `network-caching` değeri ve AVPlayer tampon hedefi.
+        public var milliseconds: Int {
+            switch self {
+            case .fast: return 700
+            case .balanced: return 1500
+            case .stable: return 3000
+            }
+        }
+
+        public var seconds: TimeInterval { Double(milliseconds) / 1000 }
+    }
+
+    /// Görüntünün çerçeveye yerleşimi — oynatıcıdaki düğme bunu değiştirir
+    /// ve seçim burada kalıcılaşır (her yayında yeniden seçmek gerekmesin).
+    @Published public var videoFit: VideoFit {
+        didSet { store.set(videoFit.rawValue, forKey: Keys.videoFit) }
+    }
+
+    /// Canlı tampon süresi. Motorlar `load()` sırasında okur.
+    @Published public var liveBuffer: LiveBuffer {
+        didSet { store.set(liveBuffer.rawValue, forKey: Keys.liveBuffer) }
+    }
+
+    /// Kopan canlı yayına sessizce yeniden bağlanılsın mı?
+    ///
+    /// Kapatıldığında `PlayerController` ilk kopmada hata gösterir.
+    @Published public var autoReconnect: Bool {
+        didSet { store.set(autoReconnect, forKey: Keys.autoReconnect) }
+    }
+
+    /// AVPlayer açamadığında yedek motor (VLC) denensin mi?
+    ///
+    /// ⚠️ Kapatmak **UHD/HEVC kanalları kaybettirir** ama teşhis için
+    /// değerli: sorunun yedek motorda mı yoksa yayında mı olduğu ancak
+    /// böyle ayrılıyor.
+    @Published public var useFallbackEngine: Bool {
+        didSet { store.set(useFallbackEngine, forKey: Keys.useFallbackEngine) }
+    }
+
+    private enum Keys {
+        static let videoFit = "playback.videoFit"
+        static let liveBuffer = "playback.liveBuffer"
+        static let autoReconnect = "playback.autoReconnect"
+        static let useFallbackEngine = "playback.useFallbackEngine"
+    }
+
+    private let store: UserDefaults
+
+    public init(store: UserDefaults = .standard) {
+        self.store = store
+
+        let rawFit = store.string(forKey: Keys.videoFit) ?? VideoFit.fit.rawValue
+        self.videoFit = VideoFit(rawValue: rawFit) ?? .fit
+
+        let rawBuffer = store.string(forKey: Keys.liveBuffer) ?? LiveBuffer.balanced.rawValue
+        self.liveBuffer = LiveBuffer(rawValue: rawBuffer) ?? .balanced
+
+        // ⚠️ `object(forKey:)` kontrolü şart: `bool(forKey:)` kayıt yokken
+        // `false` döner ve iki özellik de kapalı başlardı. Varsayılanları
+        // **açık** olmalı.
+        self.autoReconnect = store.object(forKey: Keys.autoReconnect) as? Bool ?? true
+        self.useFallbackEngine = store.object(forKey: Keys.useFallbackEngine) as? Bool ?? true
+    }
+}

@@ -18,6 +18,9 @@ public struct PlayerDependencies {
     /// düşebilir — kilit o yoldan atlatılmış olur.
     public let parental: ParentalControlling
 
+    /// Kullanıcının Ayarlar'daki oynatma tercihleri.
+    public let preferences: PlaybackPreferences?
+
     public init(
         resolver: PlaybackEngineResolver,
         streams: StreamResolving,
@@ -26,8 +29,10 @@ public struct PlayerDependencies {
         channels: ChannelRepository,
         vod: VODRepository,
         series: SeriesRepository,
+        preferences: PlaybackPreferences? = nil,
         parental: ParentalControlling = OpenParentalControl()
     ) {
+        self.preferences = preferences
         self.resolver = resolver
         self.streams = streams
         self.progress = progress
@@ -76,7 +81,8 @@ public struct PlayerScreen: View {
             wrappedValue: PlayerController(
                 resolver: dependencies.resolver,
                 progress: dependencies.progress,
-                history: dependencies.history
+                history: dependencies.history,
+                preferences: dependencies.preferences
             )
         )
     }
@@ -122,10 +128,31 @@ public struct PlayerScreen: View {
             // ⚠️ `.id`: motor değiştiğinde (native → VLC) yüzey baştan
             // kurulmalı; aynı görünüm yeniden kullanılırsa yeni motorun
             // katmanı hiç eklenmez ve ekran siyah kalır.
+            // ⚠️ `.id`: her yeni motorda yüzey baştan kurulmalı; aynı
+            // görünüm yeniden kullanılırsa yeni motorun katmanı hiç
+            // eklenmez ve ekran siyah kalır. Kanal zaplarken motor tipi
+            // aynı (AVPlayer → AVPlayer) ama **örnek** yeni olduğu için
+            // kimlik dizgesi yetmiyor (bkz. `surfaceGeneration`).
+            // ⚠️ `.id`: her yeni motorda yüzey baştan kurulmalı. Kanal
+            // zaplarken motor tipi aynı (AVPlayer → AVPlayer) ama **örnek**
+            // yeni olduğu için kimlik dizgesi yetmiyor (bkz. `surfaceGeneration`).
             VideoSurfaceView(makeSurface: controller.makeVideoView)
-                .id(controller.engineIdentifier)
+                .id(controller.surfaceGeneration)
                 .ignoresSafeArea()
 
+            // 🐞 AÇIK SORUN — VLC motorunda bu katman GÖRÜNMÜYOR.
+            // Ölçüldü: dokunma ulaşıyor, `showsControls` `true` oluyor,
+            // ama hiçbir şey çizilmiyor. VLC'nin `VLCOpenGLES2VideoView`'ı
+            // SwiftUI içeriğinin önünde kompozit ediliyor.
+            // Denenip **işe yaramayanlar**: `zIndex`, `.overlay`,
+            // yüzeyde `isUserInteractionEnabled = false`, güvenli alanı
+            // yığına taşımak. AVPlayer'da sorun yok.
+            //
+            // 🔍 İPUCU: Canlı TV'deki mini oynatıcı **aynı motorla**
+            // katmanını sorunsuz çiziyor. Fark: orada yüzey `aspectRatio`
+            // ile sınırlı ve tüm ekranı kaplamıyor. Çözüm bu izden
+            // sürülmeli; muhtemel çıkış denetimleri `UIHostingController`
+            // ile VLC görünümünün üstüne UIKit tarafında eklemek.
             if case .failed(let error) = controller.state {
                 playbackFailure(error, item: item)
             } else {

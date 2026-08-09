@@ -2,6 +2,7 @@ import SwiftUI
 import OctopusDomain
 import OctopusDesignSystem
 import OctopusNavigation
+import OctopusPlayback
 
 public struct SettingsDependencies {
     public let playlists: PlaylistRepository
@@ -40,6 +41,9 @@ public struct SettingsScreen: View {
     @StateObject var viewModel: SettingsViewModel
     @EnvironmentObject var router: AppRouter
     @EnvironmentObject var theme: ThemeController
+    /// Oynatma tercihleri — `ThemeController` ile aynı desen: tek örnek,
+    /// ortamdan geliyor, değişince oynatıcı bir sonraki yayında uyguluyor.
+    @EnvironmentObject var playback: PlaybackPreferences
 
     let contact: ContactChannels
     @State var confirmingAction: DataAction?
@@ -84,6 +88,7 @@ public struct SettingsScreen: View {
 
                     sourceSection
                     appearanceSection
+                    playbackSection
                     startupSection
                     parentalSection
                     dataSection
