@@ -16,16 +16,35 @@ public struct OnboardingDependencies {
     public let activation: ActivationRedeeming
     public let sync: ContentSyncing
 
+    /// Panel elle girişe (Xtream/M3U formu) izin veriyor mu?
+    ///
+    /// ⚠️ Kapanış olarak alınıyor, düz `Bool` olarak değil: panel
+    /// yapılandırması ekran açıldıktan **sonra** gelebiliyor. Sabit bir
+    /// değer kopyalansaydı ilk açılışta hep varsayılan görünürdü.
+    public let isManualLoginEnabled: @MainActor () -> Bool
+
+    /// Aktivasyon kodu bayinin markasını da getiriyor (renk, ad, logo).
+    ///
+    /// ⚠️ Bu bilgi ayrıştırılıyordu ama **hiçbir yere uygulanmıyordu**:
+    /// bayinin rengi yalnızca `app-config` üzerinden gelirse geçerliydi,
+    /// koda gömülü marka yok sayılıyordu. Kapanış olarak alınıyor ki
+    /// feature modülü tema denetleyicisini tanımak zorunda kalmasın.
+    public let onBrandingResolved: @MainActor (BrandConfiguration) -> Void
+
     public init(
         playlists: PlaylistRepository,
         validator: PlaylistValidating,
         activation: ActivationRedeeming,
-        sync: ContentSyncing
+        sync: ContentSyncing,
+        isManualLoginEnabled: @escaping @MainActor () -> Bool = { true },
+        onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in }
     ) {
+        self.onBrandingResolved = onBrandingResolved
         self.playlists = playlists
         self.validator = validator
         self.activation = activation
         self.sync = sync
+        self.isManualLoginEnabled = isManualLoginEnabled
     }
 }
 

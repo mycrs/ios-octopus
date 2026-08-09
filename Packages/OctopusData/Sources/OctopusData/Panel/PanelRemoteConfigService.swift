@@ -88,8 +88,14 @@ struct RemoteAppConfigDTO: Codable {
 
     @Lenient var announcementEnabled: Bool?
     @Lenient var announcementMessage: String?
+    /// ⚠️ Panel bu alanı **`maintenance`** diye gönderiyor; kod
+    /// `maintenance_mode` bekliyordu ve bakım modu hiç tetiklenmiyordu.
+    /// Eski paneller `maintenance_mode` gönderebileceği için ikisi de okunuyor.
+    @Lenient var maintenance: Bool?
     @Lenient var maintenanceMode: Bool?
     @Lenient var maintenanceMessage: String?
+    /// Sunucu/kullanıcı/parola ile giriş açık mı? (Bayi kapatabiliyor.)
+    @Lenient var xtreamLoginEnabled: Bool?
     @Lenient var whatsappUrl: String?
     @Lenient var telegramUrl: String?
     @Lenient var websiteUrl: String?
@@ -110,8 +116,10 @@ struct RemoteAppConfigDTO: Codable {
         case theme
         case announcementEnabled = "announcement_enabled"
         case announcementMessage = "announcement_message"
+        case maintenance
         case maintenanceMode = "maintenance_mode"
         case maintenanceMessage = "maintenance_message"
+        case xtreamLoginEnabled = "xtream_login_enabled"
         case whatsappUrl = "whatsapp_url"
         case telegramUrl = "telegram_url"
         case websiteUrl = "website_url"
@@ -126,7 +134,9 @@ struct RemoteAppConfigDTO: Codable {
             ? announcementMessage.flatMap { Announcement(message: $0) }
             : nil
 
-        let gate: ServiceGate = (maintenanceMode == true)
+        // İkisinden biri açıksa bakım modu: panel sürümüne göre alan adı değişiyor.
+        let isUnderMaintenance = (maintenance == true) || (maintenanceMode == true)
+        let gate: ServiceGate = isUnderMaintenance
             ? .maintenance(message: maintenanceMessage)
             : .open
 
@@ -144,6 +154,8 @@ struct RemoteAppConfigDTO: Codable {
                 telegramURL: telegramUrl.flatMap { URL(string: $0) },
                 websiteURL: websiteUrl.flatMap { URL(string: $0) }
             ),
+            // Panel bilgi vermiyorsa açık kabul edilir (bkz. Domain).
+            isXtreamLoginEnabled: xtreamLoginEnabled ?? true,
             fetchedAt: fetchedAt
         )
     }

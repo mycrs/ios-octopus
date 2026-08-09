@@ -70,6 +70,29 @@ public struct PlaylistDraft: Equatable, Sendable {
                 ? (url.host ?? "M3U")
                 : trimmedName
 
+            // ⚠️ Yapıştırılan adres bir Xtream hesabı taşıyorsa
+            // (`get.php?username=…&password=…`) kaynak **Xtream olarak**
+            // kurulur. M3U olarak kurmak tüm kataloğu tek dosyada
+            // indirmek demek; aynı hesap Xtream API'sinde sayfalı geliyor
+            // (bkz. `XtreamLink`).
+            if let credentials = XtreamLink.credentials(from: url) {
+                return (
+                    Playlist(
+                        id: id,
+                        name: trimmedName.isEmpty
+                            ? (credentials.host.host ?? displayName)
+                            : trimmedName,
+                        kind: .xtream(
+                            host: credentials.host,
+                            username: credentials.username
+                        ),
+                        epgURL: epgURL,
+                        createdAt: createdAt
+                    ),
+                    credentials.password
+                )
+            }
+
             return (
                 Playlist(
                     id: id,

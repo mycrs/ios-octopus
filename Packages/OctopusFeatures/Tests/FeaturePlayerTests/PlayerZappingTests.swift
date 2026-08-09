@@ -261,4 +261,5 @@ private struct StubSeries: SeriesRepository {
     func loadDetails(id: Series.ID) async throws {}
     func invalidateDetails(id: Series.ID) async throws {}
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
+    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
 }

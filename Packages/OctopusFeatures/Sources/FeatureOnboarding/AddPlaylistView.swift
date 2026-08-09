@@ -44,6 +44,9 @@ public struct AddPlaylistView: View {
         .onChange(of: viewModel.step) { step in
             if step == .done { onFinished() }
         }
+        // Panel yapılandırması ekran açıldıktan sonra da gelebilir;
+        // kapatılmış bir form seçili kalmasın.
+        .onAppear { viewModel.reconcileSourceKind() }
     }
 
     // MARK: - Bölümler
@@ -59,14 +62,22 @@ public struct AddPlaylistView: View {
         }
     }
 
+    /// ⚠️ Tek seçenek kalınca seçici **hiç çizilmiyor**: bayi elle girişi
+    /// kapattığında geriye yalnızca aktivasyon kodu kalır ve tek düğmeli
+    /// bir segment kontrolü, olmayan bir seçim varmış gibi görünür.
+    @ViewBuilder
     private var sourcePicker: some View {
-        Picker("Kaynak türü", selection: $viewModel.sourceKind) {
-            ForEach(AddPlaylistViewModel.SourceKind.allCases) { kind in
-                Text(kind.title).tag(kind)
+        let kinds = viewModel.availableSourceKinds
+
+        if kinds.count > 1 {
+            Picker("Kaynak türü", selection: $viewModel.sourceKind) {
+                ForEach(kinds) { kind in
+                    Text(kind.title).tag(kind)
+                }
             }
+            .pickerStyle(.segmented)
+            .disabled(viewModel.step.isBusy)
         }
-        .pickerStyle(.segmented)
-        .disabled(viewModel.step.isBusy)
     }
 
     @ViewBuilder

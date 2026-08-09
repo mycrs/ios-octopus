@@ -11,6 +11,15 @@ public struct RemoteAppConfig: Equatable, Sendable {
     public var gate: ServiceGate
     public var branding: BrandConfiguration
     public var contact: ContactChannels
+
+    /// Kullanıcı sunucu/kullanıcı/parola girerek kaynak ekleyebilir mi?
+    ///
+    /// ⚠️ Bayiler bunu kapatıyor: müşterinin yalnızca aktivasyon koduyla
+    /// girmesini isterler, aksi hâlde panel bilgileri elden ele dolaşır.
+    /// Panel bilgisi gelmeden **açık** varsayılır — yapılandırma
+    /// çekilemediğinde kullanıcıyı uygulamaya hiç sokmamak olmaz.
+    public var isXtreamLoginEnabled: Bool
+
     /// Yapılandırmanın çekildiği an — bayatlık denetimi için.
     public var fetchedAt: Date
 
@@ -19,12 +28,14 @@ public struct RemoteAppConfig: Equatable, Sendable {
         gate: ServiceGate = .open,
         branding: BrandConfiguration = .default,
         contact: ContactChannels = .empty,
+        isXtreamLoginEnabled: Bool = true,
         fetchedAt: Date
     ) {
         self.announcement = announcement
         self.gate = gate
         self.branding = branding
         self.contact = contact
+        self.isXtreamLoginEnabled = isXtreamLoginEnabled
         self.fetchedAt = fetchedAt
     }
 }

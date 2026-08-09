@@ -122,6 +122,16 @@ public protocol SeriesRepository: Sendable {
     func invalidateDetails(id: Series.ID) async throws
 
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series]
+
+    /// Son eklenen diziler — ana sayfadaki raf bunu gösterir.
+    ///
+    /// ⚠️ Sıralama `lastModified`'a göre: filmlerdeki gibi bir `addedAt`
+    /// alanı **yok**. Xtream `get_series` yalnızca `last_modified` veriyor;
+    /// panel yeni bölüm eklediğinde de bu alan güncelleniyor, dolayısıyla
+    /// raf "yeni eklenen" kadar "yeni bölüm gelen" dizileri de gösterir.
+    /// Kullanıcı açısından ikisi de "yeni" — ayırmaya çalışmak veri
+    /// olmadan mümkün değil.
+    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series]
 }
 
 // MARK: - EPG

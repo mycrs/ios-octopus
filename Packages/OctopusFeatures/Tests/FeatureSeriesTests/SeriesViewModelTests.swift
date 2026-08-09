@@ -193,6 +193,7 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] {
         searchResults
     }
+    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
 }
 
 private final class StubFavorites: FavoritesRepository, @unchecked Sendable {

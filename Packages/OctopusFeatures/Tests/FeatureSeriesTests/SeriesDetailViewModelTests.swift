@@ -222,6 +222,7 @@ private final class DetailStubSeries: SeriesRepository, @unchecked Sendable {
     func invalidateDetails(id: Series.ID) async throws { invalidateCount += 1 }
 
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
+    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
 }
 
 private final class DetailStubFavorites: FavoritesRepository, @unchecked Sendable {

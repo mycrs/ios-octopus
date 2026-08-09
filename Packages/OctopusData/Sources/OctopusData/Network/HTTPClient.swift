@@ -8,11 +8,45 @@ import OctopusDomain
 /// Faz 2'de bir sarmalayıcı, ölü sunucuda yedek adrese geçecek.
 public protocol HTTPClient: Sendable {
     func get(_ url: URL, headers: [String: String]) async throws -> Data
+
+    /// Gövdeli istek.
+    ///
+    /// ⚠️ Durum kodu **fırlatılmıyor, döndürülüyor**. Panel bazı hataları
+    /// 4xx gövdesinde açıklıyor (`{"error":"invalid_code_format"}`);
+    /// koda bakıp gövdeyi atmak, kullanıcıya sebebi yerine
+    /// "beklenmeyen durum kodu 400" demek olurdu.
+    func post(_ url: URL, body: Data, headers: [String: String]) async throws -> HTTPResponse
+}
+
+/// Gövde + durum kodu.
+public struct HTTPResponse: Sendable {
+
+    public let data: Data
+    public let statusCode: Int
+
+    public init(data: Data, statusCode: Int) {
+        self.data = data
+        self.statusCode = statusCode
+    }
+
+    public var isSuccess: Bool { (200...299).contains(statusCode) }
 }
 
 extension HTTPClient {
     public func get(_ url: URL) async throws -> Data {
         try await get(url, headers: [:])
+    }
+
+    /// POST'u ayrıca uygulamayan istemciler (test sahteleri) için varsayılan.
+    ///
+    /// İsteği `get`'e devrediyor: sahteler tek bir kapanışla cevap üretiyor
+    /// ve bu sayede POST'a geçen uçların testleri değişmeden çalışıyor.
+    public func post(
+        _ url: URL,
+        body: Data,
+        headers: [String: String]
+    ) async throws -> HTTPResponse {
+        HTTPResponse(data: try await get(url, headers: headers), statusCode: 200)
     }
 }
 
@@ -91,6 +125,46 @@ public struct URLSessionHTTPClient: HTTPClient {
                 )
             }
         }
+    }
+
+    /// Gerçek POST.
+    ///
+    /// ⚠️ Yeniden deneme **yok**: bu yol aktivasyon gibi "tek deneme"
+    /// uçları için var ve panel tekrarlanan denemeleri cezalandırıyor.
+    /// Durum kodu da fırlatılmıyor (bkz. `HTTPClient.post`).
+    public func post(
+        _ url: URL,
+        body: Data,
+        headers: [String: String]
+    ) async throws -> HTTPResponse {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.httpBody = body
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        for (key, value) in defaultHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        for (key, value) in headers {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch {
+            throw AppError.wrap(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw AppError.invalidResponse(reason: "HTTP olmayan cevap")
+        }
+
+        return HTTPResponse(data: data, statusCode: httpResponse.statusCode)
     }
 
     private func perform(url: URL, headers: [String: String]) async throws -> Data {

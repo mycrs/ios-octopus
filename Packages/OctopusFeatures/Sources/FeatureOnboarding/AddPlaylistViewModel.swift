@@ -25,6 +25,39 @@ public final class AddPlaylistViewModel: ObservableObject {
             case .m3u: return "M3U"
             }
         }
+
+        /// Panelin "elle giriş" bayrağı bu türü kapsıyor mu?
+        ///
+        /// Bayi kapattığında kullanıcı yalnızca aktivasyon koduyla
+        /// girebilir; sunucu bilgileri elden ele dolaşmasın diye.
+        var requiresManualLogin: Bool {
+            self != .activationCode
+        }
+    }
+
+    /// Panel elle girişe izin veriyor mu?
+    public var isManualLoginEnabled: Bool {
+        dependencies.isManualLoginEnabled()
+    }
+
+    /// Seçilebilecek kaynak türleri.
+    ///
+    /// ⚠️ Panel `xtream_login_enabled: false` derse elle giriş türleri
+    /// listeden **çıkarılır**. Bu bayrak okunmuyordu: bayi kapatsa bile
+    /// uygulama Xtream ve M3U formlarını göstermeye devam ediyordu.
+    public var availableSourceKinds: [SourceKind] {
+        isManualLoginEnabled
+            ? SourceKind.allCases
+            : SourceKind.allCases.filter { !$0.requiresManualLogin }
+    }
+
+    /// Seçili tür artık sunulmuyorsa aktivasyon koduna döner.
+    ///
+    /// Ekran açıkken panel yapılandırması gelebilir; kapatılmış bir formda
+    /// kullanıcı yazmaya devam ederse doğrulama sırasında reddedilirdi.
+    public func reconcileSourceKind() {
+        guard !availableSourceKinds.contains(sourceKind) else { return }
+        sourceKind = .activationCode
     }
 
     /// Akışın hangi adımda olduğu.
@@ -176,6 +209,13 @@ public final class AddPlaylistViewModel: ObservableObject {
             do {
                 let result = try await dependencies.activation.redeem(code: activationCode)
                 customerName = result.customerName
+
+                // Bayinin markası (renk, ad, logo) koddan geliyor; hemen
+                // uygulanır ki kullanıcı daha kurulum biterken kendi
+                // bayisinin rengini görsün.
+                if let branding = result.branding {
+                    dependencies.onBrandingResolved(branding)
+                }
                 let playlist = Playlist(
                     id: makeID(),
                     name: result.displayName,

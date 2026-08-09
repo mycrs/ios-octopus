@@ -15,20 +15,29 @@ final class PanelActivationTests: XCTestCase {
 
     // MARK: - Kod normalizasyonu
 
-    func test_codeIsNormalizedBeforeSending() {
-        // Kullanıcı küçük harf ve boşlukla yazabilir.
-        XCTAssertEqual(PanelActivationService.normalizeCode("abc-123"), "ABC-123")
-        XCTAssertEqual(PanelActivationService.normalizeCode("  abc 123  "), "ABC123")
+    func test_onlyWhitespaceIsStripped() {
+        // ⚠️ Harf büyüklüğü **korunur**: panel kodları büyük/küçük harfe
+        // duyarlı olabilir ve çevirmek doğru kodu bozardı.
+        XCTAssertEqual(PanelActivationService.normalizeCode("abc-123"), "abc-123")
+        XCTAssertEqual(PanelActivationService.normalizeCode("  aBc 123  "), "aBc123")
     }
 
-    func test_invalidCodeFormatsAreRejectedWithoutNetwork() {
+    func test_onlyEmptyInputIsRejectedWithoutNetwork() {
         XCTAssertNil(PanelActivationService.normalizeCode(""))
-        XCTAssertNil(PanelActivationService.normalizeCode("ab"), "Çok kısa")
-        XCTAssertNil(PanelActivationService.normalizeCode("KOD@123"), "Geçersiz karakter")
-        XCTAssertNil(PanelActivationService.normalizeCode(String(repeating: "A", count: 41)))
+        XCTAssertNil(PanelActivationService.normalizeCode("a"), "Tek karakter kazara dokunuş")
+
+        // Alışılmadık karakterler ve uzunluklar **panele bırakılır**:
+        // hangi kodun geçerli olduğuna uygulama karar veremez.
+        XCTAssertEqual(PanelActivationService.normalizeCode("KOD@123"), "KOD@123")
+        XCTAssertNotNil(PanelActivationService.normalizeCode(String(repeating: "A", count: 41)))
     }
 
-    func test_invalidFormatThrowsBeforeRequest() async {
+    /// ⚠️ Yalnızca **boş** girdi ağa çıkmadan elenir.
+    ///
+    /// Eskiden karakter süzgeci vardı ve "@@" gibi girdiler yerel olarak
+    /// reddediliyordu; bu, panelin ürettiği ama bizim beklemediğimiz
+    /// biçimdeki kodları da eliyordu. Geçerliliğe panel karar verir.
+    func test_emptyCodeThrowsBeforeRequest() async {
         let box = LockedBox(0)
         let service = PanelActivationService(
             httpClient: StubHTTPClient { _ in
@@ -38,11 +47,11 @@ final class PanelActivationTests: XCTestCase {
         )
 
         do {
-            _ = try await service.redeem(code: "@@")
-            XCTFail("Geçersiz biçim reddedilmeliydi")
+            _ = try await service.redeem(code: "   ")
+            XCTFail("Boş kod reddedilmeliydi")
         } catch {
             XCTAssertEqual(error as? ActivationError, .invalidFormat)
-            XCTAssertEqual(box.get(), 0, "Bariz hatalı kod için ağa çıkılmamalı")
+            XCTAssertEqual(box.get(), 0, "Boş kod için ağa çıkılmamalı")
         }
     }
 
@@ -117,6 +126,64 @@ final class PanelActivationTests: XCTestCase {
         XCTAssertEqual(url.absoluteString, "http://liste.example.com/p.m3u")
         XCTAssertNil(result.password, "M3U kaynağında parola olmaz")
         XCTAssertEqual(result.displayName, "Liste")
+    }
+
+    /// Panelin **gerçekte** gönderdiği biçim: alanlar `playlist` nesnesinin içinde.
+    ///
+    /// ⚠️ Bu yapı canlı panelden alındı. Alanlar bir dönem yalnızca en üst
+    /// seviyede aranıyordu; panel kodu kabul ettiği hâlde "Aktivasyon
+    /// bilgileri eksik" hatası veriliyor ve kullanıcı kaynak ekleyemiyordu.
+    /// Test bu yüzden var: yapı bir daha sessizce kaymasın.
+    func test_parsesNestedPlaylistPayload() throws {
+        let result = try PanelActivationService.parse(json("""
+            {"success":true,
+             "playlist":{"playlist_type":"m3u","playlist_name":"Liste",
+                         "m3u_url":"http://ornek.example.com:8080/get.php?username=u&password=p&type=m3u_plus",
+                         "playlist_protected":false,"playlist_pin":""},
+             "theme":{"theme_key":"red_black","primary_color":"#E50914"}}
+            """))
+
+        // ⚠️ Panel "m3u" diyor ama adres Xtream kimliği taşıyor: kaynak
+        // **Xtream** olarak kurulmalı. M3U olarak kurulunca tüm katalog
+        // tek dosyada iniyordu (gerçekte 250 MB / 355 bin satır).
+        guard case .xtream(let host, let username) = result.kind else {
+            return XCTFail("Xtream'e çevrilmeliydi")
+        }
+        XCTAssertEqual(host.absoluteString, "http://ornek.example.com:8080")
+        XCTAssertEqual(username, "u")
+        XCTAssertEqual(result.password, "p", "Parola bağlantıdan alınmalı")
+        XCTAssertEqual(result.displayName, "Liste")
+        XCTAssertFalse(result.isProtected)
+    }
+
+    /// Kimlik taşımayan gerçek bir M3U bağlantısı M3U kalmalı.
+    func test_plainNestedM3UStaysM3U() throws {
+        let result = try PanelActivationService.parse(json("""
+            {"success":true,
+             "playlist":{"playlist_type":"m3u","playlist_name":"Liste",
+                         "m3u_url":"http://liste.example.com/kanallar.m3u"}}
+            """))
+
+        guard case .m3u = result.kind else { return XCTFail("M3U bekleniyordu") }
+        XCTAssertNil(result.password)
+    }
+
+    /// İç içe gelen Xtream bilgileri de okunmalı.
+    func test_parsesNestedXtreamPayload() throws {
+        let result = try PanelActivationService.parse(json("""
+            {"success":true,
+             "playlist":{"playlist_type":"xtream","display_name":"Ev",
+                         "server_url":"panel.example.com:8080",
+                         "username":"kullanici","password":"parola"}}
+            """))
+
+        guard case .xtream(let host, let username) = result.kind else {
+            return XCTFail("Xtream bekleniyordu")
+        }
+        XCTAssertEqual(host.absoluteString, "http://panel.example.com:8080")
+        XCTAssertEqual(username, "kullanici")
+        XCTAssertEqual(result.password, "parola")
+        XCTAssertEqual(result.displayName, "Ev")
     }
 
     func test_kindIsInferredWhenTypeMissing() throws {

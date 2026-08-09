@@ -70,6 +70,11 @@ final class AppContainer: ObservableObject {
     /// Marka rengini yönetir; panel ve kullanıcı seçimi burada birleşir.
     let themeController = ThemeController()
 
+    /// Oynatma tercihleri — hem Ayarlar ekranı düzenler, hem motorlar okur.
+    /// Tek örnek olmalı: iki kopya olsaydı ayarı değiştirmek oynatıcıya
+    /// ulaşmazdı (`ThemeController` ile aynı gerekçe).
+    let playbackPreferences = PlaybackPreferences()
+
     private var dismissedAnnouncementID: String? {
         get { UserDefaults.standard.string(forKey: "announcement.dismissed") }
         set { UserDefaults.standard.set(newValue, forKey: "announcement.dismissed") }
@@ -182,14 +187,38 @@ final class AppContainer: ObservableObject {
             startupFailure = .storage(reason: "Veritabanı açılamadı")
         }
 
-        // Motor zinciri: AVPlayer her zaman var, VLC yalnızca bağlıysa eklenir.
-        // VLC yoksa uygulama AVPlayer'la çalışmaya devam eder — çökmez.
+        // Motor zinciri: AVPlayer her zaman var, yedek motor bağlıysa eklenir.
+        // Hiçbiri yoksa uygulama AVPlayer'la çalışmaya devam eder — çökmez.
+        // Motorlar tercihleri **kendileri** okur (tampon süresi gibi
+        // değerler `load()` anında geçerli olmalı, kurulum anında değil).
+        let preferences = playbackPreferences
         engineResolver = PlaybackEngineResolver(
-            native: { AVPlayerEngine() },
-            fallback: VLCEngineFactory.isAvailable ? { VLCEngineFactory.makeEngine() } : nil
+            native: { AVPlayerEngine(preferences: preferences) },
+            fallback: Self.makeFallbackEngineFactory(preferences: preferences)
         )
 
-        Log.app.info("AppContainer hazır — yedek motor: \(VLCEngineFactory.isAvailable)")
+        Log.app.info("AppContainer hazır — yedek motor: \(Self.fallbackEngineName, privacy: .public)")
+    }
+
+    // MARK: - Yedek oynatma motoru
+
+    /// Yedek motor fabrikası.
+    ///
+    /// ⚠️ Bir dönem üçüncü motor (KSPlayer/FFmpeg) da bağlıydı ve **tek
+    /// satırla** seçilebiliyordu; UHD yayınlarında kütüphanenin kendi iz
+    /// ayrıştırması deterministik olarak çöktüğü için kaldırıldı
+    /// (bkz. `Docs/BRAIN.md`). Bırakılan ders: yeni bir motor eklemek
+    /// yalnızca burayı ve yeni modülü ilgilendirir — resolver, controller
+    /// ve ekranlar değişmez.
+    private static func makeFallbackEngineFactory(
+        preferences: PlaybackPreferences
+    ) -> PlaybackEngineResolver.EngineFactory? {
+        guard VLCEngineFactory.isAvailable else { return nil }
+        return { VLCEngineFactory.makeEngine(preferences: preferences) }
+    }
+
+    private static var fallbackEngineName: String {
+        VLCEngineFactory.isAvailable ? "VLC" : "yok"
     }
 
     /// Kalıcı veritabanını açar; olmazsa oturumluk belleğe düşer.
@@ -270,7 +299,17 @@ final class AppContainer: ObservableObject {
             playlists: playlists,
             validator: validator,
             activation: activation,
-            sync: sync
+            sync: sync,
+            // Panel elle girişi kapattıysa yalnızca aktivasyon kodu sunulur.
+            // Yapılandırma henüz gelmediyse açık kabul edilir — kullanıcıyı
+            // kaynak ekleyemez hâlde bırakmak en kötü seçenek.
+            isManualLoginEnabled: { [weak self] in
+                self?.appConfig?.isXtreamLoginEnabled ?? true
+            },
+            // Aktivasyon kodundan gelen bayi markasını uygula.
+            onBrandingResolved: { [weak self] branding in
+                self?.themeController.apply(branding: branding)
+            }
         )
     }
 
@@ -293,6 +332,13 @@ final class AppContainer: ObservableObject {
             epg: epg,
             favorites: favorites,
             history: history,
+            // Gömülü mini oynatıcı için — tam ekran oynatıcıyla **aynı**
+            // resolver ve akış çözücü kullanılır ki motor seçimi ve
+            // 403/kimlik davranışı iki yerde ayrışmasın.
+            resolver: engineResolver,
+            streams: streams,
+            progress: progress,
+            preferences: playbackPreferences,
             parental: parental
         )
     }
@@ -344,6 +390,7 @@ final class AppContainer: ObservableObject {
             channels: channels,
             vod: vod,
             series: series,
+            preferences: playbackPreferences,
             // Zaplama listesi de süzülmeli — yoksa kilit oynatıcıdan atlatılır.
             parental: parental
         )

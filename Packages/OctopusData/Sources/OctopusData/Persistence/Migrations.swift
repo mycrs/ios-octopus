@@ -29,6 +29,18 @@ extension AppDatabase {
             try createSearchIndexes(db)
         }
 
+        // Abonelik bitişi: `authenticate()` her senkronizasyonda zaten
+        // çağrılıyordu ama sonucu atılıyordu. Ana sayfadaki hero "kaç gün
+        // kaldı" bilgisini buradan okuyor.
+        //
+        // ⚠️ Ayrı migration: kolon `v1_katalog`'a eklenseydi mevcut
+        // kurulumlarda tablo hiç güncellenmezdi (v1 zaten uygulanmış sayılır).
+        migrator.registerMigration("v3_abonelik") { db in
+            try db.alter(table: "playlist") { t in
+                t.add(column: "expiresAt", .datetime)
+            }
+        }
+
         return migrator
     }
 

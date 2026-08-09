@@ -312,4 +312,5 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
         if let error { throw error }
         return results
     }
+    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
 }

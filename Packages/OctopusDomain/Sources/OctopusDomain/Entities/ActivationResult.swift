@@ -105,20 +105,26 @@ public protocol ActivationRedeeming: Sendable {
 }
 
 extension ActivationRedeeming {
-    /// Kod biçimi denetimi — ağa çıkmadan bariz hataları eler.
+    /// Kodu ağa gönderilecek hâle getirir.
     ///
-    /// Kodlar harf, rakam ve tire içerir; kullanıcı boşluk veya küçük harfle
-    /// yazabilir, bunlar normalleştirilir.
+    /// ⚠️ Kod **büyük harfe çevrilmiyor**. Önceden çevriliyordu ve bu,
+    /// panel kodları büyük/küçük harfe duyarlıysa kullanıcının doğru
+    /// yazdığı kodu sessizce bozuyordu — hiç test edilemeyen bir
+    /// başarısızlık sınıfı. Kodun doğruluğuna karar verecek olan paneldir;
+    /// uygulama yalnızca kullanıcının gözle görmediği şeyi (baş/son
+    /// boşluk, aradaki boşluklar) temizler.
+    ///
+    /// ⚠️ Karakter süzgeci de kaldırıldı: hangi karakterlerin geçerli
+    /// olduğunu panel belirliyor. Yerel bir "geçersiz karakter" kuralı,
+    /// panelin ürettiği ama bizim beklemediğimiz bir kodu ağa hiç
+    /// çıkmadan reddederdi. Burada yalnızca **boş girdi** elenir.
     public static func normalizeCode(_ raw: String) -> String? {
         let cleaned = raw
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .uppercased()
             .replacingOccurrences(of: " ", with: "")
 
-        guard cleaned.count >= 4, cleaned.count <= 40 else { return nil }
-        let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")
-        guard cleaned.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return nil }
-
+        // Tek karakterlik girdi kazara dokunuştur; ağa çıkmaya değmez.
+        guard cleaned.count >= 2 else { return nil }
         return cleaned
     }
 }

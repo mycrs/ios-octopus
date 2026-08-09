@@ -199,6 +199,13 @@ public actor InMemorySeriesRepository: SeriesRepository {
         allSeries.first { $0.id == id }
     }
 
+    public func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] {
+        let filtered = allSeries
+            .filter { $0.playlistID == playlistID && $0.lastModified != nil }
+            .sorted { ($0.lastModified ?? .distantPast) > ($1.lastModified ?? .distantPast) }
+        return Array(filtered.prefix(limit))
+    }
+
     public func seasons(seriesID: Series.ID) async throws -> [Season] {
         allSeasons.filter { $0.seriesID == seriesID }.sorted { $0.number < $1.number }
     }

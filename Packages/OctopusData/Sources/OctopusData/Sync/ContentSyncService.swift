@@ -79,8 +79,18 @@ public actor ContentSyncService: ContentSyncing {
         let provider = try await providerFactory.makeProvider(for: playlist)
 
         publish(.authenticating, for: playlistID)
-        _ = try await provider.authenticate()
+        let account = try await provider.authenticate()
         try Task.checkCancellation()
+
+        // ⚠️ Abonelik bitişi **atılmıyor** artık: bu çağrı zaten yapılıyordu
+        // ve dönen bilgi kullanıcı için en değerli veri ("kaç günüm kaldı").
+        // Kayıt başarısız olursa senkronizasyon durmaz — katalog, abonelik
+        // rozetinden önemlidir.
+        if playlist.expiresAt != account.expiresAt {
+            var updated = playlist
+            updated.expiresAt = account.expiresAt
+            try? await playlists.update(updated)
+        }
 
         // ── Canlı yayın: zorunlu ────────────────────────────────────
         publish(.fetchingCategories, for: playlistID)

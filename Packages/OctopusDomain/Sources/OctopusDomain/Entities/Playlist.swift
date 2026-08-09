@@ -38,6 +38,13 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
     /// Uygulamanın şu an gösterdiği kaynak mı?
     public var isActive: Bool
 
+    /// Aboneliğin bitiş tarihi — her senkronizasyonda panelden tazelenir.
+    ///
+    /// ⚠️ Bilgi `authenticate()` çağrısında zaten geliyordu ama atılıyordu.
+    /// Kullanıcı için en değerli tek veri bu: "kaç günüm kaldı". M3U
+    /// kaynaklarda böyle bir kavram yok, `nil` kalır.
+    public var expiresAt: Date?
+
     public init(
         id: ID,
         name: String,
@@ -45,7 +52,8 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
         epgURL: URL? = nil,
         createdAt: Date,
         lastSyncedAt: Date? = nil,
-        isActive: Bool = false
+        isActive: Bool = false,
+        expiresAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -54,6 +62,15 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
         self.createdAt = createdAt
         self.lastSyncedAt = lastSyncedAt
         self.isActive = isActive
+        self.expiresAt = expiresAt
+    }
+
+    /// Abonelik bitişine kalan tam gün sayısı. Süresi dolmuşsa `0`.
+    public func remainingDays(from date: Date) -> Int? {
+        guard let expiresAt else { return nil }
+        let seconds = expiresAt.timeIntervalSince(date)
+        guard seconds > 0 else { return 0 }
+        return Int(seconds / 86_400)
     }
 }
 

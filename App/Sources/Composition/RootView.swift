@@ -46,6 +46,8 @@ struct RootView: View {
         .environment(\.brandColor, container.themeController.accent)
         // Ayarlar ekranı renk seçimini buradan okur ve değiştirir.
         .environmentObject(container.themeController)
+        // Oynatıcı tercihleri de aynı yoldan: Ayarlar düzenler, motorlar okur.
+        .environmentObject(container.playbackPreferences)
         // Oynatıcı tam ekran sunulur — gezinme yığınına girmez,
         // böylece hangi ekrandan açılırsa açılsın davranışı aynıdır.
         .fullScreenCover(item: $router.player) { presentation in

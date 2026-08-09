@@ -27,6 +27,8 @@ struct PlaylistRecord: Codable, FetchableRecord, PersistableRecord {
     var createdAt: Date
     var lastSyncedAt: Date?
     var isActive: Bool
+    /// Abonelik bitişi (yalnızca Xtream'de dolu).
+    var expiresAt: Date?
 
     /// `kindType` kolonunun alabileceği değerler.
     /// Ham dizgi yerine bu tip kullanılır ki yazım hatası derlenmesin.
@@ -49,6 +51,7 @@ extension PlaylistRecord {
         self.createdAt = playlist.createdAt
         self.lastSyncedAt = playlist.lastSyncedAt
         self.isActive = playlist.isActive
+        self.expiresAt = playlist.expiresAt
 
         // Kullanılmayan alanlar nil kalır; tür ayrımı `kindType` ile yapılır.
         self.host = nil
@@ -89,7 +92,8 @@ extension PlaylistRecord {
             epgURL: epgURL.flatMap(URL.init(string:)),
             createdAt: createdAt,
             lastSyncedAt: lastSyncedAt,
-            isActive: isActive
+            isActive: isActive,
+            expiresAt: expiresAt
         )
     }
 

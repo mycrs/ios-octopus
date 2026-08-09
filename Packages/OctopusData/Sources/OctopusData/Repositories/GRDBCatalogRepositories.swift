@@ -188,6 +188,24 @@ public actor GRDBSeriesRepository: SeriesRepository {
         return record?.toDomain()
     }
 
+    /// Son eklenen diziler.
+    ///
+    /// ⚠️ Filmlerdeki `addedAt` alanının dizi karşılığı **yok**; sıralama
+    /// `lastModified` üzerinden (bkz. `SeriesRepository.recentlyAdded`).
+    /// Alanı boş olan kayıtlar elenir, yoksa veri gelmeyen paneller rafı
+    /// rastgele dizilerle doldururdu.
+    public func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] {
+        let records = try await database.read { db in
+            try SeriesRecord
+                .filter(Column("playlistId") == playlistID.value)
+                .filter(Column("lastModified") != nil)
+                .order(Column("lastModified").desc)
+                .limit(limit)
+                .fetchAll(db)
+        }
+        return records.map { $0.toDomain() }
+    }
+
     public func seasons(seriesID: Series.ID) async throws -> [Season] {
         let records = try await database.read { db in
             try SeasonRecord
