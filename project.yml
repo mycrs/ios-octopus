@@ -125,6 +125,21 @@ schemes:
         Octopus: all
     run:
       config: Debug
+      # Xcode'da "Edit Scheme → Run → Arguments" altında **işaretlenebilir
+      # kutular** olarak görünür; varsayılan kapalı.
+      #
+      # ⚠️ Elle yazmaya gerek kalmasın diye buraya kondu: argümanları o
+      # listeye elle eklerken boşluklu bir satır (`-startup.player live:...`)
+      # Xcode tarafından **tek argüman** sayılıyor ve sessizce hiçbir şey
+      # olmuyor. Buradaki her giriş tek parça.
+      commandLineArguments:
+        # Sahte katalog yazar — gerçek bir IPTV kaynağı olmadan tüm
+        # ekranlar dolu görünür.
+        "-seedDemoData": false
+        # Açılışta doğrudan oynatıcıyı açar (demo kaynağın ilk kanalı,
+        # Apple'ın açık HLS örneğine bakar). `-seedDemoData` ile birlikte
+        # işaretlenmeli.
+        "-demoPlayer": false
     test:
       config: Debug
       gatherCoverageData: true

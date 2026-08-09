@@ -28,6 +28,25 @@ public enum DemoCatalogSeeder {
         ProcessInfo.processInfo.arguments.contains("-seedDemoData")
     }
 
+    /// Açılışta doğrudan oynatıcı istendi mi?
+    ///
+    /// ⚠️ **Değer taşımayan** tek parça bir bayrak, kasıtlı olarak.
+    /// Genel amaçlı `-startup.player <storageKey>` biçimi CI'da çalışıyor
+    /// ama Xcode'un "Arguments Passed On Launch" listesinde bir satıra
+    /// boşluklu yazılınca **tek argüman** olarak geçiyor ve hiçbir şey
+    /// olmuyor. Elle kurulumda takılınan yer tam olarak burasıydı.
+    public static var isPlayerRequested: Bool {
+        ProcessInfo.processInfo.arguments.contains("-demoPlayer")
+    }
+
+    /// Demo kaynağın ilk kanalı — Apple'ın açık HLS örneğine bakan kanal.
+    ///
+    /// Kimlik şeması (`<playlist>#<tür>#<hamId>`) burada üretiliyor ki
+    /// çağıran taraf onu elle kurmak zorunda kalmasın.
+    public static var firstChannelSource: PlaybackItem.Source {
+        .liveChannel(EntityID.channel(playlistID: "demo", rawID: "0"))
+    }
+
     public static func seed(into database: AppDatabase, secrets: SecretStore) async throws {
         let playlistID: Playlist.ID = "demo"
 

@@ -14,6 +14,28 @@ yapıştırman yeterli:
 
 ---
 
+## 0. ⚠️ Önce güncelle — yoksa eski sürüme bakarsın
+
+Bu gerçekten yaşandı: depo bir kez klonlandı, sonra Windows tarafında
+**Faz 5'in tamamı** (gerçek oynatıcı) push edildi. Mac'teki kopya eski
+kaldığı için oynatıcı hâlâ yer tutucu ekran gösteriyordu ve "bozuk"
+görünüyordu — oysa kod çoktan yazılmıştı.
+
+Her oturuma bununla başla:
+
+```bash
+cd ios-octopus
+git pull
+xcodegen generate      # ← atlanırsa yeni dosyalar projeye girmez
+open Octopus.xcodeproj
+```
+
+`xcodegen generate` **her `git pull` sonrası** gerekli: `.xcodeproj` git'e
+girmiyor (tek kaynak `project.yml`), yeni eklenen dosyalar aksi hâlde
+derlemeye dahil olmaz ve "neden değişmedi?" diye kovalarsın.
+
+---
+
 ## 1. İlk kurulum (tek seferlik)
 
 ```bash
@@ -120,12 +142,24 @@ Apple Developer hesabı/imzalama durumu teyit edilmedi. TestFlight'a
 yüklemeden önce bunu netleştirmek gerekecek.
 
 **Oynatıcıyı simülatörde hızlı açmak** (kanal listesinde gezinmeden):
-Xcode → Scheme Edit → Arguments Passed On Launch:
+
+Xcode → şema adına tıkla → **Edit Scheme… → Run → Arguments**. Orada iki
+kutu **hazır duruyor**, sadece işaretle:
+
 ```
--seedDemoData -startup.player live:demo#live#0
+☑ -seedDemoData     sahte katalog yazar
+☑ -demoPlayer       açılışta doğrudan oynatıcıyı açar
 ```
-Demo kaynağın ilk kanalı Apple'ın açık HLS örneğine bakar, yani
-oynatıcı gerçekten video çizer. Bu argümanlar `#if DEBUG` altında.
+
+Demo kaynağın ilk kanalı Apple'ın açık HLS örneğine bakar, yani oynatıcı
+gerçekten video çizer. İkisi de `#if DEBUG` altında; yayın derlemesinde yok.
+
+> ⚠️ Kutular görünmüyorsa `xcodegen generate`'i tekrar çalıştır — proje
+> dosyası eski demektir.
+>
+> ⚠️ Argümanları **elle** yazma: bu listede boşluk içeren bir satır
+> (`-startup.player live:...`) Xcode tarafından tek argüman sayılıyor ve
+> sessizce hiçbir şey olmuyor. İlk kurulumda takılınan yer tam olarak burasıydı.
 
 ---
 

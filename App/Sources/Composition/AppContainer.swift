@@ -220,10 +220,17 @@ final class AppContainer: ObservableObject {
         await refreshRemoteConfig()
 
         #if DEBUG
-        // Ekran görüntüsü modu: açılışta doğrudan oynatıcıyı açar.
-        // Onboarding gösteriliyorsa atlanır — oynatacak kaynak yok.
+        // Açılışta doğrudan oynatıcıyı açar. Onboarding gösteriliyorsa
+        // atlanır — oynatacak kaynak yok.
         if !router.needsOnboarding {
-            router.openStartupPlayerIfRequested()
+            if DemoCatalogSeeder.isPlayerRequested {
+                // Tek parça bayrak: Xcode'un argüman listesinde boşluklu
+                // satır tek argüman sayıldığı için elle kurulumda
+                // `-startup.player <key>` biçimi çalışmıyordu.
+                router.presentPlayer(DemoCatalogSeeder.firstChannelSource)
+            } else {
+                router.openStartupPlayerIfRequested()
+            }
         }
         #endif
     }
