@@ -13,6 +13,11 @@ public struct PlayerDependencies {
     public let vod: VODRepository
     public let series: SeriesRepository
 
+    /// ⚠️ Oynatıcı da kilidi uygulamak **zorunda**: kanal değiştirme
+    /// listesi süzülmezse kullanıcı zaplayarak yetişkin bir kanala
+    /// düşebilir — kilit o yoldan atlatılmış olur.
+    public let parental: ParentalControlling
+
     public init(
         resolver: PlaybackEngineResolver,
         streams: StreamResolving,
@@ -20,7 +25,8 @@ public struct PlayerDependencies {
         history: WatchHistoryRepository,
         channels: ChannelRepository,
         vod: VODRepository,
-        series: SeriesRepository
+        series: SeriesRepository,
+        parental: ParentalControlling = OpenParentalControl()
     ) {
         self.resolver = resolver
         self.streams = streams
@@ -29,6 +35,7 @@ public struct PlayerDependencies {
         self.channels = channels
         self.vod = vod
         self.series = series
+        self.parental = parental
     }
 }
 
@@ -43,7 +50,7 @@ public struct PlayerDependencies {
 /// `PlayerTrackPicker`, `VideoSurfaceView`.
 public struct PlayerScreen: View {
 
-    @StateObject private var viewModel: PlayerViewModel
+    @StateObject var viewModel: PlayerViewModel
     @StateObject var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
@@ -125,7 +132,11 @@ public struct PlayerScreen: View {
                 controlsLayer(item)
             }
         }
-        .task {
+        // ⚠️ `id:` şart — kanal zaplanınca `item` değişiyor ve oynatmanın
+        // yeniden başlaması gerekiyor. Kimliksiz `.task` yalnızca görünüm
+        // ilk kurulduğunda çalışır; kullanıcı sonraki kanala geçince ekran
+        // eski yayında donup kalırdı.
+        .task(id: item.url) {
             await controller.start(item)
             scheduleControlsHide()
         }

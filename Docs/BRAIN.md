@@ -352,7 +352,7 @@ bozmadan verir.
 
 ### Ebeveyn kilidi nerede uygulanır?
 
-Kilit **tek bir yerde tutulur, altı yerde uygulanır**. Bir ekranı atlamak
+Kilit **tek bir yerde tutulur, yedi yerde uygulanır**. Bir ekranı atlamak
 kilidi o ekrandan atlatılabilir kılar — bu yüzden liste burada:
 
 | Ekran | Süzülen |
@@ -363,6 +363,11 @@ kilidi o ekrandan atlatılabilir kılar — bu yüzden liste burada:
 | Ara (birleşik) | üç türün sonucu da |
 | Ana Sayfa | "kaldığın yer", "son eklenenler", "son izlenenler" |
 | Favoriler | üç tür de |
+| **Oynatıcı** | **kanal değiştirme (zap) sırası** |
+
+⚠️ Sonuncusu en kolay unutulanı: listeler süzülse bile oynatıcıda ileri
+geri basan kullanıcı yetişkin kanala düşerdi. `PlayerZappingTests`
+bunu ayrıca doğruluyor.
 
 ⚠️ Sayfalı listelerde ofset **çekilen ham satır** sayısını takip eder,
 görünen öğe sayısını değil. Aksi halde gizlenen her öğe sonraki sayfayı

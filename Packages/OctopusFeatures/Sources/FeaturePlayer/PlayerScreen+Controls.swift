@@ -25,6 +25,7 @@ extension PlayerScreen {
                     time: controller.time,
                     hasTracks: hasSelectableTracks,
                     showsAirPlay: controller.supportsAirPlay,
+                    canZap: viewModel.canZap,
                     videoFit: controller.videoFit,
                     onClose: close,
                     onTogglePlay: {
@@ -45,6 +46,12 @@ extension PlayerScreen {
                     },
                     onToggleFit: {
                         controller.toggleVideoFit()
+                        scheduleControlsHide()
+                    },
+                    onZap: { step in
+                        Task { await viewModel.zap(by: step) }
+                        // Kanal değişince denetimler açık kalsın: kullanıcı
+                        // genelde arka arkaya birkaç kanal geçiyor.
                         scheduleControlsHide()
                     }
                 )

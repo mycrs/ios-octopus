@@ -17,6 +17,7 @@ struct PlayerControlsOverlay: View {
     let time: PlaybackTime
     let hasTracks: Bool
     let showsAirPlay: Bool
+    let canZap: Bool
     let videoFit: VideoFit
 
     let onClose: () -> Void
@@ -25,6 +26,8 @@ struct PlayerControlsOverlay: View {
     let onSeek: (TimeInterval) -> Void
     let onShowTracks: () -> Void
     let onToggleFit: () -> Void
+    /// Canlı yayında kanal değiştirir: -1 önceki, +1 sonraki.
+    let onZap: (Int) -> Void
 
     /// İleri/geri sarma adımı. 10 sn sektör standardı; reklam atlamaya
     /// yetecek kadar büyük, sahne kaçırmayacak kadar küçük.
@@ -124,18 +127,34 @@ struct PlayerControlsOverlay: View {
 
     // MARK: - Orta
 
+    /// Yan düğmeler içeriğe göre değişir.
+    ///
+    /// ⚠️ Canlı yayında sarma **yok** — konum kavramı olmadığı için
+    /// düğmeler hiçbir şey yapmazdı. Boşalan yer kanal değiştirmeye
+    /// veriliyor: IPTV'de en sık yapılan iş bu ve eskiden oynatıcıdan
+    /// çıkıp listeye dönmek gerekiyordu.
     private var transportRow: some View {
         HStack(spacing: Theme.Spacing.xl) {
-            // ⚠️ Canlı yayında sarma yok: konum kavramı olmadığı için
-            // düğmeler hiçbir şey yapmaz, göstermek yanıltıcı olurdu.
-            if !isLive {
-                skipButton(icon: "gobackward.10", delta: -skipStep, label: "10 saniye geri")
+            if isLive {
+                if canZap {
+                    transportButton(icon: "backward.end.fill", label: "Önceki kanal") { onZap(-1) }
+                }
+            } else {
+                transportButton(icon: "gobackward.10", label: "10 saniye geri") {
+                    onSkip(-skipStep)
+                }
             }
 
             playPauseButton
 
-            if !isLive {
-                skipButton(icon: "goforward.10", delta: skipStep, label: "10 saniye ileri")
+            if isLive {
+                if canZap {
+                    transportButton(icon: "forward.end.fill", label: "Sonraki kanal") { onZap(1) }
+                }
+            } else {
+                transportButton(icon: "goforward.10", label: "10 saniye ileri") {
+                    onSkip(skipStep)
+                }
             }
         }
     }
@@ -162,8 +181,12 @@ struct PlayerControlsOverlay: View {
         .accessibilityLabel(state == .playing ? "Duraklat" : "Oynat")
     }
 
-    private func skipButton(icon: String, delta: TimeInterval, label: String) -> some View {
-        Button { onSkip(delta) } label: {
+    private func transportButton(
+        icon: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 26))
                 .foregroundColor(.white)

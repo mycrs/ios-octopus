@@ -336,7 +336,9 @@ final class AppContainer: ObservableObject {
             history: history,
             channels: channels,
             vod: vod,
-            series: series
+            series: series,
+            // Zaplama listesi de süzülmeli — yoksa kilit oynatıcıdan atlatılır.
+            parental: parental
         )
     }
 
