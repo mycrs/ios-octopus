@@ -68,20 +68,35 @@ struct MediaCategoryStrip: View {
     let onSelect: (MediaCategory.ID?) -> Void
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.sm) {
-                chip(title: "Tümü", isSelected: selectedID == nil) { onSelect(nil) }
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    chip(title: "Tümü", isSelected: selectedID == nil) { onSelect(nil) }
+                        .id(allChipID)
 
-                ForEach(categories) { category in
-                    chip(title: category.name, isSelected: selectedID == category.id) {
-                        onSelect(category.id)
+                    ForEach(categories) { category in
+                        chip(title: category.name, isSelected: selectedID == category.id) {
+                            onSelect(category.id)
+                        }
+                        .id(category.id)
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
+            // ⚠️ Seçili çip görünmüyorsa kullanıcı hangi kategoride
+            // olduğunu bilemiyor: uzun listelerde şerit başa sarılı
+            // kalıyor ama içerik 20. kategoriye ait oluyordu.
+            .onChange(of: selectedID) { newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(newValue ?? allChipID, anchor: .center)
+                }
+            }
         }
     }
+
+    /// "Tümü" çipinin kimliği — `MediaCategory.ID` olmadığı için ayrı.
+    private var allChipID: String { "__all__" }
 
     private func chip(
         title: String,
@@ -97,6 +112,10 @@ struct MediaCategoryStrip: View {
                 .background(isSelected ? Theme.Palette.accentMuted : Theme.Palette.surface)
                 .foregroundColor(isSelected ? Theme.Palette.accent : Theme.Palette.textSecondary)
                 .clipShape(Capsule())
+                // Seçim rengi anında değil, yumuşak geçsin: kategori
+                // değiştirmek ekranın en sık yapılan hareketi.
+                .animation(.easeInOut(duration: 0.2), value: isSelected)
         }
+        .buttonStyle(.plain)
     }
 }

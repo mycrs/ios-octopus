@@ -70,7 +70,9 @@ public struct MoviesScreen: View {
     private var content: some View {
         switch viewModel.state {
         case .idle, .loading:
-            LoadingStateView(message: "Filmler yükleniyor")
+            // Izgaranın iskeleti: kategori değiştirince ekran boşalıp
+            // spinner'a düşmüyor, aynı düzen yerinde kalıyor.
+            ScrollView { PosterGridSkeleton() }
 
         case .failed(let error):
             ErrorStateView(error: error) { Task { await viewModel.load() } }

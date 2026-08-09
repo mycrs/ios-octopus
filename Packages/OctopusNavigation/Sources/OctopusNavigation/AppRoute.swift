@@ -31,6 +31,19 @@ public enum AppTab: String, CaseIterable, Hashable, Sendable, Identifiable {
         }
     }
 
+    /// Üst barda **birleşik arama** ikonu gösterilsin mi?
+    ///
+    /// ⚠️ Kendi arama alanı olan sekmelerde gösterilmez: Canlı TV,
+    /// Filmler ve Diziler ekranın içinde zaten arıyor. İkisi birden
+    /// durduğunda kullanıcı hangisinin nerede aradığını bilemiyordu
+    /// (ekran görüntüsünde iki arama üst üste görünüyordu).
+    public var showsGlobalSearchAction: Bool {
+        switch self {
+        case .home, .favorites: return true
+        case .live, .movies, .series: return false
+        }
+    }
+
     /// Açılışta gösterilebilecek sekmeler — artık `CaseIterable` ile aynı.
     ///
     /// Arama ve ayarlar hiç sekme değil (üst bar ikonu), o yüzden zaten

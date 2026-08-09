@@ -49,7 +49,7 @@ public struct FavoritesScreen: View {
     private var content: some View {
         switch viewModel.state {
         case .idle, .loading:
-            LoadingStateView(message: "Favoriler yükleniyor")
+            ScrollView { PosterGridSkeleton(count: 6) }
 
         case .failed(let error):
             ErrorStateView(error: error) { Task { await viewModel.load() } }

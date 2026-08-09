@@ -68,7 +68,9 @@ public struct HomeScreen: View {
     private var content: some View {
         switch viewModel.state {
         case .idle, .loading:
-            LoadingStateView()
+            // Spinner yerine gelecek düzenin iskeleti: içerik gelince
+            // yalnızca içi dolar, yerleşim zıplamaz.
+            ScrollView { ShelvesSkeleton() }
 
         case .failed(let error):
             ErrorStateView(error: error) { Task { await viewModel.load() } }
@@ -90,7 +92,7 @@ public struct HomeScreen: View {
 
     private var shelves: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+            LazyVStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 if let item = viewModel.featuredItem {
                     FeaturedHeroView(
                         movie: item,
@@ -133,7 +135,8 @@ public struct HomeScreen: View {
                     }
                 }
             }
-            .padding(.vertical, Theme.Spacing.md)
+            // Hero kenara **ve** üste yapışık; alttaki raflar için nefes payı.
+            .padding(.bottom, Theme.Spacing.lg)
         }
     }
 }

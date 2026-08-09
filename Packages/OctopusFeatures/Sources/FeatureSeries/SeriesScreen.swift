@@ -69,7 +69,7 @@ public struct SeriesScreen: View {
     private var content: some View {
         switch viewModel.state {
         case .idle, .loading:
-            LoadingStateView(message: "Diziler yükleniyor")
+            ScrollView { PosterGridSkeleton() }
 
         case .failed(let error):
             ErrorStateView(error: error) { Task { await viewModel.load() } }

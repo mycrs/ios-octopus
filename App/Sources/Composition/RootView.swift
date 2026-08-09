@@ -131,13 +131,20 @@ struct RootView: View {
                         .toolbar(.visible, for: .navigationBar)
                 }
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            router.push(.search, in: item)
-                        } label: {
-                            Image(systemName: "magnifyingglass")
+                    // ⚠️ Kareyle görüldü: Filmler ve Diziler'de **iki arama**
+                    // birden vardı — üst bardaki bu ikon (birleşik aramaya
+                    // gider) ve ekranın kendi arama alanı. Kullanıcı hangisinin
+                    // ne aradığını bilemiyordu. Kendi araması olan sekmelerde
+                    // ikon gösterilmiyor.
+                    if item.showsGlobalSearchAction {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button {
+                                router.push(.search, in: item)
+                            } label: {
+                                Image(systemName: "magnifyingglass")
+                            }
+                            .accessibilityLabel("Ara")
                         }
-                        .accessibilityLabel("Ara")
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {

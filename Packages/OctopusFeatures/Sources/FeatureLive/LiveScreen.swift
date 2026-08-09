@@ -109,7 +109,7 @@ public struct LiveScreen: View {
     private var content: some View {
         switch viewModel.state {
         case .idle, .loading:
-            LoadingStateView(message: "Kanallar yükleniyor")
+            ScrollView { RowListSkeleton() }
 
         case .failed(let error):
             ErrorStateView(error: error) {

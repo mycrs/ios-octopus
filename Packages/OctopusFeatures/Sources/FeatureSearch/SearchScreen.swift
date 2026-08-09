@@ -66,7 +66,7 @@ public struct SearchScreen: View {
         } else {
             switch viewModel.state {
             case .idle, .loading:
-                LoadingStateView()
+                ScrollView { RowListSkeleton(count: 5) }
 
             case .failed(let error):
                 ErrorStateView(error: error)

@@ -18,7 +18,10 @@ struct FeaturedHeroView: View {
     let onDetail: () -> Void
     let onSelectPage: (Int) -> Void
 
-    private let height: CGFloat = 280
+    /// ⚠️ Kareyle ölçüldü: 280pt'de görselsiz içerikte üstte kocaman boş
+    /// bir alan kalıyordu — metin altta, tepesi bomboş. Yükseklik içeriğe
+    /// yaklaştırıldı.
+    private let height: CGFloat = 240
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -28,8 +31,11 @@ struct FeaturedHeroView: View {
         }
         .frame(height: height)
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-        .padding(.horizontal, Theme.Spacing.md)
+        // ⚠️ Kenara yapışık, köşesiz: yuvarlak köşeli bir "kart" olarak
+        // durduğunda ekranın geri kalanından kopuyordu. Canlı TV'deki
+        // önizleme kartı da kenara yapışık — ikisi artık aynı dili konuşuyor
+        // (bkz. LiveNowPlayingCard).
+        .clipped()
         .accessibilityElement(children: .contain)
         // ⚠️ Kareyle ölçüldü: erişilebilirlik boyutlarında (accessibility1+)
         // kartın sabit yüksekliği aşılıyor, "ÖNE ÇIKAN" etiketi üstte kesiliyor,
@@ -47,7 +53,15 @@ struct FeaturedHeroView: View {
             // Hero kartı ekran genişliğinde; iPad'de de yeterli çözünürlük.
             targetWidth: 720
         ) {
-            Theme.Palette.surfaceElevated
+            // ⚠️ Düz renk yer tutucu, görseli olmayan içerikte kartı
+            // tamamen boş gösteriyordu (M3U kaynaklarında poster çoğu
+            // zaman yok). Aynı tuzak LiveNowPlayingCard'da da yaşandı.
+            ZStack {
+                Theme.Palette.surfaceElevated
+                Image(systemName: "film")
+                    .font(.system(size: 44))
+                    .foregroundColor(Theme.Palette.textTertiary)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
@@ -78,9 +92,9 @@ struct FeaturedHeroView: View {
     }
 
     private var info: some View {
+        // ⚠️ `Spacer` yok: ZStack zaten alta hizalıyor, spacer yalnızca
+        // VStack'i gereksizce esnetip metni daha da aşağı itiyordu.
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Spacer(minLength: 0)
-
             eyebrow
             greetingLine
 

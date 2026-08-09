@@ -10,9 +10,13 @@ struct ShelfView<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            // ⚠️ Daha önce `sectionTitle` (title3/semibold) idi ve raf
+            // başlıkları içeriğin önüne geçiyordu: ekranın en büyük yazısı
+            // "Son eklenen filmler" oluyordu, afişler değil. Başlık artık
+            // bir **etiket** gibi davranıyor.
             Text(title)
-                .font(Theme.Typography.sectionTitle)
-                .foregroundColor(Theme.Palette.textPrimary)
+                .font(Theme.Typography.rowTitle)
+                .foregroundColor(Theme.Palette.textSecondary)
                 .padding(.horizontal, Theme.Spacing.md)
 
             ScrollView(.horizontal, showsIndicators: false) {
