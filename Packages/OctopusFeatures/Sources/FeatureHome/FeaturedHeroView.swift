@@ -53,15 +53,21 @@ struct FeaturedHeroView: View {
             // Hero kartı ekran genişliğinde; iPad'de de yeterli çözünürlük.
             targetWidth: 720
         ) {
-            // ⚠️ Düz renk yer tutucu, görseli olmayan içerikte kartı
-            // tamamen boş gösteriyordu (M3U kaynaklarında poster çoğu
-            // zaman yok). Aynı tuzak LiveNowPlayingCard'da da yaşandı.
-            ZStack {
-                Theme.Palette.surfaceElevated
-                Image(systemName: "film")
-                    .font(.system(size: 44))
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
+            // ⚠️ Burada **ikon yok**, kasıtlı. Önce LiveNowPlayingCard'daki
+            // gibi bir "film" ikonu kondu ama kareyle görüldü ki hero geniş
+            // ve metni uzun: ikon tam başlığın yanında yüzüyor, yamalı
+            // duruyordu. Küçük kartta işe yarayan çözüm burada işe yaramıyor.
+            //
+            // Yerine köşegen gradyan: boş ama **kasıtlı** görünüyor,
+            // metnin okunurluğunu da bozmuyor.
+            LinearGradient(
+                colors: [
+                    Theme.Palette.surfaceElevated,
+                    Theme.Palette.surface
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)

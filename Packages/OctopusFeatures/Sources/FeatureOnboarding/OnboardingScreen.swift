@@ -66,10 +66,18 @@ public struct OnboardingScreen: View {
             ambientGlow
 
             VStack(spacing: Theme.Spacing.xl) {
-                Spacer()
+                // ⚠️ Üstteki boşluk **sınırlı**: iki serbest `Spacer` alanı
+                // eşit paylaşınca içerik ekranın tam ortasına toplanıyor ve
+                // tepede kocaman bir boşluk kalıyordu (kareyle görüldü).
+                // Sınırlanınca içerik yukarı çekiliyor, düğme altta kalıyor —
+                // gözün doğal okuma sırası.
+                Spacer(minLength: 0)
+                    .frame(maxHeight: 72)
+
                 brand
                 capabilities
-                Spacer()
+
+                Spacer(minLength: Theme.Spacing.xl)
                 startButton
             }
             .padding(Theme.Spacing.xl)
