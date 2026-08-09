@@ -283,7 +283,7 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 | **2** | Xtream + M3U provider, Repository impl | ✅ |
 | **3** | Onboarding: kaynak ekle → senkronize et | ✅ |
 | **4** | Canlı TV listesi + kategori + arama | ✅ |
-| **5** | Player (AVPlayer → VLC fallback) | ✅ AVPlayer · 🚧 VLC Mac'te |
+| **5** | Player (AVPlayer → VLC fallback) | ✅ AVPlayer · ✅ VLC · 🐞 VLC'de denetimler görünmüyor |
 | **6** | EPG (XMLTV + Xtream short_epg) + rehber ekranı | ✅ |
 | **7** | VOD + Dizi (sezon/bölüm) | ✅ |
 | **8** | Favoriler, izleme geçmişi, kaldığın yerden devam | ✅ |
@@ -300,10 +300,66 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 > ertelendi. **Dersi:** "yapamayız" demeden önce hangi parçanın gerçekten
 > engellendiğini ayrıştır.
 
-> 🚧 **VLC bağlanınca yapılacak:** `OctopusPlaybackVLC/Package.swift`
-> içindeki yorumlu bağımlılığı aç, `VLCEngineFactory.isAvailable`'ı
-> `true` yap. Başka hiçbir dosyaya dokunulmaz — resolver zinciri ve
-> `PlayerController`'ın yedek yolu zaten yazılı ve test edilmiş durumda.
+> ✅ **VLC bağlandı (2026-08-09).** `vlckit-spm` 3.6.0 (`MobileVLCKit`) —
+> resmî `videolan/VLCKit` deposunda `Package.swift` yok, SPM ile
+> çözülemiyor. Tahmin doğru çıktı: resolver zinciri ve `PlayerController`
+> yedek yolu **hiç değişmeden** çalıştı; yalnızca motor yazıldı.
+>
+> ⚠️ **Beklenmeyen boşluk — "sesli körlük":** `hls` formatı
+> `isNativelySupported == true` olduğu için HEVC/UHD kanallar AVPlayer'da
+> kalıyordu. AVPlayer çözemediği video izini **sessizce atlıyor**: durum
+> `readyToPlay`, hata yok, ses akıyor, ekran siyah. Hata düşmediği için
+> yedek motor hiç denenmiyordu. Çözüm: `AVPlayerEngine` içinde gözcü —
+> oynatma başladıktan 5 sn sonra hâlâ `presentationSize == .zero` ise
+> bu bir başarısızlıktır ve `unrecoverableFailure` yayınlanır.
+> **Ders:** "açıldı" ile "görüntü var" aynı şey değil; motor sözleşmesi
+> yalnızca hata sinyaline dayanırsa sessiz başarısızlıklar yakalanmaz.
+>
+> ⚡ **Zaplama maliyeti motor ömründedir (2026-08-09 incelemesi).**
+> `start()` her çağrıldığında yeni motor üretiliyordu: eski motorun
+> `teardown`'ı (VLC'de `stop()` ana iş parçacığını tıkar), yeni `AVPlayer`,
+> ses oturumunun yeniden etkinleştirilmesi, PiP kontrolörünün yeniden
+> kurulması ve `surfaceGeneration` arttığı için SwiftUI'ın video yüzeyini
+> baştan yaratması — hepsi **her kanalda**. Artık resolver kararı
+> değişmediyse motor korunuyor, yalnızca `load()` çağrılıyor.
+> **Kural:** motor değiştirmek pahalıdır; yalnızca karar değişince yapılır.
+>
+> ⚠️ **Canlı yayın ≠ VOD, ayarlar da ayrı olmalı.** Canlıda
+> `automaticallyWaitsToMinimizeStalling` kapalı (tampon beklemek her zapta
+> gecikme demek), VOD'da açık. VLC'de `network-caching` canlıda 1500 ms —
+> 3000 ms akıcıydı ama her zapta 3 saniye siyah ekrandı.
+>
+> ⚠️ **Sessiz başarısızlıklar iki motorda da yakalanmalı.** AVPlayer
+> çözemediği videoyu sessizce atlar (bkz. "sesli körlük"); VLC ise ölü bir
+> yayında `.opening`'de sonsuza kadar bekler, `.error` hiç gelmez.
+> İkisinin de gözcüsü var: AVPlayer'da 3 sn (kare gelmedi), VLC'de 15 sn
+> (hiç açılmadı). Motor sözleşmesi yalnızca hata sinyaline güvenemez.
+>
+> ⚠️ **Canlıda kopma kalıcı sayılmaz:** `PlayerController` aynı yayına
+> artan gecikmeyle 3 kez sessizce yeniden bağlanır (kullanıcı spinner
+> görür, hata ekranı değil). Sayaç oynatma başlayınca sıfırlanır — saatlik
+> izlemede biriken kopmalar hakkı tüketmesin. VOD'da yeniden deneme **yok**:
+> orada kopma genelde kalıcı bir sebeptendir ve gizlenmemeli.
+>
+> 🧪 **Üçüncü motor denendi: KSPlayer (2026-08-09).** `OctopusPlaybackKS`
+> modülü kuruldu (KSPlayer 2.3.4 + FFmpegKit 6.1.4) ve **ilk denemede
+> derlendi** — üçüncü motoru eklemek protokol + fabrika + `AppContainer`'da
+> tek satırdan ibaret kaldı. Mimarinin asıl sınavı buydu ve geçti.
+>
+> ❌ **Ve kaldırıldı:** UHD/HEVC yayınlarında KSPlayer'ın kendi iz
+> ayrıştırması çöküyordu — `FFmpegAssetTrack.init(stream:)` →
+> `_assertionFailure` (EXC_BREAKPOINT), iki denemede birebir aynı yığın.
+> Kütüphane içi, yamanamaz; 2.3.4 en güncel sürüm. Modül tamamen silindi
+> (uygulama ~168 MB → VLC'siz hâline döndü, SPM önbelleğinden ~1 GB düştü).
+> Yedek motor yine VLC.
+> **Ders:** üçüncü taraf motoru "derleniyor" ile "güvenilir" aynı şey değil;
+> kabul kriteri gerçek yayında çökmemektir. Eklemek de çıkarmak da tek
+> modül + `AppContainer`'da tek fonksiyondan ibaret kaldı — izolasyon işe yaradı.
+>
+> 🐞 **Açık:** VLC motorundayken oynatıcı denetimleri ekranda görünmüyor
+> (dokunma ulaşıyor, durum değişiyor, çizim olmuyor). `VLCOpenGLES2VideoView`
+> SwiftUI içeriğinin önünde kompozit ediliyor. `zIndex`, `.overlay` ve
+> `isUserInteractionEnabled` denendi, çözmedi. Bkz. `PlayerScreen.swift`.
 
 > ✅* **PiP yazıldı, gerçek cihazda doğrulanmadı:** simülatörde
 > `AVPictureInPictureController.isPictureInPictureSupported()` **false**
@@ -327,11 +383,38 @@ Android sürümüyle aynı kimlik, iOS'a özgü cila. Somut karşılıkları:
 | Kart üstü puan | `RatingBadge` — puan yoksa hiç çizilmez | `DesignSystem` |
 | Detay hero'su | `DetailHeaderView` — film **ve** dizi ortak kullanır | `DesignSystem` |
 | Uzun künye satırı | Yatay kaydırılan çipler (`DetailChip`) | `DesignSystem` |
-| Üstte gömülü video | `LiveNowPlayingCard` — kaldığın kanal önizlemesi | `FeatureLive` |
+| Üstte gömülü video | `LiveMiniPlayerView` — **gerçek** oynatıcı; liste dokunuşu yayını burada başlatır, tam ekran karta dokununca | `FeatureLive` |
 | — | Haptik: favori/kategori/PIN | `DesignSystem/Haptics` |
 
 ⚠️ Detay başlığı **tek** bileşen: ayrı yazılsalardı zamanla birbirinden
 ayrı düşerlerdi — referans projede tam olarak bu olmuştu.
+
+> ⚠️ **Sinematik başlık iki parçalı bir sözleşmedir.** `DetailHeaderView`
+> tek başına yetmez: ekranın **`.toolbarBackground(.hidden, for: .navigationBar)`**
+> demesi de gerekir. Opak çubuk zemini görselin üst ~110pt'sini ve afişin
+> tepesini örtüyordu — görsel ekranın tepesinden başladığı hâlde koyu bir
+> bant gibi duruyor, afiş oradan kesiliyordu. Yeni bir detay ekranı
+> eklenirse bu satır unutulmamalı.
+>
+> ⚠️ **Oran boş kutuya uygulanır, görsele değil.** `RemoteImageView`'a
+> doğrudan `.aspectRatio` verilince görsel kendi doğal genişliğini
+> dayatıyor ve **tüm başlık bloğu ekrandan taşıyor** (afiş ve başlık
+> soldan kesildi). Doğrusu: `Color.clear.aspectRatio(...).overlay { görsel }`.
+
+> ✅ **Gömülü mini oynatıcı (2026-08-09).** Uzun süre "feature'lar
+> birbirini import edemez, video gömülemez" diye statik bir kartla
+> idare edilmişti. Yanlış teşhis: gereken şey `FeaturePlayer` **değil**,
+> `OctopusPlayback`'ti. `FeatureLive` motor sözleşmesini oynatma
+> modülünden görüyor, iki ekran hâlâ birbirini tanımıyor — demir kural 3
+> bozulmadı. `VideoSurfaceView` bu yüzden `FeaturePlayer`'dan
+> `OctopusPlayback`'e taşındı.
+>
+> ⚠️ **Yüzey kimliği motor adı olamaz:** her `attach` yeni bir motor
+> **örneği** üretir ama kimlik dizgesi aynı kalabilir (kanal değiştirirken
+> AVPlayer → AVPlayer). SwiftUI `.id` değişmeyince yüzeyi yeniden kurmaz
+> ve ekranda bırakılmış eski motorun katmanı kalır: kanal değişir, ses
+> gelir, görüntü donar. Çözüm `PlayerController.surfaceGeneration`
+> sayacı. Aynı hata tam ekrandaki zaplamayı da vuruyordu.
 
 #### Canlı TV yerleşimi
 
@@ -417,6 +500,19 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 > tercihi zaten oradan okunduğu için sekme sekme kare almak **sıfır satır**
 > ek uygulama kodu gerektirdi.
 | Sağlayıcının `is_adult` alanına güvenmek | Ebeveyn kilidi kuruluyor ama hiçbir şey gizlenmiyor: M3U'da alan yok, panellerin çoğu doldurmuyor | Kategori adından çıkar (`AdultContentDetector`), damgalamayı senkronizasyonda yap |
+| **Panel ucuna GET atmak** | Aktivasyon kodu **hiç** çalışmıyor: uç `405 method_not_allowed` dönüyor, kullanıcı "kod geçersiz" sanıyor | `POST` + JSON gövde. Kod sorgu dizesine **konmaz** — sunucu erişim kayıtlarına düşer, kod tek kullanımlık bir sırdır |
+| 4xx gövdesini atmak | Panel asıl sebebi `{"error":"invalid_code_format"}` diye **400 gövdesinde** açıklıyor; kullanıcı "Beklenmeyen durum kodu: 400" görüyor | Gövdeyi durum kodundan **önce** oku (`HTTPResponse` döndür, fırlatma) |
+| Panel cevabını düz varsaymak | Kod kabul ediliyor ama "Aktivasyon bilgileri eksik": alanlar `playlist` **nesnesinin içinde** geliyordu | Okuma sırası: iç içe nesne → düz alan → yedek ad. Alan adlarını (değerleri değil) logla |
+| Kullanıcı girdisini "temizlemek" | Kod büyük harfe çevriliyor + karakter süzgecinden geçiyordu; panel büyük/küçük harfe duyarlıysa **doğru kod bozuluyor** | Yalnızca boşluk kırp. Geçerliliğe **panel** karar verir; yerel süzgeç test edilemeyen bir hata sınıfı üretir |
+| `playlist_type` alanına güvenmek | Panel "m3u" diyor ama adres `get.php?username=…&password=…` — yani Xtream. M3U olarak işlenince **250 MB tek dosya** iniyor, 315 bin satırın hepsi "kanal" oluyor, film/dizi **sıfır** | Bağlantı kimlik taşıyorsa Xtream kur (`XtreamLink`). Tür alanı bağlantının **biçimini** anlatır, hesabın türünü değil |
+| Marka bilgisini ayrıştırıp kullanmamak | Bayinin rengi (`#E50914`) çözülüyor ama hiçbir yere uygulanmıyordu; herkes varsayılan maviyi görüyordu | Aktivasyon sonucu tema denetleyicisine bağlanmalı. Ayrıca renk `theme.primary_color`'da — düz `reseller_primary_color` hiç gelmiyor |
+| Panel alan adını belgeye göre yazmak | `maintenance_mode` bekleniyordu, panel `maintenance` gönderiyor → **bakım modu hiç tetiklenmiyor** | Canlı cevabın alan adlarını listele, ikisini de oku |
+| Motor kimliğini yüzey kimliği sanmak | Kanal değişince ses geliyor, görüntü **donuyor**: her `attach` yeni motor **örneği** üretiyor ama kimlik dizgesi aynı (`avplayer` → `avplayer`), SwiftUI yüzeyi yenilemiyor | `surfaceGeneration` sayacı; `.id(engineIdentifier)` yetmez |
+| Her kanal değişiminde motoru yeniden kurmak | Zaplama yavaş: teardown + yeni `AVPlayer` + ses oturumu + PiP + yüzey yeniden kurulumu, **her kanalda** | Resolver kararı değişmediyse motoru koru, yalnızca `load()` çağır |
+| Motorun yalnızca hata sinyaline güvenmek | AVPlayer çözemediği videoyu **sessizce atlıyor**: `readyToPlay`, hata yok, ses akıyor, ekran siyah — yedek motor hiç denenmiyor | "Oynuyor ama kare yok" gözcüsü. VLC'de tersi: ölü yayında sonsuza kadar `.opening` — orada da zaman aşımı gerekir |
+| `.menu` Picker'ın etiketine güvenmek | `Form`/`List` dışında etiket **hiç çizilmiyor**, ekranda yalnızca seçili değer duruyor ("Dengeli" yazıyor, neyin dengeli olduğu yazmıyor) | Etiketi elle çiz, Picker'a `.labelsHidden()` |
+| Oranı görsele uygulamak | `RemoteImageView`'a `.aspectRatio` verilince görsel kendi doğal genişliğini dayatıyor, **tüm blok ekrandan taşıyor** | Oranı boş kutuya ver: `Color.clear.aspectRatio(…).overlay { görsel }` |
+| Sinematik başlığı tek bileşen sanmak | Opak gezinme çubuğu görselin üst ~110pt'sini ve afişin tepesini örtüyor | Ekran ayrıca `.toolbarBackground(.hidden, for: .navigationBar)` demeli — bu bir **iki parçalı sözleşme** |
 
 > 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
 > üçüncüde `plutil -p` ile derlenmiş plist okununca cevap tek satırda çıktı.
@@ -447,3 +543,50 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 3. **Derleyici zorlaması** — `FeatureLive`, `OctopusData`'yı import **edemez**. "Şuraya hızlıca şunu yazayım" kestirmesi derlenmez.
 
 **Sonuç:** Proje 50.000 satıra çıkar, `OctopusApp.swift` yine 40 satır kalır.
+
+---
+
+## 13. NEREDE KALDIK? (2026-08-09)
+
+### Bu oturumda tamamlananlar
+
+| Konu | Durum | Not |
+|---|---|---|
+| VLCKit entegrasyonu (Faz 5) | ✅ | `vlckit-spm` 3.6.0. UHD/HEVC kanallar artık görüntülü açılıyor |
+| "Sesli körlük" gözcüsü | ✅ | AVPlayer sessizce video izini atlıyordu; 3 sn sonra yedeğe düşülür |
+| Canlı TV gömülü mini oynatıcı | ✅ | Liste dokunuşu tam ekrana atlamıyor, yayın tepede başlıyor |
+| Kanal geçiş hızı | ✅ | Motor yeniden kullanımı + tampon ayarları. Standart kanal ~1,3 sn |
+| Canlıda otomatik yeniden bağlanma | ✅ | Artan gecikmeyle 3 deneme, sessiz |
+| Ayarlar → Oynatıcı bölümü | ✅ | Tampon, yerleşim, yeniden bağlanma, yedek motor — hepsi gerçek etkili |
+| Detay sayfası sinematik başlık | ✅ | Şeffaf çubuk + oranla ölçeklenen arka plan |
+| Ana sayfa başlık kartı | ✅ | Dönen afiş kaldırıldı; marka, saat, abonelik, kullanıcı |
+| Son eklenen diziler rafı | ✅ | `SeriesRepository.recentlyAdded` (sıralama `lastModified`) |
+| Abonelik bitişi kalıcı | ✅ | `authenticate()` sonucu atılıyordu; artık `playlist.expiresAt` |
+| Aktivasyon kodu | ✅ | GET→POST, iç içe cevap, normalleştirme — üç ayrı hata |
+| M3U → Xtream dönüşümü | ✅ | `XtreamLink`. Kanıt: m3u'da 315k kanal/0 film · xtream'de 3k kanal/38k film/4k dizi |
+| Bayi markası | ✅ | `theme.primary_color` okunuyor **ve** artık uygulanıyor |
+| KSPlayer denemesi | ❌ | Entegre edildi, çalıştı, **çöktü** (kütüphane içi trap), kaldırıldı |
+
+### Açık işler
+
+| # | İş | Neden bekliyor |
+|---|---|---|
+| 1 | **Tam ekranda VLC denetimleri görünmüyor** | Dokunma ulaşıyor, durum değişiyor, çizim olmuyor. `VLCOpenGLES2VideoView` SwiftUI içeriğinin önünde kompozit ediliyor. `zIndex`, `.overlay`, `isUserInteractionEnabled`, güvenli alan taşıma — hiçbiri çözmedi. **İpucu:** Canlı TV'deki mini oynatıcı aynı motorla katmanını sorunsuz çiziyor; fark, orada yüzeyin `aspectRatio` ile sınırlı olması. Muhtemel çözüm: denetimleri `UIHostingController` ile VLC görünümünün üstüne UIKit tarafında eklemek |
+| 2 | **Bayi kodu ucu bağlı değil** | `/api/public/reseller-config/{kod}` app_name, logo, iletişim, `minimum_version` ve **DNS yedek listesi** döndürüyor. Uygulama bu ucu hiç çağırmıyor çünkü **bayi kodunu bilmiyor** — aktivasyon cevabı kodu döndürmüyor. Seçenekler: (a) panel cevabına `reseller_code` eklesin, (b) bayi başına derleme, (c) kullanıcı girsin |
+| 3 | **`DNSFailoverService` çağrılmıyor** | Yazılmış ama hiçbir yerden kullanılmıyor. (2) çözülünce sunucu düştüğünde otomatik yedeğe geçiş devreye girer |
+| 4 | Mevcut M3U kaynakları dönüşmüyor | Dönüşüm yalnızca **yeni** eklemede. Eski kayıtlar silinip yeniden eklenmeli — ya da senkronizasyonda göç yazılmalı |
+| 5 | `PanelEndpoint.defaultBaseURL` force unwrap | CLAUDE.md yasaklıyor, `check-architecture.sh` yakalamıyor |
+| 6 | HEVC gerçek cihazda doğrulanmadı | Simülatörde HEVC çözülemiyor ve her UHD kanal yedeğe düşüyor. **Gerçek iPhone'da AVPlayer HEVC'yi donanımda çözer** — orada yedeğe hiç düşmemesi beklenir. Ölçülmeden optimize edilmemeli |
+
+### Doğrulanmış gerçekler (tahmin değil)
+
+- **API adresi:** `octopusdocumentary.com` ✅ · `octopusplayer.com/api/*` → CMS 404 ❌
+- Bayi sayfası `octopusplayer.com/b/{kod}` 4 haneli, 10 dakikalık kod üretir
+- Aktivasyon başarı cevabı: `{ success, playlist:{…}, theme:{…}, home_theme:{…} }`
+- Panel `invalid_code_format` hatasını **boş gövdeye de** döndürür — "biçim yanlış" değil, "okuyamadım" demektir
+- Açılış süreleri (simülatör): standart kanal 1,3–2,4 sn · UHD (yedeğe düşerek) ~7,5 sn
+
+### Ölçüm araçları
+
+- `Açılış: N ms · motor X` — her yayın açılışında (kalıcı log)
+- `Aktivasyon cevabı: HTTP N · <hata> · alanlar=[…]` — alan adları, **değerler asla**
