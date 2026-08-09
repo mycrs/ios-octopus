@@ -2,16 +2,31 @@ import SwiftUI
 import OctopusDomain
 import OctopusDesignSystem
 import OctopusNavigation
+import OctopusPlayback
 
 public struct LiveDependencies {
     public let playlists: PlaylistRepository
     public let channels: ChannelRepository
     public let epg: EPGRepository
     public let favorites: FavoritesRepository
-    /// Son izlenen kanalı bulmak için — üstteki önizleme kartı bunu kullanır.
+    /// Son izlenen kanalı bulmak için — hiçbir şey oynamıyorken tepede durur.
     public let history: WatchHistoryRepository
     /// Kilit açıkken yetişkin kanallar listeden gizlenir.
     public let parental: ParentalControlling
+
+    /// Gömülü mini oynatıcının ihtiyaç duyduğu iki parça.
+    ///
+    /// ⚠️ Bunlar `FeaturePlayer`'dan **gelmiyor**: motor sözleşmesi
+    /// `OctopusPlayback`'te, adres çözümü Domain'de. İki ekran birbirini
+    /// görmüyor (bkz. CLAUDE.md demir kural 3).
+    public let resolver: PlaybackEngineResolver
+    public let streams: StreamResolving
+    /// Canlı yayında konum kaydedilmez ama denetleyici sözleşmesi ister.
+    public let progress: PlaybackProgressRepository
+
+    /// Kullanıcının Ayarlar'daki oynatma tercihleri — mini oynatıcı da
+    /// tam ekran oynatıcıyla aynı tampon/yerleşim ayarlarını kullanmalı.
+    public let preferences: PlaybackPreferences?
 
     public init(
         playlists: PlaylistRepository,
@@ -19,13 +34,21 @@ public struct LiveDependencies {
         epg: EPGRepository,
         favorites: FavoritesRepository,
         history: WatchHistoryRepository,
+        resolver: PlaybackEngineResolver,
+        streams: StreamResolving,
+        progress: PlaybackProgressRepository,
+        preferences: PlaybackPreferences? = nil,
         parental: ParentalControlling = OpenParentalControl()
     ) {
+        self.preferences = preferences
         self.playlists = playlists
         self.channels = channels
         self.epg = epg
         self.favorites = favorites
         self.history = history
+        self.resolver = resolver
+        self.streams = streams
+        self.progress = progress
         self.parental = parental
     }
 }
@@ -49,18 +72,30 @@ public struct LiveDependencies {
 public struct LiveScreen: View {
 
     @StateObject private var viewModel: LiveChannelsViewModel
+    @StateObject private var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.scenePhase) private var scenePhase
 
     public init(dependencies: LiveDependencies) {
         _viewModel = StateObject(wrappedValue: LiveChannelsViewModel(dependencies: dependencies))
+        _controller = StateObject(
+            wrappedValue: PlayerController(
+                resolver: dependencies.resolver,
+                progress: dependencies.progress,
+                history: dependencies.history,
+                preferences: dependencies.preferences
+            )
+        )
     }
 
-    /// Önizleme kartı görünüyor mu?
+    /// Üstteki oynatıcı alanı görünüyor mu?
     ///
     /// Arama sırasında gizlenir: kullanıcı belirli bir kanalı ararken üstte
-    /// alakasız bir önizleme yer kaplamamalı.
+    /// yer kaplamamalı. **Oynatma sürerken gizlenmez** — arama yapmak için
+    /// yayını kesmek referanstaki davranışa aykırı olurdu.
     private var showsPreview: Bool {
-        !viewModel.isSearching && viewModel.lastWatchedChannel != nil
+        if viewModel.playingChannel != nil { return true }
+        return !viewModel.isSearching && viewModel.lastWatchedChannel != nil
     }
 
     public var body: some View {
@@ -68,11 +103,14 @@ public struct LiveScreen: View {
             Theme.Palette.background.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                if showsPreview, let lastWatched = viewModel.lastWatchedChannel {
-                    LiveNowPlayingCard(
-                        channel: lastWatched,
-                        program: viewModel.currentProgram(for: lastWatched),
-                        onTap: { router.presentPlayer(.liveChannel(lastWatched.id)) }
+                if showsPreview {
+                    LiveMiniPlayerView(
+                        channel: viewModel.playingChannel,
+                        program: (viewModel.playingChannel ?? viewModel.lastWatchedChannel)
+                            .flatMap(viewModel.currentProgram),
+                        controller: controller,
+                        placeholderChannel: viewModel.lastWatchedChannel,
+                        onExpand: expandToFullScreen
                     )
                 }
 
@@ -98,11 +136,65 @@ public struct LiveScreen: View {
                 content
             }
         }
-        // Kart yokken üst güvenli alan korunur — aksi hâlde kategori şeridi
-        // durum çubuğunun altında kalırdı.
-        .ignoresSafeArea(edges: showsPreview ? .top : [])
+        // ⚠️ Üst güvenli alan **korunuyor**. Eskiden oynatıcı durum
+        // çubuğunun altına uzanıyordu ("kenara yapışık" görünsün diye) ama
+        // yüksekliğinin ~60pt'si oraya gidiyordu: geriye dar bir video
+        // şeridi kalıyordu. Referansta da video durum çubuğunun **altından**
+        // başlıyor. Artık tam 16:9'un tamamı görünür.
         .toolbar(.hidden, for: .navigationBar)
         .task { await viewModel.load() }
+        // ⚠️ Motoru bırakmak **atlanamaz**: IPTV panelleri eşzamanlı
+        // bağlantıyı sınırlar ve bırakılmayan her akış kotadan bir hak yer
+        // (bkz. PlaybackEngine.teardown). Sekme değişince de tetiklenir.
+        .onDisappear {
+            Task {
+                await controller.finish()
+                viewModel.clearPlayingChannel()
+            }
+        }
+        // Arka plana geçince gömülü yayın durur: kullanıcı Canlı TV
+        // listesine bakarken sesin arka planda sürmesini beklemez —
+        // arka plan sesi tam ekran oynatıcının işi.
+        .onChange(of: scenePhase) { phase in
+            guard phase != .active, viewModel.playingChannel != nil else { return }
+            controller.pause()
+        }
+        .overlay(alignment: .bottom) { playbackMessage }
+    }
+
+    /// Akış açılamadıysa listeyi bozmadan uyarır.
+    @ViewBuilder
+    private var playbackMessage: some View {
+        if let message = viewModel.playbackMessage {
+            InlineMessageView(text: message, kind: .error)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.bottom, Theme.Spacing.md)
+        }
+    }
+
+    // MARK: - Gömülü oynatma
+
+    /// Kanalı üstteki mini oynatıcıda başlatır.
+    private func play(_ channel: Channel) {
+        Haptics.selection()
+        Task {
+            guard let item = await viewModel.playbackItem(for: channel) else { return }
+            await controller.start(item)
+        }
+    }
+
+    /// Tam ekrana geçer.
+    ///
+    /// ⚠️ Gömülü motor **önce bırakılır**: iki oynatıcı aynı anda açık
+    /// kalırsa panelde iki bağlantı tutulur ve kullanıcı hızla
+    /// `connectionLimitReached` görür.
+    private func expandToFullScreen() {
+        guard let channel = viewModel.playingChannel ?? viewModel.lastWatchedChannel else { return }
+        Task {
+            await controller.finish()
+            viewModel.clearPlayingChannel()
+            router.presentPlayer(.liveChannel(channel.id))
+        }
     }
 
     @ViewBuilder
@@ -152,7 +244,10 @@ public struct LiveScreen: View {
                         program: viewModel.currentProgram(for: channel),
                         clock: viewModel.clock,
                         isFavorite: viewModel.isFavorite(channel),
-                        onTap: { router.presentPlayer(.liveChannel(channel.id)) },
+                        // ⚠️ Tam ekran **değil**: referansta liste dokunuşu
+                        // yayını üstteki gömülü oynatıcıda başlatır.
+                        // Tam ekran o alana dokununca açılır.
+                        onTap: { play(channel) },
                         onToggleFavorite: { Task { await viewModel.toggleFavorite(channel) } },
                         onShowGuide: { router.push(.channelGuide(channel.id)) }
                     )

@@ -25,7 +25,10 @@ final class ChannelGuideViewModelTests: XCTestCase {
                 channels: channels,
                 epg: epg,
                 favorites: GuideStubFavorites(),
-                history: GuideStubHistory()
+                history: GuideStubHistory(),
+                resolver: LiveTestPlayback.makeResolver(),
+                streams: LiveStubStreams(),
+                progress: LiveStubProgress()
             ),
             now: { self.now }
         )

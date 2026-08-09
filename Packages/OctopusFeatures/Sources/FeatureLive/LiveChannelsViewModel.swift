@@ -17,14 +17,21 @@ public final class LiveChannelsViewModel: ObservableObject {
     /// İlerleme çubuklarının canlı görünmesi için kullanılan referans an.
     @Published public private(set) var clock = Date()
 
-    /// Son izlenen kanal — ekranın tepesindeki önizleme kartı bunu gösterir.
-    ///
-    /// Referans projede oynatıcı ekranın üstünde **her zaman** gömülü
-    /// duruyordu; kullanıcı kanal gezinirken de görmeye devam ediyordu.
-    /// Bizim mimarimizde oynatıcı ayrı bir modül (`FeaturePlayer`) ve
-    /// feature'lar birbirini import edemez — video gömülemez. Bunun yerine
-    /// kaldığı kanalı hatırlatan bir kart aynı hissi, mimariyi bozmadan verir.
+    /// Son izlenen kanal — hiçbir şey oynatılmıyorken tepede onun afişi durur.
     @Published public private(set) var lastWatchedChannel: Channel?
+
+    /// Gömülü mini oynatıcıda **şu an** oynayan kanal. `nil` = henüz yok.
+    ///
+    /// Referanstaki davranış: listeden bir kanala dokunmak tam ekrana
+    /// atlamaz, yayını buradan başlatır ve kullanıcı listede gezinmeye
+    /// devam eder.
+    @Published public private(set) var playingChannel: Channel?
+
+    /// Akış adresi çözülemediğinde gösterilecek mesaj.
+    ///
+    /// ⚠️ Liste `state`'ini bozmuyor: tek bir kanal açılmadı diye tüm
+    /// kanal listesini hata ekranıyla değiştirmek orantısız olurdu.
+    @Published public private(set) var playbackMessage: String?
 
     /// `nil` = tüm kanallar.
     @Published public private(set) var selectedCategoryID: MediaCategory.ID?
@@ -228,6 +235,38 @@ public final class LiveChannelsViewModel: ObservableObject {
         searchTask?.cancel()
         searchText = ""
         isSearching = false
+    }
+
+    // MARK: - Gömülü oynatma
+
+    /// Kanalın oynatılabilir adresini çözer.
+    ///
+    /// ⚠️ Motoru burada **başlatmıyoruz**: `PlayerController` görünümün
+    /// ömrüne bağlı (`@StateObject`) ve ViewModel onu tutmamalı — aksi
+    /// hâlde ekran kapandığında motor bırakılmaz ve IPTV bağlantı kotası
+    /// dolar (bkz. `PlaybackEngine.teardown`).
+    public func playbackItem(for channel: Channel) async -> PlaybackItem? {
+        // Kilitli kanal gömülü oynatıcıda da açılmamalı; liste süzülüyor
+        // ama numarayla arama gibi yollarla buraya düşebilir.
+        guard parentalFilter.allows(channel: channel) else {
+            playbackMessage = "Bu kanal ebeveyn kilidiyle gizli."
+            return nil
+        }
+
+        do {
+            let item = try await dependencies.streams.playbackItem(for: channel)
+            playingChannel = channel
+            playbackMessage = nil
+            return item
+        } catch {
+            playbackMessage = AppError.wrap(error).userMessage
+            return nil
+        }
+    }
+
+    /// Mini oynatıcı durdurulduğunda çağrılır.
+    public func clearPlayingChannel() {
+        playingChannel = nil
     }
 
     // MARK: - Favoriler
