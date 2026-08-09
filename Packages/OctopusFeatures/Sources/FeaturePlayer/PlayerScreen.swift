@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit          // UIPasteboard
 import OctopusDomain
 import OctopusDesignSystem
 import OctopusNavigation
@@ -45,16 +44,19 @@ public struct PlayerDependencies {
 public struct PlayerScreen: View {
 
     @StateObject private var viewModel: PlayerViewModel
-    @StateObject private var controller: PlayerController
+    @StateObject var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var showsControls = true
-    @State private var hideControlsTask: Task<Void, Never>?
-    @State private var isShowingTracks = false
+    // ⚠️ Bu üçü `private` değil: denetim mantığı `PlayerScreen+Controls.swift`
+    // içinde ve Swift'te `private`, **aynı dosyadaki** uzantılardan erişilebilir.
+    // Ayrı dosyaya taşınınca modül içi görünürlük gerekiyor.
+    @State var showsControls = true
+    @State var hideControlsTask: Task<Void, Never>?
+    @State var isShowingTracks = false
 
     /// Denetimlerin kendiliğinden kaybolma süresi.
-    private let autoHideDelay: Duration = .seconds(3.5)
+    let autoHideDelay: Duration = .seconds(3.5)
 
     public init(presentation: PlayerPresentation, dependencies: PlayerDependencies) {
         _viewModel = StateObject(
@@ -136,66 +138,6 @@ public struct PlayerScreen: View {
         }
     }
 
-    private func controlsLayer(_ item: PlaybackItem) -> some View {
-        ZStack {
-            // Dokunma alanı tüm ekran: kullanıcı düğmeyi aramak zorunda kalmasın.
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture { toggleControls() }
-
-            if showsControls {
-                PlayerControlsOverlay(
-                    title: item.title,
-                    subtitle: item.subtitle,
-                    isLive: item.isLive,
-                    state: controller.state,
-                    time: controller.time,
-                    hasTracks: hasSelectableTracks,
-                    showsAirPlay: controller.supportsAirPlay,
-                    videoFit: controller.videoFit,
-                    onClose: close,
-                    onTogglePlay: {
-                        controller.togglePlayPause()
-                        scheduleControlsHide()
-                    },
-                    onSkip: { delta in
-                        Task { await controller.skip(by: delta) }
-                        scheduleControlsHide()
-                    },
-                    onSeek: { position in
-                        Task { await controller.seek(to: position) }
-                        scheduleControlsHide()
-                    },
-                    onShowTracks: {
-                        hideControlsTask?.cancel()
-                        isShowingTracks = true
-                    },
-                    onToggleFit: {
-                        controller.toggleVideoFit()
-                        scheduleControlsHide()
-                    }
-                )
-                .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: showsControls)
-    }
-
-    private var hasSelectableTracks: Bool {
-        controller.audioTracks.count > 1 || !controller.subtitleTracks.isEmpty
-    }
-
-    @ViewBuilder
-    private var trackPicker: some View {
-        PlayerTrackPicker(
-            audioTracks: controller.audioTracks,
-            subtitleTracks: controller.subtitleTracks,
-            selectedAudio: controller.selectedAudioTrack,
-            selectedSubtitle: controller.selectedSubtitleTrack,
-            onSelect: controller.select
-        )
-    }
-
     // MARK: - Hatalar
 
     /// Adres üretilemedi — sorun oynatıcıdan **önce**.
@@ -210,66 +152,17 @@ public struct PlayerScreen: View {
     }
 
     /// Adres üretildi ama açılamadı — sorun akışta ya da motorda.
-    ///
-    /// Adres kopyalanabilir bırakılıyor: harici bir oynatıcıda açılıyorsa
-    /// sorun bizde, açılmıyorsa kaynakta. Bu ayrım destek için kritik.
+    /// İçeriği `PlaybackErrorView` çiziyor.
     private func playbackFailure(_ error: AppError, item: PlaybackItem) -> some View {
-        VStack(spacing: Theme.Spacing.lg) {
-            EmptyStateView(
-                icon: "play.slash",
-                title: "Yayın açılamadı",
-                message: error.userMessage,
-                actionTitle: "Tekrar dene",
-                action: { Task { await controller.start(item) } }
-            )
-
-            Text(PlayerViewModel.maskedURL(item.url))
-                .font(.system(.caption2, design: .monospaced))
-                .foregroundColor(Theme.Palette.textTertiary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, Theme.Spacing.md)
-
-            HStack(spacing: Theme.Spacing.md) {
-                Button {
-                    UIPasteboard.general.string = item.url.absoluteString
-                } label: {
-                    Label("Adresi kopyala", systemImage: "doc.on.doc")
-                }
-                Button("Kapat", action: close)
-                    .foregroundColor(Theme.Palette.textSecondary)
-            }
-            .font(Theme.Typography.caption)
-        }
-        .padding(Theme.Spacing.lg)
+        PlaybackErrorView(
+            error: error,
+            item: item,
+            onRetry: { Task { await controller.start(item) } },
+            onClose: close
+        )
     }
 
-    // MARK: - Denetim görünürlüğü
-
-    private func toggleControls() {
-        showsControls.toggle()
-        if showsControls {
-            scheduleControlsHide()
-        } else {
-            hideControlsTask?.cancel()
-        }
-    }
-
-    /// Denetimleri belirli bir süre sonra gizler.
-    ///
-    /// ⚠️ Duraklatılmışken gizlenmez: ekranda hiçbir ipucu kalmaz ve
-    /// kullanıcı videonun donduğunu sanır.
-    private func scheduleControlsHide() {
-        hideControlsTask?.cancel()
-        showsControls = true
-
-        hideControlsTask = Task {
-            try? await Task.sleep(for: autoHideDelay)
-            guard !Task.isCancelled, controller.state == .playing else { return }
-            showsControls = false
-        }
-    }
-
-    private func close() {
+    func close() {
         hideControlsTask?.cancel()
         router.dismissPlayer()
     }
