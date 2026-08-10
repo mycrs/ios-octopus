@@ -91,8 +91,13 @@ final class PlayerSurfaceViewController: UIViewController {
     func update(overlay: AnyView, showsEdgeGlyphs: Bool) {
         overlayHost.rootView = overlay
         self.showsEdgeGlyphs = showsEdgeGlyphs
-        closeGlyph.isHidden = !showsEdgeGlyphs
-        optionsGlyph.isHidden = !showsEdgeGlyphs
+        [closeGlyph, optionsGlyph].forEach {
+            $0.isHidden = !showsEdgeGlyphs
+            if showsEdgeGlyphs {
+                $0.setNeedsLayout()
+                $0.layoutIfNeeded()
+            }
+        }
         refreshOverlayOrder()
     }
 

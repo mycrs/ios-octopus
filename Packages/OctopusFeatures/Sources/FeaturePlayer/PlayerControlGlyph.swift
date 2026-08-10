@@ -17,7 +17,7 @@ final class PlayerEdgeGlyphView: UIView {
 
     init(kind: Kind) {
         self.kind = kind
-        super.init(frame: .zero)
+        super.init(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
 
         backgroundColor = UIColor.black.withAlphaComponent(0.58)
         layer.cornerRadius = 22
@@ -27,6 +27,7 @@ final class PlayerEdgeGlyphView: UIView {
         clipsToBounds = true
         isUserInteractionEnabled = false
         isAccessibilityElement = false
+        updateGlyphLayer()
     }
 
     @available(*, unavailable)
@@ -34,6 +35,10 @@ final class PlayerEdgeGlyphView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        updateGlyphLayer()
+    }
+
+    private func updateGlyphLayer() {
         glyphLayer.frame = bounds
         glyphLayer.contentsScale = contentScaleFactor
 
