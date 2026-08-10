@@ -11,7 +11,7 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         let controller = PlayerSurfaceViewController(
             surface: firstSurface,
             surfaceGeneration: 1,
-            overlay: AnyView(EmptyView())
+            overlay: EmptyView()
         )
         controller.loadViewIfNeeded()
         let originalHost = controller.overlayHost
@@ -20,7 +20,7 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         controller.update(
             surfaceGeneration: 2,
             makeSurface: { replacementSurface },
-            overlay: AnyView(EmptyView())
+            overlay: EmptyView()
         )
 
         XCTAssertNil(firstSurface.superview)

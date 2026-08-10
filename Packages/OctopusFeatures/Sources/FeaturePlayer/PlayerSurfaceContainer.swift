@@ -25,7 +25,9 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
         self.overlay = overlay()
     }
 
-    func makeUIViewController(context: Context) -> PlayerSurfaceViewController {
+    func makeUIViewController(
+        context: Context
+    ) -> PlayerSurfaceViewController<PlayerHostedOverlay<Overlay>> {
         PlayerSurfaceViewController(
             surface: makeSurface(),
             surfaceGeneration: surfaceGeneration,
@@ -34,7 +36,7 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(
-        _ controller: PlayerSurfaceViewController,
+        _ controller: PlayerSurfaceViewController<PlayerHostedOverlay<Overlay>>,
         context: Context
     ) {
         controller.update(
@@ -44,25 +46,34 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
         )
     }
 
-    private var hostedOverlay: AnyView {
-        AnyView(
-            overlay
-                .environment(\.brandColor, brandColor)
-                .preferredColorScheme(.dark)
-        )
+    private var hostedOverlay: PlayerHostedOverlay<Overlay> {
+        PlayerHostedOverlay(content: overlay, brandColor: brandColor)
     }
 }
 
-final class PlayerSurfaceViewController: UIViewController {
+/// `AnyView` kullanılmaz: VOD süresi her güncellendiğinde tip silinmiş ağacı
+/// baştan kurmak, hızlandırılmış video üstünde kısa süreli glif kaybı yaratıyordu.
+struct PlayerHostedOverlay<Content: View>: View {
+    let content: Content
+    let brandColor: Color
+
+    var body: some View {
+        content
+            .environment(\.brandColor, brandColor)
+            .preferredColorScheme(.dark)
+    }
+}
+
+final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
 
     private var surface: UIView?
     private var surfaceGeneration: Int
-    let overlayHost: UIHostingController<AnyView>
+    let overlayHost: UIHostingController<Overlay>
 
     init(
         surface: UIView?,
         surfaceGeneration: Int,
-        overlay: AnyView
+        overlay: Overlay
     ) {
         self.surface = surface
         self.surfaceGeneration = surfaceGeneration
@@ -97,7 +108,7 @@ final class PlayerSurfaceViewController: UIViewController {
     func update(
         surfaceGeneration: Int,
         makeSurface: () -> UIView?,
-        overlay: AnyView
+        overlay: Overlay
     ) {
         replaceSurfaceIfNeeded(
             generation: surfaceGeneration,
