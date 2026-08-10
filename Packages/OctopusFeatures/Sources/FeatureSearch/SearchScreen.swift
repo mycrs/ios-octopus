@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import OctopusDomain
 import OctopusDesignSystem
 import OctopusNavigation
@@ -31,10 +32,7 @@ public struct SearchScreen: View {
 
     @StateObject private var viewModel: SearchViewModel
     @EnvironmentObject private var router: AppRouter
-
-    private let posterColumns = [
-        GridItem(.adaptive(minimum: 104), spacing: Theme.Spacing.md)
-    ]
+    @Environment(\.brandColor) private var brandColor
 
     public init(dependencies: SearchDependencies) {
         _viewModel = StateObject(wrappedValue: SearchViewModel(dependencies: dependencies))
@@ -52,7 +50,14 @@ public struct SearchScreen: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: "Kanal, film veya dizi"
         )
-        .task { await viewModel.prepare() }
+        .task {
+            await viewModel.prepare()
+#if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-startupSearch") {
+                viewModel.searchText = "tr"
+            }
+#endif
+        }
     }
 
     @ViewBuilder
@@ -89,65 +94,97 @@ public struct SearchScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                 if !viewModel.channels.isEmpty {
-                    section(title: "Kanallar", count: viewModel.channels.count) {
-                        VStack(spacing: Theme.Spacing.xs) {
-                            ForEach(viewModel.channels) { channel in
-                                SearchChannelRow(channel: channel) {
-                                    router.presentPlayer(.liveChannel(channel.id))
-                                }
+                    horizontalSection(
+                        title: "Canlı TV",
+                        icon: "tv.fill",
+                        count: viewModel.channels.count
+                    ) {
+                        ForEach(viewModel.channels) { channel in
+                            SearchChannelCard(channel: channel) {
+                                router.presentPlayer(.liveChannel(channel.id))
                             }
                         }
                     }
                 }
 
                 if !viewModel.movies.isEmpty {
-                    section(title: "Filmler", count: viewModel.movies.count) {
-                        LazyVGrid(columns: posterColumns, spacing: Theme.Spacing.lg) {
-                            ForEach(viewModel.movies) { movie in
-                                SearchPoster(title: movie.title, posterURL: movie.posterURL) {
-                                    router.push(.movieDetail(movie.id))
-                                }
+                    horizontalSection(
+                        title: "Filmler",
+                        icon: "film.fill",
+                        count: viewModel.movies.count
+                    ) {
+                        ForEach(viewModel.movies) { movie in
+                            SearchPoster(
+                                title: movie.title,
+                                posterURL: movie.posterURL,
+                                rating: movie.rating
+                            ) {
+                                router.push(.movieDetail(movie.id))
                             }
                         }
                     }
                 }
 
                 if !viewModel.series.isEmpty {
-                    section(title: "Diziler", count: viewModel.series.count) {
-                        LazyVGrid(columns: posterColumns, spacing: Theme.Spacing.lg) {
-                            ForEach(viewModel.series) { item in
-                                SearchPoster(title: item.title, posterURL: item.posterURL) {
-                                    router.push(.seriesDetail(item.id))
-                                }
+                    horizontalSection(
+                        title: "Diziler",
+                        icon: "rectangle.stack.fill",
+                        count: viewModel.series.count
+                    ) {
+                        ForEach(viewModel.series) { item in
+                            SearchPoster(
+                                title: item.title,
+                                posterURL: item.posterURL,
+                                rating: item.rating
+                            ) {
+                                router.push(.seriesDetail(item.id))
                             }
                         }
                     }
                 }
             }
-            .padding(Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.md)
         }
     }
 
-    private func section<Content: View>(
+    private func horizontalSection<Content: View>(
         title: String,
+        icon: String,
         count: Int,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             HStack(spacing: Theme.Spacing.sm) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(brandColor.opacity(0.14))
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(brandColor)
+                }
+                .frame(width: 30, height: 30)
+
                 Text(title)
                     .font(Theme.Typography.sectionTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
 
                 Text("\(count)")
                     .font(Theme.Typography.badge)
-                    .foregroundColor(Theme.Palette.accent)
+                    .foregroundColor(brandColor)
                     .padding(.horizontal, Theme.Spacing.sm)
                     .padding(.vertical, Theme.Spacing.xxs)
-                    .background(Theme.Palette.accentMuted)
+                    .background(brandColor.opacity(0.12))
                     .clipShape(Capsule())
             }
-            content()
+            .padding(.horizontal, Theme.Spacing.md)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
+                    content()
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.bottom, Theme.Spacing.sm)
+            }
         }
     }
 }

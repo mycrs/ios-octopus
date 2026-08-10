@@ -258,7 +258,9 @@ final class AppContainer: ObservableObject {
         // Açılışta doğrudan oynatıcıyı açar. Onboarding gösteriliyorsa
         // atlanır — oynatacak kaynak yok.
         if !router.needsOnboarding {
-            if DemoCatalogSeeder.isPlayerRequested {
+            if ProcessInfo.processInfo.arguments.contains("-startupSearch") {
+                router.switchTab(to: .home, then: .search)
+            } else if DemoCatalogSeeder.isPlayerRequested {
                 // Tek parça bayrak: Xcode'un argüman listesinde boşluklu
                 // satır tek argüman sayıldığı için elle kurulumda
                 // `-startup.player <key>` biçimi çalışmıyordu.
