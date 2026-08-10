@@ -106,15 +106,8 @@ struct PlayerControlsTopBar: View {
                 }
             }
         } label: {
-            // VLC'nin video drawable'ı yeniden bağlandığında üst çubuktaki
-            // SF Symbol katmanları kaybolabiliyor. Metin glifi aynı görseli
-            // tek katmanda çizdiği için fallback motorunda da görünür kalır.
-            Text("•••")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .kerning(1.5)
-                .foregroundStyle(.white)
+            PlayerControlGlyph(text: "•••")
                 .frame(width: 44, height: 44)
-                .background(controlBackground)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Oynatıcı seçenekleri")
@@ -142,11 +135,8 @@ struct PlayerControlsTopBar: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Text(symbol)
-                .font(.system(size: 28, weight: .medium, design: .rounded))
-                .foregroundStyle(.white)
+            PlayerControlGlyph(text: symbol)
                 .frame(width: 44, height: 44)
-                .background(controlBackground)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

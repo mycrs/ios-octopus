@@ -177,10 +177,16 @@ public final class PlayerController: ObservableObject {
         guard !Task.isCancelled, sessionGeneration == session else { return }
         item = prepared
         let allowsFallback = preferences?.useFallbackEngine ?? true
-        let wanted = resolver.decide(
-            for: prepared.format,
-            allowingFallback: allowsFallback
-        )
+#if DEBUG
+        // CI görsel turu VLC katmanını rastlantıya bırakmadan doğrulayabilsin.
+        let forcesFallback = ProcessInfo.processInfo.arguments.contains("-forceFallbackPlayer")
+            && resolver.hasFallback
+#else
+        let forcesFallback = false
+#endif
+        let wanted: PlaybackEngineResolver.Decision = forcesFallback
+            ? .fallback
+            : resolver.decide(for: prepared.format, allowingFallback: allowsFallback)
 
         attachRemoteCommands(isLive: prepared.isLive)
 
@@ -199,11 +205,17 @@ public final class PlayerController: ObservableObject {
         }
 
         decision = wanted
-        await attach(
-            resolver.makeEngine(
+        let selectedEngine: PlaybackEngine
+        if forcesFallback, let fallback = resolver.makeRuntimeFallbackEngine() {
+            selectedEngine = fallback
+        } else {
+            selectedEngine = resolver.makeEngine(
                 for: prepared.format,
                 allowingFallback: allowsFallback
-            ),
+            )
+        }
+        await attach(
+            selectedEngine,
             loading: prepared,
             session: session
         )
