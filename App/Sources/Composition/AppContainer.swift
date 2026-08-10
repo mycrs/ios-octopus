@@ -373,6 +373,13 @@ final class AppContainer: ObservableObject {
             // Aktivasyon kodundan gelen bayi markasını uygula.
             onBrandingResolved: { [weak self] branding in
                 self?.themeController.apply(branding: branding)
+            },
+            // Bayi kodu: markayı ve sunucu listesini getirir.
+            applyResellerCode: { [weak self] code in
+                await self?.applyResellerCode(code) ?? false
+            },
+            savedResellerCode: { [weak self] in
+                await self?.savedResellerCode()
             }
         )
     }

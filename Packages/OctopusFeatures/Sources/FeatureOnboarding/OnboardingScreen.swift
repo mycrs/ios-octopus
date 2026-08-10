@@ -31,15 +31,28 @@ public struct OnboardingDependencies {
     /// feature modülü tema denetleyicisini tanımak zorunda kalmasın.
     public let onBrandingResolved: @MainActor (BrandConfiguration) -> Void
 
+    /// Bayi kodunu panele sorar ve kaydeder. `true` → kod bulundu.
+    ///
+    /// Kapanış olarak alınıyor: feature modülü panel servisini de tema
+    /// denetleyicisini de tanımaz, yalnızca "kodu uygula" der.
+    public let applyResellerCode: @MainActor (String) async -> Bool
+
+    /// Kayıtlı bayi kodu — alan bununla doldurulur.
+    public let savedResellerCode: @MainActor () async -> String?
+
     public init(
         playlists: PlaylistRepository,
         validator: PlaylistValidating,
         activation: ActivationRedeeming,
         sync: ContentSyncing,
         isManualLoginEnabled: @escaping @MainActor () -> Bool = { true },
-        onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in }
+        onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in },
+        applyResellerCode: @escaping @MainActor (String) async -> Bool = { _ in false },
+        savedResellerCode: @escaping @MainActor () async -> String? = { nil }
     ) {
         self.onBrandingResolved = onBrandingResolved
+        self.applyResellerCode = applyResellerCode
+        self.savedResellerCode = savedResellerCode
         self.playlists = playlists
         self.validator = validator
         self.activation = activation
@@ -56,6 +69,8 @@ public struct OnboardingScreen: View {
     private let dependencies: OnboardingDependencies
     @EnvironmentObject private var router: AppRouter
     @State private var showsForm = false
+    @State private var showsResellerCode = false
+    @State private var savedCode: String?
 
     public init(dependencies: OnboardingDependencies) {
         self.dependencies = dependencies
@@ -98,9 +113,39 @@ public struct OnboardingScreen: View {
 
                 Spacer(minLength: Theme.Spacing.xl)
                 startButton
+                resellerCodeButton
             }
             .padding(Theme.Spacing.xl)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .task { savedCode = await dependencies.savedResellerCode() }
+        .sheet(isPresented: $showsResellerCode) {
+            ResellerCodeSheet(
+                onSubmit: { code in
+                    let isValid = await dependencies.applyResellerCode(code)
+                    savedCode = await dependencies.savedResellerCode()
+                    return isValid
+                },
+                currentCode: savedCode
+            )
+        }
+    }
+
+    /// İkincil eylem — asıl akış kaynak eklemek.
+    ///
+    /// ⚠️ Bayi kodu **zorunlu değil**: kendi Xtream hesabını elle ekleyen
+    /// kullanıcılar da var. Birincil düğme yapılsaydı onlar kod arayıp
+    /// akışta tıkanırdı.
+    private var resellerCodeButton: some View {
+        Button {
+            showsResellerCode = true
+        } label: {
+            Label(
+                savedCode == nil ? "Bayi kodum var" : "Bayi kodu: \(savedCode ?? "")",
+                systemImage: "person.badge.key"
+            )
+            .font(Theme.Typography.caption)
+            .foregroundColor(Theme.Palette.textSecondary)
         }
     }
 
