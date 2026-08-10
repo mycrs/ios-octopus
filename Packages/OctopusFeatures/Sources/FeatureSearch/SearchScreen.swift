@@ -53,7 +53,7 @@ public struct SearchScreen: View {
             await viewModel.prepare()
 #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-startupSearch") {
-                viewModel.searchText = "ar"
+                viewModel.searchText = "ka"
             }
 #endif
         }
