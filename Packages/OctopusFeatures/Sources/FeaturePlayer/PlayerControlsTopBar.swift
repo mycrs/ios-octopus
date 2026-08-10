@@ -65,6 +65,12 @@ struct PlayerControlsTopBar: View {
         // güncellenirken siyaha dönebiliyor. Kenar eylemleri video üstünde
         // her koşulda beyaz ve okunur kalmalı.
         .tint(.white)
+        .overlay(alignment: .topLeading) {
+            edgeGlyph(systemName: "xmark", size: 20)
+        }
+        .overlay(alignment: .topTrailing) {
+            edgeGlyph(systemName: "ellipsis", size: 18)
+        }
     }
 
     private var optionsMenu: some View {
@@ -150,6 +156,14 @@ struct PlayerControlsTopBar: View {
             .overlay {
                 Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
             }
+    }
+
+    private func edgeGlyph(systemName: String, size: CGFloat) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: size, weight: .semibold))
+            .foregroundColor(.white)
+            .frame(width: 44, height: 44)
+            .allowsHitTesting(false)
     }
 
     private func rateTitle(_ value: Float) -> String {

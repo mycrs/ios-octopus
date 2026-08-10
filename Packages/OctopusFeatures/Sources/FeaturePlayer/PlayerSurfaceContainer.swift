@@ -58,29 +58,10 @@ final class PlayerSurfaceViewController: UIViewController {
     let overlayHost: UIHostingController<AnyView>
     let closeBackground = PlayerEdgeControlBackgroundView()
     let optionsBackground = PlayerEdgeControlBackgroundView()
-    let closeForwardMark = PlayerEdgeMarkView(
-        cornerRadius: 1.5,
-        rotation: CGFloat.pi / 4
-    )
-    let closeBackwardMark = PlayerEdgeMarkView(
-        cornerRadius: 1.5,
-        rotation: -CGFloat.pi / 4
-    )
-    let optionsLeftMark = PlayerEdgeMarkView(cornerRadius: 2)
-    let optionsCenterMark = PlayerEdgeMarkView(cornerRadius: 2)
-    let optionsRightMark = PlayerEdgeMarkView(cornerRadius: 2)
     var showsEdgeGlyphs: Bool
 
     var edgeViews: [UIView] {
-        [
-            closeBackground,
-            optionsBackground,
-            closeForwardMark,
-            closeBackwardMark,
-            optionsLeftMark,
-            optionsCenterMark,
-            optionsRightMark
-        ]
+        [closeBackground, optionsBackground]
     }
 
     init(surface: UIView?, overlay: AnyView, showsEdgeGlyphs: Bool) {

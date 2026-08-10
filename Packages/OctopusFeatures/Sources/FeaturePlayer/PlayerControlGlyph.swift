@@ -17,21 +17,3 @@ final class PlayerEdgeControlBackgroundView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 }
-
-/// Glifin her parçası ayrı bir UIKit view'ıdır; yalnızca kendi ana katmanının
-/// `backgroundColor` özelliğini kullanır. VLC kompozitörü içerik ve özel alt
-/// katmanları atlasa bile bu parçalar kontrol zeminiyle aynı yoldan çizilir.
-final class PlayerEdgeMarkView: UIView {
-
-    init(cornerRadius: CGFloat, rotation: CGFloat = 0) {
-        super.init(frame: .zero)
-        backgroundColor = .white
-        layer.cornerRadius = cornerRadius
-        transform = CGAffineTransform(rotationAngle: rotation)
-        isUserInteractionEnabled = false
-        isAccessibilityElement = false
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { nil }
-}
