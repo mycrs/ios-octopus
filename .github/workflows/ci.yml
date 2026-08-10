@@ -192,17 +192,15 @@ jobs:
           sleep 14   # ağdan segment indirme + ilk kare
           xcrun simctl io booted screenshot screenshots/09-oynatici.png
 
-          # Denetim katmanı yukarıdaki karede **yok** ve bu doğru: 3,5 sn
-          # sonra kendiliğinden gizleniyor. Ama yerleşimini de görmek
-          # gerekiyor — ikinci kare erken alınıyor.
-          #
-          # ⚠️ Erken kare deterministik: gizleme yalnızca oynatma
-          # gerçekten başladıysa çalışıyor (`state == .playing`), 2 sn'de
-          # daha yükleniyor. Yani denetimler kesin görünür.
+          # Denetim yerleşimi ayrı karede doğrulanır. Ağ ve simülatör yüküne
+          # göre oynatıcı 2 saniyede henüz kurulmamış olabiliyor; erken kare
+          # rastlantısaldı. DEBUG kapısı kontrolleri açık tutar, gerçek video
+          # ve fallback zincirinin yerleşmesi için yeterli süre beklenir.
           xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
           xcrun simctl launch booted com.octopus.iptv \
-            -seedDemoData -startup.player "live:demo#live#0" >/dev/null
-          sleep 2
+            -seedDemoData -keepPlayerControls \
+            -startup.player "live:demo#live#0" >/dev/null
+          sleep 10
           xcrun simctl io booted screenshot screenshots/10-oynatici-denetimler.png
 
           # VOD denetimleri — scrub bar, on saniye sarma ve seçenekler menüsü.
