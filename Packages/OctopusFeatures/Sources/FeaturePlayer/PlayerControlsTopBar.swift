@@ -72,45 +72,55 @@ struct PlayerControlsTopBar: View {
     }
 
     private var optionsMenu: some View {
-        Menu {
-            Button(action: onToggleFit) {
-                Label(
-                    videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
-                    systemImage: videoFit == .fill
-                        ? "arrow.down.right.and.arrow.up.left"
-                        : "arrow.up.left.and.arrow.down.right"
-                )
-            }
+        ZStack {
+            Menu {
+                Button(action: onToggleFit) {
+                    Label(
+                        videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
+                        systemImage: videoFit == .fill
+                            ? "arrow.down.right.and.arrow.up.left"
+                            : "arrow.up.left.and.arrow.down.right"
+                    )
+                }
 
-            if !isLive {
-                Menu {
-                    ForEach(rates, id: \.self) { option in
-                        Button {
-                            onSetRate(option)
-                        } label: {
-                            if abs(option - rate) < 0.01 {
-                                Label(rateTitle(option), systemImage: "checkmark")
-                            } else {
-                                Text(rateTitle(option))
+                if !isLive {
+                    Menu {
+                        ForEach(rates, id: \.self) { option in
+                            Button {
+                                onSetRate(option)
+                            } label: {
+                                if abs(option - rate) < 0.01 {
+                                    Label(rateTitle(option), systemImage: "checkmark")
+                                } else {
+                                    Text(rateTitle(option))
+                                }
                             }
                         }
+                    } label: {
+                        Label("Oynatma hızı · \(rateTitle(rate))", systemImage: "speedometer")
                     }
-                } label: {
-                    Label("Oynatma hızı · \(rateTitle(rate))", systemImage: "speedometer")
                 }
-            }
 
-            if hasTracks {
-                Button(action: onShowTracks) {
-                    Label("Ses ve altyazı", systemImage: "captions.bubble")
+                if hasTracks {
+                    Button(action: onShowTracks) {
+                        Label("Ses ve altyazı", systemImage: "captions.bubble")
+                    }
                 }
+            } label: {
+                Color.clear
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
             }
-        } label: {
+            .buttonStyle(.plain)
+            .accessibilityLabel("Oynatıcı seçenekleri")
+
+            // Kontrol etiketinin dışında: VLC güncellemesi label içeriğini
+            // yeniden örneklese bile bu UIKit kardeşi yerinde kalır.
             PlayerControlGlyph(text: "•••")
                 .frame(width: 44, height: 44)
+                .allowsHitTesting(false)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Oynatıcı seçenekleri")
+        .frame(width: 44, height: 44)
     }
 
     private func iconButton(
@@ -134,12 +144,20 @@ struct PlayerControlsTopBar: View {
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        ZStack {
+            Button(action: action) {
+                Color.clear
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(label)
+
             PlayerControlGlyph(text: symbol)
                 .frame(width: 44, height: 44)
+                .allowsHitTesting(false)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .frame(width: 44, height: 44)
     }
 
     private var controlBackground: some View {
