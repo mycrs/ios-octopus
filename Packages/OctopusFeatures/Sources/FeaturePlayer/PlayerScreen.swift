@@ -135,16 +135,15 @@ public struct PlayerScreen: View {
     // MARK: - Oynatma
 
     private func playback(_ item: PlaybackItem) -> some View {
-        PlayerSurfaceContainer(makeSurface: controller.makeVideoView, showsEdgeGlyphs: showsTopBarControls) {
+        PlayerSurfaceContainer(makeSurface: controller.makeVideoView,
+                               surfaceGeneration: controller.surfaceGeneration,
+                               showsEdgeGlyphs: showsTopBarControls) {
             if case .failed(let error) = controller.state {
                 playbackFailure(error, item: item)
             } else {
                 controlsLayer(item)
             }
         }
-        // Her motor örneğinde UIKit yüzeyi baştan kurulmalı. Aynı kimlikli
-        // yeni motor bile eski drawable/layer'ı kullanamaz.
-        .id(controller.surfaceGeneration)
         .ignoresSafeArea()
         // ⚠️ `id:` şart — kanal zaplanınca `item` değişiyor ve oynatmanın
         // yeniden başlaması gerekiyor. Kimliksiz `.task` yalnızca görünüm

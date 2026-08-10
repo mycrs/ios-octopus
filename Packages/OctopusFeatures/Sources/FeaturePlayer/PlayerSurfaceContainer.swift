@@ -11,16 +11,19 @@ import OctopusDesignSystem
 struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
 
     private let makeSurface: () -> UIView?
+    private let surfaceGeneration: Int
     private let showsEdgeGlyphs: Bool
     private let overlay: Overlay
     @Environment(\.brandColor) private var brandColor
 
     init(
         makeSurface: @escaping () -> UIView?,
+        surfaceGeneration: Int,
         showsEdgeGlyphs: Bool,
         @ViewBuilder overlay: () -> Overlay
     ) {
         self.makeSurface = makeSurface
+        self.surfaceGeneration = surfaceGeneration
         self.showsEdgeGlyphs = showsEdgeGlyphs
         self.overlay = overlay()
     }
@@ -28,6 +31,7 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> PlayerSurfaceViewController {
         PlayerSurfaceViewController(
             surface: makeSurface(),
+            surfaceGeneration: surfaceGeneration,
             overlay: hostedOverlay,
             showsEdgeGlyphs: showsEdgeGlyphs
         )
@@ -38,6 +42,8 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
         context: Context
     ) {
         controller.update(
+            surfaceGeneration: surfaceGeneration,
+            makeSurface: makeSurface,
             overlay: hostedOverlay,
             showsEdgeGlyphs: showsEdgeGlyphs
         )
@@ -54,7 +60,8 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
 
 final class PlayerSurfaceViewController: UIViewController {
 
-    private let surface: UIView?
+    private var surface: UIView?
+    private var surfaceGeneration: Int
     let overlayHost: UIHostingController<AnyView>
     let closeBackground = PlayerEdgeControlBackgroundView()
     let optionsBackground = PlayerEdgeControlBackgroundView()
@@ -64,8 +71,14 @@ final class PlayerSurfaceViewController: UIViewController {
         [closeBackground, optionsBackground]
     }
 
-    init(surface: UIView?, overlay: AnyView, showsEdgeGlyphs: Bool) {
+    init(
+        surface: UIView?,
+        surfaceGeneration: Int,
+        overlay: AnyView,
+        showsEdgeGlyphs: Bool
+    ) {
         self.surface = surface
+        self.surfaceGeneration = surfaceGeneration
         self.overlayHost = UIHostingController(rootView: overlay)
         self.showsEdgeGlyphs = showsEdgeGlyphs
         super.init(nibName: nil, bundle: nil)
@@ -92,13 +105,35 @@ final class PlayerSurfaceViewController: UIViewController {
         refreshOverlayOrder()
     }
 
-    func update(overlay: AnyView, showsEdgeGlyphs: Bool) {
+    func update(
+        surfaceGeneration: Int,
+        makeSurface: () -> UIView?,
+        overlay: AnyView,
+        showsEdgeGlyphs: Bool
+    ) {
+        replaceSurfaceIfNeeded(
+            generation: surfaceGeneration,
+            makeSurface: makeSurface
+        )
         overlayHost.rootView = overlay
         self.showsEdgeGlyphs = showsEdgeGlyphs
         edgeViews.forEach {
             $0.isHidden = !showsEdgeGlyphs
         }
         refreshOverlayOrder()
+    }
+
+    private func replaceSurfaceIfNeeded(
+        generation: Int,
+        makeSurface: () -> UIView?
+    ) {
+        guard generation != surfaceGeneration else { return }
+        surfaceGeneration = generation
+        surface?.removeFromSuperview()
+        surface = makeSurface()
+        if let surface {
+            pin(surface, to: view)
+        }
     }
 
     private func pin(_ child: UIView, to guide: UILayoutGuide) {

@@ -34,7 +34,7 @@ public final class PlayerController: ObservableObject {
     /// Hangi motor çalışıyor? (Loglama ve hata ayıklama için.)
     @Published public private(set) var engineIdentifier: String = ""
 
-    /// Video yüzeyinin kimliği — SwiftUI tarafı bunu `.id()` olarak kullanır.
+    /// Video yüzeyinin kimliği — arayüz yalnızca motor yüzeyini bununla yeniler.
     ///
     /// ⚠️ `engineIdentifier` bu iş için **yetmez**: her `attach` yeni bir
     /// motor **örneği** üretir ama kimlik dizgesi aynı kalabilir
