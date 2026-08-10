@@ -49,6 +49,8 @@ final class AppContainer: ObservableObject {
     private let validator: PlaylistValidating
     private let activation: ActivationRedeeming
     private let remoteConfig: RemoteConfigProviding
+    /// Bayi kodu karşılığı markalama ve sunucu listesi.
+    private let resellerConfig: ResellerConfigProviding
     /// Ebeveyn kilidi depolamadan bağımsız çalışır (Keychain).
     private let parental: ParentalControlling
 
@@ -187,6 +189,10 @@ final class AppContainer: ObservableObject {
             startupFailure = .storage(reason: "Veritabanı açılamadı")
         }
 
+        // Bayi yapılandırması depolamadan bağımsız: kullanıcı kodu
+        // girdiyse marka ve sunucu listesi her koşulda gelmeli.
+        resellerConfig = PanelResellerConfigService()
+
         // Motor zinciri: AVPlayer her zaman var, yedek motor bağlıysa eklenir.
         // Hiçbiri yoksa uygulama AVPlayer'la çalışmaya devam eder — çökmez.
         // Motorlar tercihleri **kendileri** okur (tampon süresi gibi
@@ -284,9 +290,67 @@ final class AppContainer: ObservableObject {
     /// Ağ hatası burada sessizdir: panel erişilemezse son bilinen
     /// yapılandırma kullanılır, uygulama açılmaya devam eder.
     func refreshRemoteConfig() async {
-        let config = await remoteConfig.refresh()
-        appConfig = config
-        themeController.apply(branding: config?.branding)
+        let global = await remoteConfig.refresh()
+
+        // ⚠️ Sıra önemli: bayi yapılandırması globalin **üzerine** uygulanır.
+        // Bayi kendi rengini seçtiyse global tema onu ezmemeli.
+        let merged = await applyingResellerConfig(to: global)
+
+        appConfig = merged
+        themeController.apply(branding: merged?.branding)
+    }
+
+    /// Kayıtlı bayi kodu varsa yapılandırmasını çeker ve birleştirir.
+    ///
+    /// Kod yoksa hiç ağa çıkılmaz — kod girmemiş kullanıcıda her açılışta
+    /// boşuna bir istek atmak hem gecikme hem de panel yükü demek.
+    private func applyingResellerConfig(to global: RemoteAppConfig?) async -> RemoteAppConfig? {
+        guard let code = await resellerConfig.savedCode() else { return global }
+
+        // Ağ yoksa önbellekteki bayi yapılandırması kullanılır: bayinin
+        // müşterisi çevrimdışıyken markasız bir uygulama görmemeli.
+        guard let reseller = await resellerConfig.fetch(code: code)
+            ?? resellerConfig.cached()
+        else { return global }
+
+        // Global yapılandırma hiç gelmediyse bile bayi bilgisi tek başına
+        // anlamlıdır (marka, kapı, duyuru).
+        let base = global ?? RemoteAppConfig(fetchedAt: Date())
+        return base.applying(reseller)
+    }
+
+    /// Kullanıcının girdiği bayi kodunu kaydeder ve yapılandırmayı tazeler.
+    ///
+    /// - Returns: Kod panelde bulunduysa `true`.
+    @discardableResult
+    func applyResellerCode(_ code: String?) async -> Bool {
+        // Kod siliniyorsa: kaydı temizle, markayı globale geri döndür.
+        guard let code, ResellerConfig.normalizeCode(code) != nil else {
+            await resellerConfig.save(code: nil)
+            await refreshRemoteConfig()
+            return true
+        }
+
+        await resellerConfig.save(code: code)
+        let fetched = await resellerConfig.fetch(code: code)
+
+        // Kod tutmadıysa kaydı geri al — yanlış kod kalıcı olmamalı.
+        if fetched == nil {
+            await resellerConfig.save(code: nil)
+        }
+
+        await refreshRemoteConfig()
+        return fetched != nil
+    }
+
+    /// Kayıtlı bayi kodu (Ayarlar ekranı gösterir).
+    func savedResellerCode() async -> String? {
+        await resellerConfig.savedCode()
+    }
+
+    /// Bayinin sunucu listesi — kaynak eklerken adres yazdırmamak için.
+    func resellerServers() async -> [ResellerServer] {
+        await resellerConfig.cached()?.servers ?? []
     }
 
     // MARK: - Feature bağımlılıkları

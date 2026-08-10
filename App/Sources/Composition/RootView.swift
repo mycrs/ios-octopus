@@ -31,7 +31,7 @@ struct RootView: View {
                 // Panel bakım moduna aldı: içeriğe erişim kesilir ama
                 // kullanıcı sorunun geçici olduğunu ve nereye başvuracağını bilir.
                 MaintenanceGateView(
-                    message: maintenanceMessage(from: gate),
+                    gate: gate,
                     contact: container.appConfig?.contact ?? .empty,
                     onRetry: { Task { await container.refreshRemoteConfig() } }
                 )
@@ -77,11 +77,6 @@ struct RootView: View {
             }
             tabs
         }
-    }
-
-    private func maintenanceMessage(from gate: ServiceGate) -> String? {
-        if case .maintenance(let message) = gate { return message }
-        return nil
     }
 
     // MARK: - Sekmeler

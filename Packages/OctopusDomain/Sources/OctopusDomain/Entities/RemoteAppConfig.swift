@@ -65,9 +65,19 @@ public enum ServiceGate: Equatable, Sendable {
     case open
     case maintenance(message: String?)
 
+    /// Bayi bu platformu (iOS) henüz açmadı.
+    ///
+    /// ⚠️ Bakımdan **ayrı** bir durum: bakım geçicidir ve "biraz sonra
+    /// tekrar dene" demek doğrudur. Burada ise beklemenin faydası yok;
+    /// kullanıcı bayisine başvurmalı. Aynı mesajı göstermek, kullanıcıyı
+    /// saatlerce uygulamayı açıp kapatmaya iter.
+    case platformUnavailable
+
     public var isBlocking: Bool {
-        if case .maintenance = self { return true }
-        return false
+        switch self {
+        case .open: return false
+        case .maintenance, .platformUnavailable: return true
+        }
     }
 }
 

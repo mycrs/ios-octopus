@@ -23,6 +23,18 @@ public struct PanelEndpoint: Sendable {
     public var activationRedeem: URL { path("/api/activation/redeem") }
     public var dnsList: URL { path("/api/dns-list") }
 
+    /// Bayi yapılandırması — 4 haneli bayi kodu ya da gizli giriş anahtarı.
+    ///
+    /// ⚠️ Kod yol bileşenine yazılıyor, bu yüzden **yüzde kodlaması şart**:
+    /// panel kodlarında `/` görülmese de kullanıcı yanlış bir şey
+    /// yapıştırdığında adres bozulur ve istek başka bir uca gider.
+    public func resellerConfig(code: String) -> URL {
+        let encoded = code.addingPercentEncoding(
+            withAllowedCharacters: .alphanumerics
+        ) ?? code
+        return path("/api/public/reseller-config/\(encoded)")
+    }
+
     private func path(_ component: String) -> URL {
         var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
         components?.path = component

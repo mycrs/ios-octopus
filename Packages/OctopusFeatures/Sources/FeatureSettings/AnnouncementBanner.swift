@@ -48,18 +48,59 @@ public struct AnnouncementBanner: View {
 /// önler; sorunun geçici olduğunu ve nereye başvuracağını söyler.
 public struct MaintenanceGateView: View {
 
-    private let message: String?
+    private let gate: ServiceGate
     private let contact: ContactChannels
     private let onRetry: () -> Void
 
+    /// ⚠️ Mesaj yerine **kapının kendisi** alınıyor: iki farklı engel var
+    /// ve ikisi kullanıcıdan farklı şey istiyor. Bakım geçicidir
+    /// ("biraz sonra tekrar dene"); platform kapalıysa beklemenin faydası
+    /// yok, bayiye başvurmak gerekir. Aynı ekranı göstermek kullanıcıyı
+    /// saatlerce uygulamayı açıp kapamaya iterdi.
     public init(
-        message: String?,
+        gate: ServiceGate,
         contact: ContactChannels,
         onRetry: @escaping () -> Void
     ) {
-        self.message = message
+        self.gate = gate
         self.contact = contact
         self.onRetry = onRetry
+    }
+
+    private var iconName: String {
+        switch gate {
+        case .platformUnavailable: return "iphone.slash"
+        case .maintenance, .open: return "wrench.and.screwdriver.fill"
+        }
+    }
+
+    private var title: String {
+        switch gate {
+        case .platformUnavailable: return "iPhone sürümü henüz açık değil"
+        case .maintenance, .open: return "Kısa bir bakımdayız"
+        }
+    }
+
+    private var detail: String {
+        switch gate {
+        case .platformUnavailable:
+            return "Bayin bu uygulamayı iOS için henüz etkinleştirmedi. "
+                + "Etkinleştirildiğinde buradan girebileceksin."
+        case .maintenance(let message):
+            return message ?? "Servis kısa süre içinde tekrar açılacak."
+        case .open:
+            return ""
+        }
+    }
+
+    /// Platform kapalıyken de bir düğme var ama sözü farklı: "tekrar dene"
+    /// bir şeyin düzelmesini beklemek demek, oysa burada bayinin ayar
+    /// değiştirmesi bekleniyor.
+    private var retryTitle: String {
+        switch gate {
+        case .platformUnavailable: return "Yeniden kontrol et"
+        case .maintenance, .open: return "Tekrar dene"
+        }
     }
 
     public var body: some View {
@@ -67,22 +108,22 @@ public struct MaintenanceGateView: View {
             Theme.Palette.background.ignoresSafeArea()
 
             VStack(spacing: Theme.Spacing.xl) {
-                Image(systemName: "wrench.and.screwdriver.fill")
+                Image(systemName: iconName)
                     .font(.system(size: 48))
                     .foregroundColor(Theme.Palette.warning)
 
                 VStack(spacing: Theme.Spacing.sm) {
-                    Text("Kısa bir bakımdayız")
+                    Text(title)
                         .font(Theme.Typography.sectionTitle)
                         .foregroundColor(Theme.Palette.textPrimary)
 
-                    Text(message ?? "Servis kısa süre içinde tekrar açılacak.")
+                    Text(detail)
                         .font(Theme.Typography.rowSubtitle)
                         .foregroundColor(Theme.Palette.textSecondary)
                         .multilineTextAlignment(.center)
                 }
 
-                Button("Tekrar dene", action: onRetry)
+                Button(retryTitle, action: onRetry)
                     .buttonStyle(.borderedProminent)
                     .tint(Theme.Palette.accent)
 
