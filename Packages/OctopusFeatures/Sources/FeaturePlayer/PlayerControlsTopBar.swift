@@ -27,7 +27,7 @@ struct PlayerControlsTopBar: View {
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
             edgeButton(
-                glyph: "×",
+                glyph: .close,
                 label: "Oynatıcıyı kapat",
                 action: onClose
             )
@@ -72,50 +72,46 @@ struct PlayerControlsTopBar: View {
     }
 
     private var optionsMenu: some View {
-        ZStack {
-            edgeVisual(text: "•••", size: 14)
+        Menu {
+            Button(action: onToggleFit) {
+                Label(
+                    videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
+                    systemImage: videoFit == .fill
+                        ? "arrow.down.right.and.arrow.up.left"
+                        : "arrow.up.left.and.arrow.down.right"
+                )
+            }
 
-            Menu {
-                Button(action: onToggleFit) {
-                    Label(
-                        videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
-                        systemImage: videoFit == .fill
-                            ? "arrow.down.right.and.arrow.up.left"
-                            : "arrow.up.left.and.arrow.down.right"
-                    )
-                }
-
-                if !isLive {
-                    Menu {
-                        ForEach(rates, id: \.self) { option in
-                            Button {
-                                onSetRate(option)
-                            } label: {
-                                if abs(option - rate) < 0.01 {
-                                    Label(rateTitle(option), systemImage: "checkmark")
-                                } else {
-                                    Text(rateTitle(option))
-                                }
+            if !isLive {
+                Menu {
+                    ForEach(rates, id: \.self) { option in
+                        Button {
+                            onSetRate(option)
+                        } label: {
+                            if abs(option - rate) < 0.01 {
+                                Label(rateTitle(option), systemImage: "checkmark")
+                            } else {
+                                Text(rateTitle(option))
                             }
                         }
-                    } label: {
-                        Label("Oynatma hızı · \(rateTitle(rate))", systemImage: "speedometer")
                     }
+                } label: {
+                    Label("Oynatma hızı · \(rateTitle(rate))", systemImage: "speedometer")
                 }
-
-                if hasTracks {
-                    Button(action: onShowTracks) {
-                        Label("Ses ve altyazı", systemImage: "captions.bubble")
-                    }
-                }
-            } label: {
-                Color.clear
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Oynatıcı seçenekleri")
+
+            if hasTracks {
+                Button(action: onShowTracks) {
+                    Label("Ses ve altyazı", systemImage: "captions.bubble")
+                }
+            }
+        } label: {
+            edgeVisual(glyph: .options)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Oynatıcı seçenekleri")
         .frame(width: 44, height: 44)
     }
 
@@ -136,32 +132,38 @@ struct PlayerControlsTopBar: View {
     }
 
     private func edgeButton(
-        glyph: String,
+        glyph: PlayerEdgeGlyph,
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        ZStack {
-            edgeVisual(text: glyph, size: 28)
-
-            Button(action: action) {
-                Color.clear
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(label)
+        Button(action: action) {
+            edgeVisual(glyph: glyph)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .frame(width: 44, height: 44)
     }
 
-    /// VLC'nin hızlandırılmış video katmanı ayrı SwiftUI çizimlerini bazı
-    /// karelerde farklı sırada birleştirebiliyor. Zemin ile glifi tek bir
-    /// kompozisyon grubu yapmak, çember görünürken işaretin kaybolmasını önler.
-    private func edgeVisual(text: String, size: CGFloat) -> some View {
-        controlBackground
-            .overlay { edgeGlyph(text: text, size: size) }
-            .compositingGroup()
-            .allowsHitTesting(false)
+    @ViewBuilder
+    private func edgeVisual(glyph: PlayerEdgeGlyph) -> some View {
+        ZStack {
+            controlBackground
+
+            switch glyph {
+            case .close:
+                PlayerCloseGlyph()
+                    .stroke(
+                        .white,
+                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
+                    )
+            case .options:
+                PlayerOptionsGlyph()
+                    .fill(.white)
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     private var controlBackground: some View {
@@ -170,15 +172,6 @@ struct PlayerControlsTopBar: View {
             .overlay {
                 Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
             }
-    }
-
-    private func edgeGlyph(text: String, size: CGFloat) -> some View {
-        Text(text)
-            .font(.system(size: size, weight: .semibold))
-            .foregroundColor(.white)
-            .kerning(text == "•••" ? 1.5 : 0)
-            .frame(width: 44, height: 44)
-            .allowsHitTesting(false)
     }
 
     private func rateTitle(_ value: Float) -> String {

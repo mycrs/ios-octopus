@@ -6,6 +6,19 @@ import XCTest
 @MainActor
 final class PlayerSurfaceViewControllerTests: XCTestCase {
 
+    func test_edgeGlyphPathsStayInsideControlBounds() {
+        let controlBounds = CGRect(x: 0, y: 0, width: 44, height: 44)
+        let glyphBounds = [
+            PlayerCloseGlyph().path(in: controlBounds).boundingRect,
+            PlayerOptionsGlyph().path(in: controlBounds).boundingRect
+        ]
+
+        for bounds in glyphBounds {
+            XCTAssertFalse(bounds.isEmpty)
+            XCTAssertTrue(controlBounds.contains(bounds))
+        }
+    }
+
     func test_replacesOnlyVideoSurfaceWhenEngineChanges() {
         let firstSurface = UIView()
         let controller = PlayerSurfaceViewController(
