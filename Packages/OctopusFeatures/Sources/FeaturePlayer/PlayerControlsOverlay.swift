@@ -47,8 +47,16 @@ struct PlayerControlsOverlay: View {
                 PlayerControlsTopBar(
                     title: title,
                     subtitle: subtitle,
+                    isLive: isLive,
+                    hasTracks: hasTracks,
                     showsAirPlay: showsAirPlay,
                     showsPictureInPicture: showsPictureInPicture,
+                    videoFit: videoFit,
+                    rate: rate,
+                    onClose: onClose,
+                    onShowTracks: onShowTracks,
+                    onToggleFit: onToggleFit,
+                    onSetRate: onSetRate,
                     onPictureInPicture: onPictureInPicture
                 )
                 Spacer(minLength: 0)
@@ -65,18 +73,6 @@ struct PlayerControlsOverlay: View {
             }
             .padding(Theme.Spacing.md)
 
-            // Kenar denetimleri ana overlay ile ayni host'ta kalir. VLCKit'in
-            // pencere/compositor sirasi degisse bile tek katman olarak cizilir.
-            PlayerEdgeControlsOverlay(
-                isLive: isLive,
-                hasTracks: hasTracks,
-                videoFit: videoFit,
-                rate: rate,
-                onClose: onClose,
-                onShowTracks: onShowTracks,
-                onToggleFit: onToggleFit,
-                onSetRate: onSetRate
-            )
         }
     }
 

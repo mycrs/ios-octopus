@@ -6,79 +6,30 @@ enum PlayerEdgeGlyph {
     case options
 }
 
-struct PlayerEdgeControl: UIViewRepresentable {
+struct PlayerEdgeControl: View {
     let glyph: PlayerEdgeGlyph
     let label: String
     let action: () -> Void
 
-    final class Coordinator: NSObject {
-        var action: () -> Void
-
-        init(action: @escaping () -> Void) {
-            self.action = action
+    var body: some View {
+        Button(action: action) {
+            Image(uiImage: PlayerEdgeControlImage.image(for: glyph))
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
-
-        @objc func activate() {
-            action()
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(action: action)
-    }
-
-    func makeUIView(context: Context) -> PlayerEdgeControlView {
-        let control = PlayerEdgeControlView()
-        control.addTarget(
-            context.coordinator,
-            action: #selector(Coordinator.activate),
-            for: .touchUpInside
-        )
-        configure(control)
-        return control
-    }
-
-    func updateUIView(_ control: PlayerEdgeControlView, context: Context) {
-        context.coordinator.action = action
-        configure(control)
-    }
-
-    private func configure(_ control: PlayerEdgeControlView) {
-        control.glyph = glyph
-        control.isAccessibilityElement = true
-        control.accessibilityTraits = .button
-        control.accessibilityLabel = label
+        .buttonStyle(PlayerEdgeButtonStyle())
+        .accessibilityLabel(label)
     }
 }
 
-final class PlayerEdgeControlView: UIControl {
-    let imageView = UIImageView()
-
-    var glyph: PlayerEdgeGlyph = .close {
-        didSet { updateImage() }
-    }
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        isOpaque = false
-        backgroundColor = .clear
-        imageView.frame = bounds
-        imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        imageView.contentMode = .scaleAspectFit
-        imageView.isUserInteractionEnabled = false
-        addSubview(imageView)
-        updateImage()
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { nil }
-
-    override var isHighlighted: Bool {
-        didSet { alpha = isHighlighted ? 0.55 : 1 }
-    }
-
-    private func updateImage() {
-        imageView.image = PlayerEdgeControlImage.image(for: glyph)
+private struct PlayerEdgeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.58 : 1)
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
