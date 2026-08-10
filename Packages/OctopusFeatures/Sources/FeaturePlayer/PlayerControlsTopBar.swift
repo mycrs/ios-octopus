@@ -27,7 +27,7 @@ struct PlayerControlsTopBar: View {
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
             edgeButton(
-                systemName: "xmark",
+                glyph: "×",
                 label: "Oynatıcıyı kapat",
                 action: onClose
             )
@@ -116,7 +116,7 @@ struct PlayerControlsTopBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Oynatıcı seçenekleri")
 
-            edgeGlyph(systemName: "ellipsis", size: 18)
+            edgeGlyph(text: "•••", size: 14)
         }
         .frame(width: 44, height: 44)
     }
@@ -138,20 +138,25 @@ struct PlayerControlsTopBar: View {
     }
 
     private func edgeButton(
-        systemName: String,
+        glyph: String,
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            ZStack {
-                controlBackground
-                edgeGlyph(systemName: systemName, size: 20)
+        ZStack {
+            Button(action: action) {
+                Color.clear
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
             }
-            .frame(width: 44, height: 44)
-            .contentShape(Circle())
+            .buttonStyle(.plain)
+            .accessibilityLabel(label)
+
+            controlBackground
+                .allowsHitTesting(false)
+
+            edgeGlyph(text: glyph, size: 28)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .frame(width: 44, height: 44)
     }
 
     private var controlBackground: some View {
@@ -162,10 +167,11 @@ struct PlayerControlsTopBar: View {
             }
     }
 
-    private func edgeGlyph(systemName: String, size: CGFloat) -> some View {
-        Image(systemName: systemName)
+    private func edgeGlyph(text: String, size: CGFloat) -> some View {
+        Text(text)
             .font(.system(size: size, weight: .semibold))
             .foregroundColor(.white)
+            .kerning(text == "•••" ? 1.5 : 0)
             .frame(width: 44, height: 44)
             .allowsHitTesting(false)
     }
