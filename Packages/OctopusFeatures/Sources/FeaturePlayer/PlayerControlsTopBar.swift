@@ -26,7 +26,11 @@ struct PlayerControlsTopBar: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            edgeButton(label: "Oynatıcıyı kapat", action: onClose)
+            edgeButton(
+                systemName: "xmark",
+                label: "Oynatıcıyı kapat",
+                action: onClose
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -65,12 +69,6 @@ struct PlayerControlsTopBar: View {
         // güncellenirken siyaha dönebiliyor. Kenar eylemleri video üstünde
         // her koşulda beyaz ve okunur kalmalı.
         .tint(.white)
-        .overlay(alignment: .topLeading) {
-            edgeGlyph(systemName: "xmark", size: 20)
-        }
-        .overlay(alignment: .topTrailing) {
-            edgeGlyph(systemName: "ellipsis", size: 18)
-        }
     }
 
     private var optionsMenu: some View {
@@ -116,6 +114,7 @@ struct PlayerControlsTopBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Oynatıcı seçenekleri")
 
+            edgeGlyph(systemName: "ellipsis", size: 18)
         }
         .frame(width: 44, height: 44)
     }
@@ -137,16 +136,21 @@ struct PlayerControlsTopBar: View {
     }
 
     private func edgeButton(
+        systemName: String,
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            Color.clear
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
+        ZStack {
+            Button(action: action) {
+                Color.clear
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(label)
+
+            edgeGlyph(systemName: systemName, size: 20)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
         .frame(width: 44, height: 44)
     }
 
