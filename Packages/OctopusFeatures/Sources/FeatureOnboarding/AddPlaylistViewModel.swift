@@ -177,12 +177,13 @@ public final class AddPlaylistViewModel: ObservableObject {
         // 1. Erişim bilgilerini elde et.
         //    Kod ile girişte bunlar panelden gelir; diğerlerinde kullanıcı yazar.
         guard let resolved = await resolveCredentials() else { return }
-        let (playlist, password) = resolved
+        // Doğrulama başka bir sunucuda tutabilir; liste değişebilir olmalı.
+        var playlist = resolved.0
+        let password = resolved.1
 
         // 2. Sunucu doğrulaması — kaydetmeden önce.
         //    Kod ile girişte de yapılır: panel bilgileri doğru olsa bile
         //    yayın sunucusuna gerçekten bağlanılabildiği kanıtlanmalı.
-        var playlist = playlist
         step = .validating
         do {
             account = try await dependencies.validator.validate(playlist, password: password)
@@ -190,10 +191,13 @@ public final class AddPlaylistViewModel: ObservableObject {
             // Sunucu kabul etmedi. Bayinin başka sunucuları varsa onlar da
             // denenir — aynı hesap çoğu bayide birden fazla sunucuda geçerli
             // ve kullanıcı hangisinin kendisine ait olduğunu bilmiyor.
+            //
+            // Parola form alanından okunuyor: `resolved` içindeki değer
+            // isteğe bağlı (M3U'da yok) ama buraya yalnızca Xtream düşer.
             guard let found = await findWorkingServer(
                 failedWith: AppError.wrap(error),
                 username: username,
-                password: password
+                password: self.password
             ) else { return }
 
             playlist = found
