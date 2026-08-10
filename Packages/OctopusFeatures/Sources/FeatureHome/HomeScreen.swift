@@ -55,8 +55,16 @@ public struct HomeScreen: View {
             Theme.Palette.background.ignoresSafeArea()
             content
         }
-        .navigationTitle("Ana Sayfa")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                HomeNavigationBrand(
+                    name: theme.resellerName ?? "Octopus",
+                    logoURL: theme.logoURL
+                )
+            }
+        }
         // Ekrana her dönüşte tazelenir: kullanıcı bir bölüm izleyip
         // geri geldiğinde "devam et" rafı güncel olmalı.
         .task { await viewModel.load() }
@@ -99,7 +107,8 @@ public struct HomeScreen: View {
                 HomeHeaderView(
                     account: viewModel.account,
                     greeting: viewModel.greeting,
-                    brandName: theme.resellerName
+                    onWatchLive: { router.switchTab(to: .live) },
+                    onExplore: { router.switchTab(to: .movies) }
                 )
 
                 if !viewModel.resumeItems.isEmpty {

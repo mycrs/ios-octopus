@@ -123,7 +123,7 @@ struct OnboardingResellerCodeButton: View {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "person.badge.key")
                     .foregroundColor(Theme.Palette.accent)
-                Text(savedCode == nil ? "Bayi kodum var" : "Bayi kodu: \(savedCode ?? "")")
+                Text(savedCode == nil ? "Hizmet sağlayıcımı bağla" : "Marka bağlantısı aktif")
                 Spacer(minLength: Theme.Spacing.sm)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .bold))

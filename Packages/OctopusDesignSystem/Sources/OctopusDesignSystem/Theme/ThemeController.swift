@@ -20,6 +20,8 @@ public final class ThemeController: ObservableObject {
     @Published public private(set) var remoteColor: Color?
     /// Bayi adı — karşılama ve ayarlar ekranında gösterilebilir.
     @Published public private(set) var resellerName: String?
+    /// Bayi logosu — yoksa görünümler uygulamanın kendi işaretini kullanır.
+    @Published public private(set) var logoURL: URL?
 
     private let store: UserDefaults
     private static let selectionKey = "theme.brandColor"
@@ -49,6 +51,7 @@ public final class ThemeController: ObservableObject {
     /// `BrandConfiguration.effectiveColorHex`) burada zaten elenmiş olur.
     public func apply(branding: BrandConfiguration?) {
         resellerName = branding?.resellerName
+        logoURL = branding?.logoURL
         // `effectiveColorHex` zaten doğrulanmış ve "seçilmemiş" sayılan
         // renkleri elemiş olarak gelir.
         remoteColor = branding?.effectiveColorHex.flatMap { Color(hexString: $0) }

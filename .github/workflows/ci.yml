@@ -154,6 +154,15 @@ jobs:
           }
 
           shoot home   02-ana-sayfa.png
+
+          # Ana sayfadaki bildirim yüzeyi — panel duyurusu yokken normalde
+          # görünmez; görsel regresyon için DEBUG başlangıç argümanıyla açılır.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -startup.tab home -startupAnnouncement >/dev/null
+          sleep 8
+          xcrun simctl io booted screenshot screenshots/02b-bildirim.png
+
           shoot live   03-canli-tv.png
           shoot movies 04-filmler.png
           shoot series 05-diziler.png

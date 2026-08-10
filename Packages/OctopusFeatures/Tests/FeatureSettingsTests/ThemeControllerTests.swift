@@ -23,8 +23,12 @@ final class ThemeControllerTests: XCTestCase {
         super.tearDown()
     }
 
-    private func brand(_ hex: String?, name: String? = nil) -> BrandConfiguration {
-        BrandConfiguration(primaryColorHex: hex, resellerName: name, logoURL: nil)
+    private func brand(
+        _ hex: String?,
+        name: String? = nil,
+        logoURL: URL? = nil
+    ) -> BrandConfiguration {
+        BrandConfiguration(primaryColorHex: hex, resellerName: name, logoURL: logoURL)
     }
 
     // MARK: - Öncelik sırası
@@ -110,5 +114,16 @@ final class ThemeControllerTests: XCTestCase {
 
         controller.apply(branding: nil)
         XCTAssertNil(controller.resellerName)
+    }
+
+    func test_logoURLIsExposedAndClearedWithBranding() {
+        let controller = ThemeController(store: store)
+        let logo = URL(string: "https://example.com/logo.png")
+
+        controller.apply(branding: brand(nil, logoURL: logo))
+        XCTAssertEqual(controller.logoURL, logo)
+
+        controller.apply(branding: nil)
+        XCTAssertNil(controller.logoURL)
     }
 }

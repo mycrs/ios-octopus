@@ -29,20 +29,20 @@ extension SettingsScreen {
         }
     }
 
-    /// Bayi bağlantısı.
+    /// Marka bağlantısı.
     ///
     /// ⚠️ Kurulumda girilen kod sonradan da değiştirilebilmeli: kullanıcı
     /// bayi değiştirdiğinde uygulamayı silip yeniden kurmak zorunda
     /// kalmamalı. Kod yoksa satır yine görünür — bağlanmak isteyen
     /// kullanıcının onboarding'e geri dönmesi gerekmez.
     var resellerSection: some View {
-        section("Bayi") {
+        section("Marka") {
             SettingsRow(
                 icon: "person.badge.key",
-                title: savedResellerCode.map { "Bayi kodu: \($0)" } ?? "Bayi kodu ekle",
+                title: savedResellerCode == nil ? "Hizmet sağlayıcını bağla" : "Marka bağlantısı aktif",
                 detail: savedResellerCode == nil
-                    ? "Bayinin sunucularını ve görünümünü getirir"
-                    : nil
+                    ? "Logo, renk ve hizmet bilgilerini otomatik ayarla"
+                    : "Görünüm ve hizmet bilgileri otomatik güncelleniyor"
             ) {
                 showsResellerCode = true
             }
@@ -86,9 +86,9 @@ extension SettingsScreen {
                     }
                 }
 
-                // Bayi markası varsa "Varsayılan" onun rengini kullanır.
+                // Uzaktan marka varsa "Varsayılan" onun rengini kullanır.
                 if let resellerName = theme.resellerName {
-                    Text("Varsayılan renk \(resellerName) tarafından belirleniyor.")
+                    Text("Varsayılan görünüm \(resellerName) markasına uyarlanıyor.")
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Palette.textTertiary)
                 }

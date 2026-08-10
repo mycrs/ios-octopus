@@ -59,7 +59,7 @@ public struct ResellerCodeSheet: View {
                 }
                 .padding(Theme.Spacing.xl)
             }
-            .navigationTitle("Bayi kodu")
+            .navigationTitle("Markanı bağla")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -80,8 +80,8 @@ public struct ResellerCodeSheet: View {
                 .font(.system(size: 40))
                 .foregroundColor(Theme.Palette.accent)
 
-            Text("Bayinden aldığın kodu ya da kurulum bağlantısını yapıştır. "
-                 + "Uygulama bayinin sunucularını ve görünümünü buradan alır.")
+            Text("Hizmet sağlayıcından aldığın kodu veya bağlantıyı yapıştır. "
+                 + "Logo, renk ve bağlantı bilgilerin otomatik ayarlanır.")
                 .font(Theme.Typography.rowSubtitle)
                 .foregroundColor(Theme.Palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -120,18 +120,18 @@ public struct ResellerCodeSheet: View {
         case .checking:
             HStack(spacing: Theme.Spacing.sm) {
                 ProgressView().tint(Theme.Palette.accent)
-                Text("Kod doğrulanıyor").font(Theme.Typography.caption)
+                Text("Bağlantı kontrol ediliyor").font(Theme.Typography.caption)
             }
             .foregroundColor(Theme.Palette.textSecondary)
 
         case .failed:
-            Text("Bu kod bulunamadı. Bayinden aldığın kodu kontrol et.")
+            Text("Bilgiler doğrulanamadı. Sağlayıcından aldığın bilgiyi kontrol et.")
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Palette.live)
                 .multilineTextAlignment(.center)
 
         case .succeeded:
-            Label("Bayi tanındı", systemImage: "checkmark.circle.fill")
+            Label("Markan hazır", systemImage: "checkmark.circle.fill")
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Palette.success)
         }
@@ -152,7 +152,7 @@ public struct ResellerCodeSheet: View {
             // Kayıtlı kod varsa kaldırma yolu da olmalı: bayi değiştiren
             // kullanıcı uygulamayı silmek zorunda kalmamalı.
             if currentCode != nil {
-                Button("Bayi bağlantısını kaldır", role: .destructive) {
+                Button("Marka bağlantısını kaldır", role: .destructive) {
                     Task {
                         _ = await onSubmit("")
                         dismiss()

@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import OctopusDomain
 import OctopusDesignSystem
 import OctopusNavigation
@@ -68,7 +69,7 @@ struct RootView: View {
     /// Sekmeler ve üstünde (varsa) panel duyurusu.
     private var mainContent: some View {
         VStack(spacing: 0) {
-            if let announcement = container.visibleAnnouncement {
+            if let announcement = displayedAnnouncement {
                 AnnouncementBanner(announcement: announcement) {
                     container.dismissAnnouncement()
                 }
@@ -77,6 +78,17 @@ struct RootView: View {
             }
             tabs
         }
+    }
+
+    private var displayedAnnouncement: Announcement? {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-startupAnnouncement") {
+            return Announcement(
+                message: "Hafta sonuna özel yeni kanallar ve seçili filmler şimdi yayında."
+            )
+        }
+#endif
+        return container.visibleAnnouncement
     }
 
     // MARK: - Sekmeler

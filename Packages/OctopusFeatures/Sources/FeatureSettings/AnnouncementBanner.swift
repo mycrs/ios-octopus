@@ -11,6 +11,7 @@ public struct AnnouncementBanner: View {
 
     private let announcement: Announcement
     private let onDismiss: () -> Void
+    @Environment(\.brandColor) private var brandColor
 
     public init(announcement: Announcement, onDismiss: @escaping () -> Void) {
         self.announcement = announcement
@@ -18,27 +19,55 @@ public struct AnnouncementBanner: View {
     }
 
     public var body: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            Image(systemName: "megaphone.fill")
-                .foregroundColor(Theme.Palette.accent)
+        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            ZStack {
+                Circle().fill(brandColor.opacity(0.16))
+                Image(systemName: "bell.badge.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(brandColor)
+            }
+            .frame(width: 42, height: 42)
 
-            Text(announcement.message)
-                .font(Theme.Typography.rowSubtitle)
-                .foregroundColor(Theme.Palette.textPrimary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("YENİ BİLDİRİM")
+                    .font(Theme.Typography.badge)
+                    .tracking(1)
+                    .foregroundColor(brandColor)
+
+                Text(announcement.message)
+                    .font(Theme.Typography.rowSubtitle)
+                    .foregroundColor(Theme.Palette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, Theme.Spacing.xs)
 
             Spacer(minLength: 0)
 
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
-                    .font(Theme.Typography.caption)
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundColor(Theme.Palette.textSecondary)
+                    .frame(width: 30, height: 30)
+                    .background(Color.white.opacity(0.06), in: Circle())
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("Duyuruyu kapat")
         }
-        .padding(Theme.Spacing.md)
-        .background(Theme.Palette.accentMuted)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+        .padding(Theme.Spacing.lg)
+        .background(
+            LinearGradient(
+                colors: [brandColor.opacity(0.13), Theme.Palette.surfaceElevated],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                .stroke(brandColor.opacity(0.18), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.18), radius: 14, y: 7)
+        .accessibilityElement(children: .combine)
     }
 }
 

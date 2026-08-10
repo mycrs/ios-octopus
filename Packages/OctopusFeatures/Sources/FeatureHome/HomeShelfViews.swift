@@ -7,17 +7,22 @@ struct ShelfView<Content: View>: View {
 
     let title: String
     @ViewBuilder let content: () -> Content
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            // ⚠️ Daha önce `sectionTitle` (title3/semibold) idi ve raf
-            // başlıkları içeriğin önüne geçiyordu: ekranın en büyük yazısı
-            // "Son eklenen filmler" oluyordu, afişler değil. Başlık artık
-            // bir **etiket** gibi davranıyor.
-            Text(title)
-                .font(Theme.Typography.rowTitle)
-                .foregroundColor(Theme.Palette.textSecondary)
-                .padding(.horizontal, Theme.Spacing.md)
+            HStack(spacing: Theme.Spacing.sm) {
+                Capsule()
+                    .fill(brandColor)
+                    .frame(width: 3, height: 18)
+
+                Text(title)
+                    .font(Theme.Typography.sectionTitle)
+                    .foregroundColor(Theme.Palette.textPrimary)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: Theme.Spacing.md) {
@@ -40,17 +45,19 @@ struct ResumeCard: View {
 
     let item: HomeViewModel.ResumeItem
     let onTap: () -> Void
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 ZStack(alignment: .bottom) {
-                    PosterView(url: item.posterURL, width: 104)
+                    PosterView(url: item.posterURL, width: 112)
+                        .homePosterChrome()
 
                     ProgressView(value: item.fraction)
                         .progressViewStyle(.linear)
-                        .tint(Theme.Palette.accent)
-                        .frame(width: 96, height: 2)
+                        .tint(brandColor)
+                        .frame(width: 104, height: 2)
                         .padding(.bottom, Theme.Spacing.xs)
                 }
 
@@ -65,7 +72,7 @@ struct ResumeCard: View {
                         .foregroundColor(Theme.Palette.textTertiary)
                 }
             }
-            .frame(width: 104, alignment: .leading)
+            .frame(width: 112, alignment: .leading)
         }
         .buttonStyle(.plain)
     }
@@ -79,15 +86,24 @@ struct RecentChannelCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: Theme.Spacing.xs) {
-                ChannelLogoView(url: channel.logoURL, size: 64)
+            VStack(spacing: Theme.Spacing.sm) {
+                ChannelLogoView(url: channel.logoURL, size: 68)
 
                 Text(channel.name)
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
-                    .frame(width: 72)
+                    .frame(width: 82)
+            }
+            .padding(Theme.Spacing.sm)
+            .frame(width: 98)
+            .frame(minHeight: 116)
+            .background(Theme.Palette.surface.opacity(0.68))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -103,12 +119,13 @@ struct RecentMovieCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                PosterView(url: movie.posterURL, width: 104)
+                PosterView(url: movie.posterURL, width: 112)
+                    .homePosterChrome()
                 Text(movie.title)
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textPrimary)
                     .lineLimit(2)
-                    .frame(width: 104, alignment: .leading)
+                    .frame(width: 112, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
@@ -128,14 +145,25 @@ struct RecentSeriesCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                PosterView(url: series.posterURL, width: 104)
+                PosterView(url: series.posterURL, width: 112)
+                    .homePosterChrome()
                 Text(series.title)
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textPrimary)
                     .lineLimit(2)
-                    .frame(width: 104, alignment: .leading)
+                    .frame(width: 112, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+private extension View {
+    func homePosterChrome() -> some View {
+        overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.24), radius: 10, y: 6)
     }
 }
