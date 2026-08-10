@@ -22,7 +22,7 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         control.accessibilityTraits = .button
         control.accessibilityLabel = "Seçenekler"
 
-        XCTAssertNotNil(control.layer.contents)
+        XCTAssertNotNil(control.imageView.image?.cgImage)
         XCTAssertTrue(control.isAccessibilityElement)
         XCTAssertTrue(control.accessibilityTraits.contains(.button))
         XCTAssertEqual(control.accessibilityLabel, "Seçenekler")

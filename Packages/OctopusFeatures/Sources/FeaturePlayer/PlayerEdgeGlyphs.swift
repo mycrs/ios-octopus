@@ -52,16 +52,22 @@ struct PlayerEdgeControl: UIViewRepresentable {
 }
 
 final class PlayerEdgeControlView: UIControl {
+    let imageView = UIImageView()
+
     var glyph: PlayerEdgeGlyph = .close {
-        didSet { updateLayerContents() }
+        didSet { updateImage() }
     }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isOpaque = false
         backgroundColor = .clear
-        layer.contentsGravity = .resizeAspect
-        updateLayerContents()
+        imageView.frame = bounds
+        imageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        imageView.contentMode = .scaleAspectFit
+        imageView.isUserInteractionEnabled = false
+        addSubview(imageView)
+        updateImage()
     }
 
     @available(*, unavailable)
@@ -71,18 +77,16 @@ final class PlayerEdgeControlView: UIControl {
         didSet { alpha = isHighlighted ? 0.55 : 1 }
     }
 
-    private func updateLayerContents() {
-        let image = PlayerEdgeControlImage.image(for: glyph)
-        layer.contents = image.cgImage
-        layer.contentsScale = image.scale
+    private func updateImage() {
+        imageView.image = PlayerEdgeControlImage.image(for: glyph)
     }
 }
 
 enum PlayerEdgeControlImage {
     static let size = CGSize(width: 44, height: 44)
 
-    private static let closeImage = makeImage(for: .close)
-    private static let optionsImage = makeImage(for: .options)
+    private static let closeImage = decode(PlayerEdgeControlAssets.closePNG)
+    private static let optionsImage = decode(PlayerEdgeControlAssets.optionsPNG)
 
     static func image(for glyph: PlayerEdgeGlyph) -> UIImage {
         switch glyph {
@@ -91,58 +95,14 @@ enum PlayerEdgeControlImage {
         }
     }
 
-    private static func makeImage(for glyph: PlayerEdgeGlyph) -> UIImage {
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 3
-        format.opaque = false
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-
-        return renderer.image { rendererContext in
-            let context = rendererContext.cgContext
-            let circleRect = CGRect(origin: .zero, size: size)
-                .insetBy(dx: 0.25, dy: 0.25)
-            context.setFillColor(UIColor.black.withAlphaComponent(0.58).cgColor)
-            context.fillEllipse(in: circleRect)
-            context.setStrokeColor(UIColor.white.withAlphaComponent(0.14).cgColor)
-            context.setLineWidth(0.5)
-            context.strokeEllipse(in: circleRect)
-
-            switch glyph {
-            case .close:
-                drawClose(in: context)
-            case .options:
-                drawOptions(in: context)
-            }
+    private static func decode(_ base64: String) -> UIImage {
+        guard
+            let data = Data(base64Encoded: base64),
+            let image = UIImage(data: data, scale: 3)
+        else {
+            assertionFailure("Oynatıcı kenar görseli çözülemedi")
+            return UIImage()
         }
-        .withRenderingMode(.alwaysOriginal)
-    }
-
-    private static func drawClose(in context: CGContext) {
-        let inset = size.width * 0.32
-        context.setStrokeColor(UIColor.white.cgColor)
-        context.setLineWidth(3.5)
-        context.setLineCap(.round)
-        context.move(to: CGPoint(x: inset, y: inset))
-        context.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset))
-        context.move(to: CGPoint(x: size.width - inset, y: inset))
-        context.addLine(to: CGPoint(x: inset, y: size.height - inset))
-        context.strokePath()
-    }
-
-    private static func drawOptions(in context: CGContext) {
-        let diameter = size.width * 0.10
-        let y = size.height / 2 - diameter / 2
-        let centers = [size.width * 0.30, size.width * 0.50, size.width * 0.70]
-        context.setFillColor(UIColor.white.cgColor)
-        for center in centers {
-            context.fillEllipse(
-                in: CGRect(
-                    x: center - diameter / 2,
-                    y: y,
-                    width: diameter,
-                    height: diameter
-                )
-            )
-        }
+        return image.withRenderingMode(.alwaysOriginal)
     }
 }
