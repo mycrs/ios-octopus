@@ -15,6 +15,24 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         }
     }
 
+    func test_hostedOverlayKeepsRootStoreWhenContentChanges() {
+        let store = PlayerHostedOverlayStore(
+            content: Text("Bir"),
+            brandColor: .blue
+        )
+        let controller = PlayerSurfaceViewController(
+            surface: UIView(),
+            surfaceGeneration: 1,
+            overlay: PlayerHostedOverlay(store: store)
+        )
+        controller.loadViewIfNeeded()
+
+        store.update(content: Text("İki"), brandColor: .red)
+        controller.update(surfaceGeneration: 1, makeSurface: { nil })
+
+        XCTAssertTrue(controller.overlayHost.rootView.store === store)
+    }
+
     func test_replacesOnlyVideoSurfaceWhenEngineChanges() {
         let firstSurface = UIView()
         let controller = PlayerSurfaceViewController(
@@ -28,8 +46,7 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
 
         controller.update(
             surfaceGeneration: 2,
-            makeSurface: { replacementSurface },
-            overlay: EmptyView()
+            makeSurface: { replacementSurface }
         )
         let lateRenderer = UIView()
         replacementSurface.addSubview(lateRenderer)
@@ -39,8 +56,7 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
             makeSurface: {
                 XCTFail("Aynı nesilde video yüzeyi yeniden oluşturulmamalı")
                 return nil
-            },
-            overlay: EmptyView()
+            }
         )
 
         XCTAssertNil(firstSurface.superview)

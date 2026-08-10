@@ -15,6 +15,17 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
     private let overlay: Overlay
     @Environment(\.brandColor) private var brandColor
 
+    final class Coordinator {
+        let store: PlayerHostedOverlayStore<Overlay>
+
+        init(content: Overlay, brandColor: Color) {
+            store = PlayerHostedOverlayStore(
+                content: content,
+                brandColor: brandColor
+            )
+        }
+    }
+
     init(
         makeSurface: @escaping () -> UIView?,
         surfaceGeneration: Int,
@@ -25,13 +36,17 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
         self.overlay = overlay()
     }
 
+    func makeCoordinator() -> Coordinator {
+        Coordinator(content: overlay, brandColor: brandColor)
+    }
+
     func makeUIViewController(
         context: Context
     ) -> PlayerSurfaceViewController<PlayerHostedOverlay<Overlay>> {
         PlayerSurfaceViewController(
             surface: makeSurface(),
             surfaceGeneration: surfaceGeneration,
-            overlay: hostedOverlay
+            overlay: PlayerHostedOverlay(store: context.coordinator.store)
         )
     }
 
@@ -39,28 +54,14 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
         _ controller: PlayerSurfaceViewController<PlayerHostedOverlay<Overlay>>,
         context: Context
     ) {
+        context.coordinator.store.update(
+            content: overlay,
+            brandColor: brandColor
+        )
         controller.update(
             surfaceGeneration: surfaceGeneration,
-            makeSurface: makeSurface,
-            overlay: hostedOverlay
+            makeSurface: makeSurface
         )
-    }
-
-    private var hostedOverlay: PlayerHostedOverlay<Overlay> {
-        PlayerHostedOverlay(content: overlay, brandColor: brandColor)
-    }
-}
-
-/// `AnyView` kullanılmaz: VOD süresi her güncellendiğinde tip silinmiş ağacı
-/// baştan kurmak, hızlandırılmış video üstünde kısa süreli glif kaybı yaratıyordu.
-struct PlayerHostedOverlay<Content: View>: View {
-    let content: Content
-    let brandColor: Color
-
-    var body: some View {
-        content
-            .environment(\.brandColor, brandColor)
-            .preferredColorScheme(.dark)
     }
 }
 
@@ -105,14 +106,12 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
 
     func update(
         surfaceGeneration: Int,
-        makeSurface: () -> UIView?,
-        overlay: Overlay
+        makeSurface: () -> UIView?
     ) {
         replaceSurfaceIfNeeded(
             generation: surfaceGeneration,
             makeSurface: makeSurface
         )
-        overlayHost.rootView = overlay
         bringOverlayToFront()
     }
 
