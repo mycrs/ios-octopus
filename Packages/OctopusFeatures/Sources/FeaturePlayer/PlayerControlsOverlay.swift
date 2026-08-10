@@ -65,19 +65,18 @@ struct PlayerControlsOverlay: View {
             }
             .padding(Theme.Spacing.md)
 
-            PlayerEdgeWindowPresenter {
-                PlayerEdgeControlsOverlay(
-                    isLive: isLive,
-                    hasTracks: hasTracks,
-                    videoFit: videoFit,
-                    rate: rate,
-                    onClose: onClose,
-                    onShowTracks: onShowTracks,
-                    onToggleFit: onToggleFit,
-                    onSetRate: onSetRate
-                )
-            }
-            .frame(width: 0, height: 0)
+            // Kenar denetimleri ana overlay ile ayni host'ta kalir. VLCKit'in
+            // pencere/compositor sirasi degisse bile tek katman olarak cizilir.
+            PlayerEdgeControlsOverlay(
+                isLive: isLive,
+                hasTracks: hasTracks,
+                videoFit: videoFit,
+                rate: rate,
+                onClose: onClose,
+                onShowTracks: onShowTracks,
+                onToggleFit: onToggleFit,
+                onSetRate: onSetRate
+            )
         }
     }
 

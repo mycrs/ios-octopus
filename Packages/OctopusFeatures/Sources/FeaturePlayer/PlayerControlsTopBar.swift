@@ -14,7 +14,7 @@ struct PlayerControlsTopBar: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            // Gerçek kenar kontrolleri VLC'den yüksek ayrı UIWindow'da.
+            // Kenar denetimleri ustteki atomik overlay'de bu alani doldurur.
             Color.clear.frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 2) {

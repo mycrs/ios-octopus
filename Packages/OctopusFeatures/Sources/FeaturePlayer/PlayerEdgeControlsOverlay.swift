@@ -3,7 +3,7 @@ import Foundation
 import OctopusDesignSystem
 import OctopusPlayback
 
-/// VLC video yüzeyinden ayrı bir UIWindow'da gösterilen kenar eylemleri.
+/// Video ve diğer denetimlerle aynı atomik overlay'de gösterilen kenar eylemleri.
 struct PlayerEdgeControlsOverlay: View {
     @State private var showsOptions = false
 
