@@ -105,8 +105,10 @@ public struct HomeScreen: View {
                 // sorusunu cevaplamalı — içerik zaten altındaki raflarda
                 // ve orada kullanıcı ne göreceğini seçebiliyor.
                 HomeHeaderView(
-                    account: viewModel.account,
+                    account: displayedAccount,
                     greeting: viewModel.greeting,
+                    brandName: theme.resellerName ?? "Octopus",
+                    brandLogoURL: theme.logoURL,
                     onWatchLive: { router.switchTab(to: .live) },
                     onExplore: { router.switchTab(to: .movies) }
                 )
@@ -154,5 +156,13 @@ public struct HomeScreen: View {
             // Hero kenara **ve** üste yapışık; alttaki raflar için nefes payı.
             .padding(.bottom, Theme.Spacing.lg)
         }
+    }
+
+    private var displayedAccount: HomeAccount? {
+#if DEBUG
+        return HomeDebugPresentation.account(fallback: viewModel.account)
+#else
+        return viewModel.account
+#endif
     }
 }

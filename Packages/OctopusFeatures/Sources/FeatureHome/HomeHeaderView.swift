@@ -6,6 +6,8 @@ import OctopusDesignSystem
 struct HomeHeaderView: View {
     let account: HomeAccount?
     let greeting: String
+    let brandName: String
+    let brandLogoURL: URL?
     let onWatchLive: () -> Void
     let onExplore: () -> Void
 
@@ -17,10 +19,10 @@ struct HomeHeaderView: View {
             decoration
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
-                topRow
+                brandRow
                 greetingBlock
                 actions
-                statusLine
+                HomeHeroAccountView(account: account)
             }
             .padding(Theme.Spacing.xl)
         }
@@ -35,15 +37,24 @@ struct HomeHeaderView: View {
         .padding(.top, Theme.Spacing.sm)
     }
 
-    private var topRow: some View {
+    private var brandRow: some View {
         HStack {
-            Label("SANA ÖZEL", systemImage: "sparkles")
-                .font(Theme.Typography.badge)
-                .tracking(1)
-                .foregroundColor(brandColor)
-                .padding(.horizontal, Theme.Spacing.md)
-                .frame(minHeight: 32)
-                .background(Color.black.opacity(0.16), in: Capsule())
+            HStack(spacing: Theme.Spacing.md) {
+                HomeBrandLogo(logoURL: brandLogoURL, size: 54)
+                    .shadow(color: brandColor.opacity(0.25), radius: 12, y: 6)
+
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text(brandName)
+                        .font(Theme.Typography.rowTitle.weight(.bold))
+                        .foregroundColor(Theme.Palette.textPrimary)
+                        .lineLimit(1)
+
+                    Label("SANA ÖZEL", systemImage: "sparkles")
+                        .font(Theme.Typography.badge)
+                        .tracking(0.8)
+                        .foregroundColor(brandColor)
+                }
+            }
 
             Spacer(minLength: Theme.Spacing.sm)
             clock
@@ -119,44 +130,6 @@ struct HomeHeaderView: View {
                 }
         }
         .buttonStyle(.plain)
-    }
-
-    private var statusLine: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            Image(systemName: statusIcon)
-                .foregroundColor(statusColor)
-
-            Text(statusText)
-                .font(Theme.Typography.caption)
-                .foregroundColor(Theme.Palette.textSecondary)
-                .lineLimit(1)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.top, Theme.Spacing.xs)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var statusText: String {
-        guard let account else { return "İçeriklerin hazır" }
-        switch account.urgency {
-        case .normal: return account.expiryText.map { "Aboneliğin aktif · \($0)" } ?? "İçeriklerin güncel"
-        case .soon, .expired: return account.expiryText ?? "Abonelik bilgini kontrol et"
-        }
-    }
-
-    private var statusIcon: String {
-        guard let account else { return "checkmark.seal.fill" }
-        return account.urgency == .normal ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
-    }
-
-    private var statusColor: Color {
-        guard let account else { return Theme.Palette.success }
-        switch account.urgency {
-        case .normal: return Theme.Palette.success
-        case .soon: return Theme.Palette.warning
-        case .expired: return Theme.Palette.error
-        }
     }
 
     private var background: some View {

@@ -24,6 +24,7 @@ struct HomeNavigationBrand: View {
 struct HomeBrandLogo: View {
     let logoURL: URL?
     let size: CGFloat
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         Group {
@@ -46,7 +47,7 @@ struct HomeBrandLogo: View {
     private var fallback: some View {
         ZStack {
             LinearGradient(
-                colors: [Theme.Palette.accent, Theme.Palette.accent.opacity(0.55)],
+                colors: [brandColor, brandColor.opacity(0.55)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
