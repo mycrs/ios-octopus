@@ -1,43 +1,35 @@
-import SwiftUI
 import UIKit
 
-/// VLC drawable yeniden bağlanırken kaybolmayan, UIKit tabanlı kontrol glifi.
+/// VLC drawable yeniden bağlanırken dahi üstte kalan yerel kontrol glifi.
 ///
-/// SwiftUI `Text`/SF Symbol ön planı VLC'nin video katmanıyla aynı karede
-/// bazen atlanıyor; gerçek `UILabel` ise hosting hiyerarşisinde kalıyor.
-struct PlayerControlGlyph: UIViewRepresentable {
+/// Bu görünüm bilinçli olarak `UIHostingController` dışında tutulur. VLC'nin
+/// drawable güncellemesi SwiftUI kontrol etiketlerini yeniden çizdiğinde
+/// kapat/seçenek simgeleri kaybolmadan video yüzeyinin üstünde kalır.
+final class PlayerEdgeGlyphView: UIImageView {
 
-    let text: String
-
-    func makeUIView(context: Context) -> UILabel {
-        let label = UILabel()
-        label.textAlignment = .center
-        label.backgroundColor = UIColor.black.withAlphaComponent(0.58)
-        label.layer.cornerRadius = 22
-        label.layer.borderWidth = 0.5
-        label.layer.borderColor = UIColor.white.withAlphaComponent(0.14).cgColor
-        label.clipsToBounds = true
-        label.isUserInteractionEnabled = false
-        configure(label)
-        return label
-    }
-
-    func updateUIView(_ label: UILabel, context: Context) {
-        configure(label)
-    }
-
-    private func configure(_ label: UILabel) {
-        let isClose = text == "×"
-        label.font = .systemFont(
-            ofSize: isClose ? 28 : 14,
-            weight: isClose ? .medium : .bold
+    init(systemName: String) {
+        let configuration = UIImage.SymbolConfiguration(
+            pointSize: systemName == "xmark" ? 20 : 18,
+            weight: .semibold
         )
-        label.attributedText = NSAttributedString(
-            string: text,
-            attributes: [
-                .foregroundColor: UIColor.white,
-                .kern: isClose ? 0 : 1.5
-            ]
+        super.init(
+            image: UIImage(
+                systemName: systemName,
+                withConfiguration: configuration
+            )?.withRenderingMode(.alwaysTemplate)
         )
+
+        tintColor = .white
+        contentMode = .center
+        backgroundColor = UIColor.black.withAlphaComponent(0.58)
+        layer.cornerRadius = 22
+        layer.borderWidth = 0.5
+        layer.borderColor = UIColor.white.withAlphaComponent(0.14).cgColor
+        clipsToBounds = true
+        isUserInteractionEnabled = false
+        isAccessibilityElement = false
     }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
 }

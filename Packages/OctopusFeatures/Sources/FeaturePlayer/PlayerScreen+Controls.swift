@@ -77,6 +77,12 @@ extension PlayerScreen {
         controller.audioTracks.count > 1 || !controller.subtitleTracks.isEmpty
     }
 
+    var showsTopBarControls: Bool {
+        guard showsControls else { return false }
+        if case .failed = controller.state { return false }
+        return true
+    }
+
     @ViewBuilder
     var trackPicker: some View {
         PlayerTrackPicker(

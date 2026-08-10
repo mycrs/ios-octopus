@@ -11,21 +11,25 @@ import OctopusDesignSystem
 struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
 
     private let makeSurface: () -> UIView?
+    private let showsEdgeGlyphs: Bool
     private let overlay: Overlay
     @Environment(\.brandColor) private var brandColor
 
     init(
         makeSurface: @escaping () -> UIView?,
+        showsEdgeGlyphs: Bool,
         @ViewBuilder overlay: () -> Overlay
     ) {
         self.makeSurface = makeSurface
+        self.showsEdgeGlyphs = showsEdgeGlyphs
         self.overlay = overlay()
     }
 
     func makeUIViewController(context: Context) -> PlayerSurfaceViewController {
         PlayerSurfaceViewController(
             surface: makeSurface(),
-            overlay: hostedOverlay
+            overlay: hostedOverlay,
+            showsEdgeGlyphs: showsEdgeGlyphs
         )
     }
 
@@ -33,7 +37,10 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
         _ controller: PlayerSurfaceViewController,
         context: Context
     ) {
-        controller.update(overlay: hostedOverlay)
+        controller.update(
+            overlay: hostedOverlay,
+            showsEdgeGlyphs: showsEdgeGlyphs
+        )
     }
 
     private var hostedOverlay: AnyView {
@@ -49,10 +56,14 @@ final class PlayerSurfaceViewController: UIViewController {
 
     private let surface: UIView?
     private let overlayHost: UIHostingController<AnyView>
+    private let closeGlyph = PlayerEdgeGlyphView(systemName: "xmark")
+    private let optionsGlyph = PlayerEdgeGlyphView(systemName: "ellipsis")
+    private var showsEdgeGlyphs: Bool
 
-    init(surface: UIView?, overlay: AnyView) {
+    init(surface: UIView?, overlay: AnyView, showsEdgeGlyphs: Bool) {
         self.surface = surface
         self.overlayHost = UIHostingController(rootView: overlay)
+        self.showsEdgeGlyphs = showsEdgeGlyphs
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -73,12 +84,54 @@ final class PlayerSurfaceViewController: UIViewController {
         overlayHost.view.isOpaque = false
         pin(overlayHost.view, to: view.safeAreaLayoutGuide)
         overlayHost.didMove(toParent: self)
-        view.bringSubviewToFront(overlayHost.view)
+        installEdgeGlyphs()
+        refreshOverlayOrder()
     }
 
-    func update(overlay: AnyView) {
+    func update(overlay: AnyView, showsEdgeGlyphs: Bool) {
         overlayHost.rootView = overlay
+        self.showsEdgeGlyphs = showsEdgeGlyphs
+        closeGlyph.isHidden = !showsEdgeGlyphs
+        optionsGlyph.isHidden = !showsEdgeGlyphs
+        refreshOverlayOrder()
+    }
+
+    private func installEdgeGlyphs() {
+        [closeGlyph, optionsGlyph].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            $0.isHidden = !showsEdgeGlyphs
+            view.addSubview($0)
+        }
+
+        let safeArea = view.safeAreaLayoutGuide
+        NSLayoutConstraint.activate([
+            closeGlyph.leadingAnchor.constraint(
+                equalTo: safeArea.leadingAnchor,
+                constant: Theme.Spacing.md
+            ),
+            closeGlyph.topAnchor.constraint(
+                equalTo: safeArea.topAnchor,
+                constant: Theme.Spacing.md
+            ),
+            closeGlyph.widthAnchor.constraint(equalToConstant: 44),
+            closeGlyph.heightAnchor.constraint(equalToConstant: 44),
+            optionsGlyph.trailingAnchor.constraint(
+                equalTo: safeArea.trailingAnchor,
+                constant: -Theme.Spacing.md
+            ),
+            optionsGlyph.topAnchor.constraint(
+                equalTo: safeArea.topAnchor,
+                constant: Theme.Spacing.md
+            ),
+            optionsGlyph.widthAnchor.constraint(equalToConstant: 44),
+            optionsGlyph.heightAnchor.constraint(equalToConstant: 44)
+        ])
+    }
+
+    private func refreshOverlayOrder() {
         view.bringSubviewToFront(overlayHost.view)
+        view.bringSubviewToFront(closeGlyph)
+        view.bringSubviewToFront(optionsGlyph)
     }
 
     private func pin(_ child: UIView, to guide: UILayoutGuide) {

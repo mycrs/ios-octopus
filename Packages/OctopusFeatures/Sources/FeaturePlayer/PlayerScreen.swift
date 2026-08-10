@@ -135,7 +135,7 @@ public struct PlayerScreen: View {
     // MARK: - Oynatma
 
     private func playback(_ item: PlaybackItem) -> some View {
-        PlayerSurfaceContainer(makeSurface: controller.makeVideoView) {
+        PlayerSurfaceContainer(makeSurface: controller.makeVideoView, showsEdgeGlyphs: showsTopBarControls) {
             if case .failed(let error) = controller.state {
                 playbackFailure(error, item: item)
             } else {

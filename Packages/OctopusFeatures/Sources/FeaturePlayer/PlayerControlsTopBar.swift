@@ -26,11 +26,7 @@ struct PlayerControlsTopBar: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            textButton(
-                symbol: "×",
-                label: "Oynatıcıyı kapat",
-                action: onClose
-            )
+            edgeButton(label: "Oynatıcıyı kapat", action: onClose)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -114,11 +110,6 @@ struct PlayerControlsTopBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Oynatıcı seçenekleri")
 
-            // Kontrol etiketinin dışında: VLC güncellemesi label içeriğini
-            // yeniden örneklese bile bu UIKit kardeşi yerinde kalır.
-            PlayerControlGlyph(text: "•••")
-                .frame(width: 44, height: 44)
-                .allowsHitTesting(false)
         }
         .frame(width: 44, height: 44)
     }
@@ -139,24 +130,17 @@ struct PlayerControlsTopBar: View {
         .accessibilityLabel(label)
     }
 
-    private func textButton(
-        symbol: String,
+    private func edgeButton(
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        ZStack {
-            Button(action: action) {
-                Color.clear
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(label)
-
-            PlayerControlGlyph(text: symbol)
+        Button(action: action) {
+            Color.clear
                 .frame(width: 44, height: 44)
-                .allowsHitTesting(false)
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .frame(width: 44, height: 44)
     }
 
