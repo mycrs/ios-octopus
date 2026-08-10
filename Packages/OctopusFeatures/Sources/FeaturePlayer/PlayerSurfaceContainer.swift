@@ -55,10 +55,33 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
 final class PlayerSurfaceViewController: UIViewController {
 
     private let surface: UIView?
-    private let overlayHost: UIHostingController<AnyView>
-    private let closeGlyph = PlayerEdgeGlyphView(kind: .close)
-    private let optionsGlyph = PlayerEdgeGlyphView(kind: .options)
-    private var showsEdgeGlyphs: Bool
+    let overlayHost: UIHostingController<AnyView>
+    let closeBackground = PlayerEdgeControlBackgroundView()
+    let optionsBackground = PlayerEdgeControlBackgroundView()
+    let closeForwardMark = PlayerEdgeMarkView(
+        cornerRadius: 1.5,
+        rotation: CGFloat.pi / 4
+    )
+    let closeBackwardMark = PlayerEdgeMarkView(
+        cornerRadius: 1.5,
+        rotation: -CGFloat.pi / 4
+    )
+    let optionsLeftMark = PlayerEdgeMarkView(cornerRadius: 2)
+    let optionsCenterMark = PlayerEdgeMarkView(cornerRadius: 2)
+    let optionsRightMark = PlayerEdgeMarkView(cornerRadius: 2)
+    var showsEdgeGlyphs: Bool
+
+    var edgeViews: [UIView] {
+        [
+            closeBackground,
+            optionsBackground,
+            closeForwardMark,
+            closeBackwardMark,
+            optionsLeftMark,
+            optionsCenterMark,
+            optionsRightMark
+        ]
+    }
 
     init(surface: UIView?, overlay: AnyView, showsEdgeGlyphs: Bool) {
         self.surface = surface
@@ -91,52 +114,10 @@ final class PlayerSurfaceViewController: UIViewController {
     func update(overlay: AnyView, showsEdgeGlyphs: Bool) {
         overlayHost.rootView = overlay
         self.showsEdgeGlyphs = showsEdgeGlyphs
-        [closeGlyph, optionsGlyph].forEach {
+        edgeViews.forEach {
             $0.isHidden = !showsEdgeGlyphs
-            if showsEdgeGlyphs {
-                $0.setNeedsLayout()
-                $0.layoutIfNeeded()
-            }
         }
         refreshOverlayOrder()
-    }
-
-    private func installEdgeGlyphs() {
-        [closeGlyph, optionsGlyph].forEach {
-            $0.translatesAutoresizingMaskIntoConstraints = false
-            $0.isHidden = !showsEdgeGlyphs
-            view.addSubview($0)
-        }
-
-        let safeArea = view.safeAreaLayoutGuide
-        NSLayoutConstraint.activate([
-            closeGlyph.leadingAnchor.constraint(
-                equalTo: safeArea.leadingAnchor,
-                constant: Theme.Spacing.md
-            ),
-            closeGlyph.topAnchor.constraint(
-                equalTo: safeArea.topAnchor,
-                constant: Theme.Spacing.md
-            ),
-            closeGlyph.widthAnchor.constraint(equalToConstant: 44),
-            closeGlyph.heightAnchor.constraint(equalToConstant: 44),
-            optionsGlyph.trailingAnchor.constraint(
-                equalTo: safeArea.trailingAnchor,
-                constant: -Theme.Spacing.md
-            ),
-            optionsGlyph.topAnchor.constraint(
-                equalTo: safeArea.topAnchor,
-                constant: Theme.Spacing.md
-            ),
-            optionsGlyph.widthAnchor.constraint(equalToConstant: 44),
-            optionsGlyph.heightAnchor.constraint(equalToConstant: 44)
-        ])
-    }
-
-    private func refreshOverlayOrder() {
-        view.bringSubviewToFront(overlayHost.view)
-        view.bringSubviewToFront(closeGlyph)
-        view.bringSubviewToFront(optionsGlyph)
     }
 
     private func pin(_ child: UIView, to guide: UILayoutGuide) {
