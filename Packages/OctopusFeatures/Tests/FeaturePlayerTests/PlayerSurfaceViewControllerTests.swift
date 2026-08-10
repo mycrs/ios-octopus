@@ -22,15 +22,27 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
             makeSurface: { replacementSurface },
             overlay: EmptyView()
         )
+        let lateRenderer = UIView()
+        replacementSurface.addSubview(lateRenderer)
+
+        controller.update(
+            surfaceGeneration: 2,
+            makeSurface: {
+                XCTFail("Aynı nesilde video yüzeyi yeniden oluşturulmamalı")
+                return nil
+            },
+            overlay: EmptyView()
+        )
 
         XCTAssertNil(firstSurface.superview)
         XCTAssertTrue(replacementSurface.superview === controller.view)
         XCTAssertTrue(controller.overlayHost === originalHost)
-        XCTAssertTrue(controller.view.subviews.last === originalHost.view)
+        XCTAssertTrue(originalHost.view.superview === replacementSurface)
+        XCTAssertTrue(replacementSurface.subviews.last === originalHost.view)
         XCTAssertTrue(replacementSurface.clipsToBounds)
         XCTAssertGreaterThan(
             originalHost.view.layer.zPosition,
-            replacementSurface.layer.zPosition
+            lateRenderer.layer.zPosition
         )
     }
 }

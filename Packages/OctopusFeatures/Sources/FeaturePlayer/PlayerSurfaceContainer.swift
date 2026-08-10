@@ -68,6 +68,7 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
 
     private var surface: UIView?
     private var surfaceGeneration: Int
+    private var overlayConstraints: [NSLayoutConstraint] = []
     let overlayHost: UIHostingController<Overlay>
 
     init(
@@ -96,11 +97,8 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
         addChild(overlayHost)
         overlayHost.view.backgroundColor = .clear
         overlayHost.view.isOpaque = false
-        // VLC'nin AVSampleBuffer/OpenGL katmanı UIKit ekleme sırasını her
-        // karede korumayabiliyor. Açık z düzlemi, tüm SwiftUI kontrollerini
-        // tek parça olarak video yüzeyinin kesin biçimde üstünde tutar.
         overlayHost.view.layer.zPosition = 1_000
-        pin(overlayHost.view, to: view.safeAreaLayoutGuide)
+        attachOverlay()
         overlayHost.didMove(toParent: self)
         bringOverlayToFront()
     }
@@ -124,11 +122,13 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
     ) {
         guard generation != surfaceGeneration else { return }
         surfaceGeneration = generation
+        detachOverlay()
         surface?.removeFromSuperview()
         surface = makeSurface()
         if let surface {
             install(surface)
         }
+        attachOverlay()
     }
 
     private func install(_ surface: UIView) {
@@ -140,18 +140,32 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
     }
 
     private func bringOverlayToFront() {
-        view.bringSubviewToFront(overlayHost.view)
+        overlayHost.view.superview?.bringSubviewToFront(overlayHost.view)
     }
 
-    private func pin(_ child: UIView, to guide: UILayoutGuide) {
+    private func attachOverlay() {
+        // VLC, drawable içine kendi opak OpenGL görünümünü sonradan ekler.
+        // Host'u drawable'ın içinde ve daha yüksek z düzleminde tutmak,
+        // renderer'ın SwiftUI gliflerini aralıklı olarak kapatmasını önler.
+        let parent = surface ?? view
+        overlayHost.loadViewIfNeeded()
+        guard let child = overlayHost.view else { return }
         child.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(child)
-        NSLayoutConstraint.activate([
-            child.leadingAnchor.constraint(equalTo: guide.leadingAnchor),
-            child.trailingAnchor.constraint(equalTo: guide.trailingAnchor),
-            child.topAnchor.constraint(equalTo: guide.topAnchor),
-            child.bottomAnchor.constraint(equalTo: guide.bottomAnchor)
-        ])
+        parent.addSubview(child)
+        overlayConstraints = [
+            child.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            child.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            child.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            child.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ]
+        NSLayoutConstraint.activate(overlayConstraints)
+        bringOverlayToFront()
+    }
+
+    private func detachOverlay() {
+        NSLayoutConstraint.deactivate(overlayConstraints)
+        overlayConstraints.removeAll()
+        overlayHost.view.removeFromSuperview()
     }
 
     private func pin(_ child: UIView, to parent: UIView) {
