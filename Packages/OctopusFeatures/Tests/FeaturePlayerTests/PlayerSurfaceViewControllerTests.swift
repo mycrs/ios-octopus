@@ -27,5 +27,10 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         XCTAssertTrue(replacementSurface.superview === controller.view)
         XCTAssertTrue(controller.overlayHost === originalHost)
         XCTAssertTrue(controller.view.subviews.last === originalHost.view)
+        XCTAssertTrue(replacementSurface.clipsToBounds)
+        XCTAssertGreaterThan(
+            originalHost.view.layer.zPosition,
+            replacementSurface.layer.zPosition
+        )
     }
 }

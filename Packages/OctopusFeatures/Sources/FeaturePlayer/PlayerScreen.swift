@@ -105,7 +105,9 @@ public struct PlayerScreen: View {
         }
         // Oynatıcı her zaman koyu; sistem teması burada geçersiz.
         .preferredColorScheme(.dark)
-        .statusBarHidden(keepsControlsVisible ? false : showsControls == false)
+        // Tam ekran videoda sistem çubuğu dikkati dağıtır ve VLC katmanıyla
+        // titreşebilir; iOS video uygulamalarındaki gibi daima gizli tutulur.
+        .statusBarHidden(true)
         .task { await viewModel.resolve() }
         .sheet(isPresented: $isShowingTracks) { trackPicker }
         // ⚠️ Konum normalde 5 sn'de bir yazılıyor. Kullanıcı uygulamayı

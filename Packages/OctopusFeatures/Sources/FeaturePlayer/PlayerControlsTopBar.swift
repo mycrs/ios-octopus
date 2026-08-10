@@ -73,7 +73,7 @@ struct PlayerControlsTopBar: View {
 
     private var optionsMenu: some View {
         ZStack {
-            controlBackground
+            edgeVisual(text: "•••", size: 14)
 
             Menu {
                 Button(action: onToggleFit) {
@@ -115,8 +115,6 @@ struct PlayerControlsTopBar: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Oynatıcı seçenekleri")
-
-            edgeGlyph(text: "•••", size: 14)
         }
         .frame(width: 44, height: 44)
     }
@@ -143,6 +141,8 @@ struct PlayerControlsTopBar: View {
         action: @escaping () -> Void
     ) -> some View {
         ZStack {
+            edgeVisual(text: glyph, size: 28)
+
             Button(action: action) {
                 Color.clear
                     .frame(width: 44, height: 44)
@@ -150,13 +150,18 @@ struct PlayerControlsTopBar: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(label)
-
-            controlBackground
-                .allowsHitTesting(false)
-
-            edgeGlyph(text: glyph, size: 28)
         }
         .frame(width: 44, height: 44)
+    }
+
+    /// VLC'nin hızlandırılmış video katmanı ayrı SwiftUI çizimlerini bazı
+    /// karelerde farklı sırada birleştirebiliyor. Zemin ile glifi tek bir
+    /// kompozisyon grubu yapmak, çember görünürken işaretin kaybolmasını önler.
+    private func edgeVisual(text: String, size: CGFloat) -> some View {
+        controlBackground
+            .overlay { edgeGlyph(text: text, size: size) }
+            .compositingGroup()
+            .allowsHitTesting(false)
     }
 
     private var controlBackground: some View {

@@ -79,12 +79,16 @@ final class PlayerSurfaceViewController: UIViewController {
         view.backgroundColor = .black
 
         if let surface {
-            pin(surface, to: view)
+            install(surface)
         }
 
         addChild(overlayHost)
         overlayHost.view.backgroundColor = .clear
         overlayHost.view.isOpaque = false
+        // VLC'nin AVSampleBuffer/OpenGL katmanı UIKit ekleme sırasını her
+        // karede korumayabiliyor. Açık z düzlemi, tüm SwiftUI kontrollerini
+        // tek parça olarak video yüzeyinin kesin biçimde üstünde tutar.
+        overlayHost.view.layer.zPosition = 1_000
         pin(overlayHost.view, to: view.safeAreaLayoutGuide)
         overlayHost.didMove(toParent: self)
         bringOverlayToFront()
@@ -112,8 +116,16 @@ final class PlayerSurfaceViewController: UIViewController {
         surface?.removeFromSuperview()
         surface = makeSurface()
         if let surface {
-            pin(surface, to: view)
+            install(surface)
         }
+    }
+
+    private func install(_ surface: UIView) {
+        // VLCKit kendi renderer görünümünü bu yüzeye sonradan ekler. Kırpma,
+        // renderer'ın drawable sınırlarının dışına taşmasını engeller.
+        surface.clipsToBounds = true
+        surface.layer.zPosition = 0
+        pin(surface, to: view)
     }
 
     private func bringOverlayToFront() {
