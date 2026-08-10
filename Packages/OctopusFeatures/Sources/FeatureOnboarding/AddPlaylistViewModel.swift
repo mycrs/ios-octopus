@@ -83,6 +83,12 @@ public final class AddPlaylistViewModel: ObservableObject {
     /// Akışın hangi adımda olduğu.
     public enum Step: Equatable {
         case form
+        /// Bayinin sunucuları sırayla deneniyor (kaçıncısı / toplam).
+        ///
+        /// ⚠️ Ayrı bir durum: bu adım uzun sürebiliyor (her sunucu için bir
+        /// ağ turu) ve kullanıcı "donmuş mu?" diye düşünmemeli. İlerlemeyi
+        /// göstermek beklemeyi katlanılır kılıyor.
+        case searchingServer(index: Int, total: Int)
         case validating
         case syncing(SyncStage)
         case done
@@ -90,7 +96,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         public var isBusy: Bool {
             switch self {
             case .form, .done: return false
-            case .validating, .syncing: return true
+            case .searchingServer, .validating, .syncing: return true
             }
         }
     }
@@ -127,7 +133,11 @@ public final class AddPlaylistViewModel: ObservableObject {
         case .activationCode:
             return activationCode.trimmed.count >= 4
         case .xtream:
-            return !host.trimmed.isEmpty && !username.trimmed.isEmpty && !password.isEmpty
+            // ⚠️ Bayi sunucusu varsa adres **zorunlu değil**: boş bırakılırsa
+            // hepsi sırayla denenir. Zorunlu tutmak, kullanıcıyı hangi
+            // sunucunun kendisine ait olduğunu tahmin etmeye iterdi.
+            let hasServer = !host.trimmed.isEmpty || !resellerServers.isEmpty
+            return hasServer && !username.trimmed.isEmpty && !password.isEmpty
         case .m3u:
             return !m3uURL.trimmed.isEmpty
         }
@@ -157,6 +167,13 @@ public final class AddPlaylistViewModel: ObservableObject {
     public func submit() async {
         errorMessage = nil
 
+        // Adres boş bırakıldıysa aramaya ilk sunucudan başlanır; olmazsa
+        // `findWorkingServer` kalanları dener. Böylece "otomatik bul" ayrı
+        // bir düğme olmadan, alanı boş bırakmakla çalışıyor.
+        if sourceKind == .xtream, host.trimmed.isEmpty, let first = resellerServers.first {
+            select(server: first)
+        }
+
         // 1. Erişim bilgilerini elde et.
         //    Kod ile girişte bunlar panelden gelir; diğerlerinde kullanıcı yazar.
         guard let resolved = await resolveCredentials() else { return }
@@ -165,13 +182,21 @@ public final class AddPlaylistViewModel: ObservableObject {
         // 2. Sunucu doğrulaması — kaydetmeden önce.
         //    Kod ile girişte de yapılır: panel bilgileri doğru olsa bile
         //    yayın sunucusuna gerçekten bağlanılabildiği kanıtlanmalı.
+        var playlist = playlist
         step = .validating
         do {
             account = try await dependencies.validator.validate(playlist, password: password)
         } catch {
-            step = .form
-            errorMessage = AppError.wrap(error).userMessage
-            return
+            // Sunucu kabul etmedi. Bayinin başka sunucuları varsa onlar da
+            // denenir — aynı hesap çoğu bayide birden fazla sunucuda geçerli
+            // ve kullanıcı hangisinin kendisine ait olduğunu bilmiyor.
+            guard let found = await findWorkingServer(
+                failedWith: AppError.wrap(error),
+                username: username,
+                password: password
+            ) else { return }
+
+            playlist = found
         }
 
         // 3. Kayıt ve etkinleştirme.
@@ -270,6 +295,77 @@ public final class AddPlaylistViewModel: ObservableObject {
                 return nil
             }
         }
+    }
+
+    /// Bayinin sunucularını sırayla dener; kabul edeni döndürür.
+    ///
+    /// ## Neden her hatada denenmiyor?
+    /// ⚠️ Kimlik hatası (`unauthorized`) **bütün sunucularda aynı** olur:
+    /// parola yanlışsa on sunucu denemek kullanıcıyı boşuna bekletir ve
+    /// panelde on başarısız giriş denemesi bırakır — bazı paneller bunu
+    /// geçici kilitle cezalandırıyor. Yalnızca "sunucuya ulaşılamadı"
+    /// sınıfı hatalarda sıradakine geçilir.
+    ///
+    /// - Returns: Çalışan sunucuyla kurulmuş liste; hiçbiri olmazsa `nil`
+    ///   (hata mesajı ayarlanmış olur).
+    private func findWorkingServer(
+        failedWith firstError: AppError,
+        username: String,
+        password: String
+    ) async -> Playlist? {
+        // Kullanıcı adres yazdıysa denenen ilk sunucu oydu; listede varsa
+        // ikinci kez denenmesin.
+        let candidates = resellerServers.filter {
+            $0.baseURL.absoluteString != host.trimmed
+        }
+
+        guard !firstError.requiresReauthentication, !candidates.isEmpty else {
+            step = .form
+            errorMessage = firstError.userMessage
+            return nil
+        }
+
+        for (index, server) in candidates.enumerated() {
+            step = .searchingServer(index: index + 1, total: candidates.count)
+
+            let draft = PlaylistDraft(
+                name: name,
+                kind: .xtream(
+                    host: server.baseURL.absoluteString,
+                    username: username,
+                    password: password
+                )
+            )
+
+            guard let (candidate, candidatePassword) =
+                try? draft.build(id: makeID(), createdAt: now())
+            else { continue }
+
+            do {
+                account = try await dependencies.validator.validate(
+                    candidate,
+                    password: candidatePassword
+                )
+                // Bulundu: kullanıcı hangi sunucuya bağlandığını görsün.
+                host = server.baseURL.absoluteString
+                selectedServerID = server.id
+                return candidate
+            } catch {
+                let appError = AppError.wrap(error)
+                // Kimlik hatası her sunucuda tekrarlanır; aramayı bitir.
+                if appError.requiresReauthentication {
+                    step = .form
+                    errorMessage = appError.userMessage
+                    return nil
+                }
+                continue
+            }
+        }
+
+        step = .form
+        errorMessage = "Bayinin sunucularının hiçbirine bağlanılamadı. "
+            + "Bilgilerini kontrol et ya da bayine başvur."
+        return nil
     }
 
     private func makeDraft() -> PlaylistDraft {

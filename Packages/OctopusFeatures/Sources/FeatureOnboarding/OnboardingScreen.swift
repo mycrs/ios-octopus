@@ -46,6 +46,11 @@ public struct OnboardingDependencies {
     /// adresidir. Bayi kodu girilmişse adres yazdırmak yerine liste sunulur.
     public let resellerServers: @MainActor () async -> [ResellerServer]
 
+    /// Karşılama ekranında gösterilecek marka adı (bayi varsa onunki).
+    public let brandName: @MainActor () -> String?
+    /// Karşılama ekranındaki logo (bayi varsa onunki).
+    public let brandLogoURL: @MainActor () -> URL?
+
     public init(
         playlists: PlaylistRepository,
         validator: PlaylistValidating,
@@ -55,9 +60,13 @@ public struct OnboardingDependencies {
         onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in },
         applyResellerCode: @escaping @MainActor (String) async -> Bool = { _ in false },
         savedResellerCode: @escaping @MainActor () async -> String? = { nil },
-        resellerServers: @escaping @MainActor () async -> [ResellerServer] = { [] }
+        resellerServers: @escaping @MainActor () async -> [ResellerServer] = { [] },
+        brandName: @escaping @MainActor () -> String? = { nil },
+        brandLogoURL: @escaping @MainActor () -> URL? = { nil }
     ) {
         self.resellerServers = resellerServers
+        self.brandName = brandName
+        self.brandLogoURL = brandLogoURL
         self.onBrandingResolved = onBrandingResolved
         self.applyResellerCode = applyResellerCode
         self.savedResellerCode = savedResellerCode
@@ -169,16 +178,20 @@ public struct OnboardingScreen: View {
         .ignoresSafeArea()
     }
 
+    /// Marka bloğu — bayi kodu girildiyse **bayinin** kimliğini gösterir.
+    ///
+    /// ⚠️ Logo panelden çekiliyordu ama hiçbir yerde çizilmiyordu: bayi
+    /// logosunu yüklüyor, uygulamada göremiyordu. Marka rengi değişip
+    /// logonun aynı kalması "yarım markalama" hissi veriyor.
     private var brand: some View {
         VStack(spacing: Theme.Spacing.md) {
-            Image(systemName: "antenna.radiowaves.left.and.right")
-                .font(.system(size: 56))
-                .foregroundColor(Theme.Palette.accent)
+            brandMark
 
             VStack(spacing: Theme.Spacing.sm) {
-                Text("Octopus")
+                Text(dependencies.brandName() ?? "Octopus")
                     .font(Theme.Typography.screenTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
+                    .multilineTextAlignment(.center)
 
                 Text("Xtream hesabını veya M3U bağlantını ekleyerek başla.")
                     .font(Theme.Typography.rowSubtitle)
@@ -186,6 +199,29 @@ public struct OnboardingScreen: View {
                     .multilineTextAlignment(.center)
             }
         }
+    }
+
+    /// Bayi logosu varsa o, yoksa uygulamanın kendi simgesi.
+    ///
+    /// Logo indirilemezse (bağlantı kopuk, adres ölü) yer tutucu yine
+    /// uygulamanın simgesidir — boş bir kutu markasız görünürdü.
+    @ViewBuilder
+    private var brandMark: some View {
+        if let logoURL = dependencies.brandLogoURL() {
+            RemoteImageView(url: logoURL, contentMode: .fit, targetWidth: 160) {
+                defaultMark
+            }
+            .frame(width: 80, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        } else {
+            defaultMark
+        }
+    }
+
+    private var defaultMark: some View {
+        Image(systemName: "antenna.radiowaves.left.and.right")
+            .font(.system(size: 56))
+            .foregroundColor(Theme.Palette.accent)
     }
 
     /// Ne alacağını baştan söyler.

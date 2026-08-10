@@ -389,7 +389,10 @@ final class AppContainer: ObservableObject {
             },
             resellerServers: { [weak self] in
                 await self?.resellerServers() ?? []
-            }
+            },
+            // Bayi markası: panelden gelen ad ve logo karşılamada görünür.
+            brandName: { [weak self] in self?.appConfig?.branding.resellerName },
+            brandLogoURL: { [weak self] in self?.appConfig?.branding.logoURL }
         )
     }
 

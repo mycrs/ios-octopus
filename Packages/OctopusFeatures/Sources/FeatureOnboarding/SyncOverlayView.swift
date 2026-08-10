@@ -55,6 +55,8 @@ struct SyncOverlayView: View {
 
     private var title: String {
         switch step {
+        case .searchingServer(let index, let total):
+            return "Sunucu aranıyor (\(index)/\(total))"
         case .validating:
             return "Bağlantı sınanıyor"
         case .syncing(let stage):
@@ -66,6 +68,9 @@ struct SyncOverlayView: View {
 
     private var detail: String? {
         switch step {
+        case .searchingServer:
+            return "Bayinin sunucuları sırayla deneniyor. Hesabının çalıştığı "
+                + "sunucu bulununca kurulum kendiliğinden sürecek."
         case .validating:
             return "Sunucuya erişiliyor ve hesap bilgilerin doğrulanıyor."
         case .syncing:

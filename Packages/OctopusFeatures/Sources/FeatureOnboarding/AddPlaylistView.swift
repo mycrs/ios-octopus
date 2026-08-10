@@ -103,7 +103,10 @@ public struct AddPlaylistView: View {
 
                 FormFieldView(
                     title: "Sunucu adresi",
-                    placeholder: "panel.example.com:8080",
+                    // Bayi sunucusu varsa alan boş bırakılabilir; hepsi denenir.
+                    placeholder: viewModel.resellerServers.isEmpty
+                        ? "panel.example.com:8080"
+                        : "boş bırakırsan hepsi denenir",
                     text: $viewModel.host,
                     contentType: .URL
                 )
