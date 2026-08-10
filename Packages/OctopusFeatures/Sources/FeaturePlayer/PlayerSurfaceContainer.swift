@@ -56,8 +56,8 @@ final class PlayerSurfaceViewController: UIViewController {
 
     private let surface: UIView?
     private let overlayHost: UIHostingController<AnyView>
-    private let closeGlyph = PlayerEdgeGlyphView(systemName: "xmark")
-    private let optionsGlyph = PlayerEdgeGlyphView(systemName: "ellipsis")
+    private let closeGlyph = PlayerEdgeGlyphView(kind: .close)
+    private let optionsGlyph = PlayerEdgeGlyphView(kind: .options)
     private var showsEdgeGlyphs: Bool
 
     init(surface: UIView?, overlay: AnyView, showsEdgeGlyphs: Bool) {
