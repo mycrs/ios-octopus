@@ -36,7 +36,10 @@ extension PlayerSurfaceViewController {
     }
 
     func refreshOverlayOrder() {
-        view.bringSubviewToFront(overlayHost.view)
         edgeViews.forEach { view.bringSubviewToFront($0) }
+        // Zeminler videonun üstünde, SwiftUI glifleri ve dokunma hedefleri
+        // zeminlerin üstünde kalmalı. Tersi sıra yarı saydam çemberin glifi
+        // karartmasına, VLC karesinde ise bütünüyle örtmesine neden oluyordu.
+        view.bringSubviewToFront(overlayHost.view)
     }
 }
