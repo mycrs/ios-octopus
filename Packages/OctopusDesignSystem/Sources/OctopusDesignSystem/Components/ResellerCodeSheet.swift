@@ -1,6 +1,5 @@
 import SwiftUI
 import OctopusDomain
-import OctopusDesignSystem
 
 /// Bayi kodu girişi.
 ///
@@ -14,12 +13,24 @@ import OctopusDesignSystem
 /// ⚠️ Kod doğrulanınca ekranın rengi **anında** değişir. Bu bilinçli bir
 /// geri bildirim: kullanıcı kodun tuttuğunu bir yazıdan değil, uygulamanın
 /// kendisinden görür.
-struct ResellerCodeSheet: View {
+/// ⚠️ DesignSystem'de duruyor çünkü **iki ayrı feature** kullanıyor:
+/// karşılama (ilk kurulum) ve ayarlar (bayi değiştirme). Feature'lar
+/// birbirini import edemez (CLAUDE.md demir kural 3); ortak bileşenin
+/// yeri burası.
+public struct ResellerCodeSheet: View {
 
     /// Kodu panele sorar. `true` → kod bulundu.
-    let onSubmit: (String) async -> Bool
+    private let onSubmit: (String) async -> Bool
     /// Kayıtlı kod (varsa) — kullanıcı değiştirmek için açmış olabilir.
-    let currentCode: String?
+    private let currentCode: String?
+
+    public init(
+        currentCode: String?,
+        onSubmit: @escaping (String) async -> Bool
+    ) {
+        self.currentCode = currentCode
+        self.onSubmit = onSubmit
+    }
 
     @Environment(\.dismiss) private var dismiss
 
@@ -34,7 +45,7 @@ struct ResellerCodeSheet: View {
         case succeeded
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationStack {
             ZStack {
                 Theme.Palette.background.ignoresSafeArea()

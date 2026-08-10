@@ -13,14 +13,23 @@ public struct SettingsDependencies {
     public let contact: ContactChannels
     public let parental: ParentalControlling
 
+    /// Bayi kodunu uygular. `true` → kod bulundu.
+    public let applyResellerCode: @MainActor (String) async -> Bool
+    /// Kayıtlı bayi kodu — satırda gösterilir.
+    public let savedResellerCode: @MainActor () async -> String?
+
     public init(
         playlists: PlaylistRepository,
         sync: ContentSyncing,
         progress: PlaybackProgressRepository,
         history: WatchHistoryRepository,
         contact: ContactChannels = .empty,
-        parental: ParentalControlling = OpenParentalControl()
+        parental: ParentalControlling = OpenParentalControl(),
+        applyResellerCode: @escaping @MainActor (String) async -> Bool = { _ in false },
+        savedResellerCode: @escaping @MainActor () async -> String? = { nil }
     ) {
+        self.applyResellerCode = applyResellerCode
+        self.savedResellerCode = savedResellerCode
         self.playlists = playlists
         self.sync = sync
         self.progress = progress
@@ -39,6 +48,8 @@ public struct SettingsDependencies {
 public struct SettingsScreen: View {
 
     @StateObject var viewModel: SettingsViewModel
+    @State var showsResellerCode = false
+    @State var savedResellerCode: String?
     @EnvironmentObject var router: AppRouter
     @EnvironmentObject var theme: ThemeController
     /// Oynatma tercihleri — `ThemeController` ile aynı desen: tek örnek,
@@ -71,8 +82,13 @@ public struct SettingsScreen: View {
         }
     }
 
+    /// ⚠️ `private` değil: bayi bölümü `SettingsSections.swift` içinde ve
+    /// Swift'te `private` yalnızca **aynı dosyadaki** uzantılardan erişilebilir.
+    let dependencies: SettingsDependencies
+
     public init(dependencies: SettingsDependencies) {
         _viewModel = StateObject(wrappedValue: SettingsViewModel(dependencies: dependencies))
+        self.dependencies = dependencies
         self.contact = dependencies.contact
     }
 
@@ -87,6 +103,7 @@ public struct SettingsScreen: View {
                     }
 
                     sourceSection
+                    resellerSection
                     appearanceSection
                     playbackSection
                     startupSection

@@ -128,14 +128,11 @@ public struct OnboardingScreen: View {
         }
         .task { savedCode = await dependencies.savedResellerCode() }
         .sheet(isPresented: $showsResellerCode) {
-            ResellerCodeSheet(
-                onSubmit: { code in
-                    let isValid = await dependencies.applyResellerCode(code)
-                    savedCode = await dependencies.savedResellerCode()
-                    return isValid
-                },
-                currentCode: savedCode
-            )
+            ResellerCodeSheet(currentCode: savedCode) { code in
+                let isValid = await dependencies.applyResellerCode(code)
+                savedCode = await dependencies.savedResellerCode()
+                return isValid
+            }
         }
     }
 

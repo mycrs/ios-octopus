@@ -484,7 +484,13 @@ final class AppContainer: ObservableObject {
             history: history,
             // Destek kanalları panelden gelir; henüz çekilmediyse boş.
             contact: appConfig?.contact ?? .empty,
-            parental: parental
+            parental: parental,
+            applyResellerCode: { [weak self] code in
+                await self?.applyResellerCode(code) ?? false
+            },
+            savedResellerCode: { [weak self] in
+                await self?.savedResellerCode()
+            }
         )
     }
 }
