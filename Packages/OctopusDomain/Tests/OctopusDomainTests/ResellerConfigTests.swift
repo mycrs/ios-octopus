@@ -127,6 +127,45 @@ final class ResellerConfigTests: XCTestCase {
         XCTAssertEqual(ResellerConfig.normalizeCode("tR1"), "tR1")
     }
 
+    /// ⚠️ Bayiler müşteriye kodu değil **bağlantıyı** gönderiyor; kullanıcı
+    /// da bağlantının tamamını yapıştırıyor. Reddetmek "kod bulunamadı"
+    /// demek olurdu — oysa kod yolun sonunda duruyor.
+    func test_normalizeCode_extractsCodeFromSetupLink() {
+        XCTAssertEqual(
+            ResellerConfig.normalizeCode("https://octopusplayer.com/b/8811"),
+            "8811"
+        )
+        XCTAssertEqual(
+            ResellerConfig.normalizeCode("https://octopusplayer.com/b/8811/"),
+            "8811",
+            "Sondaki eğik çizgi yaygın"
+        )
+        XCTAssertEqual(
+            ResellerConfig.normalizeCode("octopusplayer.com/kurulum/8811"),
+            "8811",
+            "Şemasız yapıştırma da olağan"
+        )
+    }
+
+    /// Paylaşım bağlantıları izleme parametresi taşıyabiliyor;
+    /// `8811?utm=whatsapp` diye bir kod yok.
+    func test_normalizeCode_stripsQueryAndAnchor() {
+        XCTAssertEqual(
+            ResellerConfig.normalizeCode("https://octopusplayer.com/b/8811?utm=whatsapp"),
+            "8811"
+        )
+        XCTAssertEqual(
+            ResellerConfig.normalizeCode("https://octopusplayer.com/b/8811#kurulum"),
+            "8811"
+        )
+    }
+
+    /// Elde kod değil alan adı kaldıysa panele göndermenin anlamı yok.
+    func test_normalizeCode_rejectsBareDomain() {
+        XCTAssertNil(ResellerConfig.normalizeCode("https://octopusplayer.com"))
+        XCTAssertNil(ResellerConfig.normalizeCode("octopusplayer.com"))
+    }
+
     // MARK: - Sunucu listesi
 
     func test_serverDisplayNameFallsBackThroughNameCodeHost() {

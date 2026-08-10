@@ -69,8 +69,8 @@ struct ResellerCodeSheet: View {
                 .font(.system(size: 40))
                 .foregroundColor(Theme.Palette.accent)
 
-            Text("Bayinden aldığın kodu gir. Uygulama bayinin sunucularını ve "
-                 + "görünümünü buradan alır.")
+            Text("Bayinden aldığın kodu ya da kurulum bağlantısını yapıştır. "
+                 + "Uygulama bayinin sunucularını ve görünümünü buradan alır.")
                 .font(Theme.Typography.rowSubtitle)
                 .foregroundColor(Theme.Palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -78,7 +78,7 @@ struct ResellerCodeSheet: View {
     }
 
     private var field: some View {
-        TextField("Örn. 4321", text: $code)
+        TextField("Örn. 8811", text: $code)
             .focused($isFieldFocused)
             // ⚠️ Otomatik büyük harf ve düzeltme **kapalı**: panel kodları
             // harf de içerebiliyor ve otomatik düzeltme kullanıcının doğru

@@ -6,12 +6,32 @@ import Foundation
 /// değiştirilebilmesi gerekiyor.
 public struct PanelEndpoint: Sendable {
 
-    /// Varsayılan panel adresi.
+    /// Varsayılan panel adresi — **API tabanı**.
     ///
     /// Not: Bu adres uygulama paketinde zaten görünür olacağı için gizli
     /// bilgi değildir. Yine de tek noktada tutulur ki bayi dağıtımlarında
     /// tek satır değişsin.
+    ///
+    /// ## Sistemdeki üç adres — karıştırılmasın
+    /// | Ne | Adres | Kim kullanır |
+    /// |---|---|---|
+    /// | API tabanı | `octopusdocumentary.com` | **uygulama** (burası) |
+    /// | Yönetim paneli | `octopusdocumentary.com/octo-control-7842` | admin, tarayıcıda |
+    /// | Hızlı kurulum | `octopusplayer.com/b/<kod>` | müşteri, tarayıcıda |
+    ///
+    /// ⚠️ Hızlı kurulum sitesi ayrı bir alan adında ve **API değildir**;
+    /// uygulama oraya istek atmaz. Yalnızca kullanıcı o bağlantıyı bayi
+    /// kodu alanına yapıştırdığında koda çevrilir
+    /// (bkz. `ResellerConfig.normalizeCode`).
     public static let defaultBaseURL = URL(string: "https://octopusdocumentary.com")!
+
+    /// Bayi hızlı kurulum sayfası — kullanıcıya gösterilecek bağlantı.
+    ///
+    /// Uygulama bu adrese istek atmaz; "kurulum sayfasını aç" gibi bir
+    /// eylem gerektiğinde kullanılır.
+    public static func quickSetupPage(code: String) -> URL? {
+        URL(string: "https://octopusplayer.com/b/\(code)")
+    }
 
     public let baseURL: URL
 

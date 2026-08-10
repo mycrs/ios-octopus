@@ -116,12 +116,35 @@ extension ResellerConfig {
     /// harf duyarsız yapıyor (`LOWER(TRIM(d.code))`), bizim ayrıca
     /// dönüştürmemiz yalnızca yeni bir hata kaynağı olurdu.
     public static func normalizeCode(_ raw: String) -> String? {
-        let cleaned = raw
+        var text = raw
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: " ", with: "")
 
-        guard cleaned.count >= 2 else { return nil }
-        return cleaned
+        guard !text.isEmpty else { return nil }
+
+        // ⚠️ Bayiler müşteriye kodu değil **bağlantıyı** gönderiyor:
+        // `https://octopusplayer.com/b/8811`. Kullanıcı da doğal olarak
+        // bağlantının tamamını yapıştırıyor. Bunu reddetmek "kod bulunamadı"
+        // demek olurdu — oysa kod tam orada, yolun sonunda.
+        if text.contains("/") {
+            // Çapa ve sorgu atılır: paylaşım bağlantıları izleme parametresi
+            // taşıyabiliyor ve `8811?utm=whatsapp` diye bir kod yok.
+            if let anchor = text.firstIndex(of: "#") { text = String(text[..<anchor]) }
+            if let query = text.firstIndex(of: "?") { text = String(text[..<query]) }
+
+            // Sondaki eğik çizgi yaygın: `/b/8811/`
+            if let last = text.split(separator: "/").last(where: { !$0.isEmpty }) {
+                text = String(last)
+            }
+        }
+
+        // Nokta kalmışsa elde kod değil bir alan adı var (ör. yalnızca
+        // `octopusplayer.com` yapıştırılmış). Panele göndermenin anlamı yok.
+        guard !text.contains(".") else { return nil }
+
+        // Tek karakterlik girdi kazara dokunuştur; ağa çıkmaya değmez.
+        guard text.count >= 2 else { return nil }
+        return text
     }
 }
 
