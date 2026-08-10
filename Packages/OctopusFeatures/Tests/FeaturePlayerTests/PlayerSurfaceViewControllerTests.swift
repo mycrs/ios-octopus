@@ -6,16 +6,12 @@ import XCTest
 @MainActor
 final class PlayerSurfaceViewControllerTests: XCTestCase {
 
-    func test_edgeGlyphPathsStayInsideControlBounds() {
-        let controlBounds = CGRect(x: 0, y: 0, width: 44, height: 44)
-        let glyphBounds = [
-            PlayerCloseGlyph().path(in: controlBounds).boundingRect,
-            PlayerOptionsGlyph().path(in: controlBounds).boundingRect
-        ]
-
-        for bounds in glyphBounds {
-            XCTAssertFalse(bounds.isEmpty)
-            XCTAssertTrue(controlBounds.contains(bounds))
+    func test_edgeControlImagesKeepOriginalRendering() {
+        for glyph in [PlayerEdgeGlyph.close, .options] {
+            let image = PlayerEdgeControlImage.image(for: glyph)
+            XCTAssertEqual(image.size, PlayerEdgeControlImage.size)
+            XCTAssertEqual(image.renderingMode, .alwaysOriginal)
+            XCTAssertNotNil(image.cgImage)
         }
     }
 

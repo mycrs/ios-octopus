@@ -146,24 +146,9 @@ struct PlayerControlsTopBar: View {
         .frame(width: 44, height: 44)
     }
 
-    @ViewBuilder
     private func edgeVisual(glyph: PlayerEdgeGlyph) -> some View {
-        ZStack {
-            controlBackground
-
-            switch glyph {
-            case .close:
-                PlayerCloseGlyph()
-                    .stroke(
-                        .white,
-                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
-                    )
-            case .options:
-                PlayerOptionsGlyph()
-                    .fill(.white)
-            }
-        }
-        .allowsHitTesting(false)
+        PlayerEdgeControlVisual(glyph: glyph)
+            .allowsHitTesting(false)
     }
 
     private var controlBackground: some View {
