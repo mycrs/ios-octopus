@@ -34,7 +34,9 @@ struct PlayerEdgeWindowPresenter<Content: View>: UIViewRepresentable {
                 hide()
                 let window = PlayerPassThroughWindow(windowScene: scene)
                 window.backgroundColor = .clear
-                window.windowLevel = .normal + 1
+                // VLCKit VOD renderer'ı normal pencere seviyesinin üstüne
+                // çıkabiliyor. Sistem uyarılarını geçmeden VLC'yi geç.
+                window.windowLevel = PlayerPassThroughWindow.playerLevel
                 window.rootViewController = host
                 overlayWindow = window
             }
@@ -97,6 +99,10 @@ final class PlayerWindowSceneProbe: UIView {
 }
 
 final class PlayerPassThroughWindow: UIWindow {
+    static let playerLevel = UIWindow.Level(
+        rawValue: UIWindow.Level.alert.rawValue - 1
+    )
+
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard let hit = super.hitTest(point, with: event) else { return nil }
         guard let root = rootViewController else { return nil }

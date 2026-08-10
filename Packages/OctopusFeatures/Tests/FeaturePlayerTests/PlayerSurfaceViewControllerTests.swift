@@ -48,6 +48,17 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         XCTAssertTrue(host.prefersStatusBarHidden)
     }
 
+    func test_overlayWindowStaysAboveVideoAndBelowSystemAlerts() {
+        XCTAssertGreaterThan(
+            PlayerPassThroughWindow.playerLevel.rawValue,
+            UIWindow.Level.normal.rawValue
+        )
+        XCTAssertLessThan(
+            PlayerPassThroughWindow.playerLevel.rawValue,
+            UIWindow.Level.alert.rawValue
+        )
+    }
+
     func test_hostedOverlayKeepsRootStoreWhenContentChanges() {
         let store = PlayerHostedOverlayStore(
             content: Text("Bir"),
