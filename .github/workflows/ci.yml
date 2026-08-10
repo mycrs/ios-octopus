@@ -117,6 +117,20 @@ jobs:
           sleep 8   # açılış animasyonu ve ilk çizim
           xcrun simctl io booted screenshot screenshots/01-karsilama.png
 
+          # Tasarım denetimi için onboarding'in etkileşim gerektiren iki hâli.
+          # Bu başlangıç kapıları yalnızca DEBUG derlemede bulunur.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -startupOnboardingActivation >/dev/null
+          sleep 3
+          xcrun simctl io booted screenshot screenshots/01b-aktivasyon.png
+
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -startupOnboardingLoading >/dev/null
+          sleep 3
+          xcrun simctl io booted screenshot screenshots/01c-senkronizasyon.png
+
           # 2) İçerikli ekranlar.
           #
           # Kaynak eklenmemiş uygulamada tek görülebilen ekran karşılamaydı;

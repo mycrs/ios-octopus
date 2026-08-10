@@ -15,13 +15,20 @@ public struct AddPlaylistView: View {
     }
 
     public init(dependencies: OnboardingDependencies, onFinished: @escaping () -> Void) {
-        _viewModel = StateObject(wrappedValue: AddPlaylistViewModel(dependencies: dependencies))
+        let model = AddPlaylistViewModel(dependencies: dependencies)
+#if DEBUG
+        if OnboardingDebugLaunch.opensForm {
+            model.sourceKind = .activationCode
+        }
+#endif
+        _viewModel = StateObject(wrappedValue: model)
         self.onFinished = onFinished
     }
 
     public var body: some View {
         ZStack {
             Theme.Palette.background.ignoresSafeArea()
+            OnboardingBackgroundGlow(opacity: 0.13, center: .topTrailing, endRadius: 380)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
@@ -33,16 +40,25 @@ public struct AddPlaylistView: View {
                     }
                     submitButton
                 }
-                .padding(Theme.Spacing.lg)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.vertical, Theme.Spacing.xl)
+                .frame(maxWidth: 620)
+                .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
 
-            if viewModel.step.isBusy {
-                SyncOverlayView(step: viewModel.step)
+            if displayedStep.isBusy {
+                SyncOverlayView(step: displayedStep)
             }
         }
         .onChange(of: viewModel.step) { step in
-            if step == .done { onFinished() }
+            if step == .done {
+                Haptics.success()
+                onFinished()
+            }
+        }
+        .onChange(of: viewModel.errorMessage) { message in
+            if message != nil { Haptics.warning() }
         }
         // Panel yapılandırması ekran açıldıktan sonra da gelebilir;
         // kapatılmış bir form seçili kalmasın.
@@ -53,13 +69,13 @@ public struct AddPlaylistView: View {
     // MARK: - Bölümler
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text("Kaynak ekle")
-                .font(Theme.Typography.screenTitle)
-                .foregroundColor(Theme.Palette.textPrimary)
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            OnboardingHeroHeader()
+
             Text("Aboneliğinin bilgilerini gir. Kaydetmeden önce bağlantı sınanır.")
                 .font(Theme.Typography.rowSubtitle)
                 .foregroundColor(Theme.Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -71,12 +87,7 @@ public struct AddPlaylistView: View {
         let kinds = viewModel.availableSourceKinds
 
         if kinds.count > 1 {
-            Picker("Kaynak türü", selection: $viewModel.sourceKind) {
-                ForEach(kinds) { kind in
-                    Text(kind.title).tag(kind)
-                }
-            }
-            .pickerStyle(.segmented)
+            OnboardingSourcePicker(kinds: kinds, selection: $viewModel.sourceKind)
             .disabled(viewModel.step.isBusy)
         }
     }
@@ -86,10 +97,13 @@ public struct AddPlaylistView: View {
         VStack(spacing: Theme.Spacing.md) {
             switch viewModel.sourceKind {
             case .activationCode:
+                ActivationCodeIntro()
+
                 FormFieldView(
                     title: "Aktivasyon kodu",
                     placeholder: "ABC-1234",
-                    text: $viewModel.activationCode
+                    text: $viewModel.activationCode,
+                    icon: "key.horizontal.fill"
                 )
                 .focused($focusedField, equals: .code)
 
@@ -108,6 +122,7 @@ public struct AddPlaylistView: View {
                         ? "panel.example.com:8080"
                         : "boş bırakırsan hepsi denenir",
                     text: $viewModel.host,
+                    icon: "network",
                     contentType: .URL
                 )
                 .focused($focusedField, equals: .host)
@@ -116,6 +131,7 @@ public struct AddPlaylistView: View {
                     title: "Kullanıcı adı",
                     placeholder: "kullanıcı adın",
                     text: $viewModel.username,
+                    icon: "person.fill",
                     contentType: .username
                 )
                 .focused($focusedField, equals: .username)
@@ -124,6 +140,7 @@ public struct AddPlaylistView: View {
                     title: "Parola",
                     placeholder: "parolan",
                     text: $viewModel.password,
+                    icon: "lock.fill",
                     isSecure: true
                 )
                 .focused($focusedField, equals: .password)
@@ -133,6 +150,7 @@ public struct AddPlaylistView: View {
                     title: "M3U bağlantısı",
                     placeholder: "http://example.com/liste.m3u",
                     text: $viewModel.m3uURL,
+                    icon: "link",
                     contentType: .URL
                 )
                 .focused($focusedField, equals: .url)
@@ -141,6 +159,7 @@ public struct AddPlaylistView: View {
                     title: "EPG bağlantısı",
                     placeholder: "isteğe bağlı",
                     text: $viewModel.epgURL,
+                    icon: "calendar",
                     contentType: .URL
                 )
                 .focused($focusedField, equals: .epg)
@@ -151,11 +170,20 @@ public struct AddPlaylistView: View {
                 FormFieldView(
                     title: "Kaynak adı",
                     placeholder: "isteğe bağlı",
-                    text: $viewModel.name
+                    text: $viewModel.name,
+                    icon: "tag.fill"
                 )
                 .focused($focusedField, equals: .name)
             }
         }
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Palette.surface.opacity(0.58))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.sourceKind)
         .disabled(viewModel.step.isBusy)
     }
 
@@ -167,54 +195,32 @@ public struct AddPlaylistView: View {
     @ViewBuilder
     private var resellerServerPicker: some View {
         if !viewModel.resellerServers.isEmpty {
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text("Bayinin sunucuları")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Palette.textSecondary)
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        ForEach(viewModel.resellerServers) { server in
-                            serverChip(server)
-                        }
-                    }
-                    .padding(.horizontal, 1)   // kenardaki gölge kırpılmasın
-                }
+            ResellerServerPicker(
+                servers: viewModel.resellerServers,
+                selectedID: viewModel.selectedServerID
+            ) { server in
+                viewModel.select(server: server)
+                focusedField = .username
             }
         }
     }
 
-    private func serverChip(_ server: ResellerServer) -> some View {
-        let isSelected = viewModel.selectedServerID == server.id
-
-        return Button {
-            viewModel.select(server: server)
-            focusedField = .username   // adres hazır; sıradaki alana geç
-        } label: {
-            Text(server.displayName)
-                .font(Theme.Typography.caption)
-                .foregroundColor(isSelected ? Theme.Palette.accent : Theme.Palette.textPrimary)
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.sm)
-                .background(isSelected ? Theme.Palette.accentMuted : Theme.Palette.surface)
-                .clipShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-    }
-
     private var submitButton: some View {
-        Button {
+        OnboardingSubmitButton(
+            title: viewModel.sourceKind == .activationCode
+                ? "Kodu doğrula"
+                : "Kaydet ve içeriği getir",
+            isEnabled: viewModel.canSubmit
+        ) {
             focusedField = nil
             Task { await viewModel.submit() }
-        } label: {
-            Text("Kaydet ve içeriği getir")
-                .font(Theme.Typography.rowTitle)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Theme.Spacing.md)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(Theme.Palette.accent)
-        .disabled(!viewModel.canSubmit)
+    }
+
+    private var displayedStep: AddPlaylistViewModel.Step {
+#if DEBUG
+        if let step = OnboardingDebugLaunch.forcedStep { return step }
+#endif
+        return viewModel.step
     }
 }

@@ -91,6 +91,9 @@ public struct OnboardingScreen: View {
 
     public init(dependencies: OnboardingDependencies) {
         self.dependencies = dependencies
+#if DEBUG
+        _showsForm = State(initialValue: OnboardingDebugLaunch.opensForm)
+#endif
     }
 
     public var body: some View {
@@ -114,26 +117,32 @@ public struct OnboardingScreen: View {
 
     private var welcome: some View {
         ZStack {
-            ambientGlow
+            OnboardingBackgroundGlow(opacity: 0.22, center: .top, endRadius: 420)
 
-            VStack(spacing: Theme.Spacing.xl) {
-                // ⚠️ Üstteki boşluk **sınırlı**: iki serbest `Spacer` alanı
-                // eşit paylaşınca içerik ekranın tam ortasına toplanıyor ve
-                // tepede kocaman bir boşluk kalıyordu (kareyle görüldü).
-                // Sınırlanınca içerik yukarı çekiliyor, düğme altta kalıyor —
-                // gözün doğal okuma sırası.
-                Spacer(minLength: 0)
-                    .frame(maxHeight: 72)
+            GeometryReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: Theme.Spacing.xl) {
+                        Spacer(minLength: 0)
+                            .frame(maxHeight: 72)
 
-                brand
-                capabilities
+                        OnboardingWelcomeBrand(
+                            brandName: dependencies.brandName() ?? "Octopus",
+                            logoURL: dependencies.brandLogoURL()
+                        )
+                        OnboardingCapabilities()
 
-                Spacer(minLength: Theme.Spacing.xl)
-                startButton
-                resellerCodeButton
+                        Spacer(minLength: Theme.Spacing.xl)
+                        startButton
+                        OnboardingResellerCodeButton(savedCode: savedCode) {
+                            showsResellerCode = true
+                        }
+                    }
+                    .padding(Theme.Spacing.xl)
+                    .frame(maxWidth: 560)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: proxy.size.height)
+                }
             }
-            .padding(Theme.Spacing.xl)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task { savedCode = await dependencies.savedResellerCode() }
         .sheet(isPresented: $showsResellerCode) {
@@ -145,129 +154,9 @@ public struct OnboardingScreen: View {
         }
     }
 
-    /// İkincil eylem — asıl akış kaynak eklemek.
-    ///
-    /// ⚠️ Bayi kodu **zorunlu değil**: kendi Xtream hesabını elle ekleyen
-    /// kullanıcılar da var. Birincil düğme yapılsaydı onlar kod arayıp
-    /// akışta tıkanırdı.
-    private var resellerCodeButton: some View {
-        Button {
-            showsResellerCode = true
-        } label: {
-            Label(
-                savedCode == nil ? "Bayi kodum var" : "Bayi kodu: \(savedCode ?? "")",
-                systemImage: "person.badge.key"
-            )
-            .font(Theme.Typography.caption)
-            .foregroundColor(Theme.Palette.textSecondary)
-        }
-    }
-
-    /// Marka renginden gelen yumuşak parıltı.
-    ///
-    /// Referanstaki ambiyans katmanının karşılığı. Düz koyu bir zemin
-    /// uygulamayı "yarım kalmış" gösteriyordu; parıltı marka rengini
-    /// içerik gelmeden önce de hissettiriyor.
-    private var ambientGlow: some View {
-        RadialGradient(
-            colors: [Theme.Palette.accent.opacity(0.22), .clear],
-            center: .top,
-            startRadius: 0,
-            endRadius: 420
-        )
-        .ignoresSafeArea()
-    }
-
-    /// Marka bloğu — bayi kodu girildiyse **bayinin** kimliğini gösterir.
-    ///
-    /// ⚠️ Logo panelden çekiliyordu ama hiçbir yerde çizilmiyordu: bayi
-    /// logosunu yüklüyor, uygulamada göremiyordu. Marka rengi değişip
-    /// logonun aynı kalması "yarım markalama" hissi veriyor.
-    private var brand: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            brandMark
-
-            VStack(spacing: Theme.Spacing.sm) {
-                Text(dependencies.brandName() ?? "Octopus")
-                    .font(Theme.Typography.screenTitle)
-                    .foregroundColor(Theme.Palette.textPrimary)
-                    .multilineTextAlignment(.center)
-
-                Text("Xtream hesabını veya M3U bağlantını ekleyerek başla.")
-                    .font(Theme.Typography.rowSubtitle)
-                    .foregroundColor(Theme.Palette.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-    }
-
-    /// Bayi logosu varsa o, yoksa uygulamanın kendi simgesi.
-    ///
-    /// Logo indirilemezse (bağlantı kopuk, adres ölü) yer tutucu yine
-    /// uygulamanın simgesidir — boş bir kutu markasız görünürdü.
-    @ViewBuilder
-    private var brandMark: some View {
-        if let logoURL = dependencies.brandLogoURL() {
-            RemoteImageView(url: logoURL, contentMode: .fit, targetWidth: 160) {
-                defaultMark
-            }
-            .frame(width: 80, height: 80)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-        } else {
-            defaultMark
-        }
-    }
-
-    private var defaultMark: some View {
-        Image(systemName: "antenna.radiowaves.left.and.right")
-            .font(.system(size: 56))
-            .foregroundColor(Theme.Palette.accent)
-    }
-
-    /// Ne alacağını baştan söyler.
-    ///
-    /// Kullanıcı kimlik bilgilerini girmeden önce karşılığını bilmeli —
-    /// boş bir form "bu uygulama ne yapıyor?" sorusunu cevapsız bırakıyordu.
-    private var capabilities: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            capability("tv", "Canlı TV", "Kategoriler, favoriler ve yayın akışı")
-            capability("film", "Film ve dizi", "Kaldığın yerden devam et")
-            capability("lock.shield", "Ebeveyn kilidi", "Yetişkin içeriği gizle")
-        }
-        .padding(.horizontal, Theme.Spacing.sm)
-    }
-
-    private func capability(_ icon: String, _ title: String, _ detail: String) -> some View {
-        HStack(spacing: Theme.Spacing.md) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundColor(Theme.Palette.accent)
-                .frame(width: 28)
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Text(title)
-                    .font(Theme.Typography.rowTitle)
-                    .foregroundColor(Theme.Palette.textPrimary)
-                Text(detail)
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Palette.textSecondary)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
     private var startButton: some View {
-        Button {
+        OnboardingSubmitButton(title: "Kuruluma başla", isEnabled: true) {
             showsForm = true
-        } label: {
-            Text("Kaynak ekle")
-                .font(Theme.Typography.rowTitle)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Theme.Spacing.md)
         }
-        .buttonStyle(.borderedProminent)
-        .tint(Theme.Palette.accent)
     }
 }

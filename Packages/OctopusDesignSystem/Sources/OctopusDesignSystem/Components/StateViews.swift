@@ -5,22 +5,54 @@ import OctopusDomain
 public struct LoadingStateView: View {
 
     private let message: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPulsing = false
 
     public init(message: String? = nil) {
         self.message = message
     }
 
     public var body: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            ProgressView()
-                .tint(Theme.Palette.accent)
-            if let message {
-                Text(message)
-                    .font(Theme.Typography.rowSubtitle)
-                    .foregroundColor(Theme.Palette.textSecondary)
+        VStack(spacing: Theme.Spacing.lg) {
+            ZStack {
+                Circle()
+                    .fill(Theme.Palette.accent.opacity(0.10))
+                    .frame(width: 76, height: 76)
+                    .scaleEffect(isPulsing && !reduceMotion ? 1.12 : 0.94)
+                    .opacity(isPulsing && !reduceMotion ? 0.45 : 1)
+
+                Circle()
+                    .fill(Theme.Palette.surfaceElevated)
+                    .frame(width: 58, height: 58)
+                    .overlay {
+                        Circle()
+                            .stroke(Theme.Palette.accent.opacity(0.2), lineWidth: 1)
+                    }
+
+                ProgressView()
+                    .tint(Theme.Palette.accent)
+                    .scaleEffect(1.05)
+            }
+
+            VStack(spacing: Theme.Spacing.xs) {
+                Text(message ?? "Yükleniyor")
+                    .font(Theme.Typography.rowTitle)
+                    .foregroundColor(Theme.Palette.textPrimary)
+
+                Text("Birazdan hazır")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textTertiary)
             }
         }
+        .padding(Theme.Spacing.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(message ?? "Yükleniyor")
+        .onAppear { isPulsing = true }
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 1.15).repeatForever(autoreverses: true),
+            value: isPulsing
+        )
     }
 }
 
