@@ -105,7 +105,7 @@ public struct PlayerScreen: View {
         }
         // Oynatıcı her zaman koyu; sistem teması burada geçersiz.
         .preferredColorScheme(.dark)
-        .statusBarHidden(showsControls == false)
+        .statusBarHidden(keepsControlsVisible ? false : showsControls == false)
         .task { await viewModel.resolve() }
         .sheet(isPresented: $isShowingTracks) { trackPicker }
         // ⚠️ Konum normalde 5 sn'de bir yazılıyor. Kullanıcı uygulamayı
