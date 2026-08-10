@@ -440,6 +440,53 @@ bozmadan verir.
 çubuğunun altında kalır; (b) buradan açılan ekranlara
 `.toolbar(.visible)` verilmeli, yoksa geri düğmesi kaybolur.
 
+### Bayi paneli entegrasyonu
+
+Panel ayrı bir depoda: `qruze_player/admin-server` (Node + Express +
+SQLite). Uygulama oraya **üç uçtan** bağlanır:
+
+| Uç | Ne getirir | Ne zaman |
+|---|---|---|
+| `/api/app-config` | genel: sürüm, bakım, tema, duyuru | her açılış |
+| `/api/public/reseller-config/<kod>` | bayiye özel: marka, duyuru, **sunucu listesi**, iOS bayrağı | kod kayıtlıysa |
+| `/api/activation/redeem` | aktivasyon kodu → gerçek hesap | kullanıcı kod girince |
+
+Sistemdeki üç **adres** karıştırılmamalı:
+
+| Ne | Adres | Kim kullanır |
+|---|---|---|
+| API tabanı | `octopusdocumentary.com` | uygulama |
+| Yönetim paneli | `octopusdocumentary.com/octo-control-7842` | admin, tarayıcıda |
+| Hızlı kurulum | `octopusplayer.com/b/<kod>` | müşteri, tarayıcıda |
+
+⚠️ Sonuncusu **API değil**. Uygulama oraya istek atmaz; kullanıcı o
+bağlantıyı bayi kodu alanına yapıştırırsa koda çevrilir
+(`ResellerConfig.normalizeCode`) — bayiler müşteriye kodu değil
+bağlantıyı gönderiyor.
+
+**Öncelik kuralı:** bayi > global. Bayi bir alanı doldurmuşsa o kazanır,
+susmuşsa global değer korunur (`RemoteAppConfig.applying(_:)`).
+
+⚠️ **Panel varsayılan kırmızısı** (`#E50914`): panel, bayi renk seçmemiş
+olsa da bu değeri gönderiyor. Ham uygulanırsa her bayi kırmızı olur ve
+uygulamanın kimliği kaybolur — `BrandConfiguration.effectiveColorHex`
+bu ton ailesini eler.
+
+⚠️ **iOS ayrı bir platform**: `platform_ios_enabled`, Android'in
+`platform_mobile_enabled` bayrağından bağımsız. Bayilerin çoğu App Store
+onayı çıkana kadar yalnızca Android dağıtıyor; tek bayrak paylaşsalardı
+iOS'u kapatmak Android'i de kapatırdı. Kapalıyken
+`ServiceGate.platformUnavailable` devreye girer — bakımdan **ayrı** bir
+durum, çünkü beklemenin faydası yok, kullanıcı bayisine başvurmalı.
+
+⚠️ **Eksik alan = açık**: sunucusu güncellenmemiş panelde
+`platform_ios_enabled` hiç gelmez. `false` varsaymak o bayilerin
+uygulamasını bir anda kilitlerdi.
+
+Sözleşme `PanelResellerConfigTests` ile kilitli: içindeki JSON çalışan
+panelden alınmış gerçek bir yanıt. Panel bir alan adını değiştirirse test
+kırmızıya döner — aksi hâlde uygulama sessizce markasız açılır.
+
 ### Ebeveyn kilidi nerede uygulanır?
 
 Kilit **tek bir yerde tutulur, yedi yerde uygulanır**. Bir ekranı atlamak
