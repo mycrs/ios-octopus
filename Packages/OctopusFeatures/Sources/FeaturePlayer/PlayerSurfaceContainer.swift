@@ -147,7 +147,7 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
         // VLC, drawable içine kendi opak OpenGL görünümünü sonradan ekler.
         // Host'u drawable'ın içinde ve daha yüksek z düzleminde tutmak,
         // renderer'ın SwiftUI gliflerini aralıklı olarak kapatmasını önler.
-        let parent = surface ?? view
+        guard let parent = surface ?? view else { return }
         overlayHost.loadViewIfNeeded()
         guard let child = overlayHost.view else { return }
         child.translatesAutoresizingMaskIntoConstraints = false
