@@ -136,8 +136,7 @@ public struct PlayerScreen: View {
 
     private func playback(_ item: PlaybackItem) -> some View {
         PlayerSurfaceContainer(makeSurface: controller.makeVideoView,
-                               surfaceGeneration: controller.surfaceGeneration,
-                               showsEdgeGlyphs: showsTopBarControls) {
+                               surfaceGeneration: controller.surfaceGeneration) {
             if case .failed(let error) = controller.state {
                 playbackFailure(error, item: item)
             } else {

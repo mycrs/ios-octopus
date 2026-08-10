@@ -11,8 +11,7 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         let controller = PlayerSurfaceViewController(
             surface: firstSurface,
             surfaceGeneration: 1,
-            overlay: AnyView(EmptyView()),
-            showsEdgeGlyphs: true
+            overlay: AnyView(EmptyView())
         )
         controller.loadViewIfNeeded()
         let originalHost = controller.overlayHost
@@ -21,8 +20,7 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         controller.update(
             surfaceGeneration: 2,
             makeSurface: { replacementSurface },
-            overlay: AnyView(EmptyView()),
-            showsEdgeGlyphs: true
+            overlay: AnyView(EmptyView())
         )
 
         XCTAssertNil(firstSurface.superview)

@@ -73,6 +73,8 @@ struct PlayerControlsTopBar: View {
 
     private var optionsMenu: some View {
         ZStack {
+            controlBackground
+
             Menu {
                 Button(action: onToggleFit) {
                     Label(
@@ -140,18 +142,16 @@ struct PlayerControlsTopBar: View {
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        ZStack {
-            Button(action: action) {
-                Color.clear
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
+        Button(action: action) {
+            ZStack {
+                controlBackground
+                edgeGlyph(systemName: systemName, size: 20)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(label)
-
-            edgeGlyph(systemName: systemName, size: 20)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
         }
-        .frame(width: 44, height: 44)
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     private var controlBackground: some View {
