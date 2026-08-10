@@ -61,6 +61,7 @@ final class PlayerSurfaceViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        overrideUserInterfaceStyle = .dark
         view.backgroundColor = .black
 
         if let surface {

@@ -65,6 +65,10 @@ struct PlayerControlsTopBar: View {
 
             optionsMenu
         }
+        // `UIHostingController` içinde sistem Button/Menu tonu içerik
+        // güncellenirken siyaha dönebiliyor. Kenar eylemleri video üstünde
+        // her koşulda beyaz ve okunur kalmalı.
+        .tint(.white)
     }
 
     private var optionsMenu: some View {
@@ -104,10 +108,11 @@ struct PlayerControlsTopBar: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .background(Circle().fill(.black.opacity(0.35)))
+                .background(controlBackground)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("Oynatıcı seçenekleri")
     }
 
@@ -119,11 +124,20 @@ struct PlayerControlsTopBar: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .background(Circle().fill(.black.opacity(0.35)))
+                .background(controlBackground)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+
+    private var controlBackground: some View {
+        Circle()
+            .fill(.black.opacity(0.58))
+            .overlay {
+                Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
+            }
     }
 
     private func rateTitle(_ value: Float) -> String {

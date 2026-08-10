@@ -68,15 +68,17 @@ public struct PlayerScreen: View {
     @State var hideControlsTask: Task<Void, Never>?
     @State var isShowingTracks = false
 
-    /// Denetimlerin kendiliğinden kaybolma süresi.
     let autoHideDelay: Duration
+    let keepsControlsVisible: Bool
 
     public init(presentation: PlayerPresentation, dependencies: PlayerDependencies) {
 #if DEBUG
-        autoHideDelay = ProcessInfo.processInfo.arguments.contains("-keepPlayerControls")
+        keepsControlsVisible = ProcessInfo.processInfo.arguments.contains("-keepPlayerControls")
+        autoHideDelay = keepsControlsVisible
             ? .seconds(60)
             : .seconds(3.5)
 #else
+        keepsControlsVisible = false
         autoHideDelay = .seconds(3.5)
 #endif
         _viewModel = StateObject(

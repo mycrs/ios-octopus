@@ -107,6 +107,10 @@ extension PlayerScreen {
         hideControlsTask?.cancel()
         showsControls = true
 
+        // Ekran görüntüsü testi gerçek video yüklendikten sonra çalışır.
+        // Süreye güvenmek yerine DEBUG kapısında görünürlüğü kesinleştir.
+        guard !keepsControlsVisible else { return }
+
         hideControlsTask = Task {
             try? await Task.sleep(for: autoHideDelay)
             guard !Task.isCancelled, controller.state == .playing else { return }
