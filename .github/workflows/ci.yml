@@ -205,6 +205,16 @@ jobs:
           sleep 2
           xcrun simctl io booted screenshot screenshots/10-oynatici-denetimler.png
 
+          # VOD denetimleri — scrub bar, on saniye sarma ve seçenekler menüsü.
+          # İlk demo filmi Apple'ın açık HLS VOD örneğine bakar. Denetimler
+          # görsel kontrolde kalıcı olsun diye DEBUG bayrağıyla gizleme uzatılır.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -keepPlayerControls \
+            -startup.player "movie:demo#vod#0" >/dev/null
+          sleep 10
+          xcrun simctl io booted screenshot screenshots/11-vod-denetimler.png
+
           # 3) Dynamic Type — büyük erişilebilirlik yazı boyutu.
           #
           # Kod tabanında bunu ele alan neredeyse hiçbir şey yok

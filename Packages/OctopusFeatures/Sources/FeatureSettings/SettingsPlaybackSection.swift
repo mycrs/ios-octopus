@@ -8,7 +8,7 @@ import OctopusPlayback
 /// yok. Karşılıkları: tampon → `PlaybackPreferences.LiveBuffer` (motorların
 /// `load()` anında okuduğu değer), yerleşim → `PlayerController.videoFit`,
 /// yeniden bağlanma → `PlayerController.reconnectIfLive`, yedek motor →
-/// `PlayerController.handleFailure`.
+/// ilk motor seçimi + `PlayerController.handleFailure`.
 extension SettingsScreen {
 
     var playbackSection: some View {
@@ -73,7 +73,7 @@ extension SettingsScreen {
                         .foregroundColor(Theme.Palette.textTertiary)
                 }
             }
-            .tint(Theme.Palette.accent)
+            .tint(theme.accent)
         }
     }
 
@@ -84,12 +84,12 @@ extension SettingsScreen {
                     rowLabel(icon: "shippingbox", title: "Yedek oynatıcı")
                     // ⚠️ Kapatmanın bedeli açıkça yazılıyor: kullanıcı
                     // "neden kanallarım açılmıyor" diye dönmesin.
-                    Text("Kapatılırsa bazı UHD/HEVC kanallar açılmaz")
+                    Text("Kapalıyken uyumsuz canlı yayın ve bazı filmler açılmayabilir")
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Palette.textTertiary)
                 }
             }
-            .tint(Theme.Palette.accent)
+            .tint(theme.accent)
         }
     }
 
@@ -98,7 +98,7 @@ extension SettingsScreen {
     private func rowLabel(icon: String, title: String) -> some View {
         HStack(spacing: Theme.Spacing.md) {
             Image(systemName: icon)
-                .foregroundColor(Theme.Palette.accent)
+                .foregroundColor(theme.accent)
                 .frame(width: 24)
             Text(title)
                 .font(Theme.Typography.rowTitle)

@@ -93,6 +93,17 @@ final class PlayerZappingTests: XCTestCase {
         XCTAssertFalse(viewModel.canZap)
     }
 
+    func test_explicitStartPosition_isAppliedToVOD() async {
+        let viewModel = makeViewModel(movie: true, startAt: 125)
+
+        await viewModel.resolve()
+
+        guard case .ready(let item) = viewModel.phase else {
+            return XCTFail("Film çözümlenemedi")
+        }
+        XCTAssertEqual(item.resumeAt, 125)
+    }
+
     // MARK: - Yardımcılar
 
     private func title(of viewModel: PlayerViewModel) -> String? {
@@ -104,7 +115,8 @@ final class PlayerZappingTests: XCTestCase {
         startingAt rawID: String = "c1",
         channelCount: Int = 3,
         parental: ParentalControlling = OpenParentalControl(),
-        movie: Bool = false
+        movie: Bool = false,
+        startAt: TimeInterval? = nil
     ) -> PlayerViewModel {
         let channels = StubChannels(channels: makeChannels(count: channelCount))
 
@@ -121,7 +133,8 @@ final class PlayerZappingTests: XCTestCase {
 
         return PlayerViewModel(
             dependencies: dependencies,
-            source: movie ? .movie(Movie.ID("m1")) : .liveChannel(Channel.ID(rawID))
+            source: movie ? .movie(Movie.ID("m1")) : .liveChannel(Channel.ID(rawID)),
+            startAt: startAt
         )
     }
 

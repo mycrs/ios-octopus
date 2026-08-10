@@ -72,6 +72,8 @@ public final class PlayerController: ObservableObject {
     private let preferences: PlaybackPreferences?
     private let nowPlaying: NowPlayingCenter
     private let saveInterval: TimeInterval
+    private let liveStallTimeout: Duration
+    private let vodStallTimeout: Duration
     private let now: () -> Date
 
     /// Ekranın kendiliğinden kararmasını engeller.
@@ -85,8 +87,14 @@ public final class PlayerController: ObservableObject {
 
     private var engine: PlaybackEngine?
     private var eventTask: Task<Void, Never>?
+    /// Gecikmeli fallback/yeniden bağlanma işi ekran kapandıktan sonra dirilmemeli.
+    private var recoveryTask: Task<Void, Never>?
+    /// Motor hata vermeden yüklemede kalırsa kurtarma zincirini başlatır.
+    private var stallTask: Task<Void, Never>?
     private var item: PlaybackItem?
     private var decision: PlaybackEngineResolver.Decision = .native
+    /// Her açma/kapatma işlemi önceki asenkron yüklemeleri geçersiz kılar.
+    private var sessionGeneration = 0
 
     /// Yedek motora **yalnızca bir kez** düşülür; iki motor da açamıyorsa
     /// hata kullanıcıya gösterilir. Aksi hâlde sonsuz döngü riski var.
@@ -121,6 +129,8 @@ public final class PlayerController: ObservableObject {
         preferences: PlaybackPreferences? = nil,
         nowPlaying: NowPlayingCenter? = nil,
         saveInterval: TimeInterval = 5,
+        liveStallTimeout: Duration = .seconds(20),
+        vodStallTimeout: Duration = .seconds(45),
         now: @escaping () -> Date = Date.init,
         // Varsayılan bir **kapanış**; `UIApplication.shared`'a ancak
         // çağrıldığında dokunur. Bu yüzden izolasyon tuzağına düşmez.
@@ -137,6 +147,8 @@ public final class PlayerController: ObservableObject {
         self.videoFit = preferences?.videoFit ?? .fit
         self.nowPlaying = nowPlaying ?? NowPlayingCenter()
         self.saveInterval = saveInterval
+        self.liveStallTimeout = liveStallTimeout
+        self.vodStallTimeout = vodStallTimeout
         self.now = now
         self.setScreenAwake = setScreenAwake
     }
@@ -145,15 +157,30 @@ public final class PlayerController: ObservableObject {
 
     /// İçeriği açar. Devam konumu burada eklenir.
     public func start(_ requested: PlaybackItem) async {
+        sessionGeneration &+= 1
+        let session = sessionGeneration
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        stallTask?.cancel()
+        stallTask = nil
         didAttemptFallback = false
         didRecordHistory = false
         reconnectAttempts = 0
         lastSavedAt = nil
         openStartedAt = now()
+        rate = 1.0
+        videoFit = preferences?.videoFit ?? videoFit
+        clearMediaMetadata()
+        state = .loading
 
         let prepared = await withResumePosition(requested)
+        guard !Task.isCancelled, sessionGeneration == session else { return }
         item = prepared
-        let wanted = resolver.decide(for: prepared.format)
+        let allowsFallback = preferences?.useFallbackEngine ?? true
+        let wanted = resolver.decide(
+            for: prepared.format,
+            allowingFallback: allowsFallback
+        )
 
         attachRemoteCommands(isLive: prepared.isLive)
 
@@ -167,12 +194,19 @@ public final class PlayerController: ObservableObject {
         // arttığı için SwiftUI'ın video yüzeyini baştan yaratması.
         // Zaplarken hepsi her kanalda tekrarlanıyordu.
         if let engine, wanted == decision {
-            await reload(prepared, on: engine)
+            await reload(prepared, on: engine, session: session)
             return
         }
 
         decision = wanted
-        await attach(resolver.makeEngine(for: prepared.format), loading: prepared)
+        await attach(
+            resolver.makeEngine(
+                for: prepared.format,
+                allowingFallback: allowsFallback
+            ),
+            loading: prepared,
+            session: session
+        )
     }
 
     /// Çalışan motora yeni içerik yükler.
@@ -180,17 +214,22 @@ public final class PlayerController: ObservableObject {
     /// Motor korunuyor ama **içeriğe ait yayınlanmış durum sıfırlanmalı**:
     /// aksi hâlde yeni kanalda bir önceki yayının izleri, süresi ve
     /// en-boy oranı ekranda asılı kalır.
-    private func reload(_ target: PlaybackItem, on engine: PlaybackEngine) async {
-        audioTracks = []
-        subtitleTracks = []
-        selectedAudioTrack = nil
-        selectedSubtitleTrack = nil
-        aspectRatio = nil
-        time = .zero
-        canUsePictureInPicture = false
-        rate = 1.0
+    private func reload(
+        _ target: PlaybackItem,
+        on engine: PlaybackEngine,
+        session: Int
+    ) async {
+        clearMediaMetadata()
+        engine.setVideoFit(videoFit)
+        engine.setRate(rate)
 
         await engine.load(target)
+        // `load` beklerken ekran kapanmış ya da başka içerik başlamış olabilir.
+        guard
+            sessionGeneration == session,
+            self.engine === engine,
+            item?.url == target.url
+        else { return }
         engine.play()
     }
 
@@ -200,6 +239,9 @@ public final class PlayerController: ObservableObject {
             handlers: NowPlayingCenter.Handlers(
                 play: { [weak self] in self?.play() },
                 pause: { [weak self] in self?.pause() },
+                toggle: { [weak self] in
+                    Task { await self?.togglePlayPause() }
+                },
                 skip: { [weak self] delta in
                     Task { await self?.skip(by: delta) }
                 },
@@ -227,18 +269,24 @@ public final class PlayerController: ObservableObject {
         return item.resuming(at: saved.positionSeconds)
     }
 
-    private func attach(_ newEngine: PlaybackEngine, loading target: PlaybackItem) async {
+    private func attach(
+        _ newEngine: PlaybackEngine,
+        loading target: PlaybackItem,
+        session: Int
+    ) async {
         eventTask?.cancel()
         engine?.teardown()
+        clearMediaMetadata()
 
         engine = newEngine
         engineIdentifier = newEngine.identifier
         surfaceGeneration += 1
         supportsAirPlay = newEngine.supportsAirPlay
         canUsePictureInPicture = false
-        rate = 1.0
         // Yerleşim tercihi kullanıcıya ait, motora değil — yeni motora taşınır.
         newEngine.setVideoFit(videoFit)
+        // VOD hızı da fallback sırasında korunur. Yeni içerikte `start()` zaten 1x'e çeker.
+        newEngine.setRate(rate)
 
         // ⚠️ Abonelik yüklemeden **önce** kurulur. Ters sırada, yükleme
         // sırasında düşen olaylar (ör. anında gelen hata) kaybolurdu:
@@ -246,27 +294,45 @@ public final class PlayerController: ObservableObject {
         // (bkz. BRAIN.md § 11.1 — aynı tuzak testlerde yaşandı).
         eventTask = Task { [weak self] in
             for await event in newEngine.events {
+                guard !Task.isCancelled else { break }
                 self?.handle(event)
             }
         }
 
         await newEngine.load(target)
+        // Async yükleme sırasında `finish()` motoru bırakmış olabilir; kapanmış
+        // ekranda `play()` çağırıp bağlantıyı yeniden diriltme.
+        guard
+            sessionGeneration == session,
+            engine === newEngine,
+            item?.url == target.url
+        else { return }
         newEngine.play()
     }
 
     /// Ekran kapanırken çağrılır. **Atlanamaz.**
     public func finish() async {
+        sessionGeneration &+= 1
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        stallTask?.cancel()
+        stallTask = nil
         await saveProgress(force: true)
 
         eventTask?.cancel()
         eventTask = nil
         engine?.teardown()
         engine = nil
+        item = nil
         // Atlanırsa kilit ekranında çalmayan bir içerik asılı kalır.
         nowPlaying.clear()
         // ⚠️ Atlanırsa ekran **uygulama boyunca** hiç kararmaz: bayrak
         // süreç genelindedir, oynatıcıya ait değil.
         setScreenAwake(false)
+        clearMediaMetadata()
+        supportsAirPlay = false
+        engineIdentifier = ""
+        rate = 1.0
         state = .idle
     }
 
@@ -283,7 +349,14 @@ public final class PlayerController: ObservableObject {
         Task { await saveProgress(force: true) }
     }
 
-    public func togglePlayPause() {
+    public func togglePlayPause() async {
+        if state == .ended, let item, !item.isLive {
+            // Biten VOD'da `play()` tek başına hiçbir şey yapmaz; medya son
+            // karede kalır. Açıkça sıfırdan yeniden yüklenir.
+            await start(item.resuming(at: 0))
+            return
+        }
+
         if state == .playing {
             pause()
         } else {
@@ -312,8 +385,10 @@ public final class PlayerController: ObservableObject {
     }
 
     public func setRate(_ newRate: Float) {
-        engine?.setRate(newRate)
-        rate = newRate
+        let clamped = max(0.5, min(newRate, 2.0))
+        engine?.setRate(clamped)
+        rate = clamped
+        refreshNowPlaying()
     }
 
     /// Konumu hemen yazar — arka plana geçerken çağrılır.
@@ -348,6 +423,7 @@ public final class PlayerController: ObservableObject {
         switch event {
         case .stateChanged(let newState):
             state = newState
+            updateStallWatchdog(for: newState)
             if newState == .playing {
                 reportOpenDuration()
                 recordHistoryOnce()
@@ -381,12 +457,20 @@ public final class PlayerController: ObservableObject {
             aspectRatio = height > 0 ? width / height : nil
 
         case .unrecoverableFailure(let error):
-            Task { await handleFailure(error) }
+            stallTask?.cancel()
+            stallTask = nil
+            recoveryTask?.cancel()
+            recoveryTask = Task { [weak self] in
+                await self?.handleFailure(error)
+            }
         }
     }
 
     /// Önce yedek motoru dene, o da yoksa canlı yayında yeniden bağlan.
     private func handleFailure(_ error: AppError) async {
+        let session = sessionGeneration
+        guard !Task.isCancelled else { return }
+
         if
             !didAttemptFallback,
             // Kullanıcı yedek motoru kapattıysa hiç denenmez — teşhis için
@@ -402,11 +486,17 @@ public final class PlayerController: ObservableObject {
 
             // Kaldığı yer korunur: kullanıcı motor değiştiğini fark etmemeli.
             let resumed = target.resuming(at: time.current > 1 ? time.current : target.resumeAt)
-            await attach(fallback, loading: resumed)
+            guard !Task.isCancelled, sessionGeneration == session else { return }
+            await attach(fallback, loading: resumed, session: session)
             return
         }
 
-        await reconnectIfLive()
+        if await reconnectIfLive() { return }
+        guard !Task.isCancelled else { return }
+
+        state = .failed(error)
+        setScreenAwake(false)
+        refreshNowPlaying()
     }
 
     /// Kopan canlı yayına sessizce yeniden bağlanır.
@@ -423,14 +513,15 @@ public final class PlayerController: ObservableObject {
     ///
     /// ⚠️ Deneme sayısı sınırlı ve gecikme artıyor: ölü bir kanalda sonsuz
     /// döngüye girip sunucuyu dövmemek için.
-    private func reconnectIfLive() async {
+    private func reconnectIfLive() async -> Bool {
+        let session = sessionGeneration
         guard
             let target = item, target.isLive,
             reconnectAttempts < maxReconnectAttempts,
             engine != nil
         else {
             Log.playback.error("Oynatma başarısız, yeniden bağlanılamadı")
-            return
+            return false
         }
 
         reconnectAttempts += 1
@@ -446,11 +537,56 @@ public final class PlayerController: ObservableObject {
         // Bekleme sırasında ekran kapanmış ya da kanal değişmiş olabilir.
         guard
             !Task.isCancelled,
+            sessionGeneration == session,
             let engine,
             let current = item, current.url == target.url
-        else { return }
+        else { return true }
 
-        await reload(current, on: engine)
+        await reload(current, on: engine, session: session)
+        return true
+    }
+
+    /// Hata yayınlamadan yüklemede kalan motoru kurtarır.
+    ///
+    /// Bazı bozuk IPTV uçları bağlantıyı açık tutup hiç segment göndermez;
+    /// AVPlayer/VLC bu durumda sonsuza kadar spinner'da kalabilir. Canlıda
+    /// kısa, VOD'da yanlış pozitif üretmemek için daha uzun eşik kullanılır.
+    private func updateStallWatchdog(for newState: PlaybackState) {
+        stallTask?.cancel()
+        stallTask = nil
+
+        guard newState.showsSpinner, let target = item else { return }
+        let timeout = target.isLive ? liveStallTimeout : vodStallTimeout
+
+        stallTask = Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            guard
+                !Task.isCancelled,
+                let self,
+                self.item?.url == target.url,
+                self.state.showsSpinner
+            else { return }
+
+            self.stallTask = nil
+            self.recoveryTask?.cancel()
+            self.recoveryTask = Task { [weak self] in
+                await self?.handleFailure(.playbackFailed(
+                    reason: target.isLive
+                        ? "Canlı yayın uzun süre yanıt vermedi."
+                        : "Video uzun süre yüklenemedi."
+                ))
+            }
+        }
+    }
+
+    private func clearMediaMetadata() {
+        audioTracks = []
+        subtitleTracks = []
+        selectedAudioTrack = nil
+        selectedSubtitleTrack = nil
+        aspectRatio = nil
+        time = .zero
+        canUsePictureInPicture = false
     }
 
     /// İlk kareye kadar geçen süreyi bir kez yazar.

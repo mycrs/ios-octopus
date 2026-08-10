@@ -165,7 +165,9 @@ public enum DemoCatalogSeeder {
                 id: EntityID.movie(playlistID: playlistID, rawID: "\(index)"),
                 playlistID: playlistID,
                 title: title,
-                streamKey: "\(index)",
+                // İlk film gerçek bir VOD ekran görüntüsü üretebilsin.
+                // M3U provider streamKey'i doğrudan URL olarak kullanır.
+                streamKey: index == 0 ? demoStreamURL : "\(index)",
                 // ⚠️ Gerçek bir görsel yüklenmesi beklenmiyor — `example.com`
                 // resim döndürmez, `RemoteImageView` yer tutucuya düşer.
                 // Adres yalnızca **dolu olsun** diye var: ana sayfanın öne

@@ -72,11 +72,11 @@ public final class PlaybackPreferences: ObservableObject {
         didSet { store.set(autoReconnect, forKey: Keys.autoReconnect) }
     }
 
-    /// AVPlayer açamadığında yedek motor (VLC) denensin mi?
+    /// AVPlayer'ın desteklemediği ya da açamadığı akışlarda VLC kullanılsın mı?
     ///
-    /// ⚠️ Kapatmak **UHD/HEVC kanalları kaybettirir** ama teşhis için
-    /// değerli: sorunun yedek motorda mı yoksa yayında mı olduğu ancak
-    /// böyle ayrılıyor.
+    /// ⚠️ Kapatmak **UHD/HEVC kanalları ile MKV/TS filmleri kaybettirebilir**
+    /// ama teşhis için değerlidir: sorunun VLC'de mi yoksa yayında mı olduğu
+    /// ancak böyle ayrılır.
     @Published public var useFallbackEngine: Bool {
         didSet { store.set(useFallbackEngine, forKey: Keys.useFallbackEngine) }
     }

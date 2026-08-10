@@ -36,14 +36,20 @@ public struct PlaybackEngineResolver {
     /// 2. Desteklemiyorsa ve yedek varsa yedeğe git.
     /// 3. Yedek yoksa yine de AVPlayer'ı dene — açılmama ihtimali var ama
     ///    kullanıcıya "motor yok" demekten iyidir.
-    public func decide(for format: StreamFormat) -> Decision {
+    public func decide(
+        for format: StreamFormat,
+        allowingFallback: Bool = true
+    ) -> Decision {
         if format.isNativelySupported { return .native }
-        return hasFallback ? .fallback : .native
+        return hasFallback && allowingFallback ? .fallback : .native
     }
 
     /// Karara göre motor üretir.
-    public func makeEngine(for format: StreamFormat) -> PlaybackEngine {
-        switch decide(for: format) {
+    public func makeEngine(
+        for format: StreamFormat,
+        allowingFallback: Bool = true
+    ) -> PlaybackEngine {
+        switch decide(for: format, allowingFallback: allowingFallback) {
         case .native:
             return makeNative()
         case .fallback:

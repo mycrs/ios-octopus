@@ -499,6 +499,13 @@ public final class AVPlayerEngine: PlaybackEngine {
         ))
     }
 
+    /// Asset'te video izi yoksa siyah ekran hata değildir; bu bir ses/radyo akışıdır.
+    func markAudioOnlyPlayback() {
+        didRenderVideo = true
+        videoWatchdog?.cancel()
+        videoWatchdog = nil
+    }
+
     // MARK: - Zaman ve boyut
 
     private func reportTime() {

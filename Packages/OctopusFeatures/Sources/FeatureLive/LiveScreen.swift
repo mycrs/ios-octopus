@@ -156,8 +156,14 @@ public struct LiveScreen: View {
         // listesine bakarken sesin arka planda sürmesini beklemez —
         // arka plan sesi tam ekran oynatıcının işi.
         .onChange(of: scenePhase) { phase in
-            guard phase != .active, viewModel.playingChannel != nil else { return }
-            controller.pause()
+            guard viewModel.playingChannel != nil else { return }
+            if phase == .active {
+                // Mini oynatıcıda ayrı bir oynat düğmesi yok. Arka plan için
+                // bizim duraklattığımız yayın dönüşte sessizce devam etmeli.
+                controller.play()
+            } else {
+                controller.pause()
+            }
         }
         .overlay(alignment: .bottom) { playbackMessage }
     }

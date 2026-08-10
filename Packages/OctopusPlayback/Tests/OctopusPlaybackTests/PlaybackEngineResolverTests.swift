@@ -66,6 +66,19 @@ final class PlaybackEngineResolverTests: XCTestCase {
         XCTAssertEqual(resolver.makeEngine(for: .mpegTS).identifier, "fallback")
     }
 
+    func test_disablingFallback_forcesNativeEvenForUnsupportedFormat() {
+        let resolver = makeResolver(withFallback: true)
+
+        XCTAssertEqual(
+            resolver.decide(for: .mkv, allowingFallback: false),
+            .native
+        )
+        XCTAssertEqual(
+            resolver.makeEngine(for: .mpegTS, allowingFallback: false).identifier,
+            "native"
+        )
+    }
+
     // MARK: - Yardımcılar
 
     private func makeResolver(withFallback: Bool) -> PlaybackEngineResolver {

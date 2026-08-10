@@ -17,6 +17,7 @@ struct PlayerScrubBar: View {
     let onSeek: (TimeInterval) -> Void
 
     @State private var draggingFraction: Double?
+    @Environment(\.brandColor) private var brandColor
 
     private let trackHeight: CGFloat = 4
     private let knobSize: CGFloat = 14
@@ -47,7 +48,7 @@ struct PlayerScrubBar: View {
                     .frame(width: width * bufferedFraction, height: trackHeight)
 
                 Capsule()
-                    .fill(Theme.Palette.accent)
+                    .fill(brandColor)
                     .frame(width: width * displayedFraction, height: trackHeight)
 
                 Circle()

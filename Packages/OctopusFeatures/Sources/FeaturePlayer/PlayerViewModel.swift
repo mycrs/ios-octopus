@@ -28,6 +28,8 @@ public final class PlayerViewModel: ObservableObject {
     @Published public private(set) var canZap = false
 
     private let dependencies: PlayerDependencies
+    /// Yönlendirmeden gelen açık başlangıç konumu, kayıtlı ilerlemeyi ezer.
+    private let startAt: TimeInterval?
 
     /// Şu an oynayan kaynak — zaplama bunu değiştirir.
     private var source: PlaybackItem.Source
@@ -35,19 +37,35 @@ public final class PlayerViewModel: ObservableObject {
     /// Zaplama sırası. **Ebeveyn kilidiyle süzülmüş** hâli tutulur.
     private var zapList: [Channel] = []
 
-    public init(dependencies: PlayerDependencies, source: PlaybackItem.Source) {
+    public init(
+        dependencies: PlayerDependencies,
+        source: PlaybackItem.Source,
+        startAt: TimeInterval? = nil
+    ) {
         self.dependencies = dependencies
         self.source = source
+        self.startAt = startAt
     }
 
     public func resolve() async {
         phase = .resolving
         do {
-            phase = .ready(try await resolveItem())
+            phase = .ready(applyingStartPosition(to: try await resolveItem()))
             await prepareZapping()
         } catch {
             phase = .failed(AppError.wrap(error).userMessage)
         }
+    }
+
+    private func applyingStartPosition(to item: PlaybackItem) -> PlaybackItem {
+        guard
+            !item.isLive,
+            let startAt,
+            startAt.isFinite,
+            startAt >= 0
+        else { return item }
+
+        return item.resuming(at: startAt)
     }
 
     // MARK: - Kanal değiştirme
@@ -127,62 +145,4 @@ public final class PlayerViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Sunum
-
-    /// ⚠️ ASCII olmalı: `URLComponents` adrese yazarken ASCII dışını
-    /// yüzde-kodlar; "•••" ekranda `%E2%80%A2…` diye okunmaz hâle gelirdi.
-    private static let mask = "***"
-
-    private static let sensitiveQueryKeys: Set<String> = [
-        "username", "password", "token", "user", "pass"
-    ]
-
-    /// Ekranda gösterilecek adres — **kimlik bilgileri maskeli**.
-    ///
-    /// ⚠️ Xtream adresleri kullanıcı adını ve parolayı yol içinde taşır:
-    /// `http://sunucu:8080/kullanıcı/parola/12345.ts`
-    /// Ham hâlini ekrana basmak, bir ekran görüntüsü paylaşıldığında
-    /// hesabın ele geçmesi demek. Kopyalanan değer tam adrestir.
-    public static func maskedURL(_ url: URL) -> String {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url.absoluteString
-        }
-
-        components.queryItems = components.queryItems?.map { item in
-            guard sensitiveQueryKeys.contains(item.name.lowercased()) else { return item }
-            return URLQueryItem(name: item.name, value: mask)
-        }
-
-        // Xtream'de kimlik yolun kendisindedir: /<kullanıcı>/<parola>/<id>.<uzantı>
-        // Baştaki "/" boş bir parça üretir, bu yüzden kimlik 1 ve 2. sıradadır.
-        var segments = components.path
-            .split(separator: "/", omittingEmptySubsequences: false)
-            .map(String.init)
-
-        if segments.count >= 4 {
-            segments[1] = mask
-            segments[2] = mask
-            components.path = segments.joined(separator: "/")
-        }
-
-        return components.url?.absoluteString ?? url.absoluteString
-    }
-
-    /// Saniyeyi `s:dd` / `sa:dd:ss` biçimine çevirir.
-    ///
-    /// ⚠️ `DateComponentsFormatter` burada kullanılmıyor: canlı yayında
-    /// süre `nil` ve bilinmeyen değerler için "--:--" göstermek gerekiyor;
-    /// formatter bu durumda boş dizgi döndürüp çubuğu bozuyordu.
-    public static func timeLabel(_ seconds: TimeInterval?) -> String {
-        guard let seconds, seconds.isFinite, seconds >= 0 else { return "--:--" }
-
-        let total = Int(seconds.rounded())
-        let hours = total / 3600
-        let minutes = (total % 3600) / 60
-        let secs = total % 60
-
-        return hours > 0
-            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
-            : String(format: "%d:%02d", minutes, secs)
-    }
 }

@@ -26,6 +26,13 @@ extension AVPlayerEngine {
     /// İzler geldiğinde `tracksDiscovered` olayı düşer, UI o an tazelenir.
     func discoverTracks(in asset: AVAsset) async {
         do {
+            // Geçerli radyo/ses akışları doğal olarak görüntü üretmez. Video
+            // gözcüsü bunları codec hatası sanıp gereksizce VLC'ye atmasın.
+            let videoTracks = try? await asset.loadTracks(withMediaType: .video)
+            if videoTracks?.isEmpty == true {
+                markAudioOnlyPlayback()
+            }
+
             let audioGroup = try await asset.loadMediaSelectionGroup(for: .audible)
             let subtitleGroup = try await asset.loadMediaSelectionGroup(for: .legible)
 

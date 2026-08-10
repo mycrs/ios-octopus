@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 import OctopusDomain
 import OctopusDesignSystem
 import OctopusNavigation
@@ -68,13 +69,21 @@ public struct PlayerScreen: View {
     @State var isShowingTracks = false
 
     /// Denetimlerin kendiliğinden kaybolma süresi.
-    let autoHideDelay: Duration = .seconds(3.5)
+    let autoHideDelay: Duration
 
     public init(presentation: PlayerPresentation, dependencies: PlayerDependencies) {
+#if DEBUG
+        autoHideDelay = ProcessInfo.processInfo.arguments.contains("-keepPlayerControls")
+            ? .seconds(60)
+            : .seconds(3.5)
+#else
+        autoHideDelay = .seconds(3.5)
+#endif
         _viewModel = StateObject(
             wrappedValue: PlayerViewModel(
                 dependencies: dependencies,
-                source: presentation.source
+                source: presentation.source,
+                startAt: presentation.startAt
             )
         )
         _controller = StateObject(
@@ -124,41 +133,17 @@ public struct PlayerScreen: View {
     // MARK: - Oynatma
 
     private func playback(_ item: PlaybackItem) -> some View {
-        ZStack {
-            // ⚠️ `.id`: motor değiştiğinde (native → VLC) yüzey baştan
-            // kurulmalı; aynı görünüm yeniden kullanılırsa yeni motorun
-            // katmanı hiç eklenmez ve ekran siyah kalır.
-            // ⚠️ `.id`: her yeni motorda yüzey baştan kurulmalı; aynı
-            // görünüm yeniden kullanılırsa yeni motorun katmanı hiç
-            // eklenmez ve ekran siyah kalır. Kanal zaplarken motor tipi
-            // aynı (AVPlayer → AVPlayer) ama **örnek** yeni olduğu için
-            // kimlik dizgesi yetmiyor (bkz. `surfaceGeneration`).
-            // ⚠️ `.id`: her yeni motorda yüzey baştan kurulmalı. Kanal
-            // zaplarken motor tipi aynı (AVPlayer → AVPlayer) ama **örnek**
-            // yeni olduğu için kimlik dizgesi yetmiyor (bkz. `surfaceGeneration`).
-            VideoSurfaceView(makeSurface: controller.makeVideoView)
-                .id(controller.surfaceGeneration)
-                .ignoresSafeArea()
-
-            // 🐞 AÇIK SORUN — VLC motorunda bu katman GÖRÜNMÜYOR.
-            // Ölçüldü: dokunma ulaşıyor, `showsControls` `true` oluyor,
-            // ama hiçbir şey çizilmiyor. VLC'nin `VLCOpenGLES2VideoView`'ı
-            // SwiftUI içeriğinin önünde kompozit ediliyor.
-            // Denenip **işe yaramayanlar**: `zIndex`, `.overlay`,
-            // yüzeyde `isUserInteractionEnabled = false`, güvenli alanı
-            // yığına taşımak. AVPlayer'da sorun yok.
-            //
-            // 🔍 İPUCU: Canlı TV'deki mini oynatıcı **aynı motorla**
-            // katmanını sorunsuz çiziyor. Fark: orada yüzey `aspectRatio`
-            // ile sınırlı ve tüm ekranı kaplamıyor. Çözüm bu izden
-            // sürülmeli; muhtemel çıkış denetimleri `UIHostingController`
-            // ile VLC görünümünün üstüne UIKit tarafında eklemek.
+        PlayerSurfaceContainer(makeSurface: controller.makeVideoView) {
             if case .failed(let error) = controller.state {
                 playbackFailure(error, item: item)
             } else {
                 controlsLayer(item)
             }
         }
+        // Her motor örneğinde UIKit yüzeyi baştan kurulmalı. Aynı kimlikli
+        // yeni motor bile eski drawable/layer'ı kullanamaz.
+        .id(controller.surfaceGeneration)
+        .ignoresSafeArea()
         // ⚠️ `id:` şart — kanal zaplanınca `item` değişiyor ve oynatmanın
         // yeniden başlaması gerekiyor. Kimliksiz `.task` yalnızca görünüm
         // ilk kurulduğunda çalışır; kullanıcı sonraki kanala geçince ekran
@@ -196,7 +181,13 @@ public struct PlayerScreen: View {
             error: error,
             item: item,
             onRetry: { Task { await controller.start(item) } },
-            onClose: close
+            onClose: close,
+            onPreviousChannel: item.isLive && viewModel.canZap
+                ? { Task { await viewModel.zap(by: -1) } }
+                : nil,
+            onNextChannel: item.isLive && viewModel.canZap
+                ? { Task { await viewModel.zap(by: 1) } }
+                : nil
         )
     }
 

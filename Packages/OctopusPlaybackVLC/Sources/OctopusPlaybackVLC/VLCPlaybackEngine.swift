@@ -260,8 +260,11 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     // MARK: - Görüntü
 
     public func makeVideoView() -> UIView {
-        let view = UIView()
+        let view = VLCVideoSurfaceView()
         view.backgroundColor = .black
+        // Doldurma oranı yalnızca ilk karede değil, cihaz döndüğünde de
+        // yeniden hesaplanmalı. Düz `UIView` bu değişimi motora bildirmiyordu.
+        view.onLayout = { [weak self] in self?.applyVideoFit() }
         // ⚠️ Zayıf tutulur: yüzeyin ömrü SwiftUI'ın elinde. Motor onu
         // hayatta tutarsa ekran kapandıktan sonra da bellekte kalır.
         surface = view
@@ -359,8 +362,14 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
             // kanal değişiyor. Ayırt edilmezse VOD'da kullanıcı ekrandan
             // çıkarken oynatıcı "yayın bitti" durumuna geçiyordu.
             guard !didStopManually else { break }
-            // Canlıda "durdu" bir kopmadır, son değil.
-            transition(to: isLiveContent ? .idle : .ended)
+            // Canlıda "durdu" bir kopmadır. Yalnızca `.idle` yayınlamak
+            // PlayerController'ın otomatik yeniden bağlanma zincirini hiç
+            // tetiklemiyordu; hata olayı da gönderilmelidir.
+            if isLiveContent {
+                fail(with: .playbackFailed(reason: "Canlı yayın kesildi"))
+            } else {
+                transition(to: .ended)
+            }
 
         case .error:
             fail(with: .playbackFailed(reason:
@@ -396,6 +405,10 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     // MARK: - Zaman ve boyut
 
     func reportTime() {
+        // İlk `.playing` anında medya henüz seek edilebilir olmayabilir.
+        // Bekleyen VOD devam konumunu zaman olaylarında da tekrar dene.
+        applyPendingSeek()
+
         let current = TimeInterval(player.time.intValue) / 1000
 
         // Canlıda süre yok; VOD'da medya uzunluğu açılınca öğrenilir.

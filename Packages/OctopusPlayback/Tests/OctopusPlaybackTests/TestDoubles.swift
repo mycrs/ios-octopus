@@ -57,12 +57,15 @@ final class TestEngine: PlaybackEngine {
     private(set) var didTeardown = false
     private(set) var seekedTo: [TimeInterval] = []
     private(set) var selectedTracks: [MediaTrack] = []
+    private(set) var requestedRates: [Float] = []
     private(set) var videoFit: VideoFit = .fit
+    private let loadDelay: Duration?
 
     private let continuation: AsyncStream<PlaybackEvent>.Continuation
 
-    init(identifier: String) {
+    init(identifier: String, loadDelay: Duration? = nil) {
         self.identifier = identifier
+        self.loadDelay = loadDelay
         var captured: AsyncStream<PlaybackEvent>.Continuation!
         self.events = AsyncStream { captured = $0 }
         self.continuation = captured
@@ -73,13 +76,16 @@ final class TestEngine: PlaybackEngine {
         continuation.yield(event)
     }
 
-    func load(_ item: PlaybackItem) async { loadedItems.append(item) }
+    func load(_ item: PlaybackItem) async {
+        loadedItems.append(item)
+        if let loadDelay { try? await Task.sleep(for: loadDelay) }
+    }
     func play() { playCount += 1 }
     func pause() { pauseCount += 1 }
     func stop() {}
     func seek(to seconds: TimeInterval) async { seekedTo.append(seconds) }
     func setVolume(_ volume: Float) {}
-    func setRate(_ rate: Float) {}
+    func setRate(_ rate: Float) { requestedRates.append(rate) }
     func select(track: MediaTrack) { selectedTracks.append(track) }
     func setVideoFit(_ fit: VideoFit) { videoFit = fit }
     func makeVideoView() -> UIView { UIView() }

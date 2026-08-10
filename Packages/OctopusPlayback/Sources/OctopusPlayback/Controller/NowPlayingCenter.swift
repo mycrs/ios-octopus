@@ -19,17 +19,20 @@ public final class NowPlayingCenter {
     public struct Handlers {
         public let play: @MainActor () -> Void
         public let pause: @MainActor () -> Void
+        public let toggle: @MainActor () -> Void
         public let skip: @MainActor (TimeInterval) -> Void
         public let seek: @MainActor (TimeInterval) -> Void
 
         public init(
             play: @escaping @MainActor () -> Void,
             pause: @escaping @MainActor () -> Void,
+            toggle: @escaping @MainActor () -> Void,
             skip: @escaping @MainActor (TimeInterval) -> Void,
             seek: @escaping @MainActor (TimeInterval) -> Void
         ) {
             self.play = play
             self.pause = pause
+            self.toggle = toggle
             self.skip = skip
             self.seek = seek
         }
@@ -71,6 +74,10 @@ public final class NowPlayingCenter {
         }
 
         commandCenter.togglePlayPauseCommand.isEnabled = true
+        commandCenter.togglePlayPauseCommand.addTarget { _ in
+            handlers.toggle()
+            return .success
+        }
 
         commandCenter.skipForwardCommand.isEnabled = !isLive
         commandCenter.skipForwardCommand.preferredIntervals = [10]
@@ -124,7 +131,8 @@ public final class NowPlayingCenter {
         }
 
         // Var olan kapak korunur; her tazelemede yeniden indirilmesin.
-        if let existing = infoCenter.nowPlayingInfo?[MPMediaItemPropertyArtwork] {
+        if artworkURL == item.artworkURL,
+           let existing = infoCenter.nowPlayingInfo?[MPMediaItemPropertyArtwork] {
             info[MPMediaItemPropertyArtwork] = existing
         }
 
@@ -138,10 +146,19 @@ public final class NowPlayingCenter {
     /// (bkz. CLAUDE.md demir kural 4) ve oynatma katmanı UI paketlerini
     /// import edemez. Tek bir görsel için `URLSession` fazlasıyla yeterli.
     private func loadArtworkIfNeeded(_ url: URL?) {
-        guard let url, url != artworkURL else { return }
-        artworkURL = url
+        guard url != artworkURL else { return }
 
         artworkTask?.cancel()
+        artworkTask = nil
+        artworkURL = url
+
+        // Yeni içeriğin kapağı yoksa öncekini taşımak yerine hemen temizle.
+        guard let url else {
+            removeArtwork()
+            return
+        }
+
+        removeArtwork()
         artworkTask = Task { [weak self] in
             guard
                 let (data, _) = try? await URLSession.shared.data(from: url),
@@ -157,6 +174,12 @@ public final class NowPlayingCenter {
     private func setArtwork(_ artwork: MPMediaItemArtwork) {
         guard var info = infoCenter.nowPlayingInfo else { return }
         info[MPMediaItemPropertyArtwork] = artwork
+        infoCenter.nowPlayingInfo = info
+    }
+
+    private func removeArtwork() {
+        guard var info = infoCenter.nowPlayingInfo else { return }
+        info[MPMediaItemPropertyArtwork] = nil
         infoCenter.nowPlayingInfo = info
     }
 

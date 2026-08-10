@@ -21,8 +21,26 @@ struct PlaybackErrorView: View {
     let item: PlaybackItem
     let onRetry: () -> Void
     let onClose: () -> Void
+    let onPreviousChannel: (() -> Void)?
+    let onNextChannel: (() -> Void)?
 
     @State private var didCopy = false
+
+    init(
+        error: AppError,
+        item: PlaybackItem,
+        onRetry: @escaping () -> Void,
+        onClose: @escaping () -> Void,
+        onPreviousChannel: (() -> Void)? = nil,
+        onNextChannel: (() -> Void)? = nil
+    ) {
+        self.error = error
+        self.item = item
+        self.onRetry = onRetry
+        self.onClose = onClose
+        self.onPreviousChannel = onPreviousChannel
+        self.onNextChannel = onNextChannel
+    }
 
     var body: some View {
         VStack(spacing: Theme.Spacing.lg) {
@@ -55,6 +73,19 @@ struct PlaybackErrorView: View {
                     .foregroundColor(Theme.Palette.textSecondary)
             }
             .font(Theme.Typography.caption)
+
+            if let onPreviousChannel, let onNextChannel {
+                HStack(spacing: Theme.Spacing.md) {
+                    Button(action: onPreviousChannel) {
+                        Label("Önceki kanal", systemImage: "backward.end.fill")
+                    }
+                    Button(action: onNextChannel) {
+                        Label("Sonraki kanal", systemImage: "forward.end.fill")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .font(Theme.Typography.caption)
+            }
         }
         .padding(Theme.Spacing.lg)
     }

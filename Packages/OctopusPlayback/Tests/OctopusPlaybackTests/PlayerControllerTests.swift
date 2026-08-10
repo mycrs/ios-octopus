@@ -117,6 +117,42 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(fallback.loadedItems.count, 1, "İkinci kez yedeğe düşülmemeli")
     }
 
+    func test_disabledFallback_routesUnsupportedFormatToNative() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let preferences = makePreferences()
+        preferences.useFallbackEngine = false
+        let controller = makeController(
+            native: native,
+            fallback: fallback,
+            preferences: preferences
+        )
+
+        await controller.start(makeItem(url: URL(fileURLWithPath: "/film.mkv")))
+
+        XCTAssertEqual(controller.engineIdentifier, "native")
+        XCTAssertEqual(native.loadedItems.count, 1)
+        XCTAssertTrue(fallback.loadedItems.isEmpty)
+    }
+
+    func test_stalledStream_switchesToFallbackInsteadOfSpinningForever() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(
+            native: native,
+            fallback: fallback,
+            liveStallTimeout: .milliseconds(25),
+            vodStallTimeout: .milliseconds(25)
+        )
+
+        await controller.start(makeItem(url: URL(string: "http://x/y")))
+        native.emit(.stateChanged(.buffering))
+
+        let switched = await waitUntil { controller.engineIdentifier == "fallback" }
+
+        XCTAssertTrue(switched, "Yanıt vermeyen motor sonsuza kadar spinner'da kalmamalı")
+    }
+
     // MARK: - İzleme geçmişi
 
     func test_history_isRecordedOnceWhenPlaybackActuallyStarts() async {
@@ -201,6 +237,44 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
+    func test_finish_clearsPublishedSessionState() async {
+        let native = TestEngine(identifier: "native")
+        native.supportsAirPlay = true
+        let controller = makeController(native: native)
+        let track = MediaTrack(id: "audio.1", kind: .audio, label: "Türkçe")
+
+        await controller.start(makeItem())
+        controller.setRate(1.5)
+        native.emit(.tracksDiscovered(audio: [track], subtitle: []))
+        native.emit(.naturalSizeChanged(width: 1920, height: 1080))
+        native.emit(.timeChanged(PlaybackTime(current: 40, duration: 100, bufferedUpTo: 50)))
+        _ = await waitUntil { controller.time.current == 40 }
+
+        await controller.finish()
+
+        XCTAssertEqual(controller.time, .zero)
+        XCTAssertTrue(controller.audioTracks.isEmpty)
+        XCTAssertNil(controller.aspectRatio)
+        XCTAssertFalse(controller.supportsAirPlay)
+        XCTAssertEqual(controller.engineIdentifier, "")
+        XCTAssertEqual(controller.rate, 1.0)
+    }
+
+    func test_finish_duringLoad_doesNotRestartReleasedEngine() async {
+        let native = TestEngine(identifier: "native", loadDelay: .milliseconds(100))
+        let controller = makeController(native: native)
+
+        let opening = Task { await controller.start(makeItem()) }
+        _ = await waitUntil { !native.loadedItems.isEmpty }
+
+        await controller.finish()
+        await opening.value
+
+        XCTAssertTrue(native.didTeardown)
+        XCTAssertEqual(native.playCount, 0, "Kapanan ekranın yüklemesi motoru yeniden oynatmamalı")
+        XCTAssertEqual(controller.state, .idle)
+    }
+
     // MARK: - Ekranın kararması
 
     /// ⚠️ Bayrak süreç genelinde: oynatıcı kapandıktan sonra bırakılmazsa
@@ -248,6 +322,40 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(fallback.videoFit, .fill, "Tercih yeni motora taşınmalı")
     }
 
+    func test_rate_isClampedAndSurvivesEngineSwitch() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(native: native, fallback: fallback)
+
+        await controller.start(makeItem(url: URL(string: "http://x/y")))
+        controller.setRate(5)
+
+        XCTAssertEqual(controller.rate, 2.0)
+        XCTAssertEqual(native.requestedRates.last, 2.0)
+
+        controller.setRate(1.5)
+        native.emit(.unrecoverableFailure(.playbackFailed(reason: "codec")))
+        _ = await waitUntil { controller.engineIdentifier == "fallback" }
+
+        XCTAssertEqual(controller.rate, 1.5)
+        XCTAssertEqual(fallback.requestedRates.last, 1.5)
+    }
+
+    func test_endedVOD_restartsFromBeginning() async {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+
+        await controller.start(makeItem())
+        native.emit(.stateChanged(.ended))
+        _ = await waitUntil { controller.state == .ended }
+
+        await controller.togglePlayPause()
+
+        XCTAssertEqual(native.loadedItems.count, 2)
+        XCTAssertEqual(native.loadedItems.last?.resumeAt, 0)
+        XCTAssertEqual(native.playCount, 2)
+    }
+
     // MARK: - Sarma sınırları
 
     func test_skip_staysWithinBounds() async {
@@ -275,6 +383,9 @@ final class PlayerControllerTests: XCTestCase {
         fallback: TestEngine? = nil,
         progress: TestProgressRepository = TestProgressRepository(),
         history: TestHistoryRepository = TestHistoryRepository(),
+        preferences: PlaybackPreferences? = nil,
+        liveStallTimeout: Duration = .seconds(20),
+        vodStallTimeout: Duration = .seconds(45),
         now: @escaping () -> Date = Date.init,
         setScreenAwake: @escaping @MainActor (Bool) -> Void = { _ in }
     ) -> PlayerController {
@@ -293,10 +404,20 @@ final class PlayerControllerTests: XCTestCase {
             resolver: resolver,
             progress: progress,
             history: history,
+            preferences: preferences,
             saveInterval: 5,
+            liveStallTimeout: liveStallTimeout,
+            vodStallTimeout: vodStallTimeout,
             now: now,
             setScreenAwake: setScreenAwake
         )
+    }
+
+    private func makePreferences() -> PlaybackPreferences {
+        let suite = "PlayerControllerTests.\(UUID().uuidString)"
+        let store = UserDefaults(suiteName: suite) ?? .standard
+        store.removePersistentDomain(forName: suite)
+        return PlaybackPreferences(store: store)
     }
 
     private func makeItem(

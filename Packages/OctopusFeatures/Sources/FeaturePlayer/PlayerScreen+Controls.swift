@@ -28,9 +28,10 @@ extension PlayerScreen {
                     showsPictureInPicture: controller.canUsePictureInPicture,
                     canZap: viewModel.canZap,
                     videoFit: controller.videoFit,
+                    rate: controller.rate,
                     onClose: close,
                     onTogglePlay: {
-                        controller.togglePlayPause()
+                        Task { await controller.togglePlayPause() }
                         scheduleControlsHide()
                     },
                     onSkip: { delta in
@@ -47,6 +48,10 @@ extension PlayerScreen {
                     },
                     onToggleFit: {
                         controller.toggleVideoFit()
+                        scheduleControlsHide()
+                    },
+                    onSetRate: { rate in
+                        controller.setRate(rate)
                         scheduleControlsHide()
                     },
                     onPictureInPicture: {
