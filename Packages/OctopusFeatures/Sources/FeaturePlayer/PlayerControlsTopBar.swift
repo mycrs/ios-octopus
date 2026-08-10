@@ -7,6 +7,8 @@ import OctopusPlayback
 /// küçük iPhone'larda başlık PiP/AirPlay düğmeleri arasında ezilmez.
 struct PlayerControlsTopBar: View {
 
+    @State private var showsOptions = false
+
     let title: String
     let subtitle: String?
     let isLive: Bool
@@ -26,7 +28,7 @@ struct PlayerControlsTopBar: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            edgeButton(
+            edgeControl(
                 glyph: .close,
                 label: "Oynatıcıyı kapat",
                 action: onClose
@@ -63,56 +65,48 @@ struct PlayerControlsTopBar: View {
                     .accessibilityLabel("AirPlay")
             }
 
-            optionsMenu
+            optionsControl
         }
-        // `UIHostingController` içinde sistem Button/Menu tonu içerik
-        // güncellenirken siyaha dönebiliyor. Kenar eylemleri video üstünde
-        // her koşulda beyaz ve okunur kalmalı.
+        // PiP sistem düğmesi de koyu video üstünde beyaz kalmalı.
         .tint(.white)
     }
 
-    private var optionsMenu: some View {
-        Menu {
-            Button(action: onToggleFit) {
-                Label(
-                    videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
-                    systemImage: videoFit == .fill
-                        ? "arrow.down.right.and.arrow.up.left"
-                        : "arrow.up.left.and.arrow.down.right"
-                )
-            }
+    private var optionsControl: some View {
+        edgeVisual(glyph: .options)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .onTapGesture { showsOptions = true }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Oynatıcı seçenekleri")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { showsOptions = true }
+            .confirmationDialog(
+                "Oynatıcı seçenekleri",
+                isPresented: $showsOptions,
+                titleVisibility: .visible
+            ) {
+                Button(action: onToggleFit) {
+                    Text(videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur")
+                }
 
-            if !isLive {
-                Menu {
+                if !isLive {
                     ForEach(rates, id: \.self) { option in
                         Button {
                             onSetRate(option)
                         } label: {
-                            if abs(option - rate) < 0.01 {
-                                Label(rateTitle(option), systemImage: "checkmark")
-                            } else {
-                                Text(rateTitle(option))
-                            }
+                            Text(rateOptionTitle(option))
                         }
                     }
-                } label: {
-                    Label("Oynatma hızı · \(rateTitle(rate))", systemImage: "speedometer")
                 }
-            }
 
-            if hasTracks {
-                Button(action: onShowTracks) {
-                    Label("Ses ve altyazı", systemImage: "captions.bubble")
+                if hasTracks {
+                    Button(action: onShowTracks) {
+                        Text("Ses ve altyazı")
+                    }
                 }
+
+                Button("Vazgeç", role: .cancel) {}
             }
-        } label: {
-            edgeVisual(glyph: .options)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Oynatıcı seçenekleri")
-        .frame(width: 44, height: 44)
     }
 
     private func iconButton(
@@ -131,24 +125,23 @@ struct PlayerControlsTopBar: View {
         .accessibilityLabel(label)
     }
 
-    private func edgeButton(
+    private func edgeControl(
         glyph: PlayerEdgeGlyph,
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            edgeVisual(glyph: glyph)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .frame(width: 44, height: 44)
+        edgeVisual(glyph: glyph)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .onTapGesture(perform: action)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(label)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { action() }
     }
 
     private func edgeVisual(glyph: PlayerEdgeGlyph) -> some View {
         PlayerEdgeControlVisual(glyph: glyph)
-            .allowsHitTesting(false)
     }
 
     private var controlBackground: some View {
@@ -161,5 +154,10 @@ struct PlayerControlsTopBar: View {
 
     private func rateTitle(_ value: Float) -> String {
         String(format: "%g×", value)
+    }
+
+    private func rateOptionTitle(_ value: Float) -> String {
+        let title = rateTitle(value)
+        return abs(value - rate) < 0.01 ? "\(title) · Seçili" : title
     }
 }
