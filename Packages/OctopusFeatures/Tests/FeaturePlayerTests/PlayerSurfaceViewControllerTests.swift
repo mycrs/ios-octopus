@@ -28,6 +28,26 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         XCTAssertEqual(control.accessibilityLabel, "Seçenekler")
     }
 
+    func test_overlayWindowPassesEmptySpaceThrough() {
+        let frame = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let window = PlayerPassThroughWindow(frame: frame)
+        let root = UIViewController()
+        root.view.frame = frame
+        let control = UIControl(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
+        root.view.addSubview(control)
+        window.rootViewController = root
+        window.isHidden = false
+        window.layoutIfNeeded()
+
+        XCTAssertTrue(window.hitTest(CGPoint(x: 22, y: 22), with: nil) === control)
+        XCTAssertNil(window.hitTest(CGPoint(x: 80, y: 80), with: nil))
+    }
+
+    func test_overlayHostAlwaysHidesStatusBar() {
+        let host = PlayerOverlayHostingController(rootView: EmptyView())
+        XCTAssertTrue(host.prefersStatusBarHidden)
+    }
+
     func test_hostedOverlayKeepsRootStoreWhenContentChanges() {
         let store = PlayerHostedOverlayStore(
             content: Text("Bir"),

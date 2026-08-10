@@ -1,38 +1,21 @@
 import SwiftUI
-import Foundation
 import OctopusDesignSystem
-import OctopusPlayback
 
 /// Oynatıcı üst çubuğu. İkincil seçenekler tek iOS menüsünde toplanır;
 /// küçük iPhone'larda başlık PiP/AirPlay düğmeleri arasında ezilmez.
 struct PlayerControlsTopBar: View {
 
-    @State private var showsOptions = false
-
     let title: String
     let subtitle: String?
-    let isLive: Bool
-    let hasTracks: Bool
     let showsAirPlay: Bool
     let showsPictureInPicture: Bool
-    let videoFit: VideoFit
-    let rate: Float
 
-    let onClose: () -> Void
-    let onShowTracks: () -> Void
-    let onToggleFit: () -> Void
-    let onSetRate: (Float) -> Void
     let onPictureInPicture: () -> Void
-
-    private let rates: [Float] = [0.5, 1.0, 1.25, 1.5, 2.0]
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            edgeControl(
-                glyph: .close,
-                label: "Oynatıcıyı kapat",
-                action: onClose
-            )
+            // Gerçek kenar kontrolleri VLC'den yüksek ayrı UIWindow'da.
+            Color.clear.frame(width: 44, height: 44)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -65,46 +48,10 @@ struct PlayerControlsTopBar: View {
                     .accessibilityLabel("AirPlay")
             }
 
-            optionsControl
+            Color.clear.frame(width: 44, height: 44)
         }
         // PiP sistem düğmesi de koyu video üstünde beyaz kalmalı.
         .tint(.white)
-    }
-
-    private var optionsControl: some View {
-        PlayerEdgeControl(
-            glyph: .options,
-            label: "Oynatıcı seçenekleri",
-            action: { showsOptions = true }
-        )
-            .frame(width: 44, height: 44)
-            .confirmationDialog(
-                "Oynatıcı seçenekleri",
-                isPresented: $showsOptions,
-                titleVisibility: .visible
-            ) {
-                Button(action: onToggleFit) {
-                    Text(videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur")
-                }
-
-                if !isLive {
-                    ForEach(rates, id: \.self) { option in
-                        Button {
-                            onSetRate(option)
-                        } label: {
-                            Text(rateOptionTitle(option))
-                        }
-                    }
-                }
-
-                if hasTracks {
-                    Button(action: onShowTracks) {
-                        Text("Ses ve altyazı")
-                    }
-                }
-
-                Button("Vazgeç", role: .cancel) {}
-            }
     }
 
     private func iconButton(
@@ -123,15 +70,6 @@ struct PlayerControlsTopBar: View {
         .accessibilityLabel(label)
     }
 
-    private func edgeControl(
-        glyph: PlayerEdgeGlyph,
-        label: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        PlayerEdgeControl(glyph: glyph, label: label, action: action)
-            .frame(width: 44, height: 44)
-    }
-
     private var controlBackground: some View {
         Circle()
             .fill(.black.opacity(0.58))
@@ -140,12 +78,4 @@ struct PlayerControlsTopBar: View {
             }
     }
 
-    private func rateTitle(_ value: Float) -> String {
-        String(format: "%g×", value)
-    }
-
-    private func rateOptionTitle(_ value: Float) -> String {
-        let title = rateTitle(value)
-        return abs(value - rate) < 0.01 ? "\(title) · Seçili" : title
-    }
 }

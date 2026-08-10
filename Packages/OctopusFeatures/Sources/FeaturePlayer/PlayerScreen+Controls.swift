@@ -44,6 +44,7 @@ extension PlayerScreen {
                     },
                     onShowTracks: {
                         hideControlsTask?.cancel()
+                        showsControls = false
                         isShowingTracks = true
                     },
                     onToggleFit: {
