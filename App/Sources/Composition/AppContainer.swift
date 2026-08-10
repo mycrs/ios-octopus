@@ -309,9 +309,14 @@ final class AppContainer: ObservableObject {
 
         // Ağ yoksa önbellekteki bayi yapılandırması kullanılır: bayinin
         // müşterisi çevrimdışıyken markasız bir uygulama görmemeli.
-        guard let reseller = await resellerConfig.fetch(code: code)
-            ?? resellerConfig.cached()
-        else { return global }
+        //
+        // ⚠️ `??` ile tek satırda yazılamıyor: operatörün sağ tarafı bir
+        // autoclosure ve içinde `await` bulunamaz
+        // ("'async' call in an autoclosure that does not support concurrency"
+        // — BRAIN.md § 11.1'deki XCTAssert tuzağının aynısı).
+        let fetched = await resellerConfig.fetch(code: code)
+        let fallback = fetched == nil ? await resellerConfig.cached() : nil
+        guard let reseller = fetched ?? fallback else { return global }
 
         // Global yapılandırma hiç gelmediyse bile bayi bilgisi tek başına
         // anlamlıdır (marka, kapı, duyuru).
@@ -350,7 +355,8 @@ final class AppContainer: ObservableObject {
 
     /// Bayinin sunucu listesi — kaynak eklerken adres yazdırmamak için.
     func resellerServers() async -> [ResellerServer] {
-        await resellerConfig.cached()?.servers ?? []
+        let cached = await resellerConfig.cached()
+        return cached?.servers ?? []
     }
 
     // MARK: - Feature bağımlılıkları
