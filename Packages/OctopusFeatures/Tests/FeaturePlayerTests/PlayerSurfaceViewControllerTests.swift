@@ -15,6 +15,19 @@ final class PlayerSurfaceViewControllerTests: XCTestCase {
         }
     }
 
+    func test_edgeControlUsesOneAccessibleBitmapLayer() {
+        let control = PlayerEdgeControlView()
+        control.glyph = .options
+        control.isAccessibilityElement = true
+        control.accessibilityTraits = .button
+        control.accessibilityLabel = "Seçenekler"
+
+        XCTAssertNotNil(control.layer.contents)
+        XCTAssertTrue(control.isAccessibilityElement)
+        XCTAssertTrue(control.accessibilityTraits.contains(.button))
+        XCTAssertEqual(control.accessibilityLabel, "Seçenekler")
+    }
+
     func test_hostedOverlayKeepsRootStoreWhenContentChanges() {
         let store = PlayerHostedOverlayStore(
             content: Text("Bir"),

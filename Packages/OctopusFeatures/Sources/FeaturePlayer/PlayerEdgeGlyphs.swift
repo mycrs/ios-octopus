@@ -6,14 +6,75 @@ enum PlayerEdgeGlyph {
     case options
 }
 
-struct PlayerEdgeControlVisual: View {
+struct PlayerEdgeControl: UIViewRepresentable {
     let glyph: PlayerEdgeGlyph
+    let label: String
+    let action: () -> Void
 
-    var body: some View {
-        Image(uiImage: PlayerEdgeControlImage.image(for: glyph))
-            .renderingMode(.original)
-            .resizable()
-            .interpolation(.high)
+    final class Coordinator: NSObject {
+        var action: () -> Void
+
+        init(action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        @objc func activate() {
+            action()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+
+    func makeUIView(context: Context) -> PlayerEdgeControlView {
+        let control = PlayerEdgeControlView()
+        control.addTarget(
+            context.coordinator,
+            action: #selector(Coordinator.activate),
+            for: .touchUpInside
+        )
+        configure(control)
+        return control
+    }
+
+    func updateUIView(_ control: PlayerEdgeControlView, context: Context) {
+        context.coordinator.action = action
+        configure(control)
+    }
+
+    private func configure(_ control: PlayerEdgeControlView) {
+        control.glyph = glyph
+        control.isAccessibilityElement = true
+        control.accessibilityTraits = .button
+        control.accessibilityLabel = label
+    }
+}
+
+final class PlayerEdgeControlView: UIControl {
+    var glyph: PlayerEdgeGlyph = .close {
+        didSet { updateLayerContents() }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        layer.contentsGravity = .resizeAspect
+        updateLayerContents()
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override var isHighlighted: Bool {
+        didSet { alpha = isHighlighted ? 0.55 : 1 }
+    }
+
+    private func updateLayerContents() {
+        let image = PlayerEdgeControlImage.image(for: glyph)
+        layer.contents = image.cgImage
+        layer.contentsScale = image.scale
     }
 }
 

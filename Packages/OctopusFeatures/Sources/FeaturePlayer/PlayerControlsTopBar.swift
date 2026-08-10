@@ -72,14 +72,12 @@ struct PlayerControlsTopBar: View {
     }
 
     private var optionsControl: some View {
-        edgeVisual(glyph: .options)
+        PlayerEdgeControl(
+            glyph: .options,
+            label: "Oynatıcı seçenekleri",
+            action: { showsOptions = true }
+        )
             .frame(width: 44, height: 44)
-            .contentShape(Circle())
-            .onTapGesture { showsOptions = true }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Oynatıcı seçenekleri")
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { showsOptions = true }
             .confirmationDialog(
                 "Oynatıcı seçenekleri",
                 isPresented: $showsOptions,
@@ -130,18 +128,8 @@ struct PlayerControlsTopBar: View {
         label: String,
         action: @escaping () -> Void
     ) -> some View {
-        edgeVisual(glyph: glyph)
+        PlayerEdgeControl(glyph: glyph, label: label, action: action)
             .frame(width: 44, height: 44)
-            .contentShape(Circle())
-            .onTapGesture(perform: action)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(label)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { action() }
-    }
-
-    private func edgeVisual(glyph: PlayerEdgeGlyph) -> some View {
-        PlayerEdgeControlVisual(glyph: glyph)
     }
 
     private var controlBackground: some View {
