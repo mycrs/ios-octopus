@@ -40,6 +40,12 @@ public struct OnboardingDependencies {
     /// Kayıtlı bayi kodu — alan bununla doldurulur.
     public let savedResellerCode: @MainActor () async -> String?
 
+    /// Bayinin sunucu listesi.
+    ///
+    /// ⚠️ IPTV desteğinde en sık gelen şikâyet yanlış yazılmış sunucu
+    /// adresidir. Bayi kodu girilmişse adres yazdırmak yerine liste sunulur.
+    public let resellerServers: @MainActor () async -> [ResellerServer]
+
     public init(
         playlists: PlaylistRepository,
         validator: PlaylistValidating,
@@ -48,8 +54,10 @@ public struct OnboardingDependencies {
         isManualLoginEnabled: @escaping @MainActor () -> Bool = { true },
         onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in },
         applyResellerCode: @escaping @MainActor (String) async -> Bool = { _ in false },
-        savedResellerCode: @escaping @MainActor () async -> String? = { nil }
+        savedResellerCode: @escaping @MainActor () async -> String? = { nil },
+        resellerServers: @escaping @MainActor () async -> [ResellerServer] = { [] }
     ) {
+        self.resellerServers = resellerServers
         self.onBrandingResolved = onBrandingResolved
         self.applyResellerCode = applyResellerCode
         self.savedResellerCode = savedResellerCode

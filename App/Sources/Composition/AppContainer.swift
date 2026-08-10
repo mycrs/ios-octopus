@@ -380,6 +380,9 @@ final class AppContainer: ObservableObject {
             },
             savedResellerCode: { [weak self] in
                 await self?.savedResellerCode()
+            },
+            resellerServers: { [weak self] in
+                await self?.resellerServers() ?? []
             }
         )
     }

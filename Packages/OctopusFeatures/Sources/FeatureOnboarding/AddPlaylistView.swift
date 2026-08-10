@@ -47,6 +47,7 @@ public struct AddPlaylistView: View {
         // Panel yapılandırması ekran açıldıktan sonra da gelebilir;
         // kapatılmış bir form seçili kalmasın.
         .onAppear { viewModel.reconcileSourceKind() }
+        .task { await viewModel.loadResellerServers() }
     }
 
     // MARK: - Bölümler
@@ -98,6 +99,8 @@ public struct AddPlaylistView: View {
                 )
 
             case .xtream:
+                resellerServerPicker
+
                 FormFieldView(
                     title: "Sunucu adresi",
                     placeholder: "panel.example.com:8080",
@@ -151,6 +154,50 @@ public struct AddPlaylistView: View {
             }
         }
         .disabled(viewModel.step.isBusy)
+    }
+
+    /// Bayinin sunucuları — varsa adres yazmaya gerek kalmaz.
+    ///
+    /// ⚠️ Liste boşsa **hiç çizilmiyor**: bayi kodu girmemiş kullanıcıya
+    /// boş bir "sunucu seç" başlığı göstermek, eksik bir şey varmış
+    /// izlenimi verirdi.
+    @ViewBuilder
+    private var resellerServerPicker: some View {
+        if !viewModel.resellerServers.isEmpty {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text("Bayinin sunucuları")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textSecondary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        ForEach(viewModel.resellerServers) { server in
+                            serverChip(server)
+                        }
+                    }
+                    .padding(.horizontal, 1)   // kenardaki gölge kırpılmasın
+                }
+            }
+        }
+    }
+
+    private func serverChip(_ server: ResellerServer) -> some View {
+        let isSelected = viewModel.selectedServerID == server.id
+
+        return Button {
+            viewModel.select(server: server)
+            focusedField = .username   // adres hazır; sıradaki alana geç
+        } label: {
+            Text(server.displayName)
+                .font(Theme.Typography.caption)
+                .foregroundColor(isSelected ? Theme.Palette.accent : Theme.Palette.textPrimary)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+                .background(isSelected ? Theme.Palette.accentMuted : Theme.Palette.surface)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     private var submitButton: some View {

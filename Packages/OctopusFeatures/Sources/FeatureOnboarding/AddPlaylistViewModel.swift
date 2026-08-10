@@ -60,6 +60,26 @@ public final class AddPlaylistViewModel: ObservableObject {
         sourceKind = .activationCode
     }
 
+    /// Bayi sunucularını yükler.
+    ///
+    /// Tek sunucu varsa **kendiliğinden seçilir**: kullanıcıya tek seçenekli
+    /// bir liste sunup "seç" demek gereksiz bir adım.
+    public func loadResellerServers() async {
+        resellerServers = await dependencies.resellerServers()
+
+        guard host.isEmpty, let only = resellerServers.first, resellerServers.count == 1 else { return }
+        select(server: only)
+    }
+
+    /// Seçilen sunucunun adresini forma yazar.
+    ///
+    /// Şema (`http://`) burada eklenmiyor: `PlaylistDraft` eksik şemayı
+    /// zaten tamamlıyor ve iki yerde yapmak çift `http://` üretirdi.
+    public func select(server: ResellerServer) {
+        host = server.baseURL.absoluteString
+        selectedServerID = server.id
+    }
+
     /// Akışın hangi adımda olduğu.
     public enum Step: Equatable {
         case form
@@ -85,6 +105,11 @@ public final class AddPlaylistViewModel: ObservableObject {
     @Published public var m3uURL = ""
     @Published public var epgURL = ""
     @Published public var activationCode = ""
+
+    /// Bayinin sunucuları — boşsa seçici hiç çizilmez.
+    @Published public private(set) var resellerServers: [ResellerServer] = []
+    /// Kullanıcının listeden seçtiği sunucu (işaretli göstermek için).
+    @Published public var selectedServerID: String?
 
     // MARK: - Durum
 
