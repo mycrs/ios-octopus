@@ -139,9 +139,7 @@ public struct SearchScreen: View {
             }
             .padding(.vertical, Theme.Spacing.md)
         }
-        .safeAreaInset(edge: .bottom) {
-            Theme.Palette.background.frame(height: 64)
-        }
+        .padding(.bottom, 56)
     }
 }
 

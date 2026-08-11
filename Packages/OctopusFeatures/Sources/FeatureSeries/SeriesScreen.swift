@@ -112,8 +112,6 @@ public struct SeriesScreen: View {
                     .padding(Theme.Spacing.lg)
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            Theme.Palette.background.frame(height: 64)
-        }
+        .padding(.bottom, 56)
     }
 }

@@ -59,11 +59,6 @@ struct PlayerLivePanel: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .background(Theme.Palette.background)
-            // Yeni iOS sürümlerinde arama alanı alt kenarda yüzer. Son kanal
-            // arama çubuğunun arkasında kalmadan tamamen yukarı kayabilsin.
-            .safeAreaInset(edge: .bottom) {
-                Theme.Palette.background.frame(height: Theme.Spacing.md)
-            }
             .navigationTitle("Canlı TV")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(

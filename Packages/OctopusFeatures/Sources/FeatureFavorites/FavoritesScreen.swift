@@ -120,9 +120,7 @@ public struct FavoritesScreen: View {
             }
             .padding(Theme.Spacing.md)
         }
-        .safeAreaInset(edge: .bottom) {
-            Theme.Palette.background.frame(height: 64)
-        }
+        .padding(.bottom, 56)
     }
 
     private func section<Content: View>(
