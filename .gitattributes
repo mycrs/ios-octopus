@@ -21,7 +21,9 @@
 *.yaml         text eol=lf
 *.plist        text eol=lf
 *.md           text eol=lf
-*.strings      text eol=lf working-tree-encoding=UTF-16LE
+# Apple'ın güncel araçları UTF-8 `.strings` dosyalarını doğrudan okur.
+# UTF-16LE'yi BOM'suz zorlamak Xcode'un kodlamayı algılayamamasına yol açar.
+*.strings      text eol=lf
 
 # İkili dosyalar — dönüştürülmesin
 *.png    binary
