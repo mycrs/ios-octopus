@@ -7,6 +7,11 @@ enum OnboardingDebugLaunch {
     static var opensForm: Bool {
         arguments.contains("-startupOnboardingActivation")
             || arguments.contains("-startupOnboardingLoading")
+            || arguments.contains("-startupOnboardingResellerQuick")
+    }
+
+    static var showsResellerQuickLogin: Bool {
+        arguments.contains("-startupOnboardingResellerQuick")
     }
 
     static var forcedStep: AddPlaylistViewModel.Step? {

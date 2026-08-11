@@ -42,18 +42,18 @@ final class PlaylistManagerViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.rows[0].isActive)
     }
 
-    func test_detailText_describesEachSourceKind() {
+    func test_detailText_hidesRemoteServerAddresses() {
         XCTAssertEqual(
             PlaylistManagerViewModel.detailText(
                 for: .xtream(host: URL(string: "http://panel.example.com:8080")!, username: "ali")
             ),
-            "ali · panel.example.com"
+            "ali"
         )
         XCTAssertEqual(
             PlaylistManagerViewModel.detailText(
                 for: .m3u(url: URL(string: "http://liste.example.com/p.m3u")!)
             ),
-            "liste.example.com"
+            "M3U listesi"
         )
         XCTAssertEqual(
             PlaylistManagerViewModel.detailText(for: .activationCode(code: "X")),

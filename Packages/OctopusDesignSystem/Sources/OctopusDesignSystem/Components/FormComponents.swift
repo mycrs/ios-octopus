@@ -12,6 +12,7 @@ public struct FormFieldView: View {
     @Binding private var text: String
     private let isSecure: Bool
     private let contentType: UITextContentType?
+    @State private var revealsSecureText = false
 
     public init(
         title: String,
@@ -46,7 +47,11 @@ public struct FormFieldView: View {
 
                 Group {
                     if isSecure {
-                        SecureField(placeholder, text: $text)
+                        if revealsSecureText {
+                            TextField(placeholder, text: $text)
+                        } else {
+                            SecureField(placeholder, text: $text)
+                        }
                     } else {
                         TextField(placeholder, text: $text)
                     }
@@ -56,6 +61,20 @@ public struct FormFieldView: View {
                 .keyboardType(contentType == .URL ? .URL : .default)
                 .textContentType(contentType)
                 .foregroundColor(Theme.Palette.textPrimary)
+
+                if isSecure, !text.isEmpty {
+                    Button {
+                        revealsSecureText.toggle()
+                    } label: {
+                        Image(systemName: revealsSecureText ? "eye.slash.fill" : "eye.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(Theme.Palette.textSecondary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(revealsSecureText ? "Parolayı gizle" : "Parolayı göster")
+                }
             }
             .padding(.horizontal, Theme.Spacing.md)
             .frame(minHeight: 52)

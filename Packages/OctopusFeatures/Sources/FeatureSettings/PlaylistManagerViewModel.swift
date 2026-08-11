@@ -103,10 +103,10 @@ public final class PlaylistManagerViewModel: ObservableObject {
 
     static func detailText(for kind: Playlist.Kind) -> String {
         switch kind {
-        case .xtream(let host, let username):
-            return "\(username) · \(host.host ?? host.absoluteString)"
-        case .m3u(let url):
-            return url.host ?? url.absoluteString
+        case .xtream(_, let username):
+            return username.isEmpty ? "Hesap bağlantısı" : username
+        case .m3u:
+            return "M3U listesi"
         case .m3uLocalFile(let fileName):
             return fileName
         case .activationCode:

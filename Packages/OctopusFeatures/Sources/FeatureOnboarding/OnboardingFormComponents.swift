@@ -96,54 +96,28 @@ struct ActivationCodeIntro: View {
     }
 }
 
-struct ResellerServerPicker: View {
-    let servers: [ResellerServer]
-    let selectedID: String?
-    let onSelect: (ResellerServer) -> Void
-
+struct ResellerQuickLoginIntro: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Bayinin sunucuları")
-                .font(Theme.Typography.caption)
-                .foregroundColor(Theme.Palette.textSecondary)
+        HStack(spacing: Theme.Spacing.md) {
+            ZStack {
+                Circle().fill(Theme.Palette.accentMuted)
+                Image(systemName: "bolt.shield.fill")
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundColor(Theme.Palette.accent)
+            }
+            .frame(width: 46, height: 46)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    ForEach(servers) { server in
-                        serverChip(server)
-                    }
-                }
-                .padding(.horizontal, 1)
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text("Bayi hızlı giriş")
+                    .font(Theme.Typography.rowTitle)
+                    .foregroundColor(Theme.Palette.textPrimary)
+                Text("Sunucun güvenli şekilde otomatik seçilir. Yalnızca hesap bilgilerini girmen yeterli.")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-
-    private func serverChip(_ server: ResellerServer) -> some View {
-        let isSelected = selectedID == server.id
-
-        return Button {
-            Haptics.selection()
-            onSelect(server)
-        } label: {
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "server.rack")
-                Text(server.displayName)
-            }
-            .font(Theme.Typography.caption)
-            .foregroundColor(isSelected ? Theme.Palette.accent : Theme.Palette.textPrimary)
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
-            .background(isSelected ? Theme.Palette.accentMuted : Theme.Palette.surfaceElevated)
-            .clipShape(Capsule())
-            .overlay {
-                Capsule().stroke(
-                    isSelected ? Theme.Palette.accent.opacity(0.35) : Theme.Palette.separator,
-                    lineWidth: 1
-                )
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityElement(children: .combine)
     }
 }
 

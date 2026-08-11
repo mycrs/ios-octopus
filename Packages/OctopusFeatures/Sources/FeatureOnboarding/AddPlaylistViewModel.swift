@@ -66,6 +66,7 @@ public final class AddPlaylistViewModel: ObservableObject {
     /// bir liste sunup "seç" demek gereksiz bir adım.
     public func loadResellerServers() async {
         resellerServers = await dependencies.resellerServers()
+        didLoadResellerServers = true
 
         guard host.isEmpty, let only = resellerServers.first, resellerServers.count == 1 else { return }
         select(server: only)
@@ -79,6 +80,17 @@ public final class AddPlaylistViewModel: ObservableObject {
         host = server.baseURL.absoluteString
         selectedServerID = server.id
     }
+
+#if DEBUG
+    /// GitHub simülatöründe URL'siz bayi giriş yüzeyini görsel olarak denetler.
+    func prepareDebugResellerQuickLogin() {
+        guard let url = URL(string: "https://hidden.example.com") else { return }
+        let server = ResellerServer(code: "TR1", name: "Türkiye", baseURL: url)
+        resellerServers = [server]
+        didLoadResellerServers = true
+        select(server: server)
+    }
+#endif
 
     /// Akışın hangi adımda olduğu.
     public enum Step: Equatable {
@@ -114,8 +126,16 @@ public final class AddPlaylistViewModel: ObservableObject {
 
     /// Bayinin sunucuları — boşsa seçici hiç çizilmez.
     @Published public private(set) var resellerServers: [ResellerServer] = []
+    /// Yükleme tamamlanana kadar adres alanı çizilmez; bayi hızlı girişinde
+    /// teknik adresin bir kareliğine bile görünmesini önler.
+    @Published public private(set) var didLoadResellerServers = false
     /// Kullanıcının listeden seçtiği sunucu (işaretli göstermek için).
     @Published public var selectedServerID: String?
+
+    /// Bayi sunucuları hazırsa teknik adres kullanıcıdan tamamen gizlenir.
+    /// Kullanıcı yalnızca kendi hesap bilgisini girer; uygun sunucuyu akış
+    /// arka planda seçer ve gerekirse listedeki diğer adresleri dener.
+    public var isResellerQuickLogin: Bool { !resellerServers.isEmpty }
 
     // MARK: - Durum
 
@@ -133,6 +153,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         case .activationCode:
             return activationCode.trimmed.count >= 4
         case .xtream:
+            guard didLoadResellerServers else { return false }
             // ⚠️ Bayi sunucusu varsa adres **zorunlu değil**: boş bırakılırsa
             // hepsi sırayla denenir. Zorunlu tutmak, kullanıcıyı hangi
             // sunucunun kendisine ait olduğunu tahmin etmeye iterdi.

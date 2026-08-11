@@ -127,6 +127,12 @@ jobs:
 
           xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
           xcrun simctl launch booted com.octopus.iptv \
+            -startupOnboardingResellerQuick >/dev/null
+          sleep 3
+          xcrun simctl io booted screenshot screenshots/01d-bayi-hizli-giris.png
+
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
             -startupOnboardingLoading >/dev/null
           sleep 3
           xcrun simctl io booted screenshot screenshots/01c-senkronizasyon.png

@@ -33,11 +33,12 @@ final class AddPlaylistViewModelTests: XCTestCase {
 
     // MARK: - Gönderilebilirlik
 
-    func test_canSubmit_requiresMandatoryFieldsPerSourceKind() {
+    func test_canSubmit_requiresMandatoryFieldsPerSourceKind() async {
         let viewModel = makeViewModel()
 
         viewModel.sourceKind = .xtream
         XCTAssertFalse(viewModel.canSubmit)
+        await viewModel.loadResellerServers()
         viewModel.host = "panel.example.com"
         viewModel.username = "u"
         XCTAssertFalse(viewModel.canSubmit, "Parola olmadan gönderilememeli")
@@ -47,6 +48,30 @@ final class AddPlaylistViewModelTests: XCTestCase {
         viewModel.sourceKind = .m3u
         XCTAssertFalse(viewModel.canSubmit, "M3U için bağlantı gerekli")
         viewModel.m3uURL = "http://example.com/l.m3u"
+        XCTAssertTrue(viewModel.canSubmit)
+    }
+
+    func test_resellerQuickLogin_doesNotRequireVisibleServerAddress() async {
+        let server = ResellerServer(
+            code: "TR1",
+            name: "Türkiye",
+            baseURL: URL(string: "https://private.example.com")!
+        )
+        let viewModel = AddPlaylistViewModel(
+            dependencies: OnboardingDependencies(
+                playlists: playlists,
+                validator: validator,
+                activation: activation,
+                sync: sync,
+                resellerServers: { [server] }
+            )
+        )
+
+        await viewModel.loadResellerServers()
+        viewModel.username = "u"
+        viewModel.password = "p"
+
+        XCTAssertTrue(viewModel.isResellerQuickLogin)
         XCTAssertTrue(viewModel.canSubmit)
     }
 

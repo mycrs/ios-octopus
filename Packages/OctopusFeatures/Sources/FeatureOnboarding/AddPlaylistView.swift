@@ -18,7 +18,9 @@ public struct AddPlaylistView: View {
         let model = AddPlaylistViewModel(dependencies: dependencies)
 #if DEBUG
         if OnboardingDebugLaunch.opensForm {
-            model.sourceKind = .activationCode
+            model.sourceKind = OnboardingDebugLaunch.showsResellerQuickLogin
+                ? .xtream
+                : .activationCode
         }
 #endif
         _viewModel = StateObject(wrappedValue: model)
@@ -63,7 +65,15 @@ public struct AddPlaylistView: View {
         // Panel yapılandırması ekran açıldıktan sonra da gelebilir;
         // kapatılmış bir form seçili kalmasın.
         .onAppear { viewModel.reconcileSourceKind() }
-        .task { await viewModel.loadResellerServers() }
+        .task {
+#if DEBUG
+            if OnboardingDebugLaunch.showsResellerQuickLogin {
+                viewModel.prepareDebugResellerQuickLogin()
+                return
+            }
+#endif
+            await viewModel.loadResellerServers()
+        }
     }
 
     // MARK: - Bölümler
@@ -113,19 +123,27 @@ public struct AddPlaylistView: View {
                 )
 
             case .xtream:
-                resellerServerPicker
-
-                FormFieldView(
-                    title: "Sunucu adresi",
-                    // Bayi sunucusu varsa alan boş bırakılabilir; hepsi denenir.
-                    placeholder: viewModel.resellerServers.isEmpty
-                        ? "panel.example.com:8080"
-                        : "boş bırakırsan hepsi denenir",
-                    text: $viewModel.host,
-                    icon: "network",
-                    contentType: .URL
-                )
-                .focused($focusedField, equals: .host)
+                if !viewModel.didLoadResellerServers {
+                    HStack(spacing: Theme.Spacing.sm) {
+                        ProgressView()
+                            .tint(Theme.Palette.accent)
+                        Text("Giriş seçenekleri hazırlanıyor")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Palette.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                } else if viewModel.isResellerQuickLogin {
+                    ResellerQuickLoginIntro()
+                } else {
+                    FormFieldView(
+                        title: "Sunucu adresi",
+                        placeholder: "panel.example.com:8080",
+                        text: $viewModel.host,
+                        icon: "network",
+                        contentType: .URL
+                    )
+                    .focused($focusedField, equals: .host)
+                }
 
                 FormFieldView(
                     title: "Kullanıcı adı",
@@ -141,7 +159,8 @@ public struct AddPlaylistView: View {
                     placeholder: "parolan",
                     text: $viewModel.password,
                     icon: "lock.fill",
-                    isSecure: true
+                    isSecure: true,
+                    contentType: .password
                 )
                 .focused($focusedField, equals: .password)
 
@@ -185,24 +204,6 @@ public struct AddPlaylistView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.sourceKind)
         .disabled(viewModel.step.isBusy)
-    }
-
-    /// Bayinin sunucuları — varsa adres yazmaya gerek kalmaz.
-    ///
-    /// ⚠️ Liste boşsa **hiç çizilmiyor**: bayi kodu girmemiş kullanıcıya
-    /// boş bir "sunucu seç" başlığı göstermek, eksik bir şey varmış
-    /// izlenimi verirdi.
-    @ViewBuilder
-    private var resellerServerPicker: some View {
-        if !viewModel.resellerServers.isEmpty {
-            ResellerServerPicker(
-                servers: viewModel.resellerServers,
-                selectedID: viewModel.selectedServerID
-            ) { server in
-                viewModel.select(server: server)
-                focusedField = .username
-            }
-        }
     }
 
     private var submitButton: some View {
