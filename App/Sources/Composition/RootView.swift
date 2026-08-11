@@ -21,6 +21,7 @@ struct RootView: View {
 
     @EnvironmentObject var container: AppContainer
     @EnvironmentObject var router: AppRouter
+    @EnvironmentObject var language: LanguageController
 
     var body: some View {
         ZStack {
@@ -45,6 +46,9 @@ struct RootView: View {
         // Marka rengi: kullanıcı seçimi > bayi paneli > uygulama varsayılanı.
         .tint(container.themeController.accent)
         .environment(\.brandColor, container.themeController.accent)
+        // Sistem dili varsayılandır; Ayarlar'daki seçim bütün açık ekranlara
+        // yeniden başlatma gerektirmeden yayılır.
+        .environment(\.locale, language.locale)
         // Ayarlar ekranı renk seçimini buradan okur ve değiştirir.
         .environmentObject(container.themeController)
         // Oynatıcı tercihleri de aynı yoldan: Ayarlar düzenler, motorlar okur.
@@ -165,7 +169,13 @@ struct RootView: View {
                     }
                 }
         }
-        .tabItem { Label(item.title, systemImage: item.icon) }
+        .tabItem {
+            Label {
+                Text(LocalizedStringKey(item.title))
+            } icon: {
+                Image(systemName: item.icon)
+            }
+        }
         .tag(item)
     }
 

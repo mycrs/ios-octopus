@@ -60,6 +60,8 @@ targets:
     # Assets.xcassets eklenince buraya `App/Resources` girişi geri gelecek.
     sources:
       - path: App/Sources
+      - path: App/Resources
+        buildPhase: resources
     #
     # ⚠️ `info:` KULLANILMIYOR — KASITLI.
     # XcodeGen'in `info` bölümü mevcut dosyayı OKUMAZ; plist'i kendisi

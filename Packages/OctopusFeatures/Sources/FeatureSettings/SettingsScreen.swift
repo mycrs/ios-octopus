@@ -52,6 +52,8 @@ public struct SettingsScreen: View {
     @State var savedResellerCode: String?
     @EnvironmentObject var router: AppRouter
     @EnvironmentObject var theme: ThemeController
+    @EnvironmentObject var language: LanguageController
+    @Environment(\.brandColor) var brandColor
     /// Oynatma tercihleri — `ThemeController` ile aynı desen: tek örnek,
     /// ortamdan geliyor, değişince oynatıcı bir sonraki yayında uyguluyor.
     @EnvironmentObject var playback: PlaybackPreferences
@@ -105,6 +107,7 @@ public struct SettingsScreen: View {
                     sourceSection
                     resellerSection
                     appearanceSection
+                    languageSection
                     playbackSection
                     startupSection
                     parentalSection
@@ -125,7 +128,7 @@ public struct SettingsScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
         .confirmationDialog(
-            confirmingAction?.title ?? "",
+            language.localized(confirmingAction?.title ?? ""),
             isPresented: .init(
                 get: { confirmingAction != nil },
                 set: { if !$0 { confirmingAction = nil } }
@@ -145,17 +148,17 @@ public struct SettingsScreen: View {
             }
             Button("Vazgeç", role: .cancel) { confirmingAction = nil }
         } message: {
-            Text(confirmingAction?.message ?? "")
+            Text(language.localized(confirmingAction?.message ?? ""))
         }
         .alert(
-            viewModel.isParentalEnabled ? "PIN'i gir" : "Yeni PIN belirle",
+            language.localized(viewModel.isParentalEnabled ? "PIN'i gir" : "Yeni PIN belirle"),
             isPresented: $isEnteringPIN
         ) {
             // Güvenli alan: PIN ekranda görünmemeli.
             SecureField("4-8 rakam", text: $pinInput)
                 .keyboardType(.numberPad)
 
-            Button(viewModel.isParentalEnabled ? "Kilidi kaldır" : "Kur") {
+            Button(language.localized(viewModel.isParentalEnabled ? "Kilidi kaldır" : "Kur")) {
                 let pin = pinInput
                 pinInput = ""
                 Task {
@@ -174,9 +177,11 @@ public struct SettingsScreen: View {
             Button("Vazgeç", role: .cancel) { pinInput = "" }
         } message: {
             Text(
-                viewModel.isParentalEnabled
-                    ? "Kilidi kaldırmak için mevcut PIN'i gir."
-                    : "Yetişkin içerik listelerden gizlenecek. PIN'i unutursan uygulamayı silip yeniden kurman gerekir."
+                language.localized(
+                    viewModel.isParentalEnabled
+                        ? "Kilidi kaldırmak için mevcut PIN'i gir."
+                        : "Yetişkin içerik listelerden gizlenecek. PIN'i unutursan uygulamayı silip yeniden kurman gerekir."
+                )
             )
         }
     }

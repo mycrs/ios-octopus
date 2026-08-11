@@ -6,6 +6,7 @@ import OctopusDesignSystem
 struct HomeHeroAccountView: View {
     let account: HomeAccount?
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     @ViewBuilder
     var body: some View {
@@ -54,7 +55,7 @@ struct HomeHeroAccountView: View {
                 .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Text(caption)
+                Text(AppLocalization.localized(caption, locale: locale))
                     .font(Theme.Typography.badge)
                     .tracking(0.7)
                     .foregroundColor(Theme.Palette.textTertiary)
@@ -66,7 +67,7 @@ struct HomeHeroAccountView: View {
                     .minimumScaleFactor(0.72)
 
                 if let detail {
-                    Text(detail)
+                    Text(AppLocalization.localized(detail, locale: locale))
                         .font(Theme.Typography.badge)
                         .foregroundColor(tint.opacity(0.9))
                         .lineLimit(1)

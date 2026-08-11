@@ -6,6 +6,7 @@ public struct LoadingStateView: View {
 
     private let message: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
     @State private var isPulsing = false
 
     public init(message: String? = nil) {
@@ -35,7 +36,7 @@ public struct LoadingStateView: View {
             }
 
             VStack(spacing: Theme.Spacing.xs) {
-                Text(message ?? "Yükleniyor")
+                Text(AppLocalization.localized(message ?? "Yükleniyor", locale: locale))
                     .font(Theme.Typography.rowTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
 
@@ -47,7 +48,7 @@ public struct LoadingStateView: View {
         .padding(Theme.Spacing.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(message ?? "Yükleniyor")
+        .accessibilityLabel(AppLocalization.localized(message ?? "Yükleniyor", locale: locale))
         .onAppear { isPulsing = true }
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 1.15).repeatForever(autoreverses: true),
@@ -62,6 +63,7 @@ public struct ErrorStateView: View {
 
     private let error: AppError
     private let onRetry: (() -> Void)?
+    @Environment(\.locale) private var locale
 
     public init(error: AppError, onRetry: (() -> Void)? = nil) {
         self.error = error
@@ -75,18 +77,18 @@ public struct ErrorStateView: View {
                 .foregroundColor(Theme.Palette.textTertiary)
 
             VStack(spacing: Theme.Spacing.xs) {
-                Text(error.userTitle)
+                Text(AppLocalization.localized(error.userTitle, locale: locale))
                     .font(Theme.Typography.sectionTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
 
-                Text(error.userMessage)
+                Text(AppLocalization.localized(error.userMessage, locale: locale))
                     .font(Theme.Typography.rowSubtitle)
                     .foregroundColor(Theme.Palette.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
             if let onRetry, let title = error.primaryActionTitle {
-                Button(title, action: onRetry)
+                Button(AppLocalization.localized(title, locale: locale), action: onRetry)
                     .buttonStyle(.borderedProminent)
                     .tint(Theme.Palette.accent)
             }
@@ -104,6 +106,7 @@ public struct EmptyStateView: View {
     private let message: String?
     private let actionTitle: String?
     private let action: (() -> Void)?
+    @Environment(\.locale) private var locale
 
     public init(
         icon: String = "tray",
@@ -126,12 +129,12 @@ public struct EmptyStateView: View {
                 .foregroundColor(Theme.Palette.textTertiary)
 
             VStack(spacing: Theme.Spacing.xs) {
-                Text(title)
+                Text(AppLocalization.localized(title, locale: locale))
                     .font(Theme.Typography.sectionTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
 
                 if let message {
-                    Text(message)
+                    Text(AppLocalization.localized(message, locale: locale))
                         .font(Theme.Typography.rowSubtitle)
                         .foregroundColor(Theme.Palette.textSecondary)
                         .multilineTextAlignment(.center)
@@ -139,7 +142,7 @@ public struct EmptyStateView: View {
             }
 
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
+                Button(AppLocalization.localized(actionTitle, locale: locale), action: action)
                     .buttonStyle(.bordered)
                     .tint(Theme.Palette.accent)
             }

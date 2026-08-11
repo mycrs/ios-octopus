@@ -6,6 +6,11 @@
 	<string>tr</string>
 	<key>CFBundleDisplayName</key>
 	<string>Octopus</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>tr</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

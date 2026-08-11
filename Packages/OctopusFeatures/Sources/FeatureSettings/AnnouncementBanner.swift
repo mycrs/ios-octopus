@@ -80,6 +80,7 @@ public struct MaintenanceGateView: View {
     private let gate: ServiceGate
     private let contact: ContactChannels
     private let onRetry: () -> Void
+    @Environment(\.locale) private var locale
 
     /// ⚠️ Mesaj yerine **kapının kendisi** alınıyor: iki farklı engel var
     /// ve ikisi kullanıcıdan farklı şey istiyor. Bakım geçicidir
@@ -142,17 +143,17 @@ public struct MaintenanceGateView: View {
                     .foregroundColor(Theme.Palette.warning)
 
                 VStack(spacing: Theme.Spacing.sm) {
-                    Text(title)
+                    Text(AppLocalization.localized(title, locale: locale))
                         .font(Theme.Typography.sectionTitle)
                         .foregroundColor(Theme.Palette.textPrimary)
 
-                    Text(detail)
+                    Text(AppLocalization.localized(detail, locale: locale))
                         .font(Theme.Typography.rowSubtitle)
                         .foregroundColor(Theme.Palette.textSecondary)
                         .multilineTextAlignment(.center)
                 }
 
-                Button(retryTitle, action: onRetry)
+                Button(AppLocalization.localized(retryTitle, locale: locale), action: onRetry)
                     .buttonStyle(.borderedProminent)
                     .tint(Theme.Palette.accent)
 

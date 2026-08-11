@@ -92,7 +92,13 @@ struct SeriesCategoryStrip: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Text(title)
+            Group {
+                if title == "Tümü" {
+                    Text("Tümü")
+                } else {
+                    Text(title)
+                }
+            }
                 .font(Theme.Typography.caption)
                 .lineLimit(1)
                 .padding(.horizontal, Theme.Spacing.md)

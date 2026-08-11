@@ -12,6 +12,7 @@ struct SyncOverlayView: View {
     let step: AddPlaylistViewModel.Step
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
     @State private var isPulsing = false
 
     var body: some View {
@@ -26,18 +27,18 @@ struct SyncOverlayView: View {
                 indicator
 
                 VStack(spacing: Theme.Spacing.sm) {
-                    Text(eyebrow)
+                    Text(AppLocalization.localized(eyebrow, locale: locale))
                         .font(Theme.Typography.badge)
                         .tracking(1.2)
                         .foregroundColor(brandColor)
 
-                    Text(title)
+                    Text(AppLocalization.localized(title, locale: locale))
                         .font(Theme.Typography.sectionTitle)
                         .foregroundColor(Theme.Palette.textPrimary)
                         .multilineTextAlignment(.center)
 
                     if let detail {
-                        Text(detail)
+                        Text(AppLocalization.localized(detail, locale: locale))
                             .font(Theme.Typography.rowSubtitle)
                             .foregroundColor(Theme.Palette.textSecondary)
                             .multilineTextAlignment(.center)
@@ -61,7 +62,10 @@ struct SyncOverlayView: View {
         }
         .transition(.opacity)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title). \(detail ?? "")")
+        .accessibilityLabel(
+            "\(AppLocalization.localized(title, locale: locale)). "
+                + AppLocalization.localized(detail ?? "", locale: locale)
+        )
         .onAppear { isPulsing = true }
     }
 

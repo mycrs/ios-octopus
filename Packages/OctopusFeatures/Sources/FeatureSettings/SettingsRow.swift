@@ -8,6 +8,7 @@ struct SettingsRow: View {
     let title: String
     var detail: String?
     let action: () -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         Button(action: action) {
@@ -17,13 +18,13 @@ struct SettingsRow: View {
                     .frame(width: 24)
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    Text(title)
+                    Text(AppLocalization.localized(title, locale: locale))
                         .font(Theme.Typography.rowTitle)
                         .foregroundColor(Theme.Palette.textPrimary)
                         .multilineTextAlignment(.leading)
 
                     if let detail {
-                        Text(detail)
+                        Text(AppLocalization.localized(detail, locale: locale))
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Palette.textTertiary)
                     }

@@ -35,6 +35,7 @@ struct OnboardingSourcePicker: View {
     let kinds: [AddPlaylistViewModel.SourceKind]
     @Binding var selection: AddPlaylistViewModel.SourceKind
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(spacing: Theme.Spacing.xs) {
@@ -51,7 +52,7 @@ struct OnboardingSourcePicker: View {
                     HStack(spacing: Theme.Spacing.sm) {
                         Image(systemName: kind.icon)
                             .font(.system(size: 14, weight: .semibold))
-                        Text(kind.title)
+                        Text(AppLocalization.localized(kind.title, locale: locale))
                             .font(Theme.Typography.caption.weight(.semibold))
                     }
                     .foregroundColor(isSelected ? Theme.Palette.textPrimary : Theme.Palette.textSecondary)
@@ -106,6 +107,7 @@ struct OnboardingSubmitButton: View {
     let isEnabled: Bool
     let action: () -> Void
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         Button {
@@ -113,7 +115,7 @@ struct OnboardingSubmitButton: View {
             action()
         } label: {
             HStack(spacing: Theme.Spacing.sm) {
-                Text(title)
+                Text(AppLocalization.localized(title, locale: locale))
                     .font(Theme.Typography.rowTitle)
                 Image(systemName: "arrow.right")
                     .font(.system(size: 14, weight: .bold))

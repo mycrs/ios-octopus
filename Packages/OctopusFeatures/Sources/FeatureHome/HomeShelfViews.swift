@@ -8,6 +8,7 @@ struct ShelfView<Content: View>: View {
     let title: String
     @ViewBuilder let content: () -> Content
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -16,7 +17,7 @@ struct ShelfView<Content: View>: View {
                     .fill(brandColor)
                     .frame(width: 3, height: 18)
 
-                Text(title)
+                Text(AppLocalization.localized(title, locale: locale))
                     .font(Theme.Typography.sectionTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
 

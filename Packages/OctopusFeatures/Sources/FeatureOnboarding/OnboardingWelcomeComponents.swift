@@ -80,6 +80,7 @@ struct OnboardingWelcomeBrand: View {
 
 struct OnboardingCapabilities: View {
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -104,10 +105,10 @@ struct OnboardingCapabilities: View {
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Text(title)
+                Text(AppLocalization.localized(title, locale: locale))
                     .font(Theme.Typography.rowTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
-                Text(detail)
+                Text(AppLocalization.localized(detail, locale: locale))
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textSecondary)
             }
@@ -122,13 +123,19 @@ struct OnboardingResellerCodeButton: View {
     let savedCode: String?
     let action: () -> Void
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "person.badge.key")
                     .foregroundColor(brandColor)
-                Text(savedCode == nil ? "Hizmet sağlayıcımı bağla" : "Marka bağlantısı aktif")
+                Text(
+                    AppLocalization.localized(
+                        savedCode == nil ? "Hizmet sağlayıcımı bağla" : "Marka bağlantısı aktif",
+                        locale: locale
+                    )
+                )
                 Spacer(minLength: Theme.Spacing.sm)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .bold))

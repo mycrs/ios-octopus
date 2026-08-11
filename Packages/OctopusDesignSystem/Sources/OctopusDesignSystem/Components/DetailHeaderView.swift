@@ -174,6 +174,7 @@ public struct DetailChip: Identifiable, Hashable, Sendable {
 private struct DetailChipView: View {
 
     let chip: DetailChip
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(spacing: Theme.Spacing.xs) {
@@ -181,7 +182,7 @@ private struct DetailChipView: View {
                 Image(systemName: icon)
                     .font(.system(size: 10, weight: .semibold))
             }
-            Text(chip.text)
+            Text(AppLocalization.localized(chip.text, locale: locale))
                 .font(Theme.Typography.caption)
                 .lineLimit(1)
         }

@@ -25,6 +25,7 @@ struct PlaybackErrorView: View {
     let onNextChannel: (() -> Void)?
 
     @State private var didCopy = false
+    @Environment(\.locale) private var locale
 
     init(
         error: AppError,
@@ -63,10 +64,16 @@ struct PlaybackErrorView: View {
                     UIPasteboard.general.string = item.url.absoluteString
                     didCopy = true
                 } label: {
-                    Label(
-                        didCopy ? "Kopyalandı" : "Adresi kopyala",
-                        systemImage: didCopy ? "checkmark" : "doc.on.doc"
-                    )
+                    Label {
+                        Text(
+                            AppLocalization.localized(
+                                didCopy ? "Kopyalandı" : "Adresi kopyala",
+                                locale: locale
+                            )
+                        )
+                    } icon: {
+                        Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                    }
                 }
 
                 Button("Kapat", action: onClose)

@@ -4,6 +4,7 @@ import OctopusDesignSystem
 struct SearchWelcomeState: View {
 
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(spacing: Theme.Spacing.xl) {
@@ -44,7 +45,11 @@ struct SearchWelcomeState: View {
     }
 
     private func mediaChip(_ icon: String, _ title: String) -> some View {
-        Label(title, systemImage: icon)
+        Label {
+            Text(AppLocalization.localized(title, locale: locale))
+        } icon: {
+            Image(systemName: icon)
+        }
             .font(Theme.Typography.caption.weight(.semibold))
             .foregroundColor(Theme.Palette.textSecondary)
             .padding(.horizontal, Theme.Spacing.md)

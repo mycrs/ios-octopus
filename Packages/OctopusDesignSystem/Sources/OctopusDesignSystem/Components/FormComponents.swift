@@ -14,6 +14,7 @@ public struct FormFieldView: View {
     private let contentType: UITextContentType?
     @State private var revealsSecureText = false
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     public init(
         title: String,
@@ -33,7 +34,7 @@ public struct FormFieldView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            Text(title)
+            Text(AppLocalization.localized(title, locale: locale))
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Palette.textSecondary)
 
@@ -49,12 +50,12 @@ public struct FormFieldView: View {
                 Group {
                     if isSecure {
                         if revealsSecureText {
-                            TextField(placeholder, text: $text)
+                            TextField(AppLocalization.localized(placeholder, locale: locale), text: $text)
                         } else {
-                            SecureField(placeholder, text: $text)
+                            SecureField(AppLocalization.localized(placeholder, locale: locale), text: $text)
                         }
                     } else {
-                        TextField(placeholder, text: $text)
+                        TextField(AppLocalization.localized(placeholder, locale: locale), text: $text)
                     }
                 }
                 .textInputAutocapitalization(.never)
@@ -107,6 +108,7 @@ public struct InlineMessageView: View {
     private let text: String
     private let kind: Kind
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     public init(text: String, kind: Kind) {
         self.text = text
@@ -131,7 +133,7 @@ public struct InlineMessageView: View {
             }
             .frame(width: 30, height: 30)
 
-            Text(text)
+            Text(AppLocalization.localized(text, locale: locale))
                 .font(Theme.Typography.rowSubtitle)
                 .foregroundColor(Theme.Palette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)

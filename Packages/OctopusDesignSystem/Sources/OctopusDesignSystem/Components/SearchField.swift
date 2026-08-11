@@ -10,6 +10,7 @@ public struct SearchField: View {
 
     @Binding private var text: String
     private let placeholder: String
+    @Environment(\.locale) private var locale
 
     public init(text: Binding<String>, placeholder: String) {
         self._text = text
@@ -21,7 +22,7 @@ public struct SearchField: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(Theme.Palette.textTertiary)
 
-            TextField(placeholder, text: $text)
+            TextField(AppLocalization.localized(placeholder, locale: locale), text: $text)
                 .foregroundColor(Theme.Palette.textPrimary)
                 // Kanal adları büyük harfle başlamak zorunda değil ve
                 // otomatik düzeltme arama sonucunu bozuyor.

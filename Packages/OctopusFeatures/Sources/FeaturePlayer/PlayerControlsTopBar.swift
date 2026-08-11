@@ -25,6 +25,7 @@ struct PlayerControlsTopBar: View {
     let onPictureInPicture: () -> Void
 
     private let rates: [Float] = [0.5, 1.0, 1.25, 1.5, 2.0]
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
@@ -85,7 +86,12 @@ struct PlayerControlsTopBar: View {
             titleVisibility: .visible
         ) {
             Button(action: onToggleFit) {
-                Text(videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur")
+                Text(
+                    AppLocalization.localized(
+                        videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
+                        locale: locale
+                    )
+                )
             }
 
             if !isLive {
@@ -93,7 +99,7 @@ struct PlayerControlsTopBar: View {
                     Button {
                         onSetRate(option)
                     } label: {
-                        Text(rateOptionTitle(option))
+                        Text(AppLocalization.localized(rateOptionTitle(option), locale: locale))
                     }
                 }
             }
@@ -121,7 +127,7 @@ struct PlayerControlsTopBar: View {
                 .background(controlBackground)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .accessibilityLabel(AppLocalization.localized(label, locale: locale))
     }
 
     private var controlBackground: some View {

@@ -8,6 +8,7 @@ public struct ChannelGuideView: View {
 
     @StateObject private var viewModel: ChannelGuideViewModel
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.locale) private var locale
 
     public init(channelID: Channel.ID, dependencies: LiveDependencies) {
         _viewModel = StateObject(
@@ -24,7 +25,10 @@ public struct ChannelGuideView: View {
                 content
             }
         }
-        .navigationTitle(viewModel.channel?.name ?? "Yayın akışı")
+        .navigationTitle(
+            viewModel.channel?.name
+                ?? AppLocalization.localized("Yayın akışı", locale: locale)
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -52,9 +56,7 @@ public struct ChannelGuideView: View {
 
             Spacer()
 
-            Text(viewModel.dayTitle)
-                .font(Theme.Typography.rowTitle)
-                .foregroundColor(Theme.Palette.textPrimary)
+            dayTitle
 
             Spacer()
 
@@ -68,6 +70,22 @@ public struct ChannelGuideView: View {
         .padding(.horizontal, Theme.Spacing.lg)
         .padding(.vertical, Theme.Spacing.md)
         .background(Theme.Palette.surface)
+    }
+
+    @ViewBuilder
+    private var dayTitle: some View {
+        Group {
+            if (-1...1).contains(viewModel.dayOffset) {
+                Text(AppLocalization.localized(viewModel.dayTitle, locale: locale))
+            } else {
+                Text(
+                    viewModel.selectedDate,
+                    format: .dateTime.day().month(.wide).weekday(.wide)
+                )
+            }
+        }
+        .font(Theme.Typography.rowTitle)
+        .foregroundColor(Theme.Palette.textPrimary)
     }
 
     @ViewBuilder

@@ -100,6 +100,7 @@ private struct PlaylistRowView: View {
     let onActivate: () -> Void
     let onResync: () -> Void
     let onDelete: () -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -114,7 +115,7 @@ private struct PlaylistRowView: View {
                     Text(row.name)
                         .font(Theme.Typography.rowTitle)
                         .foregroundColor(Theme.Palette.textPrimary)
-                    Text(row.detail)
+                    Text(AppLocalization.localized(row.detail, locale: locale))
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Palette.textSecondary)
                 }
@@ -127,7 +128,7 @@ private struct PlaylistRowView: View {
             }
 
             if let lastSyncedText = row.lastSyncedText {
-                Text(lastSyncedText)
+                Text(AppLocalization.localized(lastSyncedText, locale: locale))
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textTertiary)
             }

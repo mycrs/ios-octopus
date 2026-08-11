@@ -10,6 +10,7 @@ public struct MovieDetailView: View {
 
     @StateObject private var viewModel: MovieDetailViewModel
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.locale) private var locale
 
     /// Uzun özetler ekranı doldurmasın; kullanıcı isterse açar.
     @State private var isPlotExpanded = false
@@ -162,7 +163,7 @@ public struct MovieDetailView: View {
 
     private func creditRow(title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-            Text(title)
+            Text(AppLocalization.localized(title, locale: locale))
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Palette.textTertiary)
             Text(value)

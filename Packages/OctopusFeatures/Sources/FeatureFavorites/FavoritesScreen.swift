@@ -25,6 +25,7 @@ public struct FavoritesScreen: View {
 
     @StateObject private var viewModel: FavoritesViewModel
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.locale) private var locale
 
     private let posterColumns = [
         GridItem(.adaptive(minimum: 104), spacing: Theme.Spacing.md)
@@ -126,7 +127,7 @@ public struct FavoritesScreen: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(title)
+            Text(AppLocalization.localized(title, locale: locale))
                 .font(Theme.Typography.sectionTitle)
                 .foregroundColor(Theme.Palette.textPrimary)
             content()

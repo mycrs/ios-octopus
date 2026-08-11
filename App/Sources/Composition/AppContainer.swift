@@ -72,6 +72,9 @@ final class AppContainer: ObservableObject {
     /// Marka rengini yönetir; panel ve kullanıcı seçimi burada birleşir.
     let themeController = ThemeController()
 
+    /// Uygulama dili: cihaz tercihi veya Ayarlar'daki açık kullanıcı seçimi.
+    let languageController = LanguageController()
+
     /// Oynatma tercihleri — hem Ayarlar ekranı düzenler, hem motorlar okur.
     /// Tek örnek olmalı: iki kopya olsaydı ayarı değiştirmek oynatıcıya
     /// ulaşmazdı (`ThemeController` ile aynı gerekçe).
@@ -270,7 +273,9 @@ final class AppContainer: ObservableObject {
         // Açılışta doğrudan oynatıcıyı açar. Onboarding gösteriliyorsa
         // atlanır — oynatacak kaynak yok.
         if !router.needsOnboarding {
-            if ProcessInfo.processInfo.arguments.contains("-startupSearch") {
+            if ProcessInfo.processInfo.arguments.contains("-startupSettings") {
+                router.switchTab(to: .home, then: .about)
+            } else if ProcessInfo.processInfo.arguments.contains("-startupSearch") {
                 router.switchTab(to: .home, then: .search)
             } else if DemoCatalogSeeder.isPlayerRequested {
                 // Tek parça bayrak: Xcode'un argüman listesinde boşluklu

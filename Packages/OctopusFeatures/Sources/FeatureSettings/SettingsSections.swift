@@ -96,13 +96,69 @@ extension SettingsScreen {
         }
     }
 
+    var languageSection: some View {
+        section("Dil") {
+            HStack(spacing: Theme.Spacing.md) {
+                Image(systemName: "globe")
+                    .foregroundColor(brandColor)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    Text("Uygulama dili")
+                        .font(Theme.Typography.rowTitle)
+                        .foregroundColor(Theme.Palette.textPrimary)
+
+                    Text(
+                        language.selection == .system
+                            ? language.localized(
+                                "Cihaz diline göre otomatik: %@",
+                                language.resolvedLanguageTitle
+                            )
+                            : language.localized("Seçimin anında uygulanır")
+                    )
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.Palette.textTertiary)
+                }
+
+                Spacer(minLength: Theme.Spacing.sm)
+
+                Picker(
+                    "Dil",
+                    selection: Binding(
+                        get: { language.selection },
+                        set: { language.select($0) }
+                    )
+                ) {
+                    ForEach(AppLanguage.allCases) { option in
+                        Text(LocalizedStringKey(option.title)).tag(option)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(brandColor)
+            }
+            .padding(Theme.Spacing.md)
+            .background(Theme.Palette.surface)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                    .strokeBorder(brandColor.opacity(0.12), lineWidth: 1)
+            }
+        }
+    }
+
     var startupSection: some View {
         section("Açılış") {
             // Menü seçici: dört başlık segment'e sığmıyor, dar ekranda
             // "Ana Say…" gibi kırpılıyordu.
             Picker(selection: $router.startupTab) {
                 ForEach(AppTab.startupOptions) { tab in
-                    Label(tab.title, systemImage: tab.icon).tag(tab)
+                    Label {
+                        Text(LocalizedStringKey(tab.title))
+                    } icon: {
+                        Image(systemName: tab.icon)
+                    }
+                    .tag(tab)
                 }
             } label: {
                 HStack(spacing: Theme.Spacing.md) {
@@ -182,7 +238,7 @@ extension SettingsScreen {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(title)
+            Text(AppLocalization.localized(title, locale: language.locale))
                 .font(Theme.Typography.sectionTitle)
                 .foregroundColor(Theme.Palette.textPrimary)
             content()

@@ -13,6 +13,7 @@ struct PlayerTransportControls: View {
     let onZap: (Int) -> Void
 
     private let skipStep: TimeInterval = 10
+    @Environment(\.locale) private var locale
 
     var body: some View {
         HStack(spacing: Theme.Spacing.xl) {
@@ -63,7 +64,12 @@ struct PlayerTransportControls: View {
             }
         }
         .disabled(state.showsSpinner)
-        .accessibilityLabel(state == .playing ? "Duraklat" : "Oynat")
+        .accessibilityLabel(
+            AppLocalization.localized(
+                state == .playing ? "Duraklat" : "Oynat",
+                locale: locale
+            )
+        )
     }
 
     private func transportButton(
@@ -77,6 +83,6 @@ struct PlayerTransportControls: View {
                 .foregroundColor(.white)
                 .frame(width: 52, height: 52)
         }
-        .accessibilityLabel(label)
+        .accessibilityLabel(AppLocalization.localized(label, locale: locale))
     }
 }

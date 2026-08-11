@@ -9,6 +9,7 @@ struct SearchResultShelf<Content: View>: View {
     private let content: Content
 
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     init(
         title: String,
@@ -47,7 +48,7 @@ struct SearchResultShelf<Content: View>: View {
             }
             .frame(width: 30, height: 30)
 
-            Text(title)
+            Text(AppLocalization.localized(title, locale: locale))
                 .font(Theme.Typography.sectionTitle)
                 .foregroundColor(Theme.Palette.textPrimary)
 

@@ -22,6 +22,7 @@ struct LiveMiniPlayerView: View {
     /// ekranın tepesi boş kalmasın.
     let placeholderChannel: Channel?
     let onExpand: () -> Void
+    @Environment(\.locale) private var locale
 
     /// Video oranı — yayınların neredeyse tamamı 16:9.
     ///
@@ -45,7 +46,12 @@ struct LiveMiniPlayerView: View {
         .contentShape(Rectangle())
         .onTapGesture(perform: onExpand)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(channel.map { "Oynatılıyor: \($0.name)" } ?? "Oynatıcı")
+        .accessibilityLabel(
+            AppLocalization.localized(
+                channel.map { "Oynatılıyor: \($0.name)" } ?? "Oynatıcı",
+                locale: locale
+            )
+        )
         .accessibilityHint("Tam ekran açar")
         // Sabit yükseklik erişilebilirlik yazı boyutunda taşmasın.
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
@@ -116,7 +122,12 @@ struct LiveMiniPlayerView: View {
                     Circle()
                         .fill(Theme.Palette.live)
                         .frame(width: 6, height: 6)
-                    Text(channel == nil ? "KALDIĞIN KANAL" : "CANLI")
+                    Text(
+                        AppLocalization.localized(
+                            channel == nil ? "KALDIĞIN KANAL" : "CANLI",
+                            locale: locale
+                        )
+                    )
                         .font(Theme.Typography.badge)
                         .kerning(1.5)
                         .foregroundColor(.white.opacity(0.85))

@@ -30,14 +30,14 @@ extension SettingsScreen {
 
                     Picker("", selection: $playback.liveBuffer) {
                         ForEach(PlaybackPreferences.LiveBuffer.allCases) { option in
-                            Text(option.title).tag(option)
+                            Text(AppLocalization.localized(option.title, locale: language.locale)).tag(option)
                         }
                     }
                     .pickerStyle(.menu)
                     .labelsHidden()
                 }
 
-                Text(playback.liveBuffer.detail)
+                Text(AppLocalization.localized(playback.liveBuffer.detail, locale: language.locale))
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textTertiary)
             }
@@ -100,7 +100,7 @@ extension SettingsScreen {
             Image(systemName: icon)
                 .foregroundColor(theme.accent)
                 .frame(width: 24)
-            Text(title)
+            Text(AppLocalization.localized(title, locale: language.locale))
                 .font(Theme.Typography.rowTitle)
                 .foregroundColor(Theme.Palette.textPrimary)
         }

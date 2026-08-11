@@ -21,6 +21,7 @@ struct OctopusApp: App {
             RootView()
                 .environmentObject(container)
                 .environmentObject(container.router)
+                .environmentObject(container.languageController)
                 .preferredColorScheme(.dark)   // IPTV arayüzü koyu temada yaşar
                 .task { await container.bootstrap() }
         }

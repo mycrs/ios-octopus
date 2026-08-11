@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import OctopusDesignSystem
 
 enum PlayerEdgeGlyph {
     case close
@@ -10,6 +11,7 @@ struct PlayerEdgeControl: View {
     let glyph: PlayerEdgeGlyph
     let label: String
     let action: () -> Void
+    @Environment(\.locale) private var locale
 
     var body: some View {
         Button(action: action) {
@@ -20,7 +22,7 @@ struct PlayerEdgeControl: View {
                 .contentShape(Circle())
         }
         .buttonStyle(PlayerEdgeButtonStyle())
-        .accessibilityLabel(label)
+        .accessibilityLabel(AppLocalization.localized(label, locale: locale))
     }
 }
 

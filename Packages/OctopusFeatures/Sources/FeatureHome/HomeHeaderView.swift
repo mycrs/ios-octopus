@@ -12,6 +12,7 @@ struct HomeHeaderView: View {
     let onExplore: () -> Void
 
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -79,7 +80,7 @@ struct HomeHeaderView: View {
 
     private var greetingBlock: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(greeting)
+            Text(AppLocalization.localized(greeting, locale: locale))
                 .font(Theme.Typography.screenTitle)
                 .foregroundColor(Theme.Palette.textPrimary)
                 .lineLimit(2)
@@ -118,7 +119,11 @@ struct HomeHeaderView: View {
             Haptics.light()
             action()
         } label: {
-            Label(title, systemImage: icon)
+            Label {
+                Text(AppLocalization.localized(title, locale: locale))
+            } icon: {
+                Image(systemName: icon)
+            }
                 .font(Theme.Typography.caption.weight(.semibold))
                 .foregroundColor(isPrimary ? .white : Theme.Palette.textPrimary)
                 .frame(maxWidth: .infinity, minHeight: 46)

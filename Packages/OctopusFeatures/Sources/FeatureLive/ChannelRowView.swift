@@ -21,6 +21,7 @@ struct ChannelRowView: View {
     /// ve ad aynı satıra sığmıyordu, ad neredeyse tamamen kırpılıyordu
     /// ("100 TR…"). Bu boyutlarda ikisi alt alta yerleşir.
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.locale) private var locale
 
     var body: some View {
         Button(action: onTap) {
@@ -99,7 +100,7 @@ struct ChannelRowView: View {
                     .lineLimit(1)
 
                 if let remaining = LiveChannelsViewModel.remainingText(program, at: clock) {
-                    Text(remaining)
+                    Text(AppLocalization.localized(remaining, locale: locale))
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Palette.accent)
                         .lineLimit(1)

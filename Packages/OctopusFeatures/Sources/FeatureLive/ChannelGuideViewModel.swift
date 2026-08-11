@@ -121,6 +121,11 @@ public final class ChannelGuideViewModel: ObservableObject {
     public var canGoBack: Bool { dayOffset > -1 }
     public var canGoForward: Bool { dayOffset < 6 }
 
+    public var selectedDate: Date {
+        calendar.startOfDay(for: now())
+            .addingTimeInterval(Double(dayOffset) * 86_400)
+    }
+
     public func timeText(_ date: Date) -> String {
         Self.timeFormatter.string(from: date)
     }

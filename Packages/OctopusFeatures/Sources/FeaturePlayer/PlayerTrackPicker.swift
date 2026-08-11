@@ -16,6 +16,7 @@ struct PlayerTrackPicker: View {
     let onSelect: (MediaTrack) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
 
     var body: some View {
         NavigationStack {
@@ -54,14 +55,14 @@ struct PlayerTrackPicker: View {
         tracks: [MediaTrack],
         selected: MediaTrack?
     ) -> some View {
-        Section(title) {
+        Section {
             ForEach(tracks) { track in
                 Button {
                     onSelect(track)
                     dismiss()
                 } label: {
                     HStack {
-                        Text(track.label)
+                        Text(AppLocalization.localized(track.label, locale: locale))
                             .foregroundColor(Theme.Palette.textPrimary)
                         Spacer()
                         if track.id == selected?.id {
@@ -72,6 +73,8 @@ struct PlayerTrackPicker: View {
                 }
                 .accessibilityAddTraits(track.id == selected?.id ? [.isSelected] : [])
             }
+        } header: {
+            Text(LocalizedStringKey(title))
         }
     }
 }

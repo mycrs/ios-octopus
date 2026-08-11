@@ -8,6 +8,7 @@ struct SearchChannelCard: View {
     let channel: Channel
     let onTap: () -> Void
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     var body: some View {
         Button(action: onTap) {
@@ -62,7 +63,9 @@ struct SearchChannelCard: View {
             }
         }
         .buttonStyle(SearchCardButtonStyle())
-        .accessibilityLabel("\(channel.name), canlı yayın")
+        .accessibilityLabel(
+            AppLocalization.localized("\(channel.name), canlı yayın", locale: locale)
+        )
         .accessibilityHint("Oynatmak için çift dokun")
     }
 }
