@@ -41,16 +41,20 @@ struct PlayerControlsTopBar: View {
                     .font(Theme.Typography.sectionTitle)
                     .foregroundColor(.white)
                     .lineLimit(1)
+                    .truncationMode(.tail)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(Theme.Typography.caption)
                         .foregroundColor(.white.opacity(0.75))
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
-
-            Spacer(minLength: 0)
+            // Sağdaki sistem denetimlerine sabit alan bırak; uzun başlık dar
+            // iPhone'da çarpı/PiP/AirPlay/seçenek düğmelerini dışarı itmesin.
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(-1)
 
             if showsPictureInPicture {
                 iconButton(
@@ -69,6 +73,7 @@ struct PlayerControlsTopBar: View {
 
             optionsControl
         }
+        .frame(maxWidth: .infinity)
         // PiP sistem düğmesi de koyu video üstünde beyaz kalmalı.
         .tint(.white)
     }
