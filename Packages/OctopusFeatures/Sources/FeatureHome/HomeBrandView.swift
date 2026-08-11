@@ -24,7 +24,6 @@ struct HomeNavigationBrand: View {
 struct HomeBrandLogo: View {
     let logoURL: URL?
     let size: CGFloat
-    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         Group {
@@ -45,15 +44,6 @@ struct HomeBrandLogo: View {
     }
 
     private var fallback: some View {
-        ZStack {
-            LinearGradient(
-                colors: [brandColor, brandColor.opacity(0.55)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            Image(systemName: "antenna.radiowaves.left.and.right")
-                .font(.system(size: size * 0.43, weight: .bold))
-                .foregroundColor(.white)
-        }
+        DefaultBrandLogoView()
     }
 }

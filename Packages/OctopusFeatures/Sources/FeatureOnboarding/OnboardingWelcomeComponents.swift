@@ -57,23 +57,13 @@ struct OnboardingWelcomeBrand: View {
     }
 
     private var defaultMark: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
-                }
-
-            Circle()
-                .fill(brandColor.opacity(0.13))
-                .frame(width: 64, height: 64)
-
-            Image(systemName: "antenna.radiowaves.left.and.right")
-                .font(.system(size: 38, weight: .medium))
-                .foregroundColor(brandColor)
-        }
+        DefaultBrandLogoView()
         .frame(width: 92, height: 92)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+        }
         .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
     }
 }
