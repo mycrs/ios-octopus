@@ -11,7 +11,7 @@ public struct AddPlaylistView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case code, host, resellerCode, username, password, url, epg, name
+        case code, host, username, password, url, epg, name
     }
 
     public init(dependencies: OnboardingDependencies, onFinished: @escaping () -> Void) {
@@ -123,27 +123,17 @@ public struct AddPlaylistView: View {
                 )
 
             case .xtream:
-                XtreamLoginModePicker(selection: $viewModel.xtreamLoginMode)
+                FormFieldView(
+                    title: "DNS adresi veya bayi kodu",
+                    placeholder: "http://panel.example.com:8080 veya 8811",
+                    text: $viewModel.host,
+                    icon: viewModel.isResellerCodeInput ? "person.badge.key.fill" : "network",
+                    contentType: .URL
+                )
+                .focused($focusedField, equals: .host)
 
-                if viewModel.xtreamLoginMode == .resellerCode {
+                if viewModel.isResellerCodeInput {
                     ResellerQuickLoginIntro()
-
-                    FormFieldView(
-                        title: "Bayi kodu",
-                        placeholder: "8811",
-                        text: $viewModel.resellerCode,
-                        icon: "person.badge.key.fill"
-                    )
-                    .focused($focusedField, equals: .resellerCode)
-                } else {
-                    FormFieldView(
-                        title: "DNS adresi",
-                        placeholder: "panel.example.com:8080",
-                        text: $viewModel.host,
-                        icon: "network",
-                        contentType: .URL
-                    )
-                    .focused($focusedField, equals: .host)
                 }
 
                 FormFieldView(
@@ -204,7 +194,7 @@ public struct AddPlaylistView: View {
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.sourceKind)
-        .animation(.easeInOut(duration: 0.2), value: viewModel.xtreamLoginMode)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.isResellerCodeInput)
         .disabled(viewModel.step.isBusy)
     }
 

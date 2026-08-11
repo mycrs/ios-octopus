@@ -78,8 +78,7 @@ final class AddPlaylistViewModelTests: XCTestCase {
             .failure(AppError.unauthorized),
             .success(validator.successAccount)
         ]
-        viewModel.xtreamLoginMode = .resellerCode
-        viewModel.resellerCode = "8811"
+        viewModel.host = "8811"
         viewModel.username = "u"
         viewModel.password = "p"
 
@@ -89,7 +88,44 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertEqual(appliedCodes, ["8811"])
         XCTAssertEqual(validator.receivedHosts, ["first.example.com", "second.example.com"])
         XCTAssertEqual(playlists.addedPlaylists.count, 1)
+        XCTAssertEqual(viewModel.host, "8811", "Çözülen DNS form alanına sızmamalı")
         XCTAssertEqual(viewModel.step, .done)
+    }
+
+    func test_longDNSConnectsDirectlyWithoutResellerLookup() async {
+        var appliedCodes: [String] = []
+        let viewModel = AddPlaylistViewModel(
+            dependencies: OnboardingDependencies(
+                playlists: playlists,
+                validator: validator,
+                activation: activation,
+                sync: sync,
+                applyResellerCode: { code in
+                    appliedCodes.append(code)
+                    return false
+                }
+            )
+        )
+        viewModel.host = "http://xyz.example.com:8080//"
+        viewModel.username = "u"
+        viewModel.password = "p"
+
+        await viewModel.submit()
+
+        XCTAssertTrue(appliedCodes.isEmpty)
+        XCTAssertEqual(validator.receivedHosts, ["xyz.example.com"])
+        XCTAssertEqual(playlists.addedPlaylists.count, 1)
+        XCTAssertEqual(viewModel.step, .done)
+    }
+
+    func test_onlyFourDigitsAreRecognizedAsResellerCode() {
+        XCTAssertEqual(AddPlaylistViewModel.resellerCode(from: "8811"), "8811")
+        XCTAssertEqual(AddPlaylistViewModel.resellerCode(from: " 3622 "), "3622")
+        XCTAssertEqual(AddPlaylistViewModel.resellerCode(from: "88 11"), "8811")
+        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "881"))
+        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "88111"))
+        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "88A1"))
+        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "http://xyz.example.com"))
     }
 
     // MARK: - Form doğrulaması ağa çıkmadan
