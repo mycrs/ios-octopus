@@ -70,15 +70,20 @@ public struct PlayerScreen: View {
 
     let autoHideDelay: Duration
     let keepsControlsVisible: Bool
+    let previewsPictureInPictureButton: Bool
 
     public init(presentation: PlayerPresentation, dependencies: PlayerDependencies) {
 #if DEBUG
         keepsControlsVisible = ProcessInfo.processInfo.arguments.contains("-keepPlayerControls")
+        previewsPictureInPictureButton = ProcessInfo.processInfo.arguments.contains(
+            "-previewPictureInPictureButton"
+        )
         autoHideDelay = keepsControlsVisible
             ? .seconds(60)
             : .seconds(3.5)
 #else
         keepsControlsVisible = false
+        previewsPictureInPictureButton = false
         autoHideDelay = .seconds(3.5)
 #endif
         _viewModel = StateObject(

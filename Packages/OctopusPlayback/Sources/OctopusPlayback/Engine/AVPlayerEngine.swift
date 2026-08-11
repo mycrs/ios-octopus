@@ -256,6 +256,9 @@ public final class AVPlayerEngine: PlaybackEngine {
     }
 
     public func teardown() {
+        // Kullanıcı oynatıcıyı kapattıysa etkin küçük pencere de kapanır.
+        // Geri hareketi PiP'e dönüşmemeli ve oynatma arkada sürmemeli.
+        pictureInPictureController?.stopPictureInPicture()
         pictureInPictureController = nil
         trackDiscovery?.cancel()
         trackDiscovery = nil

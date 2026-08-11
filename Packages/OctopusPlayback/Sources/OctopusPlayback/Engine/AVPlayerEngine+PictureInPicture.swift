@@ -35,9 +35,10 @@ extension AVPlayerEngine {
             return
         }
 
-        // Kullanıcı uygulamadan çıkınca video kendiliğinden küçük pencereye
-        // geçsin — PiP'in beklenen davranışı bu; elle düğmeye basmak değil.
-        controller.canStartPictureInPictureAutomaticallyFromInline = true
+        // PiP yalnızca oynatıcıdaki düğmeyle başlar. Kullanıcının geri/Home
+        // hareketi normal gezinme davranışını korur ve videoyu küçültmez.
+        controller.canStartPictureInPictureAutomaticallyFromInline =
+            PictureInPicturePolicy.startsAutomaticallyFromInline
         pictureInPictureController = controller
     }
 

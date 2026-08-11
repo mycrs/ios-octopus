@@ -27,7 +27,7 @@ yedek sunucu listesi ve bakım/güncelleme kapısı panelden gelir.
 | Bayi altyapısı | Panel API (`/api/app-config`, `/api/activation/redeem`, `/api/dns-list`) | Marka, duyuru, failover uzaktan yönetilir |
 | Görsel dil | Android sürümüyle aynı kimlik, iOS'a özgü cila | Marka `#00B0FF`, koyu tema; SF Symbols + iOS tipografisi + haptik |
 | Dil | Türkçe + İngilizce | Varsayılan cihaz dili; Ayarlar'da Sistem/Türkçe/English seçimi anında ve kalıcı uygulanır |
-| Oynatma | AVPlayer **+** VLCKit | HLS → AVPlayer (PiP/AirPlay/arka plan). MPEG-TS/RTSP → VLCKit fallback |
+| Oynatma | AVPlayer **+** VLCKit | HLS → AVPlayer (film/bölümde yalnızca düğmeyle PiP, AirPlay, arka plan). MPEG-TS/RTSP → VLCKit fallback |
 | Min. platform | **iOS 16.0**, iPhone + iPad | Kapsam geniş |
 | Proje üretimi | **XcodeGen** (`project.yml`) | `.xcodeproj` git'e girmez → merge conflict yok, Windows'ta düzenlenebilir |
 | UI | SwiftUI, `NavigationStack` | iOS 16'da mevcut |
@@ -367,6 +367,9 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 > döner; kontrolör hiç kurulmaz ve düğme çıkmaz. Kod bu durumu sessizce
 > kabul ediyor — yani simülatörde "çalışmıyor" görünmesi normaldir.
 > Mac'te iPhone'a kurup doğrulanması gerekiyor.
+> PiP yalnızca film ve dizi bölümlerinde, kullanıcı üst çubuktaki düğmeye
+> bastığında başlar. Geri/Home hareketi otomatik PiP başlatmaz; canlı yayında
+> düğme gösterilmez.
 >
 > ⚠️ İki ayrı kavram karıştırılmamalı: `supportsPictureInPicture`
 > **motorun** yeteneği (VLC'de `false`), `isPictureInPicturePossible`

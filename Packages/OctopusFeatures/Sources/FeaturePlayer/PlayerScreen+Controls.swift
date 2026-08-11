@@ -25,7 +25,11 @@ extension PlayerScreen {
                     time: controller.time,
                     hasTracks: hasSelectableTracks,
                     showsAirPlay: controller.supportsAirPlay,
-                    showsPictureInPicture: controller.canUsePictureInPicture,
+                    showsPictureInPicture: PictureInPicturePolicy.canShowButton(
+                        for: item,
+                        engineIsReady: controller.canUsePictureInPicture
+                            || previewsPictureInPictureButton
+                    ),
                     canZap: viewModel.canZap,
                     videoFit: controller.videoFit,
                     rate: controller.rate,

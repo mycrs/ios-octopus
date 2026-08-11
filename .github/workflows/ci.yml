@@ -228,6 +228,16 @@ jobs:
           sleep 10
           xcrun simctl io booted screenshot screenshots/11-vod-denetimler.png
 
+          # PiP gerçek cihaz özelliğidir ve iOS simülatöründe desteklenmez.
+          # DEBUG önizlemesi yalnızca film/bölüm üst çubuğundaki manuel PiP
+          # düğmesinin yerleşimini görsel regresyona dahil eder.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -keepPlayerControls -previewPictureInPictureButton \
+            -startup.player "movie:demo#vod#0" >/dev/null
+          sleep 10
+          xcrun simctl io booted screenshot screenshots/12-vod-pip.png
+
           # 3) Dynamic Type — büyük erişilebilirlik yazı boyutu.
           #
           # Kod tabanında bunu ele alan neredeyse hiçbir şey yok
