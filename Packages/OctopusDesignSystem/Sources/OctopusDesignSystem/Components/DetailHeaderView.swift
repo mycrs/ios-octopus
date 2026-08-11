@@ -78,7 +78,7 @@ public struct DetailHeaderView<Actions: View>: View {
             .clipped()
             .overlay(scrim)
         .overlay(alignment: .bottomLeading) {
-            PosterView(url: posterURL, width: posterWidth)
+            PosterView(url: posterURL, width: posterWidth, fallbackTitle: title)
                 .shadow(color: .black.opacity(0.5), radius: 12, y: 4)
                 .padding(.horizontal, Theme.Spacing.md)
                 .offset(y: posterOverhang)

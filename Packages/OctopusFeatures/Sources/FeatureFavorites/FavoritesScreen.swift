@@ -120,6 +120,9 @@ public struct FavoritesScreen: View {
             }
             .padding(Theme.Spacing.md)
         }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 52)
+        }
     }
 
     private func section<Content: View>(
@@ -144,7 +147,7 @@ private struct FavoriteChannelRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: Theme.Spacing.md) {
-                ChannelLogoView(url: channel.logoURL, size: 40)
+                ChannelLogoView(url: channel.logoURL, size: 40, fallbackText: channel.name)
 
                 Text(channel.name)
                     .font(Theme.Typography.rowTitle)
@@ -178,7 +181,7 @@ private struct FavoritePoster: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                GridPosterView(url: posterURL)
+                GridPosterView(url: posterURL, fallbackTitle: title)
 
                 Text(title)
                     .font(Theme.Typography.caption)

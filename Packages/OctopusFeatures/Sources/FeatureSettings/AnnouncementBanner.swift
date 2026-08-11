@@ -19,27 +19,26 @@ public struct AnnouncementBanner: View {
     }
 
     public var body: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+        HStack(alignment: .center, spacing: Theme.Spacing.sm) {
             ZStack {
                 Circle().fill(brandColor.opacity(0.16))
                 Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(brandColor)
             }
-            .frame(width: 42, height: 42)
+            .frame(width: 36, height: 36)
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("YENİ BİLDİRİM")
                     .font(Theme.Typography.badge)
-                    .tracking(1)
+                    .tracking(0.8)
                     .foregroundColor(brandColor)
 
                 Text(announcement.message)
-                    .font(Theme.Typography.rowSubtitle)
+                    .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textPrimary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
             }
-            .padding(.top, Theme.Spacing.xs)
 
             Spacer(minLength: 0)
 
@@ -53,7 +52,8 @@ public struct AnnouncementBanner: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Duyuruyu kapat")
         }
-        .padding(Theme.Spacing.lg)
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
         .background(
             LinearGradient(
                 colors: [brandColor.opacity(0.13), Theme.Palette.surfaceElevated],
@@ -66,7 +66,7 @@ public struct AnnouncementBanner: View {
             RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
                 .stroke(brandColor.opacity(0.18), lineWidth: 1)
         }
-        .shadow(color: Color.black.opacity(0.18), radius: 14, y: 7)
+        .shadow(color: Color.black.opacity(0.24), radius: 18, y: 9)
         .accessibilityElement(children: .combine)
     }
 }

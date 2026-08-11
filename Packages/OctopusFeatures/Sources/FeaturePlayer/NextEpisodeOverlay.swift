@@ -10,7 +10,7 @@ struct NextEpisodeOverlay: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Text("Sıradaki bölüm")
                 .font(Theme.Typography.caption)
                 .foregroundStyle(Theme.Palette.accent)
@@ -31,22 +31,27 @@ struct NextEpisodeOverlay: View {
                 .font(Theme.Typography.caption)
                 .foregroundStyle(.white.opacity(0.68))
 
-            HStack(spacing: Theme.Spacing.sm) {
+            HStack(spacing: Theme.Spacing.xs) {
                 Button("İptal", action: onCancel)
                     .buttonStyle(.bordered)
                 Button("Şimdi oynat", action: onPlay)
                     .buttonStyle(.borderedProminent)
             }
             .tint(Theme.Palette.accent)
+            .controlSize(.small)
         }
-        .padding(Theme.Spacing.md)
-        .frame(maxWidth: 330, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
+        .frame(maxWidth: 320, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         .overlay {
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: 16)
                 .stroke(.white.opacity(0.14), lineWidth: 0.5)
         }
-        .padding(Theme.Spacing.lg)
+        .shadow(color: .black.opacity(0.28), radius: 18, y: 8)
+        // Zaman çizgisi ve süre etiketleri oynatılabilir kalmalı.
+        .padding(.trailing, Theme.Spacing.md)
+        .padding(.bottom, 74)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
     }
 }

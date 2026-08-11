@@ -262,5 +262,8 @@ public struct LiveScreen: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.sm)
         }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 52)
+        }
     }
 }

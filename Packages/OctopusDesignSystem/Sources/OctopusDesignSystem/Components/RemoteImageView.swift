@@ -66,20 +66,17 @@ public struct ChannelLogoView: View {
 
     private let url: URL?
     private let size: CGFloat
+    private let fallbackText: String?
 
-    public init(url: URL?, size: CGFloat = 48) {
+    public init(url: URL?, size: CGFloat = 48, fallbackText: String? = nil) {
         self.url = url
         self.size = size
+        self.fallbackText = fallbackText
     }
 
     public var body: some View {
         RemoteImageView(url: url, targetWidth: size) {
-            ZStack {
-                Theme.Palette.surfaceElevated
-                Image(systemName: "tv")
-                    .font(.system(size: size * 0.4))
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
+            MediaArtworkPlaceholder(title: fallbackText, symbol: "tv", compact: true)
         }
         .frame(width: size, height: size)
         .background(Theme.Palette.surfaceElevated)
@@ -92,20 +89,17 @@ public struct PosterView: View {
 
     private let url: URL?
     private let width: CGFloat
+    private let fallbackTitle: String?
 
-    public init(url: URL?, width: CGFloat = 110) {
+    public init(url: URL?, width: CGFloat = 110, fallbackTitle: String? = nil) {
         self.url = url
         self.width = width
+        self.fallbackTitle = fallbackTitle
     }
 
     public var body: some View {
         RemoteImageView(url: url, contentMode: .fill, targetWidth: width) {
-            ZStack {
-                Theme.Palette.surfaceElevated
-                Image(systemName: "film")
-                    .font(.system(size: width * 0.3))
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
+            MediaArtworkPlaceholder(title: fallbackTitle, symbol: "film.fill")
         }
         .frame(width: width, height: width / Theme.AspectRatio.poster)
         .clipped()
@@ -127,10 +121,16 @@ public struct GridPosterView: View {
 
     private let url: URL?
     private let cornerRadius: CGFloat
+    private let fallbackTitle: String?
 
-    public init(url: URL?, cornerRadius: CGFloat = Theme.Radius.md) {
+    public init(
+        url: URL?,
+        cornerRadius: CGFloat = Theme.Radius.md,
+        fallbackTitle: String? = nil
+    ) {
         self.url = url
         self.cornerRadius = cornerRadius
+        self.fallbackTitle = fallbackTitle
     }
 
     public var body: some View {
@@ -144,12 +144,7 @@ public struct GridPosterView: View {
                     // yeterli olan sabit bir üst sınır veriliyor.
                     targetWidth: 240
                 ) {
-                    ZStack {
-                        Theme.Palette.surfaceElevated
-                        Image(systemName: "film")
-                            .font(.title2)
-                            .foregroundColor(Theme.Palette.textTertiary)
-                    }
+                    MediaArtworkPlaceholder(title: fallbackTitle, symbol: "film.fill")
                 }
             )
             .clipped()

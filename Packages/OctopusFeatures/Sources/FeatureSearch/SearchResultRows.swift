@@ -14,7 +14,11 @@ struct SearchChannelCard: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 HStack(alignment: .top) {
-                    ChannelLogoView(url: channel.logoURL, size: 54)
+                    ChannelLogoView(
+                        url: channel.logoURL,
+                        size: 54,
+                        fallbackText: channel.name
+                    )
 
                     Spacer(minLength: 0)
 
@@ -80,7 +84,7 @@ struct SearchPoster: View {
     var body: some View {
         Button(action: onTap) {
             ZStack(alignment: .bottomLeading) {
-                PosterView(url: posterURL, width: 132)
+                PosterView(url: posterURL, width: 132, fallbackTitle: title)
 
                 LinearGradient(
                     colors: [.clear, Color.black.opacity(0.92)],

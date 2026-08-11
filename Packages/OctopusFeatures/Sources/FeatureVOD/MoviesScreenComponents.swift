@@ -13,7 +13,7 @@ struct MoviePosterCell: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                GridPosterView(url: movie.posterURL)
+                GridPosterView(url: movie.posterURL, fallbackTitle: movie.title)
                     .overlay(alignment: .topTrailing) {
                         if isFavorite {
                             Image(systemName: "heart.fill")

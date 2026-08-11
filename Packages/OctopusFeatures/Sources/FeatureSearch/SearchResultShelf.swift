@@ -34,6 +34,26 @@ struct SearchResultShelf<Content: View>: View {
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.bottom, Theme.Spacing.sm)
             }
+            .overlay(alignment: .trailing) {
+                if count > 2 {
+                    ZStack(alignment: .trailing) {
+                        LinearGradient(
+                            colors: [.clear, Theme.Palette.background.opacity(0.92)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .padding(.trailing, Theme.Spacing.sm)
+                    }
+                    .frame(width: 54)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
+            }
         }
     }
 
@@ -61,15 +81,6 @@ struct SearchResultShelf<Content: View>: View {
 
             Spacer(minLength: 0)
 
-            if count > 2 {
-                HStack(spacing: Theme.Spacing.xs) {
-                    Text("Kaydır")
-                    Image(systemName: "chevron.right")
-                }
-                .font(Theme.Typography.caption)
-                .foregroundColor(Theme.Palette.textTertiary)
-                .accessibilityLabel("Daha fazla içerik için sağa kaydır")
-            }
         }
         .padding(.horizontal, Theme.Spacing.md)
     }

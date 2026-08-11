@@ -25,16 +25,31 @@ struct PlayerLivePanel: View {
                         Button { onSelect(channel) } label: {
                             HStack(spacing: Theme.Spacing.sm) {
                                 channelLogo(channel)
-                                Text(channel.name)
-                                    .foregroundStyle(Theme.Palette.textPrimary)
-                                    .lineLimit(1)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(channel.name)
+                                        .font(Theme.Typography.rowTitle)
+                                        .foregroundStyle(Theme.Palette.textPrimary)
+                                        .lineLimit(1)
+                                    if let number = channel.number {
+                                        Text("#\(number)")
+                                            .font(Theme.Typography.caption)
+                                            .foregroundStyle(Theme.Palette.textSecondary)
+                                    }
+                                }
                                 Spacer()
                                 if channel.id == currentSource {
-                                    Image(systemName: "waveform")
+                                    Label("Oynatılıyor", systemImage: "waveform")
+                                        .labelStyle(.iconOnly)
                                         .foregroundStyle(Theme.Palette.accent)
                                 }
                             }
+                            .padding(.vertical, Theme.Spacing.xxs)
                         }
+                        .listRowBackground(
+                            channel.id == currentSource
+                                ? Theme.Palette.accent.opacity(0.10)
+                                : Theme.Palette.surface
+                        )
                         .accessibilityAddTraits(
                             channel.id == currentSource ? [.isSelected] : []
                         )
@@ -42,6 +57,13 @@ struct PlayerLivePanel: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.Palette.background)
+            // Yeni iOS sürümlerinde arama alanı alt kenarda yüzer. Son kanal
+            // arama çubuğunun arkasında kalmadan tamamen yukarı kayabilsin.
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 64)
+            }
             .navigationTitle("Canlı TV")
             .navigationBarTitleDisplayMode(.inline)
             .searchable(text: $searchText, prompt: "Kanal ara")
@@ -89,12 +111,17 @@ struct PlayerLivePanel: View {
                 Text(timeRange(program))
                     .font(Theme.Typography.caption)
                     .foregroundStyle(Theme.Palette.textSecondary)
+                if isCurrent {
+                    ProgressView(value: program.progress(at: .now))
+                        .progressViewStyle(.linear)
+                        .tint(Theme.Palette.accent)
+                }
             }
         }
     }
 
     private func channelLogo(_ channel: Channel) -> some View {
-        ChannelLogoView(url: channel.logoURL, size: 34)
+        ChannelLogoView(url: channel.logoURL, size: 38, fallbackText: channel.name)
     }
 
     private func timeRange(_ program: EPGProgram) -> String {

@@ -52,7 +52,7 @@ struct ResumeCard: View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 ZStack(alignment: .bottom) {
-                    PosterView(url: item.posterURL, width: 112)
+                    PosterView(url: item.posterURL, width: 112, fallbackTitle: item.title)
                         .homePosterChrome()
 
                     ProgressView(value: item.fraction)
@@ -88,7 +88,7 @@ struct RecentChannelCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: Theme.Spacing.sm) {
-                ChannelLogoView(url: channel.logoURL, size: 68)
+                ChannelLogoView(url: channel.logoURL, size: 68, fallbackText: channel.name)
 
                 Text(channel.name)
                     .font(Theme.Typography.caption)
@@ -120,7 +120,7 @@ struct RecentMovieCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                PosterView(url: movie.posterURL, width: 112)
+                PosterView(url: movie.posterURL, width: 112, fallbackTitle: movie.title)
                     .homePosterChrome()
                 Text(movie.title)
                     .font(Theme.Typography.caption)
@@ -146,7 +146,7 @@ struct RecentSeriesCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                PosterView(url: series.posterURL, width: 112)
+                PosterView(url: series.posterURL, width: 112, fallbackTitle: series.title)
                     .homePosterChrome()
                 Text(series.title)
                     .font(Theme.Typography.caption)

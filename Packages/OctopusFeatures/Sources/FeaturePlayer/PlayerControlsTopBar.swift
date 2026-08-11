@@ -66,8 +66,12 @@ struct PlayerControlsTopBar: View {
 
                 if showsAirPlay {
                     AirPlayButton()
+                        .frame(width: 38, height: 38)
+                        .background(.ultraThinMaterial, in: Circle())
+                        .overlay {
+                            Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
+                        }
                         .frame(width: 44, height: 44)
-                        .background(Circle().fill(.black.opacity(0.35)))
                         .accessibilityLabel("AirPlay")
                 }
 
@@ -141,18 +145,13 @@ struct PlayerControlsTopBar: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .background(controlBackground)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay {
+                    Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
+                }
         }
         .buttonStyle(.plain)
         .accessibilityLabel(AppLocalization.localized(label, locale: locale))
-    }
-
-    private var controlBackground: some View {
-        Circle()
-            .fill(.black.opacity(0.58))
-            .overlay {
-                Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
-            }
     }
 
     private func rateTitle(_ value: Float) -> String {

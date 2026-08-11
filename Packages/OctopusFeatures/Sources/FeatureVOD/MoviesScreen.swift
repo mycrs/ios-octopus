@@ -121,5 +121,8 @@ public struct MoviesScreen: View {
                     .padding(Theme.Spacing.lg)
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 52)
+        }
     }
 }

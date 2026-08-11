@@ -27,6 +27,8 @@ extension PlayerScreen {
                     isControlsLocked = false
                     scheduleControlsHide()
                 }
+                .padding(.leading, Theme.Spacing.md)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             } else if showsControls {
                 PlayerControlsOverlay(
                     title: item.title,

@@ -139,6 +139,9 @@ public struct SearchScreen: View {
             }
             .padding(.vertical, Theme.Spacing.md)
         }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 52)
+        }
     }
 }
 

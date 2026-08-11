@@ -26,7 +26,7 @@ struct ChannelRowView: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: Theme.Spacing.md) {
-                ChannelLogoView(url: channel.logoURL)
+                ChannelLogoView(url: channel.logoURL, fallbackText: channel.name)
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                     titleLine

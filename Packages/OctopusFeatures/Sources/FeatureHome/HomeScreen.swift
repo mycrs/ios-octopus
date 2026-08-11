@@ -156,6 +156,9 @@ public struct HomeScreen: View {
             // Hero kenara **ve** üste yapışık; alttaki raflar için nefes payı.
             .padding(.bottom, Theme.Spacing.lg)
         }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 52)
+        }
     }
 
     private var displayedAccount: HomeAccount? {

@@ -72,16 +72,19 @@ struct RootView: View {
 
     /// Sekmeler ve üstünde (varsa) panel duyurusu.
     private var mainContent: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .top) {
+            tabs
             if let announcement = displayedAnnouncement {
                 AnnouncementBanner(announcement: announcement) {
                     container.dismissAnnouncement()
                 }
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.top, Theme.Spacing.sm)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(1)
             }
-            tabs
         }
+        .animation(.easeInOut(duration: 0.25), value: displayedAnnouncement?.id)
     }
 
     private var displayedAnnouncement: Announcement? {

@@ -6,15 +6,6 @@ import XCTest
 @MainActor
 final class PlayerSurfaceViewControllerTests: XCTestCase {
 
-    func test_edgeControlImagesKeepOriginalRendering() {
-        for glyph in [PlayerEdgeGlyph.close, .options] {
-            let image = PlayerEdgeControlImage.image(for: glyph)
-            XCTAssertEqual(image.size, PlayerEdgeControlImage.size)
-            XCTAssertEqual(image.renderingMode, .alwaysOriginal)
-            XCTAssertNotNil(image.cgImage)
-        }
-    }
-
     func test_hostedOverlayKeepsRootStoreWhenContentChanges() {
         let store = PlayerHostedOverlayStore(
             content: Text("Bir"),
