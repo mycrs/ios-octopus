@@ -255,6 +255,18 @@ final class AppContainer: ObservableObject {
         await refreshRemoteConfig()
 
         #if DEBUG
+        // CI görsel denetimi: panelin kırmızı marka rengi seçtiği durumu
+        // gerçek tema zincirinden geçirir; üretim yapılandırmasını etkilemez.
+        if ProcessInfo.processInfo.arguments.contains("-startupRedBrand") {
+            themeController.apply(
+                branding: BrandConfiguration(
+                    primaryColorHex: "#FF3B30",
+                    resellerName: nil,
+                    logoURL: nil
+                )
+            )
+        }
+
         // Açılışta doğrudan oynatıcıyı açar. Onboarding gösteriliyorsa
         // atlanır — oynatacak kaynak yok.
         if !router.needsOnboarding {

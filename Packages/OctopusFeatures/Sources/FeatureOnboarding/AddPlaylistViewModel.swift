@@ -253,14 +253,14 @@ public final class AddPlaylistViewModel: ObservableObject {
         let isValid = await dependencies.applyResellerCode(code)
         guard isValid else {
             step = .form
-            errorMessage = "Bayi kodu doğrulanamadı. Kodu kontrol edip tekrar dene."
+            errorMessage = "Bilgiler doğrulanamadı. Girdiğini kontrol edip tekrar dene."
             return false
         }
 
         resellerServers = await dependencies.resellerServers()
         guard !resellerServers.isEmpty else {
             step = .form
-            errorMessage = "Bu bayi koduna tanımlı bir DNS bulunamadı. Bayinle iletişime geç."
+            errorMessage = "Bağlantı hazırlanamadı. Hizmet sağlayıcınla iletişime geç."
             return false
         }
         return true
@@ -412,8 +412,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         }
 
         step = .form
-        errorMessage = "Bayinin sunucularının hiçbirine bağlanılamadı. "
-            + "Bilgilerini kontrol et ya da bayine başvur."
+        errorMessage = "Bağlantı kurulamadı. Bilgilerini kontrol et veya hizmet sağlayıcınla iletişime geç."
         return nil
     }
 

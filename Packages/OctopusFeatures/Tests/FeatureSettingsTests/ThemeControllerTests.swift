@@ -84,10 +84,18 @@ final class ThemeControllerTests: XCTestCase {
     func test_panelDefaultRedIsNotApplied() {
         // Panel renk seçilmediğinde eski kırmızı varsayılanı gönderiyor.
         let controller = ThemeController(store: store)
-        controller.apply(branding: brand("#E53935"))
+        controller.apply(branding: brand("#E50914"))
 
         XCTAssertNil(controller.remoteColor)
         XCTAssertEqual(controller.accent, Theme.Palette.accent)
+    }
+
+    func test_adminSelectedRedIsApplied() {
+        let controller = ThemeController(store: store)
+        controller.apply(branding: brand("#FF3B30"))
+
+        XCTAssertNotNil(controller.remoteColor)
+        XCTAssertEqual(controller.accent, controller.remoteColor)
     }
 
     func test_invalidHexIsIgnored() {

@@ -103,9 +103,9 @@ public struct BrandConfiguration: Equatable, Sendable {
 
     /// Panelden gelen rengin uygulanabilir olup olmadığı.
     ///
-    /// ⚠️ Android sürümünden taşınan incelikli kural: eski panel varsayılanı
-    /// **doygun kırmızı** ve bu, uygulamanın mavi kimliğini eziyor. Panel
-    /// gerçekten renk seçmemişse kırmızı gönderiyor; bu durumda yok sayılır.
+    /// ⚠️ Eski panel renk seçilmediğinde sabit `#E50914` gönderiyor. Yalnızca
+    /// bu bilinen varsayılan yok sayılır; adminin bilinçli seçtiği diğer
+    /// kırmızılar da dahil bütün geçerli renkler uygulanır.
     public var effectiveColorHex: String? {
         guard let hex = primaryColorHex?.trimmingCharacters(in: .whitespaces),
               let rgb = Self.parseHex(hex),
@@ -125,30 +125,13 @@ public struct BrandConfiguration: Equatable, Sendable {
         )
     }
 
-    /// Doygun kırmızı ailesi (yaklaşık 345°–18° ton) "renk seçilmemiş" sayılır.
+    /// Yalnızca eski panelin bilinen `#E50914` varsayılanını ayıklar.
     static func isPanelRedDefault(_ rgb: (r: Double, g: Double, b: Double)) -> Bool {
-        let maxValue = max(rgb.r, rgb.g, rgb.b)
-        let minValue = min(rgb.r, rgb.g, rgb.b)
-        let delta = maxValue - minValue
-
-        guard maxValue > 0 else { return false }
-        let saturation = delta / maxValue
-        guard saturation >= 0.45, maxValue >= 0.35 else { return false }
-        guard rgb.r > rgb.g, rgb.r > rgb.b, abs(rgb.r - rgb.b) >= 0.08 else { return false }
-
-        var hue: Double
-        if delta == 0 {
-            hue = 0
-        } else if maxValue == rgb.r {
-            hue = 60 * (((rgb.g - rgb.b) / delta).truncatingRemainder(dividingBy: 6))
-        } else if maxValue == rgb.g {
-            hue = 60 * (((rgb.b - rgb.r) / delta) + 2)
-        } else {
-            hue = 60 * (((rgb.r - rgb.g) / delta) + 4)
-        }
-        if hue < 0 { hue += 360 }
-
-        return hue <= 18 || hue >= 345
+        let legacy = (r: 229.0 / 255.0, g: 9.0 / 255.0, b: 20.0 / 255.0)
+        let tolerance = 0.000_1
+        return abs(rgb.r - legacy.r) < tolerance
+            && abs(rgb.g - legacy.g) < tolerance
+            && abs(rgb.b - legacy.b) < tolerance
     }
 }
 

@@ -69,7 +69,7 @@ extension RootView {
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button("Vazgeç") { router.dismissSheet() }
-                            .tint(Theme.Palette.accent)
+                            .tint(container.themeController.accent)
                     }
                 }
             }

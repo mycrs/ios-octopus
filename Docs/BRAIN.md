@@ -470,7 +470,7 @@ susmuşsa global değer korunur (`RemoteAppConfig.applying(_:)`).
 ⚠️ **Panel varsayılan kırmızısı** (`#E50914`): panel, bayi renk seçmemiş
 olsa da bu değeri gönderiyor. Ham uygulanırsa her bayi kırmızı olur ve
 uygulamanın kimliği kaybolur — `BrandConfiguration.effectiveColorHex`
-bu ton ailesini eler.
+yalnızca bu bilinen eski varsayılan değeri eler; seçilmiş diğer kırmızılar uygulanır.
 
 ⚠️ **iOS ayrı bir platform**: `platform_ios_enabled`, Android'in
 `platform_mobile_enabled` bayrağından bağımsız. Bayilerin çoğu App Store

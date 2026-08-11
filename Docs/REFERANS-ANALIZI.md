@@ -32,9 +32,9 @@ SF Symbols, iOS tipografisi, akıcı geçişler ve haptik geri bildirim kullanı
 - Kullanıcı renk seçimi: Default · Purple `#E040FB` · Green `#00E676` · Orange `#FF9100`
 - **Bayi marka rengi**: panelden gelen `primary_color` kullanıcı "Default"tayken uygulanır
 
-> 🔎 Referanstaki incelikli kural: panelden gelen **doygun kırmızı** tonlar
-> "renk seçilmemiş" sayılıp yok sayılıyor (eski panel varsayılanı kırmızıymış ve
-> uygulamanın mavi kimliğini eziyormuş). Aynı korumayı biz de uygulayacağız.
+> 🔎 Eski panelin renk seçilmediğinde gönderdiği tam `#E50914` değeri
+> yok sayılır. Adminin bilinçli seçtiği diğer kırmızılar dahil bütün geçerli
+> marka renkleri uygulanır.
 
 ---
 

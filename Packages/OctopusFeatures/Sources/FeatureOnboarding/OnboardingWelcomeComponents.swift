@@ -5,10 +5,11 @@ struct OnboardingBackgroundGlow: View {
     let opacity: Double
     let center: UnitPoint
     let endRadius: CGFloat
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         RadialGradient(
-            colors: [Theme.Palette.accent.opacity(opacity), .clear],
+            colors: [brandColor.opacity(opacity), .clear],
             center: center,
             startRadius: 0,
             endRadius: endRadius
@@ -21,6 +22,7 @@ struct OnboardingBackgroundGlow: View {
 struct OnboardingWelcomeBrand: View {
     let brandName: String
     let logoURL: URL?
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         VStack(spacing: Theme.Spacing.md) {
@@ -48,7 +50,7 @@ struct OnboardingWelcomeBrand: View {
             }
             .frame(width: 92, height: 92)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: Theme.Palette.accent.opacity(0.18), radius: 24, y: 10)
+            .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
         } else {
             defaultMark
         }
@@ -64,19 +66,21 @@ struct OnboardingWelcomeBrand: View {
                 }
 
             Circle()
-                .fill(Theme.Palette.accent.opacity(0.13))
+                .fill(brandColor.opacity(0.13))
                 .frame(width: 64, height: 64)
 
             Image(systemName: "antenna.radiowaves.left.and.right")
                 .font(.system(size: 38, weight: .medium))
-                .foregroundColor(Theme.Palette.accent)
+                .foregroundColor(brandColor)
         }
         .frame(width: 92, height: 92)
-        .shadow(color: Theme.Palette.accent.opacity(0.18), radius: 24, y: 10)
+        .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
     }
 }
 
 struct OnboardingCapabilities: View {
+    @Environment(\.brandColor) private var brandColor
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             capability("tv", "Canlı TV", "Kategoriler, favoriler ve yayın akışı")
@@ -96,7 +100,7 @@ struct OnboardingCapabilities: View {
         HStack(spacing: Theme.Spacing.md) {
             Image(systemName: icon)
                 .font(.system(size: 18))
-                .foregroundColor(Theme.Palette.accent)
+                .foregroundColor(brandColor)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
@@ -117,12 +121,13 @@ struct OnboardingCapabilities: View {
 struct OnboardingResellerCodeButton: View {
     let savedCode: String?
     let action: () -> Void
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: Theme.Spacing.sm) {
                 Image(systemName: "person.badge.key")
-                    .foregroundColor(Theme.Palette.accent)
+                    .foregroundColor(brandColor)
                 Text(savedCode == nil ? "Hizmet sağlayıcımı bağla" : "Marka bağlantısı aktif")
                 Spacer(minLength: Theme.Spacing.sm)
                 Image(systemName: "chevron.right")

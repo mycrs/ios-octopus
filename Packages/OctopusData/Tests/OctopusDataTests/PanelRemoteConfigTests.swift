@@ -112,7 +112,7 @@ final class PanelRemoteConfigTests: XCTestCase {
     func test_panelDefaultRedIsIgnoredEndToEnd() async {
         // Panel renk seçilmediğinde eski kırmızı varsayılanı gönderiyor;
         // bu, uygulamanın mavi kimliğini ezmemeli.
-        let service = makeService { self.json(##"{"theme":{"primary_color":"#E53935"}}"##) }
+        let service = makeService { self.json(##"{"theme":{"primary_color":"#E50914"}}"##) }
         let config = await service.refresh()
         XCTAssertNil(config?.branding.effectiveColorHex)
     }

@@ -11,6 +11,7 @@ struct SyncOverlayView: View {
 
     let step: AddPlaylistViewModel.Step
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.brandColor) private var brandColor
     @State private var isPulsing = false
 
     var body: some View {
@@ -28,7 +29,7 @@ struct SyncOverlayView: View {
                     Text(eyebrow)
                         .font(Theme.Typography.badge)
                         .tracking(1.2)
-                        .foregroundColor(Theme.Palette.accent)
+                        .foregroundColor(brandColor)
 
                     Text(title)
                         .font(Theme.Typography.sectionTitle)
@@ -67,7 +68,7 @@ struct SyncOverlayView: View {
     private var indicator: some View {
         ZStack {
             Circle()
-                .fill(Theme.Palette.accent.opacity(0.10))
+                .fill(brandColor.opacity(0.10))
                 .frame(width: 104, height: 104)
                 .scaleEffect(isPulsing && !reduceMotion ? 1.10 : 0.96)
                 .opacity(isPulsing && !reduceMotion ? 0.42 : 1)
@@ -84,7 +85,7 @@ struct SyncOverlayView: View {
                 Circle()
                     .trim(from: 0, to: max(fraction, 0.04))
                     .stroke(
-                        Theme.Palette.accent,
+                        brandColor,
                         style: StrokeStyle(lineWidth: 6, lineCap: .round)
                     )
                     .rotationEffect(.degrees(-90))
@@ -97,7 +98,7 @@ struct SyncOverlayView: View {
                     .monospacedDigit()
             } else {
                 ProgressView()
-                    .tint(Theme.Palette.accent)
+                    .tint(brandColor)
                     .scaleEffect(1.15)
             }
         }
@@ -111,7 +112,7 @@ struct SyncOverlayView: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [Theme.Palette.accent, Theme.Palette.success],
+                                colors: [brandColor, Theme.Palette.success],
                                 startPoint: .leading,
                                 endPoint: .trailing
                             )
@@ -137,8 +138,8 @@ struct SyncOverlayView: View {
 
     private var title: String {
         switch step {
-        case .searchingServer(let index, let total):
-            return "Sunucu aranıyor (\(index)/\(total))"
+        case .searchingServer:
+            return "Bağlantı hazırlanıyor"
         case .validating:
             return "Bağlantı sınanıyor"
         case .syncing(let stage):
@@ -159,10 +160,9 @@ struct SyncOverlayView: View {
     private var detail: String? {
         switch step {
         case .searchingServer:
-            return "Bayinin sunucuları sırayla deneniyor. Hesabının çalıştığı "
-                + "sunucu bulununca kurulum kendiliğinden sürecek."
+            return "Bilgilerin kontrol ediliyor. Bu işlem kısa sürebilir."
         case .validating:
-            return "Sunucuya erişiliyor ve hesap bilgilerin doğrulanıyor."
+            return "Bilgilerin güvenli şekilde doğrulanıyor."
         case .syncing:
             return "İlk kurulum biraz sürebilir. Büyük listelerde bu adım uzun olabilir."
         case .form, .done:

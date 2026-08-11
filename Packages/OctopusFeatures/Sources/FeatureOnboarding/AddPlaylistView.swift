@@ -7,6 +7,7 @@ public struct AddPlaylistView: View {
 
     @StateObject private var viewModel: AddPlaylistViewModel
     private let onFinished: () -> Void
+    @Environment(\.brandColor) private var brandColor
 
     @FocusState private var focusedField: Field?
 
@@ -118,23 +119,19 @@ public struct AddPlaylistView: View {
                 .focused($focusedField, equals: .code)
 
                 InlineMessageView(
-                    text: "Bayinden aldığın kodu gir. Sunucu adresi ve parola otomatik ayarlanır.",
+                    text: "Kodun doğrulandığında hesabın otomatik olarak hazırlanır.",
                     kind: .info
                 )
 
             case .xtream:
                 FormFieldView(
-                    title: "DNS adresi veya bayi kodu",
-                    placeholder: "http://panel.example.com:8080 veya 8811",
+                    title: "DNS adresi",
+                    placeholder: "http://panel.example.com:8080",
                     text: $viewModel.host,
-                    icon: viewModel.isResellerCodeInput ? "person.badge.key.fill" : "network",
+                    icon: "network",
                     contentType: .URL
                 )
                 .focused($focusedField, equals: .host)
-
-                if viewModel.isResellerCodeInput {
-                    ResellerQuickLoginIntro()
-                }
 
                 FormFieldView(
                     title: "Kullanıcı adı",
@@ -187,14 +184,19 @@ public struct AddPlaylistView: View {
             }
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Palette.surface.opacity(0.58))
+        .background {
+            LinearGradient(
+                colors: [brandColor.opacity(0.055), Theme.Palette.surface.opacity(0.7)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(brandColor.opacity(0.14), lineWidth: 1)
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.sourceKind)
-        .animation(.easeInOut(duration: 0.2), value: viewModel.isResellerCodeInput)
         .disabled(viewModel.step.isBusy)
     }
 

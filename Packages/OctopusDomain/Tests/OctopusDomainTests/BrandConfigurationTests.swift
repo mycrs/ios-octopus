@@ -19,22 +19,22 @@ final class BrandConfigurationTests: XCTestCase {
         XCTAssertEqual(brand("00E676").effectiveColorHex, "#00E676", "Diyez olmadan da kabul edilmeli")
         XCTAssertEqual(brand("#E040FB").effectiveColorHex, "#E040FB")
         XCTAssertEqual(brand("#FF9100").effectiveColorHex, "#FF9100", "Turuncu kırmızı sayılmamalı")
+        XCTAssertEqual(brand("#FF3B30").effectiveColorHex, "#FF3B30", "Seçilmiş kırmızı uygulanmalı")
+        XCTAssertEqual(brand("#FF0000").effectiveColorHex, "#FF0000", "Saf kırmızı uygulanmalı")
     }
 
     // MARK: - Panel varsayılanı kırmızı yok sayılır
 
-    func test_saturatedRedIsIgnoredAsPanelDefault() {
-        for red in ["#FF0000", "#E53935", "#D32F2F", "#B3261E"] {
-            XCTAssertNil(
-                brand(red).effectiveColorHex,
-                "\(red) panel varsayılanı sayılıp yok sayılmalıydı"
-            )
-        }
+    func test_onlyLegacyPanelRedIsIgnoredAsDefault() {
+        XCTAssertNil(brand("#E50914").effectiveColorHex)
+        XCTAssertNil(brand("e50914").effectiveColorHex)
+        XCTAssertEqual(brand("#E53935").effectiveColorHex, "#E53935")
+        XCTAssertEqual(brand("#D32F2F").effectiveColorHex, "#D32F2F")
+        XCTAssertEqual(brand("#B3261E").effectiveColorHex, "#B3261E")
     }
 
     func test_desaturatedOrDarkRedsAreNotTreatedAsDefault() {
-        // Bayi bilinçli olarak soluk veya koyu bir kırmızı seçmiş olabilir;
-        // kural yalnızca DOYGUN ve PARLAK kırmızıyı hedefler.
+        // Bayi bilinçli olarak soluk veya koyu bir kırmızı seçmiş olabilir.
         XCTAssertNotNil(brand("#8B5A5A").effectiveColorHex, "Soluk kırmızı kullanıcı seçimi olabilir")
         XCTAssertNotNil(brand("#3D1010").effectiveColorHex, "Çok koyu kırmızı kullanıcı seçimi olabilir")
     }

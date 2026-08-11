@@ -13,6 +13,7 @@ public struct FormFieldView: View {
     private let isSecure: Bool
     private let contentType: UITextContentType?
     @State private var revealsSecureText = false
+    @Environment(\.brandColor) private var brandColor
 
     public init(
         title: String,
@@ -40,7 +41,7 @@ public struct FormFieldView: View {
                 if let icon {
                     Image(systemName: icon)
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Theme.Palette.accent)
+                        .foregroundColor(brandColor)
                         .frame(width: 22)
                         .accessibilityHidden(true)
                 }
@@ -95,13 +96,6 @@ public struct InlineMessageView: View {
         case error
         case info
 
-        var color: Color {
-            switch self {
-            case .error: return Theme.Palette.error
-            case .info: return Theme.Palette.accent
-            }
-        }
-
         var icon: String {
             switch self {
             case .error: return "exclamationmark.circle.fill"
@@ -112,20 +106,28 @@ public struct InlineMessageView: View {
 
     private let text: String
     private let kind: Kind
+    @Environment(\.brandColor) private var brandColor
 
     public init(text: String, kind: Kind) {
         self.text = text
         self.kind = kind
     }
 
+    private var presentationColor: Color {
+        switch kind {
+        case .error: return Theme.Palette.error
+        case .info: return brandColor
+        }
+    }
+
     public var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             ZStack {
                 Circle()
-                    .fill(kind.color.opacity(0.15))
+                    .fill(presentationColor.opacity(0.15))
                 Image(systemName: kind.icon)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(kind.color)
+                    .foregroundColor(presentationColor)
             }
             .frame(width: 30, height: 30)
 
@@ -137,11 +139,11 @@ public struct InlineMessageView: View {
             Spacer(minLength: 0)
         }
         .padding(Theme.Spacing.md)
-        .background(kind.color.opacity(0.09))
+        .background(presentationColor.opacity(0.09))
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                .stroke(kind.color.opacity(0.22), lineWidth: 1)
+                .stroke(presentationColor.opacity(0.22), lineWidth: 1)
         }
     }
 }

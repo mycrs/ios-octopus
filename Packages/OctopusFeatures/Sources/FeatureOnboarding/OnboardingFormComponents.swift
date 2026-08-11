@@ -3,14 +3,16 @@ import OctopusDomain
 import OctopusDesignSystem
 
 struct OnboardingHeroHeader: View {
+    @Environment(\.brandColor) private var brandColor
+
     var body: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.md) {
             ZStack {
                 RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                    .fill(Theme.Palette.accentMuted)
+                    .fill(brandColor.opacity(0.16))
                 Image(systemName: "checkmark.shield.fill")
                     .font(.system(size: 23, weight: .semibold))
-                    .foregroundColor(Theme.Palette.accent)
+                    .foregroundColor(brandColor)
             }
             .frame(width: 52, height: 52)
 
@@ -18,7 +20,7 @@ struct OnboardingHeroHeader: View {
                 Text("GÜVENLİ KURULUM")
                     .font(Theme.Typography.badge)
                     .tracking(1.1)
-                    .foregroundColor(Theme.Palette.accent)
+                    .foregroundColor(brandColor)
 
                 Text("Kaynak ekle")
                     .font(Theme.Typography.screenTitle)
@@ -32,6 +34,7 @@ struct OnboardingHeroHeader: View {
 struct OnboardingSourcePicker: View {
     let kinds: [AddPlaylistViewModel.SourceKind]
     @Binding var selection: AddPlaylistViewModel.SourceKind
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         HStack(spacing: Theme.Spacing.xs) {
@@ -53,7 +56,7 @@ struct OnboardingSourcePicker: View {
                     }
                     .foregroundColor(isSelected ? Theme.Palette.textPrimary : Theme.Palette.textSecondary)
                     .frame(maxWidth: .infinity, minHeight: 42)
-                    .background(isSelected ? Theme.Palette.surfaceElevated : .clear)
+                    .background(isSelected ? brandColor.opacity(0.16) : .clear)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
                     .shadow(color: isSelected ? Color.black.opacity(0.24) : .clear, radius: 8, y: 3)
                 }
@@ -72,13 +75,15 @@ struct OnboardingSourcePicker: View {
 }
 
 struct ActivationCodeIntro: View {
+    @Environment(\.brandColor) private var brandColor
+
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             ZStack {
-                Circle().fill(Theme.Palette.accentMuted)
+                Circle().fill(brandColor.opacity(0.16))
                 Image(systemName: "key.horizontal.fill")
                     .font(.system(size: 19, weight: .semibold))
-                    .foregroundColor(Theme.Palette.accent)
+                    .foregroundColor(brandColor)
             }
             .frame(width: 46, height: 46)
 
@@ -86,32 +91,7 @@ struct ActivationCodeIntro: View {
                 Text("Tek kodla hazır")
                     .font(Theme.Typography.rowTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
-                Text("Sunucu ve hesap bilgilerin güvenli şekilde otomatik tanımlanır.")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Palette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-struct ResellerQuickLoginIntro: View {
-    var body: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            ZStack {
-                Circle().fill(Theme.Palette.accentMuted)
-                Image(systemName: "bolt.shield.fill")
-                    .font(.system(size: 19, weight: .semibold))
-                    .foregroundColor(Theme.Palette.accent)
-            }
-            .frame(width: 46, height: 46)
-
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("Bayi hızlı giriş")
-                    .font(Theme.Typography.rowTitle)
-                    .foregroundColor(Theme.Palette.textPrimary)
-                Text("Koduna tanımlı DNS adresleri güvenli şekilde arka planda sırayla denenir.")
+                Text("Hesabın güvenli şekilde otomatik olarak hazırlanır.")
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -125,6 +105,7 @@ struct OnboardingSubmitButton: View {
     let title: String
     let isEnabled: Bool
     let action: () -> Void
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         Button {
@@ -142,14 +123,14 @@ struct OnboardingSubmitButton: View {
             .foregroundColor(.white)
             .background(
                 LinearGradient(
-                    colors: [Theme.Palette.accent, Theme.Palette.accent.opacity(0.72)],
+                    colors: [brandColor, brandColor.opacity(0.72)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
             .shadow(
-                color: isEnabled ? Theme.Palette.accent.opacity(0.25) : .clear,
+                color: isEnabled ? brandColor.opacity(0.28) : .clear,
                 radius: 16,
                 y: 8
             )

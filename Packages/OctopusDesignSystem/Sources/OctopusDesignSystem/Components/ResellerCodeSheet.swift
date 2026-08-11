@@ -33,6 +33,7 @@ public struct ResellerCodeSheet: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.brandColor) private var brandColor
 
     @State private var code: String = ""
     @State private var phase: Phase = .editing
@@ -78,7 +79,7 @@ public struct ResellerCodeSheet: View {
         VStack(spacing: Theme.Spacing.sm) {
             Image(systemName: "person.badge.key")
                 .font(.system(size: 40))
-                .foregroundColor(Theme.Palette.accent)
+                .foregroundColor(brandColor)
 
             Text("Hizmet sağlayıcından aldığın kodu veya bağlantıyı yapıştır. "
                  + "Logo, renk ve bağlantı bilgilerin otomatik ayarlanır.")
@@ -119,7 +120,7 @@ public struct ResellerCodeSheet: View {
 
         case .checking:
             HStack(spacing: Theme.Spacing.sm) {
-                ProgressView().tint(Theme.Palette.accent)
+                ProgressView().tint(brandColor)
                 Text("Bağlantı kontrol ediliyor").font(Theme.Typography.caption)
             }
             .foregroundColor(Theme.Palette.textSecondary)
@@ -146,7 +147,7 @@ public struct ResellerCodeSheet: View {
                     .padding(.vertical, Theme.Spacing.md)
             }
             .buttonStyle(.borderedProminent)
-            .tint(Theme.Palette.accent)
+            .tint(brandColor)
             .disabled(phase == .checking || ResellerConfig.normalizeCode(code) == nil)
 
             // Kayıtlı kod varsa kaldırma yolu da olmalı: bayi değiştiren
