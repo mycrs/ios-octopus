@@ -25,21 +25,21 @@ struct HomeBrandLogo: View {
     let logoURL: URL?
     let size: CGFloat
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            if let logoURL {
-                RemoteImageView(url: logoURL, contentMode: .fit, targetWidth: size * 2) {
-                    fallback
-                }
-            } else {
+        if let logoURL {
+            RemoteImageView(url: logoURL, contentMode: .fit, targetWidth: size * 2) {
                 fallback
             }
-        }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
+            }
+        } else {
+            fallback
+                .frame(width: size, height: size)
         }
     }
 

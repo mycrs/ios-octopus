@@ -59,11 +59,6 @@ struct OnboardingWelcomeBrand: View {
     private var defaultMark: some View {
         DefaultBrandLogoView()
         .frame(width: 92, height: 92)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
-        }
         .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
     }
 }

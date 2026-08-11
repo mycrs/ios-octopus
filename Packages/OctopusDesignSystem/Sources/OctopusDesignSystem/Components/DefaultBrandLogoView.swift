@@ -8,6 +8,6 @@ public struct DefaultBrandLogoView: View {
     public var body: some View {
         Image("OctopusDefaultLogo")
             .resizable()
-            .scaledToFill()
+            .scaledToFit()
     }
 }
