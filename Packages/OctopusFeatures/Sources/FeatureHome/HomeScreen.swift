@@ -157,7 +157,7 @@ public struct HomeScreen: View {
             .padding(.bottom, Theme.Spacing.lg)
         }
         .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 52)
+            Theme.Palette.background.frame(height: 64)
         }
     }
 

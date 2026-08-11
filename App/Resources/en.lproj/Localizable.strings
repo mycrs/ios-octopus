@@ -344,6 +344,7 @@
 
 /* Advanced player */
 "Sıradaki bölüm" = "Up next";
+"İptal" = "Cancel";
 "%@ · %ld sn sonra oynatılacak" = "%1$@ · Playing in %2$ld sec";
 "Şimdi oynat" = "Play now";
 "Oynatıcı kilidini aç" = "Unlock player";

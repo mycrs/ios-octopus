@@ -122,7 +122,7 @@ public struct MoviesScreen: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 52)
+            Theme.Palette.background.frame(height: 64)
         }
     }
 }

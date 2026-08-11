@@ -62,11 +62,15 @@ struct PlayerLivePanel: View {
             // Yeni iOS sürümlerinde arama alanı alt kenarda yüzer. Son kanal
             // arama çubuğunun arkasında kalmadan tamamen yukarı kayabilsin.
             .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: 64)
+                Theme.Palette.background.frame(height: Theme.Spacing.md)
             }
             .navigationTitle("Canlı TV")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "Kanal ara")
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Kanal ara"
+            )
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Bitti") { dismiss() }
@@ -101,7 +105,7 @@ struct PlayerLivePanel: View {
         isCurrent: Bool
     ) -> some View {
         HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            Text(label)
+            Text(AppLocalization.localized(label, locale: locale))
                 .font(Theme.Typography.caption)
                 .foregroundStyle(isCurrent ? Theme.Palette.accent : Theme.Palette.textSecondary)
                 .frame(width: 52, alignment: .leading)
