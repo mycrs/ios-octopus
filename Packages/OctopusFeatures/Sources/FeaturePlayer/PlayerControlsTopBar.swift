@@ -28,54 +28,66 @@ struct PlayerControlsTopBar: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-            PlayerEdgeControl(
-                glyph: .close,
-                label: "Oynatıcıyı kapat",
-                action: onClose
-            )
-            .frame(width: 44, height: 44)
+        GeometryReader { geometry in
+            HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+                PlayerEdgeControl(
+                    glyph: .close,
+                    label: "Oynatıcıyı kapat",
+                    action: onClose
+                )
+                .frame(width: 44, height: 44)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(Theme.Typography.sectionTitle)
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                if let subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(Theme.Typography.caption)
-                        .foregroundColor(.white.opacity(0.75))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(Theme.Typography.sectionTitle)
+                        .foregroundColor(.white)
                         .lineLimit(1)
                         .truncationMode(.tail)
+
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(.white.opacity(0.75))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
                 }
-            }
-            // Sağdaki sistem denetimlerine sabit alan bırak; uzun başlık dar
-            // iPhone'da çarpı/PiP/AirPlay/seçenek düğmelerini dışarı itmesin.
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(-1)
+                // Ekranın gerçek genişliğinden sabit denetimleri çıkar. SwiftUI'ın
+                // ideal genişliği başlığı büyütüp kenarları kırpamasın.
+                .frame(width: titleWidth(in: geometry.size.width), alignment: .leading)
 
-            if showsPictureInPicture {
-                iconButton(
-                    systemName: "pip.enter",
-                    label: "Resim içinde resim",
-                    action: onPictureInPicture
-                )
-            }
+                if showsPictureInPicture {
+                    iconButton(
+                        systemName: "pip.enter",
+                        label: "Resim içinde resim",
+                        action: onPictureInPicture
+                    )
+                }
 
-            if showsAirPlay {
-                AirPlayButton()
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(.black.opacity(0.35)))
-                    .accessibilityLabel("AirPlay")
-            }
+                if showsAirPlay {
+                    AirPlayButton()
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(.black.opacity(0.35)))
+                        .accessibilityLabel("AirPlay")
+                }
 
-            optionsControl
+                optionsControl
+            }
+            .frame(width: geometry.size.width, height: 44, alignment: .leading)
         }
-        .frame(maxWidth: .infinity)
+        .frame(height: 44)
         // PiP sistem düğmesi de koyu video üstünde beyaz kalmalı.
         .tint(.white)
+    }
+
+    private func titleWidth(in totalWidth: CGFloat) -> CGFloat {
+        let fixedControlCount = 2
+            + (showsPictureInPicture ? 1 : 0)
+            + (showsAirPlay ? 1 : 0)
+        let controlsWidth = CGFloat(fixedControlCount) * 44
+        // Başlık da bir HStack öğesi olduğundan boşluk sayısı denetim sayısıdır.
+        let spacingWidth = CGFloat(fixedControlCount) * Theme.Spacing.sm
+        return max(totalWidth - controlsWidth - spacingWidth, 0)
     }
 
     private var optionsControl: some View {
