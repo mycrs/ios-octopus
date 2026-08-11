@@ -1,5 +1,6 @@
 import SwiftUI
 import OctopusDomain
+import OctopusDesignSystem
 import OctopusPlayback
 
 /// Oynatıcı denetimlerinin bağlanması ve görünürlüğü.
