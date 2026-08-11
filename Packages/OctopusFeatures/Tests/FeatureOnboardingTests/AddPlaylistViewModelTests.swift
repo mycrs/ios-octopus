@@ -279,7 +279,10 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertTrue(playlists.addedPlaylists.isEmpty)
         let message = viewModel.errorMessage ?? ""
         XCTAssertTrue(message.contains("süresi dolmuş"), "Beklenen mesaj gelmedi: \(message)")
-        XCTAssertTrue(message.contains("bayi"), "Kullanıcı ne yapacağını bilmeli: \(message)")
+        XCTAssertTrue(
+            message.contains("hizmet sağlayıcın"),
+            "Kullanıcı ne yapacağını bilmeli: \(message)"
+        )
     }
 
     func test_activationCode_requiresMinimumLength() {
