@@ -111,7 +111,7 @@ struct ResellerQuickLoginIntro: View {
                 Text("Bayi hızlı giriş")
                     .font(Theme.Typography.rowTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
-                Text("Sunucun güvenli şekilde otomatik seçilir. Yalnızca hesap bilgilerini girmen yeterli.")
+                Text("Koduna tanımlı DNS adresleri güvenli şekilde arka planda sırayla denenir.")
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

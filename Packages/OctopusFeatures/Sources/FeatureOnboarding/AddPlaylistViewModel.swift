@@ -10,6 +10,20 @@ import OctopusDesignSystem   // AppError.userMessage sunum uzantısı
 @MainActor
 public final class AddPlaylistViewModel: ObservableObject {
 
+    public enum XtreamLoginMode: String, CaseIterable, Identifiable, Sendable {
+        case dns
+        case resellerCode
+
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .dns: return "DNS adresi"
+            case .resellerCode: return "Bayi kodu"
+            }
+        }
+    }
+
     public enum SourceKind: String, CaseIterable, Identifiable, Sendable {
         /// Bayi kodu en başta: müşterilerin çoğu sunucu adresi değil kod alıyor.
         case activationCode
@@ -60,16 +74,16 @@ public final class AddPlaylistViewModel: ObservableObject {
         sourceKind = .activationCode
     }
 
-    /// Bayi sunucularını yükler.
-    ///
-    /// Tek sunucu varsa **kendiliğinden seçilir**: kullanıcıya tek seçenekli
-    /// bir liste sunup "seç" demek gereksiz bir adım.
-    public func loadResellerServers() async {
-        resellerServers = await dependencies.resellerServers()
-        didLoadResellerServers = true
+    /// Daha önce doğrulanmış bir bayi kodu varsa hızlı giriş modunu hazırlar.
+    /// Yeni kullanıcıda varsayılan her zaman normal DNS girişidir.
+    public func prepareXtreamLogin() async {
+        guard let savedCode = await dependencies.savedResellerCode(),
+              let normalized = ResellerConfig.normalizeCode(savedCode)
+        else { return }
 
-        guard host.isEmpty, let only = resellerServers.first, resellerServers.count == 1 else { return }
-        select(server: only)
+        resellerCode = normalized
+        xtreamLoginMode = .resellerCode
+        resellerServers = await dependencies.resellerServers()
     }
 
     /// Seçilen sunucunun adresini forma yazar.
@@ -78,7 +92,6 @@ public final class AddPlaylistViewModel: ObservableObject {
     /// zaten tamamlıyor ve iki yerde yapmak çift `http://` üretirdi.
     public func select(server: ResellerServer) {
         host = server.baseURL.absoluteString
-        selectedServerID = server.id
     }
 
 #if DEBUG
@@ -86,8 +99,9 @@ public final class AddPlaylistViewModel: ObservableObject {
     func prepareDebugResellerQuickLogin() {
         guard let url = URL(string: "https://hidden.example.com") else { return }
         let server = ResellerServer(code: "TR1", name: "Türkiye", baseURL: url)
+        xtreamLoginMode = .resellerCode
+        resellerCode = "8811"
         resellerServers = [server]
-        didLoadResellerServers = true
         select(server: server)
     }
 #endif
@@ -116,26 +130,18 @@ public final class AddPlaylistViewModel: ObservableObject {
     // MARK: - Form alanları
 
     @Published public var sourceKind: SourceKind = .xtream
+    @Published public var xtreamLoginMode: XtreamLoginMode = .dns
     @Published public var name = ""
     @Published public var host = ""
+    @Published public var resellerCode = ""
     @Published public var username = ""
     @Published public var password = ""
     @Published public var m3uURL = ""
     @Published public var epgURL = ""
     @Published public var activationCode = ""
 
-    /// Bayinin sunucuları — boşsa seçici hiç çizilmez.
+    /// Bayi kodu doğrulandıktan sonra sırayla denenecek DNS listesi.
     @Published public private(set) var resellerServers: [ResellerServer] = []
-    /// Yükleme tamamlanana kadar adres alanı çizilmez; bayi hızlı girişinde
-    /// teknik adresin bir kareliğine bile görünmesini önler.
-    @Published public private(set) var didLoadResellerServers = false
-    /// Kullanıcının listeden seçtiği sunucu (işaretli göstermek için).
-    @Published public var selectedServerID: String?
-
-    /// Bayi sunucuları hazırsa teknik adres kullanıcıdan tamamen gizlenir.
-    /// Kullanıcı yalnızca kendi hesap bilgisini girer; uygun sunucuyu akış
-    /// arka planda seçer ve gerekirse listedeki diğer adresleri dener.
-    public var isResellerQuickLogin: Bool { !resellerServers.isEmpty }
 
     // MARK: - Durum
 
@@ -153,12 +159,14 @@ public final class AddPlaylistViewModel: ObservableObject {
         case .activationCode:
             return activationCode.trimmed.count >= 4
         case .xtream:
-            guard didLoadResellerServers else { return false }
-            // ⚠️ Bayi sunucusu varsa adres **zorunlu değil**: boş bırakılırsa
-            // hepsi sırayla denenir. Zorunlu tutmak, kullanıcıyı hangi
-            // sunucunun kendisine ait olduğunu tahmin etmeye iterdi.
-            let hasServer = !host.trimmed.isEmpty || !resellerServers.isEmpty
-            return hasServer && !username.trimmed.isEmpty && !password.isEmpty
+            let hasConnectionInput: Bool
+            switch xtreamLoginMode {
+            case .dns:
+                hasConnectionInput = !host.trimmed.isEmpty
+            case .resellerCode:
+                hasConnectionInput = ResellerConfig.normalizeCode(resellerCode) != nil
+            }
+            return hasConnectionInput && !username.trimmed.isEmpty && !password.isEmpty
         case .m3u:
             return !m3uURL.trimmed.isEmpty
         }
@@ -188,10 +196,11 @@ public final class AddPlaylistViewModel: ObservableObject {
     public func submit() async {
         errorMessage = nil
 
-        // Adres boş bırakıldıysa aramaya ilk sunucudan başlanır; olmazsa
-        // `findWorkingServer` kalanları dener. Böylece "otomatik bul" ayrı
-        // bir düğme olmadan, alanı boş bırakmakla çalışıyor.
-        if sourceKind == .xtream, host.trimmed.isEmpty, let first = resellerServers.first {
+        // Bayi hızlı girişinde kod önce DNS listesine çevrilir. Kullanıcının
+        // göreceği bir URL alanı yoktur; ilk DNS burada seçilir, bağlantı
+        // kurulamazsa `findWorkingServer` kalanları sırayla dener.
+        if sourceKind == .xtream, xtreamLoginMode == .resellerCode {
+            guard await resolveResellerCode(), let first = resellerServers.first else { return }
             select(server: first)
         }
 
@@ -209,6 +218,16 @@ public final class AddPlaylistViewModel: ObservableObject {
         do {
             account = try await dependencies.validator.validate(playlist, password: password)
         } catch {
+            let validationError = AppError.wrap(error)
+
+            // Normal DNS girişi yalnızca kullanıcının yazdığı adresi dener.
+            // Aktivasyon ve M3U da bayi listesinin failover zincirine giremez.
+            guard sourceKind == .xtream, xtreamLoginMode == .resellerCode else {
+                step = .form
+                errorMessage = validationError.userMessage
+                return
+            }
+
             // Sunucu kabul etmedi. Bayinin başka sunucuları varsa onlar da
             // denenir — aynı hesap çoğu bayide birden fazla sunucuda geçerli
             // ve kullanıcı hangisinin kendisine ait olduğunu bilmiyor.
@@ -216,7 +235,7 @@ public final class AddPlaylistViewModel: ObservableObject {
             // Parola form alanından okunuyor: `resolved` içindeki değer
             // isteğe bağlı (M3U'da yok) ama buraya yalnızca Xtream düşer.
             guard let found = await findWorkingServer(
-                failedWith: AppError.wrap(error),
+                failedWith: validationError,
                 username: username,
                 password: self.password
             ) else { return }
@@ -236,6 +255,31 @@ public final class AddPlaylistViewModel: ObservableObject {
 
         // 4. İlk senkronizasyon.
         await runInitialSync(playlistID: playlist.id)
+    }
+
+    /// Bayi kodunu doğrular ve yalnızca o bayiye tanımlı DNS listesini alır.
+    private func resolveResellerCode() async -> Bool {
+        guard let normalized = ResellerConfig.normalizeCode(resellerCode) else {
+            errorMessage = "Bayi kodunu gir. Örnek: 8811"
+            return false
+        }
+
+        step = .validating
+        let isValid = await dependencies.applyResellerCode(normalized)
+        guard isValid else {
+            step = .form
+            errorMessage = "Bayi kodu doğrulanamadı. Kodu kontrol edip tekrar dene."
+            return false
+        }
+
+        resellerCode = normalized
+        resellerServers = await dependencies.resellerServers()
+        guard !resellerServers.isEmpty else {
+            step = .form
+            errorMessage = "Bu bayi koduna tanımlı bir DNS bulunamadı. Bayinle iletişime geç."
+            return false
+        }
+        return true
     }
 
     private func runInitialSync(playlistID: Playlist.ID) async {
@@ -324,13 +368,6 @@ public final class AddPlaylistViewModel: ObservableObject {
 
     /// Bayinin sunucularını sırayla dener; kabul edeni döndürür.
     ///
-    /// ## Neden her hatada denenmiyor?
-    /// ⚠️ Kimlik hatası (`unauthorized`) **bütün sunucularda aynı** olur:
-    /// parola yanlışsa on sunucu denemek kullanıcıyı boşuna bekletir ve
-    /// panelde on başarısız giriş denemesi bırakır — bazı paneller bunu
-    /// geçici kilitle cezalandırıyor. Yalnızca "sunucuya ulaşılamadı"
-    /// sınıfı hatalarda sıradakine geçilir.
-    ///
     /// - Returns: Çalışan sunucuyla kurulmuş liste; hiçbiri olmazsa `nil`
     ///   (hata mesajı ayarlanmış olur).
     private func findWorkingServer(
@@ -344,7 +381,7 @@ public final class AddPlaylistViewModel: ObservableObject {
             $0.baseURL.absoluteString != host.trimmed
         }
 
-        guard !firstError.requiresReauthentication, !candidates.isEmpty else {
+        guard !candidates.isEmpty else {
             step = .form
             errorMessage = firstError.userMessage
             return nil
@@ -371,18 +408,12 @@ public final class AddPlaylistViewModel: ObservableObject {
                     candidate,
                     password: candidatePassword
                 )
-                // Bulundu: kullanıcı hangi sunucuya bağlandığını görsün.
+                // Bulundu: adres kullanıcıya gösterilmez, yalnızca içeride tutulur.
                 host = server.baseURL.absoluteString
-                selectedServerID = server.id
                 return candidate
             } catch {
-                let appError = AppError.wrap(error)
-                // Kimlik hatası her sunucuda tekrarlanır; aramayı bitir.
-                if appError.requiresReauthentication {
-                    step = .form
-                    errorMessage = appError.userMessage
-                    return nil
-                }
+                // Bayinin hesabı yalnızca belirli bir DNS'te tanımlı olabilir.
+                // Hata türünden bağımsız olarak listedeki sıradaki adres denenir.
                 continue
             }
         }

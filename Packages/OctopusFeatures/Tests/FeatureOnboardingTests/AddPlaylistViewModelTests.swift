@@ -33,12 +33,11 @@ final class AddPlaylistViewModelTests: XCTestCase {
 
     // MARK: - Gönderilebilirlik
 
-    func test_canSubmit_requiresMandatoryFieldsPerSourceKind() async {
+    func test_canSubmit_requiresMandatoryFieldsPerSourceKind() {
         let viewModel = makeViewModel()
 
         viewModel.sourceKind = .xtream
         XCTAssertFalse(viewModel.canSubmit)
-        await viewModel.loadResellerServers()
         viewModel.host = "panel.example.com"
         viewModel.username = "u"
         XCTAssertFalse(viewModel.canSubmit, "Parola olmadan gönderilememeli")
@@ -51,28 +50,46 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.canSubmit)
     }
 
-    func test_resellerQuickLogin_doesNotRequireVisibleServerAddress() async {
-        let server = ResellerServer(
-            code: "TR1",
-            name: "Türkiye",
-            baseURL: URL(string: "https://private.example.com")!
+    func test_resellerCode_resolvesAndTriesDNSInOrder() async {
+        let first = ResellerServer(
+            code: "TR1", name: "Birinci",
+            baseURL: URL(string: "https://first.example.com")!
         )
+        let second = ResellerServer(
+            code: "TR2", name: "İkinci",
+            baseURL: URL(string: "https://second.example.com")!
+        )
+        var appliedCodes: [String] = []
         let viewModel = AddPlaylistViewModel(
             dependencies: OnboardingDependencies(
                 playlists: playlists,
                 validator: validator,
                 activation: activation,
                 sync: sync,
-                resellerServers: { [server] }
+                applyResellerCode: { code in
+                    appliedCodes.append(code)
+                    return true
+                },
+                resellerServers: { [first, second] }
             )
         )
 
-        await viewModel.loadResellerServers()
+        validator.queuedResults = [
+            .failure(AppError.unauthorized),
+            .success(validator.successAccount)
+        ]
+        viewModel.xtreamLoginMode = .resellerCode
+        viewModel.resellerCode = "8811"
         viewModel.username = "u"
         viewModel.password = "p"
 
-        XCTAssertTrue(viewModel.isResellerQuickLogin)
         XCTAssertTrue(viewModel.canSubmit)
+        await viewModel.submit()
+
+        XCTAssertEqual(appliedCodes, ["8811"])
+        XCTAssertEqual(validator.receivedHosts, ["first.example.com", "second.example.com"])
+        XCTAssertEqual(playlists.addedPlaylists.count, 1)
+        XCTAssertEqual(viewModel.step, .done)
     }
 
     // MARK: - Form doğrulaması ağa çıkmadan
@@ -285,18 +302,26 @@ private final class SpyPlaylistRepository: PlaylistRepository {
 
 private final class StubValidator: PlaylistValidating, @unchecked Sendable {
 
-    var result: Result<ProviderAccount, Error> = .success(
+    let successAccount =
         ProviderAccount(
             username: "u", expiresAt: nil, isTrial: false,
             maxConnections: 1, activeConnections: 0
         )
-    )
+    lazy var result: Result<ProviderAccount, Error> = .success(successAccount)
+    var queuedResults: [Result<ProviderAccount, Error>] = []
     private(set) var callCount = 0
     private(set) var receivedPassword: String?
+    private(set) var receivedHosts: [String] = []
 
     func validate(_ playlist: Playlist, password: String?) async throws -> ProviderAccount {
         callCount += 1
         receivedPassword = password
+        if case .xtream(let host, _) = playlist.kind {
+            receivedHosts.append(host.host ?? host.absoluteString)
+        }
+        if !queuedResults.isEmpty {
+            return try queuedResults.removeFirst().get()
+        }
         return try result.get()
     }
 }

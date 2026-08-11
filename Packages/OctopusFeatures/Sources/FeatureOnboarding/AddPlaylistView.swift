@@ -11,7 +11,7 @@ public struct AddPlaylistView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case code, host, username, password, url, epg, name
+        case code, host, resellerCode, username, password, url, epg, name
     }
 
     public init(dependencies: OnboardingDependencies, onFinished: @escaping () -> Void) {
@@ -72,7 +72,7 @@ public struct AddPlaylistView: View {
                 return
             }
 #endif
-            await viewModel.loadResellerServers()
+            await viewModel.prepareXtreamLogin()
         }
     }
 
@@ -123,20 +123,21 @@ public struct AddPlaylistView: View {
                 )
 
             case .xtream:
-                if !viewModel.didLoadResellerServers {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        ProgressView()
-                            .tint(Theme.Palette.accent)
-                        Text("Giriş seçenekleri hazırlanıyor")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Palette.textSecondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
-                } else if viewModel.isResellerQuickLogin {
+                XtreamLoginModePicker(selection: $viewModel.xtreamLoginMode)
+
+                if viewModel.xtreamLoginMode == .resellerCode {
                     ResellerQuickLoginIntro()
+
+                    FormFieldView(
+                        title: "Bayi kodu",
+                        placeholder: "8811",
+                        text: $viewModel.resellerCode,
+                        icon: "person.badge.key.fill"
+                    )
+                    .focused($focusedField, equals: .resellerCode)
                 } else {
                     FormFieldView(
-                        title: "Sunucu adresi",
+                        title: "DNS adresi",
                         placeholder: "panel.example.com:8080",
                         text: $viewModel.host,
                         icon: "network",
@@ -203,6 +204,7 @@ public struct AddPlaylistView: View {
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.sourceKind)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.xtreamLoginMode)
         .disabled(viewModel.step.isBusy)
     }
 
