@@ -617,6 +617,7 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 | Ayarlar → Oynatıcı bölümü | ✅ | Tampon, yerleşim, yeniden bağlanma, yedek motor — hepsi gerçek etkili |
 | Detay sayfası sinematik başlık | ✅ | Şeffaf çubuk + oranla ölçeklenen arka plan |
 | Ana sayfa başlık kartı | ✅ | Dönen afiş kaldırıldı; marka, saat, abonelik, kullanıcı |
+| Ana sayfa liste işlemleri | ✅ | Hero altında yeni liste ve aktif listeyi yenileme; Ayarlar'daki sağlayıcı bağlantısı gizlendi |
 | Son eklenen diziler rafı | ✅ | `SeriesRepository.recentlyAdded` (sıralama `lastModified`) |
 | Abonelik bitişi kalıcı | ✅ | `authenticate()` sonucu atılıyordu; artık `playlist.expiresAt` |
 | Aktivasyon kodu | ✅ | GET→POST, iç içe cevap, normalleştirme — üç ayrı hata |

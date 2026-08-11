@@ -33,10 +33,17 @@ public final class HomeViewModel: ObservableObject {
     @Published public private(set) var account: HomeAccount?
     @Published public private(set) var recentChannels: [Channel] = []
     @Published public private(set) var state: LoadableState<Int> = .idle
+    @Published public private(set) var isRefreshing = false
+    @Published public private(set) var quickActionMessage: String?
+    @Published public private(set) var quickActionFailed = false
 
     public var isEmpty: Bool {
         resumeItems.isEmpty && recentlyAdded.isEmpty
             && recentSeries.isEmpty && recentChannels.isEmpty
+    }
+
+    public var canRefresh: Bool {
+        account != nil && !isRefreshing
     }
 
 
@@ -108,6 +115,34 @@ public final class HomeViewModel: ObservableObject {
             )
         } catch {
             state = .failed(AppError.wrap(error))
+        }
+    }
+
+    /// Ana sayfadaki hızlı işlem: aktif listeyi yeniden eşitler ve rafları
+    /// aynı ekranda günceller. Arka arkaya dokunmalar ikinci işi başlatmaz.
+    public func refreshActivePlaylist() async {
+        guard !isRefreshing else { return }
+
+        guard let playlist = try? await dependencies.playlists.activePlaylist() else {
+            quickActionFailed = true
+            quickActionMessage = "Önce bir liste eklemelisin."
+            return
+        }
+
+        isRefreshing = true
+        quickActionMessage = nil
+        defer { isRefreshing = false }
+
+        do {
+            try await dependencies.sync.sync(playlistID: playlist.id)
+            await load()
+            quickActionFailed = false
+            quickActionMessage = "Liste yenilendi."
+            Haptics.success()
+        } catch {
+            quickActionFailed = true
+            quickActionMessage = AppError.wrap(error).userMessage
+            Haptics.warning()
         }
     }
 

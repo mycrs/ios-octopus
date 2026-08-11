@@ -122,6 +122,12 @@
 "Henüz içerik yok" = "No content yet";
 "İzlemeye başladığında burada kaldığın yerden devam edebilirsin." = "Start watching and you can continue here later.";
 "Canlı TV'ye git" = "Go to Live TV";
+"Yeni liste" = "New list";
+"Listeyi yenile" = "Refresh list";
+"Liste yenilendi." = "List refreshed.";
+"Önce bir liste eklemelisin." = "Add a list first.";
+"Yeni bir liste ekleyerek içeriklerini burada görebilirsin." = "Add a new list to see your content here.";
+"Demo Kaynak" = "Demo Source";
 "Filmleri keşfet" = "Explore movies";
 "Aboneliğin süresi doldu" = "Your subscription has expired";
 "Bugün bitiyor" = "Expires today";
@@ -218,10 +224,6 @@
 "Kaynak seçilmedi" = "No source selected";
 "Şimdi güncelle" = "Refresh now";
 "%lld kaynak kayıtlı" = "%lld sources saved";
-"Marka" = "Provider";
-"Hizmet sağlayıcını bağla" = "Connect your provider";
-"Logo, renk ve hizmet bilgilerini otomatik ayarla" = "Set logo, colors and service details automatically";
-"Görünüm ve hizmet bilgileri otomatik güncelleniyor" = "Appearance and service details update automatically";
 "Görünüm" = "Appearance";
 "Vurgu rengi" = "Accent color";
 "Varsayılan görünüm %@ markasına uyarlanıyor." = "The default appearance adapts to %@.";

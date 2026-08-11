@@ -11,6 +11,7 @@ final class HomeViewModelTests: XCTestCase {
     private var series: StubSeries!
     private var progress: StubProgress!
     private var history: StubHistory!
+    private var sync: StubSync!
 
     override func setUp() async throws {
         playlists = StubPlaylists()
@@ -18,6 +19,7 @@ final class HomeViewModelTests: XCTestCase {
         series = StubSeries()
         progress = StubProgress()
         history = StubHistory()
+        sync = StubSync()
     }
 
     private func makeViewModel(now: @escaping () -> Date = Date.init) -> HomeViewModel {
@@ -28,7 +30,8 @@ final class HomeViewModelTests: XCTestCase {
                 vod: vod,
                 series: series,
                 progress: progress,
-                history: history
+                history: history,
+                sync: sync
             ),
             now: now
         )
@@ -205,6 +208,44 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.isEmpty)
         XCTAssertEqual(viewModel.state, .loaded(0))
     }
+
+    // MARK: - Hızlı işlemler
+
+    func test_refreshSyncsActivePlaylistAndShowsSuccess() async {
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        await viewModel.refreshActivePlaylist()
+
+        XCTAssertEqual(sync.syncedIDs, ["p1"])
+        XCTAssertEqual(viewModel.quickActionMessage, "Liste yenilendi.")
+        XCTAssertFalse(viewModel.quickActionFailed)
+        XCTAssertFalse(viewModel.isRefreshing)
+    }
+
+    func test_refreshWithoutPlaylistAsksForNewList() async {
+        playlists.active = nil
+        let viewModel = makeViewModel()
+
+        await viewModel.refreshActivePlaylist()
+
+        XCTAssertTrue(sync.syncedIDs.isEmpty)
+        XCTAssertEqual(viewModel.quickActionMessage, "Önce bir liste eklemelisin.")
+        XCTAssertTrue(viewModel.quickActionFailed)
+    }
+
+    func test_refreshFailureKeepsExistingHomeContent() async {
+        vod.recent = [makeMovie("m1")]
+        sync.error = AppError.network(reason: "offline")
+        let viewModel = makeViewModel()
+        await viewModel.load()
+
+        await viewModel.refreshActivePlaylist()
+
+        XCTAssertEqual(viewModel.recentlyAdded.map(\.id), ["m1"])
+        XCTAssertTrue(viewModel.quickActionFailed)
+        XCTAssertNotNil(viewModel.quickActionMessage)
+    }
 }
 
 // MARK: - Sahteler
@@ -310,6 +351,22 @@ private struct StubChannels: ChannelRepository {
         playlistID: Playlist.ID,
         categoryID: MediaCategory.ID?
     ) -> AsyncStream<[Channel]> {
+        AsyncStream { $0.finish() }
+    }
+}
+
+private final class StubSync: ContentSyncing, @unchecked Sendable {
+    var error: Error?
+    private(set) var syncedIDs: [Playlist.ID] = []
+
+    func sync(playlistID: Playlist.ID) async throws {
+        if let error { throw error }
+        syncedIDs.append(playlistID)
+    }
+
+    func syncEPG(playlistID: Playlist.ID) async throws {}
+
+    func observeProgress(playlistID: Playlist.ID) -> AsyncStream<SyncStage> {
         AsyncStream { $0.finish() }
     }
 }

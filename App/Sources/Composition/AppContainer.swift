@@ -441,6 +441,7 @@ final class AppContainer: ObservableObject {
             series: series,
             progress: progress,
             history: history,
+            sync: sync,
             parental: parental
         )
     }
@@ -528,12 +529,6 @@ final class AppContainer: ObservableObject {
             parental: parental,
             notifyProtectionChanged: { [weak self] in
                 self?.contentProtectionDidChange()
-            },
-            applyResellerCode: { [weak self] code in
-                await self?.applyResellerCode(code) ?? false
-            },
-            savedResellerCode: { [weak self] in
-                await self?.savedResellerCode()
             }
         )
     }

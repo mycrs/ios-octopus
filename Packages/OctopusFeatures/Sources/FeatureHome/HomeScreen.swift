@@ -10,6 +10,7 @@ public struct HomeDependencies {
     public let series: SeriesRepository
     public let progress: PlaybackProgressRepository
     public let history: WatchHistoryRepository
+    public let sync: ContentSyncing
     /// Kilit açıkken raflardaki yetişkin içerik gizlenir.
     ///
     /// ⚠️ "Kaldığın yer" rafı özellikle önemli: kilit kurulmadan önce
@@ -23,6 +24,7 @@ public struct HomeDependencies {
         series: SeriesRepository,
         progress: PlaybackProgressRepository,
         history: WatchHistoryRepository,
+        sync: ContentSyncing,
         parental: ParentalControlling = OpenParentalControl()
     ) {
         self.playlists = playlists
@@ -31,6 +33,7 @@ public struct HomeDependencies {
         self.series = series
         self.progress = progress
         self.history = history
+        self.sync = sync
         self.parental = parental
     }
 }
@@ -69,6 +72,12 @@ public struct HomeScreen: View {
         // geri geldiğinde "devam et" rafı güncel olmalı.
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
+        // Yeni liste formu kapanınca hero ve raflar yeni aktif kaynağı hemen
+        // yansıtsın; kullanıcının ayrıca yenile düğmesine basması gerekmesin.
+        .onChange(of: router.sheet) { sheet in
+            guard sheet == nil else { return }
+            Task { await viewModel.load() }
+        }
     }
 
     @ViewBuilder
@@ -83,17 +92,7 @@ public struct HomeScreen: View {
             ErrorStateView(error: error) { Task { await viewModel.load() } }
 
         case .loaded:
-            if viewModel.isEmpty {
-                EmptyStateView(
-                    icon: "house",
-                    title: "Henüz içerik yok",
-                    message: "İzlemeye başladığında burada kaldığın yerden devam edebilirsin.",
-                    actionTitle: "Canlı TV'ye git",
-                    action: { router.switchTab(to: .live) }
-                )
-            } else {
-                shelves
-            }
+            shelves
         }
     }
 
@@ -112,6 +111,25 @@ public struct HomeScreen: View {
                     onWatchLive: { router.switchTab(to: .live) },
                     onExplore: { router.switchTab(to: .movies) }
                 )
+
+                HomeQuickActionsView(
+                    canRefresh: viewModel.canRefresh,
+                    isRefreshing: viewModel.isRefreshing,
+                    message: viewModel.quickActionMessage,
+                    messageIsError: viewModel.quickActionFailed,
+                    onAdd: { router.present(.addPlaylist) },
+                    onRefresh: { Task { await viewModel.refreshActivePlaylist() } }
+                )
+
+                if viewModel.isEmpty {
+                    EmptyStateView(
+                        icon: "rectangle.stack.badge.plus",
+                        title: "Henüz içerik yok",
+                        message: "Yeni bir liste ekleyerek içeriklerini burada görebilirsin.",
+                        actionTitle: "Yeni liste",
+                        action: { router.present(.addPlaylist) }
+                    )
+                }
 
                 if !viewModel.resumeItems.isEmpty {
                     ShelfView(title: "İzlemeye devam et") {

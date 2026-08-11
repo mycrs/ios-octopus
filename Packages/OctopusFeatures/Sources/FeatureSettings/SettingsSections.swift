@@ -29,34 +29,6 @@ extension SettingsScreen {
         }
     }
 
-    /// Marka bağlantısı.
-    ///
-    /// ⚠️ Kurulumda girilen kod sonradan da değiştirilebilmeli: kullanıcı
-    /// bayi değiştirdiğinde uygulamayı silip yeniden kurmak zorunda
-    /// kalmamalı. Kod yoksa satır yine görünür — bağlanmak isteyen
-    /// kullanıcının onboarding'e geri dönmesi gerekmez.
-    var resellerSection: some View {
-        section("Marka") {
-            SettingsRow(
-                icon: "person.badge.key",
-                title: savedResellerCode == nil ? "Hizmet sağlayıcını bağla" : "Marka bağlantısı aktif",
-                detail: savedResellerCode == nil
-                    ? "Logo, renk ve hizmet bilgilerini otomatik ayarla"
-                    : "Görünüm ve hizmet bilgileri otomatik güncelleniyor"
-            ) {
-                showsResellerCode = true
-            }
-        }
-        .sheet(isPresented: $showsResellerCode) {
-            ResellerCodeSheet(currentCode: savedResellerCode) { code in
-                let isValid = await dependencies.applyResellerCode(code)
-                savedResellerCode = await dependencies.savedResellerCode()
-                return isValid
-            }
-        }
-        .task { savedResellerCode = await dependencies.savedResellerCode() }
-    }
-
     var appearanceSection: some View {
         section("Görünüm") {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
