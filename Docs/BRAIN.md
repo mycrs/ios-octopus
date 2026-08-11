@@ -490,9 +490,10 @@ Sözleşme `PanelResellerConfigTests` ile kilitli: içindeki JSON çalışan
 panelden alınmış gerçek bir yanıt. Panel bir alan adını değiştirirse test
 kırmızıya döner — aksi hâlde uygulama sessizce markasız açılır.
 
-### Ebeveyn kilidi nerede uygulanır?
+### İçerik kilidi nerede uygulanır?
 
-Kilit **tek bir yerde tutulur, yedi yerde uygulanır**. Bir ekranı atlamak
+Kilit ilk kurulumdan itibaren otomatik kapalı başlar ve **tek bir yerde
+tutulup yedi yerde uygulanır**. Bir ekranı atlamak
 kilidi o ekrandan atlatılabilir kılar — bu yüzden liste burada:
 
 | Ekran | Süzülen |
@@ -503,11 +504,11 @@ kilidi o ekrandan atlatılabilir kılar — bu yüzden liste burada:
 | Ara (birleşik) | üç türün sonucu da |
 | Ana Sayfa | "kaldığın yer", "son eklenenler", "son izlenenler" |
 | Favoriler | üç tür de |
-| **Oynatıcı** | **kanal değiştirme (zap) sırası** |
+| **Oynatıcı** | doğrudan açılış, kanal değiştirme sırası ve arka plan geçişi |
 
 ⚠️ Sonuncusu en kolay unutulanı: listeler süzülse bile oynatıcıda ileri
-geri basan kullanıcı yetişkin kanala düşerdi. `PlayerZappingTests`
-bunu ayrıca doğruluyor.
+geri basan kullanıcı korumalı kanala düşebilirdi. `PlayerZappingTests`
+doğrudan kimlikle açmayı ve arka plan kilidini de ayrıca doğruluyor.
 
 ⚠️ Sayfalı listelerde ofset **çekilen ham satır** sayısını takip eder,
 görünen öğe sayısını değil. Aksi halde gizlenen her öğe sonraki sayfayı

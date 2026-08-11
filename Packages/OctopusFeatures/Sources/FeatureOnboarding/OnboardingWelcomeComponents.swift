@@ -71,7 +71,7 @@ struct OnboardingCapabilities: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             capability("tv", "Canlı TV", "Kategoriler, favoriler ve yayın akışı")
             capability("film", "Film ve dizi", "Kaldığın yerden devam et")
-            capability("lock.shield", "Ebeveyn kilidi", "Yetişkin içeriği gizle")
+            capability("lock.shield", "İçerik kilidi", "Hassas içerikleri otomatik korur")
         }
         .padding(Theme.Spacing.lg)
         .background(Theme.Palette.surface.opacity(0.54))

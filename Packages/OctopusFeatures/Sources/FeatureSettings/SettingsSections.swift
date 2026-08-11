@@ -178,17 +178,33 @@ extension SettingsScreen {
     }
 
     var parentalSection: some View {
-        section("Ebeveyn kilidi") {
+        section("İçerik kilidi") {
             SettingsRow(
-                icon: viewModel.isParentalEnabled ? "lock.fill" : "lock.open",
-                title: viewModel.isParentalEnabled ? "Kilidi kaldır" : "Kilit kur",
-                detail: viewModel.isParentalEnabled
-                    ? "Yetişkin içerik listelerde gizleniyor"
-                    : "PIN belirleyerek yetişkin içeriği gizle"
+                icon: viewModel.isProtectedContentUnlocked ? "lock.open.fill" : "lock.fill",
+                title: protectionTitle,
+                detail: protectionDetail
             ) {
-                isEnteringPIN = true
+                if viewModel.isProtectedContentUnlocked {
+                    Task { await viewModel.lockProtectedContent() }
+                } else {
+                    isEnteringPIN = true
+                }
             }
         }
+    }
+
+    private var protectionTitle: String {
+        if viewModel.isProtectedContentUnlocked { return "Şimdi kilitle" }
+        return viewModel.isParentalEnabled ? "Kilidi geçici aç" : "PIN belirle"
+    }
+
+    private var protectionDetail: String {
+        if viewModel.isProtectedContentUnlocked {
+            return "Hassas içerikler bu oturumda görünür"
+        }
+        return viewModel.isParentalEnabled
+            ? "Hassas içerikler PIN ile korunuyor"
+            : "Hassas içerikler otomatik olarak gizli"
     }
 
     var dataSection: some View {

@@ -100,7 +100,14 @@ public struct PlayerScreen: View {
         // "şimdi yaz" için son güvenilir an.
         .onChange(of: scenePhase) { phase in
             guard phase != .active else { return }
-            Task { await controller.persistPosition() }
+            Task {
+                await controller.persistPosition()
+                guard await viewModel.lockAndValidateCurrentSource() else {
+                    await controller.finish()
+                    router.dismissPlayer()
+                    return
+                }
+            }
         }
         .onDisappear {
             nextEpisodeTask?.cancel()

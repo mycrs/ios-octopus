@@ -190,12 +190,19 @@ final class ParentalFilterTests: XCTestCase {
         XCTAssertTrue(filter.allows(movie: makeMovie(isAdult: true)))
     }
 
-    func test_disabledFilterShowsEverything() {
-        // Kilit hiç kurulmamışsa süzme yapılmaz.
+    func test_unconfiguredFilterStillHidesProtectedContent() {
+        // PIN kurulmamış olması güvenli varsayılanı kapatmamalı.
         let filter = ParentalFilter(isEnabled: false, isUnlocked: false)
 
-        XCTAssertFalse(filter.hidesAdultContent)
-        XCTAssertTrue(filter.allows(channel: makeChannel(isAdult: true)))
+        XCTAssertTrue(filter.hidesAdultContent)
+        XCTAssertFalse(filter.allows(channel: makeChannel(isAdult: true)))
+    }
+
+    func test_freshKeychainControlStartsProtected() async {
+        let filter = await ParentalFilter.current(control)
+
+        XCTAssertTrue(filter.hidesAdultContent)
+        XCTAssertFalse(filter.allows(movie: makeMovie(isAdult: true)))
     }
 
     private func makeCategory(_ name: String) -> MediaCategory {

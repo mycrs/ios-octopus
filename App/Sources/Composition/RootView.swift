@@ -22,6 +22,7 @@ struct RootView: View {
     @EnvironmentObject var container: AppContainer
     @EnvironmentObject var router: AppRouter
     @EnvironmentObject var language: LanguageController
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
@@ -41,6 +42,7 @@ struct RootView: View {
                 OnboardingScreen(dependencies: container.makeOnboardingDependencies())
             } else {
                 mainContent
+                    .id(container.contentProtectionRevision)
             }
         }
         // Marka rengi: kullanıcı seçimi > bayi paneli > uygulama varsayılanı.
@@ -65,6 +67,10 @@ struct RootView: View {
         .sheet(item: $router.sheet) { sheet in
             sheetContent(for: sheet)
                 .environmentObject(router)
+        }
+        .onChange(of: scenePhase) { phase in
+            guard phase != .active else { return }
+            Task { await container.lockProtectedContent() }
         }
     }
 

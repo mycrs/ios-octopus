@@ -76,6 +76,36 @@ final class PlayerZappingTests: XCTestCase {
         XCTAssertEqual(title(of: viewModel), "İkinci")
     }
 
+    func test_directProtectedChannelCannotBypassLock() async {
+        let parental = StubParental()
+        parental.enabled = true
+        parental.unlocked = false
+
+        let viewModel = makeViewModel(startingAt: "c2", parental: parental)
+        await viewModel.resolve()
+
+        guard case .failed = viewModel.phase else {
+            return XCTFail("Korumalı kanal doğrudan kimlikle açılabildi")
+        }
+    }
+
+    func test_backgroundLockStopsProtectedSourceButAllowsNormalSource() async {
+        let parental = StubParental()
+        parental.enabled = true
+        parental.unlocked = true
+
+        let protected = makeViewModel(startingAt: "c2", parental: parental)
+        await protected.resolve()
+        let protectedAllowed = await protected.lockAndValidateCurrentSource()
+        XCTAssertFalse(protectedAllowed)
+
+        parental.unlocked = true
+        let normal = makeViewModel(startingAt: "c1", parental: parental)
+        await normal.resolve()
+        let normalAllowed = await normal.lockAndValidateCurrentSource()
+        XCTAssertTrue(normalAllowed)
+    }
+
     // MARK: - Kullanılabilirlik
 
     func test_zappingIsUnavailableForMovies() async {

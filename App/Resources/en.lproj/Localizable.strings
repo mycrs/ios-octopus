@@ -47,8 +47,8 @@
 "Kategoriler, favoriler ve yayın akışı" = "Categories, favorites and TV guide";
 "Film ve dizi" = "Movies and series";
 "Kaldığın yerden devam et" = "Continue where you left off";
-"Ebeveyn kilidi" = "Parental controls";
-"Yetişkin içeriği gizle" = "Hide adult content";
+"İçerik kilidi" = "Content lock";
+"Hassas içerikleri otomatik korur" = "Automatically protects sensitive content";
 "Kuruluma başla" = "Start setup";
 "Hizmet sağlayıcımı bağla" = "Connect my provider";
 "Marka bağlantısı aktif" = "Provider connection active";
@@ -239,10 +239,12 @@
 "Kapalıyken uyumsuz canlı yayın ve bazı filmler açılmayabilir" = "Some incompatible live streams and movies may not play when disabled";
 "Açılış" = "Startup";
 "Açılış ekranı" = "Startup screen";
-"Kilidi kaldır" = "Disable lock";
-"Kilit kur" = "Set up lock";
-"Yetişkin içerik listelerde gizleniyor" = "Adult content is hidden from lists";
-"PIN belirleyerek yetişkin içeriği gizle" = "Set a PIN to hide adult content";
+"PIN belirle" = "Set PIN";
+"Kilidi geçici aç" = "Unlock temporarily";
+"Şimdi kilitle" = "Lock now";
+"Hassas içerikler otomatik olarak gizli" = "Sensitive content is hidden automatically";
+"Hassas içerikler PIN ile korunuyor" = "Sensitive content is PIN-protected";
+"Hassas içerikler bu oturumda görünür" = "Sensitive content is visible in this session";
 "Veriler" = "Data";
 "İzleme geçmişini sil" = "Clear watch history";
 "Kaldığın yer bilgilerini sil" = "Clear playback progress";
@@ -258,9 +260,10 @@
 "PIN'i gir" = "Enter PIN";
 "Yeni PIN belirle" = "Set a new PIN";
 "4-8 rakam" = "4–8 digits";
-"Kur" = "Set";
-"Kilidi kaldırmak için mevcut PIN'i gir." = "Enter your current PIN to disable the lock.";
-"Yetişkin içerik listelerden gizlenecek. PIN'i unutursan uygulamayı silip yeniden kurman gerekir." = "Adult content will be hidden from lists. If you forget the PIN, you will need to reinstall the app.";
+"Aç" = "Unlock";
+"Kaydet" = "Save";
+"Hassas içerikleri bu oturumda göstermek için PIN'ini gir." = "Enter your PIN to show sensitive content for this session.";
+"Hassas içerikler otomatik olarak gizlidir. Görüntülemek için bir PIN belirle." = "Sensitive content is hidden automatically. Set a PIN to view it.";
 
 /* Playlist manager */
 "Kaynaklar" = "Sources";
@@ -291,7 +294,7 @@
 "Kısa bir bakımdayız" = "We'll be back shortly";
 "Servis kısa süre içinde tekrar açılacak." = "The service will be available again shortly.";
 "iPhone sürümü henüz açık değil" = "The iPhone version is not available yet";
-"Bayin bu uygulamayı iOS için henüz etkinleştirmedi. " = "Your provider has not enabled this app for iOS yet. ";
+"Hizmet sağlayıcın bu uygulamayı iOS için henüz etkinleştirmedi. " = "Your provider has not enabled this app for iOS yet. ";
 "Etkinleştirildiğinde buradan girebileceksin." = "You'll be able to sign in here once it is enabled.";
 "Site" = "Website";
 
@@ -318,20 +321,21 @@
 "Sunucu şu an yoğun. Birkaç dakika sonra tekrar dene." = "The server is busy. Try again in a few minutes.";
 "Kod biçimi geçersiz. Harf, rakam ve tire kullanılır." = "Invalid code format. Use letters, numbers and hyphens.";
 "Kod doğrulanamadı. Tekrar dene." = "The code could not be verified. Try again.";
-"Bu kod bulunamadı. Kodu kontrol et veya bayinle iletişime geç." = "This code was not found. Check it or contact your provider.";
-"Bu kod daha önce kullanılmış. Yeni kod için bayinle iletişime geç." = "This code has already been used. Contact your provider for a new code.";
-"Bu kodun süresi dolmuş. Yeni kod için bayinle iletişime geç." = "This code has expired. Contact your provider for a new code.";
+"Bu kod bulunamadı. Kodu kontrol et veya hizmet sağlayıcınla iletişime geç." = "This code was not found. Check it or contact your provider.";
+"Bu kod daha önce kullanılmış. Yeni kod için hizmet sağlayıcınla iletişime geç." = "This code has already been used. Contact your provider for a new code.";
+"Bu kodun süresi dolmuş. Yeni kod için hizmet sağlayıcınla iletişime geç." = "This code has expired. Contact your provider for a new code.";
 "PIN 4-8 haneli olmalı ve yalnızca rakam içermeli." = "The PIN must contain 4–8 digits.";
 "PIN hatalı." = "Incorrect PIN.";
-"Ebeveyn kilidi açıldı." = "Parental controls enabled.";
-"Ebeveyn kilidi kaldırıldı." = "Parental controls disabled.";
-"Ebeveyn kilidi kurulu değil." = "Parental controls are not set up.";
+"PIN kaydedildi. İçerik koruması bu oturum için açıldı." = "PIN saved. Content protection is unlocked for this session.";
+"İçerik kilidi bu oturum için açıldı." = "Content lock is open for this session.";
+"İçerik kilidi etkin." = "Content lock is active.";
+"Henüz PIN belirlenmemiş." = "A PIN has not been set yet.";
 "Kaynak güncellendi" = "Source refreshed";
 "İzleme geçmişi silindi" = "Watch history cleared";
 "Kaldığın yer bilgileri silindi" = "Playback progress cleared";
 "Görsel önbelleği temizlendi" = "Image cache cleared";
 "Önce bir kaynak seçmelisin." = "Select a source first.";
-"Bu kanal ebeveyn kilidiyle gizli." = "This channel is hidden by parental controls.";
+"Bu içerik koruma nedeniyle gizli." = "This content is hidden by content protection.";
 
 /* Accessibility and loading */
 "Saat" = "Time";

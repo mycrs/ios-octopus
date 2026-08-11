@@ -160,6 +160,7 @@ final class SettingsViewModelTests: XCTestCase {
         await viewModel.setParentalPIN("4821")
 
         XCTAssertTrue(viewModel.isParentalEnabled)
+        XCTAssertTrue(viewModel.isProtectedContentUnlocked)
         XCTAssertEqual(parental.receivedPINs, ["4821"])
     }
 
@@ -173,26 +174,39 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.message, "PIN 4-8 haneli olmalı ve yalnızca rakam içermeli.")
     }
 
-    func test_disableWithWrongPINKeepsLockOn() async {
+    func test_unlockWithWrongPINKeepsContentLocked() async {
         parental.enabled = true
-        parental.disableError = ParentalControlError.wrongPIN
+        parental.unlockSucceeds = false
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await viewModel.disableParental(with: "0000")
+        await viewModel.unlockProtectedContent(with: "0000")
 
-        XCTAssertTrue(viewModel.isParentalEnabled, "Yanlış PIN kilidi kaldırmamalı")
+        XCTAssertFalse(viewModel.isProtectedContentUnlocked)
         XCTAssertEqual(viewModel.message, "PIN hatalı.")
     }
 
-    func test_disableWithCorrectPINRemovesLock() async {
+    func test_unlockWithCorrectPINOpensCurrentSession() async {
         parental.enabled = true
+        parental.unlockSucceeds = true
 
         let viewModel = makeViewModel()
         await viewModel.load()
-        await viewModel.disableParental(with: "4821")
+        await viewModel.unlockProtectedContent(with: "4821")
 
-        XCTAssertFalse(viewModel.isParentalEnabled)
+        XCTAssertTrue(viewModel.isProtectedContentUnlocked)
+    }
+
+    func test_manualLockClosesCurrentSession() async {
+        parental.enabled = true
+        parental.unlocked = true
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await viewModel.lockProtectedContent()
+
+        XCTAssertFalse(viewModel.isProtectedContentUnlocked)
+        XCTAssertEqual(parental.lockCount, 1)
     }
 
     func test_parentalMessageCoversEveryError() {
@@ -228,23 +242,33 @@ private final class SettingsStubPlaylists: PlaylistRepository, @unchecked Sendab
 private final class SettingsStubParental: ParentalControlling, @unchecked Sendable {
 
     var enabled = false
+    var unlocked = false
+    var unlockSucceeds = true
     var setError: Error?
     var disableError: Error?
     private(set) var receivedPINs: [String] = []
+    private(set) var lockCount = 0
 
     func isEnabled() async -> Bool { enabled }
-    func isUnlocked() async -> Bool { !enabled }
+    func isUnlocked() async -> Bool { unlocked }
 
     func setPIN(_ pin: String) async throws {
         receivedPINs.append(pin)
         if let setError { throw setError }
         enabled = true
+        unlocked = true
     }
 
     @discardableResult
-    func unlock(with pin: String) async -> Bool { true }
+    func unlock(with pin: String) async -> Bool {
+        unlocked = unlockSucceeds
+        return unlockSucceeds
+    }
 
-    func lock() async {}
+    func lock() async {
+        unlocked = false
+        lockCount += 1
+    }
 
     func disable(with pin: String) async throws {
         if let disableError { throw disableError }

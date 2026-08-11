@@ -114,7 +114,7 @@ public struct MaintenanceGateView: View {
     private var detail: String {
         switch gate {
         case .platformUnavailable:
-            return "Bayin bu uygulamayı iOS için henüz etkinleştirmedi. "
+            return "Hizmet sağlayıcın bu uygulamayı iOS için henüz etkinleştirmedi. "
                 + "Etkinleştirildiğinde buradan girebileceksin."
         case .maintenance(let message):
             return message ?? "Servis kısa süre içinde tekrar açılacak."

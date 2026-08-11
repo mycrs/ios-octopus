@@ -14,6 +14,7 @@ public final class SettingsViewModel: ObservableObject {
     /// Kullanıcıya gösterilecek son işlem sonucu.
     @Published public private(set) var message: String?
     @Published public private(set) var isParentalEnabled = false
+    @Published public private(set) var isProtectedContentUnlocked = false
 
     private let dependencies: SettingsDependencies
     private let now: () -> Date
@@ -32,6 +33,7 @@ public final class SettingsViewModel: ObservableObject {
             activePlaylistName = active?.name
             lastSyncedText = Self.relativeText(active?.lastSyncedAt, now: now())
             isParentalEnabled = await dependencies.parental.isEnabled()
+            isProtectedContentUnlocked = await dependencies.parental.isUnlocked()
         } catch {
             message = AppError.wrap(error).userMessage
         }
@@ -43,7 +45,9 @@ public final class SettingsViewModel: ObservableObject {
         do {
             try await dependencies.parental.setPIN(pin)
             isParentalEnabled = true
-            message = "Ebeveyn kilidi açıldı."
+            isProtectedContentUnlocked = await dependencies.parental.isUnlocked()
+            message = "PIN kaydedildi. İçerik koruması bu oturum için açıldı."
+            dependencies.notifyProtectionChanged()
             Haptics.success()
         } catch {
             message = Self.parentalMessage(for: error)
@@ -52,16 +56,24 @@ public final class SettingsViewModel: ObservableObject {
         }
     }
 
-    public func disableParental(with pin: String) async {
-        do {
-            try await dependencies.parental.disable(with: pin)
-            isParentalEnabled = false
-            message = "Ebeveyn kilidi kaldırıldı."
+    public func unlockProtectedContent(with pin: String) async {
+        if await dependencies.parental.unlock(with: pin) {
+            isProtectedContentUnlocked = true
+            message = "İçerik kilidi bu oturum için açıldı."
+            dependencies.notifyProtectionChanged()
             Haptics.success()
-        } catch {
-            message = Self.parentalMessage(for: error)
+        } else {
+            message = "PIN hatalı."
             Haptics.warning()
         }
+    }
+
+    public func lockProtectedContent() async {
+        await dependencies.parental.lock()
+        isProtectedContentUnlocked = false
+        message = "İçerik kilidi etkin."
+        dependencies.notifyProtectionChanged()
+        Haptics.success()
     }
 
     static func parentalMessage(for error: Error) -> String {
@@ -71,7 +83,7 @@ public final class SettingsViewModel: ObservableObject {
         case .wrongPIN:
             return "PIN hatalı."
         case .notConfigured:
-            return "Ebeveyn kilidi kurulu değil."
+            return "Henüz PIN belirlenmemiş."
         case .storageFailure, .none:
             return "İşlem tamamlanamadı."
         }

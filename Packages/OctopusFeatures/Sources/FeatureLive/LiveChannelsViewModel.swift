@@ -249,7 +249,7 @@ public final class LiveChannelsViewModel: ObservableObject {
         // Kilitli kanal gömülü oynatıcıda da açılmamalı; liste süzülüyor
         // ama numarayla arama gibi yollarla buraya düşebilir.
         guard parentalFilter.allows(channel: channel) else {
-            playbackMessage = "Bu kanal ebeveyn kilidiyle gizli."
+            playbackMessage = "Bu içerik koruma nedeniyle gizli."
             return nil
         }
 

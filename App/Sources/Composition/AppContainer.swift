@@ -75,6 +75,10 @@ final class AppContainer: ObservableObject {
     /// Uygulama dili: cihaz tercihi veya Ayarlar'daki açık kullanıcı seçimi.
     let languageController = LanguageController()
 
+    /// İçerik erişimi değiştiğinde sekme köklerini yeniden kurar. Böylece
+    /// daha önce yüklenmiş listelerde korumalı bir kart görünür kalmaz.
+    @Published private(set) var contentProtectionRevision = 0
+
     /// Oynatma tercihleri — hem Ayarlar ekranı düzenler, hem motorlar okur.
     /// Tek örnek olmalı: iki kopya olsaydı ayarı değiştirmek oynatıcıya
     /// ulaşmazdı (`ThemeController` ile aynı gerekçe).
@@ -94,6 +98,20 @@ final class AppContainer: ObservableObject {
     func dismissAnnouncement() {
         dismissedAnnouncementID = appConfig?.announcement?.id
         objectWillChange.send()
+    }
+
+    func contentProtectionDidChange() {
+        contentProtectionRevision &+= 1
+        router.clearOpenScreens()
+    }
+
+    /// Uygulama görünürlüğünü kaybedince geçici erişim sona erer.
+    func lockProtectedContent() async {
+        await parental.lock()
+        // Tam ekran oynatıcı dışarıdaki PiP oturumunu yönetir; burada onu
+        // koşulsuz kapatmak normal içerikte PiP'i bozardı. Sekme kökleri
+        // yeniden kurulur, oynatıcı da kendi kaynağını ayrıca doğrular.
+        contentProtectionRevision &+= 1
     }
 
     // MARK: - Kurulum
@@ -508,6 +526,9 @@ final class AppContainer: ObservableObject {
             // Destek kanalları panelden gelir; henüz çekilmediyse boş.
             contact: appConfig?.contact ?? .empty,
             parental: parental,
+            notifyProtectionChanged: { [weak self] in
+                self?.contentProtectionDidChange()
+            },
             applyResellerCode: { [weak self] code in
                 await self?.applyResellerCode(code) ?? false
             },

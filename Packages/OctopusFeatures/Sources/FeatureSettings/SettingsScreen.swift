@@ -12,6 +12,8 @@ public struct SettingsDependencies {
     /// Bayinin destek kanalları (panelden gelir).
     public let contact: ContactChannels
     public let parental: ParentalControlling
+    /// Kilit durumu değişince açık katalog ekranlarını güvenle yeniler.
+    public let notifyProtectionChanged: @MainActor () -> Void
 
     /// Bayi kodunu uygular. `true` → kod bulundu.
     public let applyResellerCode: @MainActor (String) async -> Bool
@@ -25,6 +27,7 @@ public struct SettingsDependencies {
         history: WatchHistoryRepository,
         contact: ContactChannels = .empty,
         parental: ParentalControlling = OpenParentalControl(),
+        notifyProtectionChanged: @escaping @MainActor () -> Void = {},
         applyResellerCode: @escaping @MainActor (String) async -> Bool = { _ in false },
         savedResellerCode: @escaping @MainActor () async -> String? = { nil }
     ) {
@@ -36,6 +39,7 @@ public struct SettingsDependencies {
         self.history = history
         self.contact = contact
         self.parental = parental
+        self.notifyProtectionChanged = notifyProtectionChanged
     }
 }
 
@@ -158,19 +162,14 @@ public struct SettingsScreen: View {
             SecureField("4-8 rakam", text: $pinInput)
                 .keyboardType(.numberPad)
 
-            Button(language.localized(viewModel.isParentalEnabled ? "Kilidi kaldır" : "Kur")) {
+            Button(language.localized(viewModel.isParentalEnabled ? "Aç" : "Kaydet")) {
                 let pin = pinInput
                 pinInput = ""
                 Task {
                     if viewModel.isParentalEnabled {
-                        await viewModel.disableParental(with: pin)
+                        await viewModel.unlockProtectedContent(with: pin)
                     } else {
                         await viewModel.setParentalPIN(pin)
-                        // Kilit kurulduysa açık ekranları kapat: yetişkin bir
-                        // içeriğin detayı yığında durup geri dönünce açılmasın.
-                        if viewModel.isParentalEnabled {
-                            router.clearOpenScreens()
-                        }
                     }
                 }
             }
@@ -179,8 +178,8 @@ public struct SettingsScreen: View {
             Text(
                 language.localized(
                     viewModel.isParentalEnabled
-                        ? "Kilidi kaldırmak için mevcut PIN'i gir."
-                        : "Yetişkin içerik listelerden gizlenecek. PIN'i unutursan uygulamayı silip yeniden kurman gerekir."
+                        ? "Hassas içerikleri bu oturumda göstermek için PIN'ini gir."
+                        : "Hassas içerikler otomatik olarak gizlidir. Görüntülemek için bir PIN belirle."
                 )
             )
         }

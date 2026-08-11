@@ -444,11 +444,11 @@ extension ActivationError {
     var userMessage: String {
         switch self {
         case .notFound:
-            return "Bu kod bulunamadı. Kodu kontrol et veya bayinle iletişime geç."
+            return "Bu kod bulunamadı. Kodu kontrol et veya hizmet sağlayıcınla iletişime geç."
         case .expired:
-            return "Bu kodun süresi dolmuş. Yeni kod için bayinle iletişime geç."
+            return "Bu kodun süresi dolmuş. Yeni kod için hizmet sağlayıcınla iletişime geç."
         case .alreadyUsed:
-            return "Bu kod daha önce kullanılmış. Yeni kod için bayinle iletişime geç."
+            return "Bu kod daha önce kullanılmış. Yeni kod için hizmet sağlayıcınla iletişime geç."
         case .tooManyAttempts:
             return "Çok fazla deneme yapıldı. Bir süre bekleyip tekrar dene."
         case .rateLimited:

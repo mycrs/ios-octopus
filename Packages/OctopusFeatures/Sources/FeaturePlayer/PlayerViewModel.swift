@@ -134,17 +134,21 @@ public final class PlayerViewModel: ObservableObject {
 
     /// Kaynağa göre doğru depodan içeriği bulup akış adresini çözer.
     func resolveItem() async throws -> PlaybackItem {
+        let filter = await ParentalFilter.current(dependencies.parental)
+
         switch source {
         case .liveChannel(let id):
             guard let channel = try await dependencies.channels.channel(id: id) else {
                 throw AppError.notFound
             }
+            guard filter.allows(channel: channel) else { throw AppError.notFound }
             return try await dependencies.streams.playbackItem(for: channel)
 
         case .movie(let id):
             guard let movie = try await dependencies.vod.movie(id: id) else {
                 throw AppError.notFound
             }
+            guard filter.allows(movie: movie) else { throw AppError.notFound }
             return try await dependencies.streams.playbackItem(for: movie)
 
         case .episode(let id):
@@ -154,7 +158,30 @@ public final class PlayerViewModel: ObservableObject {
             guard let series = try await dependencies.series.series(id: episode.seriesID) else {
                 throw AppError.notFound
             }
+            guard filter.allows(series: series) else { throw AppError.notFound }
             return try await dependencies.streams.playbackItem(for: episode, in: series)
+        }
+    }
+
+    /// Arka plana geçişte erişimi kapatır ve oynayan kaynağın hâlâ izinli
+    /// olup olmadığını denetler. Normal içerik PiP'te devam eder; korumalı
+    /// içerik ise arka planda görünür kalmaz.
+    public func lockAndValidateCurrentSource() async -> Bool {
+        await dependencies.parental.lock()
+        let filter = await ParentalFilter.current(dependencies.parental)
+
+        switch source {
+        case .liveChannel(let id):
+            guard let channel = try? await dependencies.channels.channel(id: id) else { return false }
+            return filter.allows(channel: channel)
+        case .movie(let id):
+            guard let movie = try? await dependencies.vod.movie(id: id) else { return false }
+            return filter.allows(movie: movie)
+        case .episode(let id):
+            guard let episode = try? await dependencies.series.episode(id: id),
+                  let series = try? await dependencies.series.series(id: episode.seriesID)
+            else { return false }
+            return filter.allows(series: series)
         }
     }
 

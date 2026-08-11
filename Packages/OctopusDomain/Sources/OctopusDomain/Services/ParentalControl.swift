@@ -76,17 +76,23 @@ extension ParentalControlling {
 /// sunum detayı değil.
 public struct ParentalFilter: Sendable {
 
-    private let isEnabled: Bool
     private let isUnlocked: Bool
 
     public init(isEnabled: Bool, isUnlocked: Bool) {
-        self.isEnabled = isEnabled
+        // `isEnabled` API uyumluluğu için korunuyor. Üretim denetleyicisi
+        // PIN kurulmamışken de kilitli başlar; böylece hassas içerik ilk
+        // açılışta kısa süreliğine bile görünmez.
+        _ = isEnabled
         self.isUnlocked = isUnlocked
     }
 
-    /// Kilit kurulu ve açılmamışsa yetişkin içerik gizlenir.
+    /// Açıkça yetki verilmedikçe hassas içerik gizlenir.
+    ///
+    /// PIN'in henüz belirlenmemiş olması korumayı kapatmaz. Yalnızca
+    /// `OpenParentalControl` gibi bilinçli olarak açık bir denetleyici
+    /// `isUnlocked == true` döndürerek süzgeci devre dışı bırakabilir.
     public var hidesAdultContent: Bool {
-        isEnabled && !isUnlocked
+        !isUnlocked
     }
 
     public func allows(channel: Channel) -> Bool {
