@@ -341,6 +341,23 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(fallback.requestedRates.last, 1.5)
     }
 
+    func test_volumeGestureIsClampedAndSurvivesEngineSwitch() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(native: native, fallback: fallback)
+
+        await controller.start(makeItem(url: URL(string: "http://x/y")))
+        controller.setVolume(1.5)
+        XCTAssertEqual(controller.volume, 1)
+
+        controller.setVolume(0.35)
+        native.emit(.unrecoverableFailure(.playbackFailed(reason: "codec")))
+        _ = await waitUntil { controller.engineIdentifier == "fallback" }
+
+        XCTAssertEqual(controller.volume, 0.35)
+        XCTAssertEqual(fallback.requestedVolumes.last, 0.35)
+    }
+
     func test_endedVOD_restartsFromBeginning() async {
         let native = TestEngine(identifier: "native")
         let controller = makeController(native: native)

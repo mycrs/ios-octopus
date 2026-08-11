@@ -1,1 +1,4 @@
 /* Türkçe kaynak metinleri Swift kodundaki anahtarların kendisidir. */
+"%@ · %ld sn sonra oynatılacak" = "%@ · %ld sn sonra oynatılacak";
+"Ses %%%ld" = "Ses %%%ld";
+"Parlaklık %%%ld" = "Parlaklık %%%ld";

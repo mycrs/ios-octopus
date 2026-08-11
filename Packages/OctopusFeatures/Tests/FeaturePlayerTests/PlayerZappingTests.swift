@@ -155,7 +155,7 @@ final class PlayerZappingTests: XCTestCase {
 
 // MARK: - Test ikizleri
 
-private final class StubChannels: ChannelRepository, @unchecked Sendable {
+final class StubChannels: ChannelRepository, @unchecked Sendable {
 
     let channels: [Channel]
 
@@ -184,7 +184,7 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
     }
 }
 
-private struct StubStreams: StreamResolving {
+struct StubStreams: StreamResolving {
 
     func playbackItem(for channel: Channel) async throws -> PlaybackItem {
         PlaybackItem(
@@ -227,7 +227,7 @@ private final class StubParental: ParentalControlling, @unchecked Sendable {
     func disable(with pin: String) async throws { enabled = false }
 }
 
-private struct StubProgress: PlaybackProgressRepository {
+struct StubProgress: PlaybackProgressRepository {
     func progress(for source: PlaybackItem.Source) async throws -> PlaybackProgress? { nil }
     func save(_ progress: PlaybackProgress, for source: PlaybackItem.Source) async throws {}
     func continueWatching(playlistID: Playlist.ID, limit: Int) async throws -> [PlaybackProgress] { [] }
@@ -235,13 +235,13 @@ private struct StubProgress: PlaybackProgressRepository {
     func clearAll() async throws {}
 }
 
-private struct StubHistory: WatchHistoryRepository {
+struct StubHistory: WatchHistoryRepository {
     func record(_ source: PlaybackItem.Source, at date: Date) async throws {}
     func recentChannels(playlistID: Playlist.ID, limit: Int) async throws -> [Channel] { [] }
     func clearAll() async throws {}
 }
 
-private struct StubVOD: VODRepository {
+struct StubVOD: VODRepository {
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
     func movies(
         playlistID: Playlist.ID,
@@ -259,7 +259,13 @@ private struct StubVOD: VODRepository {
     func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Movie] { [] }
 }
 
-private struct StubSeries: SeriesRepository {
+struct StubSeries: SeriesRepository {
+    let storedEpisodes: [Episode]
+
+    init(episodes: [Episode] = []) {
+        storedEpisodes = episodes
+    }
+
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
     func series(
         playlistID: Playlist.ID,
@@ -267,10 +273,29 @@ private struct StubSeries: SeriesRepository {
         limit: Int,
         offset: Int
     ) async throws -> [Series] { [] }
-    func series(id: Series.ID) async throws -> Series? { nil }
-    func seasons(seriesID: Series.ID) async throws -> [Season] { [] }
-    func episodes(seriesID: Series.ID, seasonNumber: Int) async throws -> [Episode] { [] }
-    func episode(id: Episode.ID) async throws -> Episode? { nil }
+    func series(id: Series.ID) async throws -> Series? {
+        guard storedEpisodes.contains(where: { $0.seriesID == id }) else { return nil }
+        return Series(id: id, playlistID: "p1", title: "Dizi", streamKey: "series")
+    }
+    func seasons(seriesID: Series.ID) async throws -> [Season] {
+        Set(storedEpisodes.filter { $0.seriesID == seriesID }.map(\.seasonNumber))
+            .sorted()
+            .map { number in
+                Season(
+                    id: Season.ID("season-\(number)"),
+                    seriesID: seriesID,
+                    number: number
+                )
+            }
+    }
+    func episodes(seriesID: Series.ID, seasonNumber: Int) async throws -> [Episode] {
+        storedEpisodes.filter {
+            $0.seriesID == seriesID && $0.seasonNumber == seasonNumber
+        }
+    }
+    func episode(id: Episode.ID) async throws -> Episode? {
+        storedEpisodes.first { $0.id == id }
+    }
     func loadDetails(id: Series.ID) async throws {}
     func invalidateDetails(id: Series.ID) async throws {}
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }

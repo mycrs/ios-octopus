@@ -492,6 +492,7 @@ final class AppContainer: ObservableObject {
             channels: channels,
             vod: vod,
             series: series,
+            epg: epg,
             preferences: playbackPreferences,
             // Zaplama listesi de süzülmeli — yoksa kilit oynatıcıdan atlatılır.
             parental: parental

@@ -56,6 +56,7 @@ public final class PlayerController: ObservableObject {
 
     /// Kullanıcının seçtiği oynatma hızı (canlıda kullanılmaz).
     @Published public private(set) var rate: Float = 1.0
+    @Published public private(set) var volume: Float = 1.0
 
     /// Görüntünün çerçeveye yerleşimi.
     ///
@@ -234,6 +235,7 @@ public final class PlayerController: ObservableObject {
         clearMediaMetadata()
         engine.setVideoFit(videoFit)
         engine.setRate(rate)
+        engine.setVolume(volume)
 
         await engine.load(target)
         // `load` beklerken ekran kapanmış ya da başka içerik başlamış olabilir.
@@ -299,6 +301,7 @@ public final class PlayerController: ObservableObject {
         newEngine.setVideoFit(videoFit)
         // VOD hızı da fallback sırasında korunur. Yeni içerikte `start()` zaten 1x'e çeker.
         newEngine.setRate(rate)
+        newEngine.setVolume(volume)
 
         // ⚠️ Abonelik yüklemeden **önce** kurulur. Ters sırada, yükleme
         // sırasında düşen olaylar (ör. anında gelen hata) kaybolurdu:
@@ -345,6 +348,7 @@ public final class PlayerController: ObservableObject {
         supportsAirPlay = false
         engineIdentifier = ""
         rate = 1.0
+        volume = 1.0
         state = .idle
     }
 
@@ -359,6 +363,11 @@ public final class PlayerController: ObservableObject {
         // Duraklatma bilinçli bir andır: konumu hemen yaz, uygulama
         // arka planda öldürülse bile kayıp olmasın.
         Task { await saveProgress(force: true) }
+    }
+
+    public func setVolume(_ newVolume: Float) {
+        volume = min(max(newVolume, 0), 1)
+        engine?.setVolume(volume)
     }
 
     public func togglePlayPause() async {

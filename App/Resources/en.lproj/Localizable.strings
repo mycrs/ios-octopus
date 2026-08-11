@@ -340,3 +340,15 @@
 "Kanallar yükleniyor" = "Loading channels";
 "Ana sayfa yükleniyor" = "Loading home";
 "Puan %@" = "Rating %@";
+
+/* Advanced player */
+"Sıradaki bölüm" = "Up next";
+"%@ · %ld sn sonra oynatılacak" = "%1$@ · Playing in %2$ld sec";
+"Şimdi oynat" = "Play now";
+"Oynatıcı kilidini aç" = "Unlock player";
+"Oynatıcıyı kilitle" = "Lock player";
+"Ses %%%ld" = "Volume %ld%%";
+"Parlaklık %%%ld" = "Brightness %ld%%";
+"Program" = "Guide";
+"Şimdi" = "Now";
+"Sırada" = "Up next";

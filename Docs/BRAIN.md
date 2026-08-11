@@ -596,7 +596,7 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 
 ---
 
-## 13. NEREDE KALDIK? (2026-08-09)
+## 13. NEREDE KALDIK? (2026-08-11)
 
 ### Bu oturumda tamamlananlar
 
@@ -607,6 +607,10 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 | Canlı TV gömülü mini oynatıcı | ✅ | Liste dokunuşu tam ekrana atlamıyor, yayın tepede başlıyor |
 | Kanal geçiş hızı | ✅ | Motor yeniden kullanımı + tampon ayarları. Standart kanal ~1,3 sn |
 | Canlıda otomatik yeniden bağlanma | ✅ | Artan gecikmeyle 3 deneme, sessiz |
+| Sonraki bölüm | ✅ | 8 sn geri sayım, elle oynatma/iptal ve sezonlar arası otomatik sıra |
+| Oynatıcı hareketleri + kilit | ✅ | Çift dokunma 10 sn; sol parlaklık, sağ ses; yanlış dokunmaya karşı kilit |
+| Canlı oynatıcı paneli | ✅ | Oynatıcıdan çıkmadan aranabilir kanal listesi ve şimdi/sırada EPG |
+| Tam ekran VLC denetimleri | ✅ | Video ve SwiftUI katmanı aynı UIKit hiyerarşisinde; CI'da fallback karesi var |
 | Ayarlar → Oynatıcı bölümü | ✅ | Tampon, yerleşim, yeniden bağlanma, yedek motor — hepsi gerçek etkili |
 | Detay sayfası sinematik başlık | ✅ | Şeffaf çubuk + oranla ölçeklenen arka plan |
 | Ana sayfa başlık kartı | ✅ | Dönen afiş kaldırıldı; marka, saat, abonelik, kullanıcı |
@@ -621,12 +625,11 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 
 | # | İş | Neden bekliyor |
 |---|---|---|
-| 1 | **Tam ekranda VLC denetimleri görünmüyor** | Dokunma ulaşıyor, durum değişiyor, çizim olmuyor. `VLCOpenGLES2VideoView` SwiftUI içeriğinin önünde kompozit ediliyor. `zIndex`, `.overlay`, `isUserInteractionEnabled`, güvenli alan taşıma — hiçbiri çözmedi. **İpucu:** Canlı TV'deki mini oynatıcı aynı motorla katmanını sorunsuz çiziyor; fark, orada yüzeyin `aspectRatio` ile sınırlı olması. Muhtemel çözüm: denetimleri `UIHostingController` ile VLC görünümünün üstüne UIKit tarafında eklemek |
-| 2 | **Bayi kodu ucu bağlı değil** | `/api/public/reseller-config/{kod}` app_name, logo, iletişim, `minimum_version` ve **DNS yedek listesi** döndürüyor. Uygulama bu ucu hiç çağırmıyor çünkü **bayi kodunu bilmiyor** — aktivasyon cevabı kodu döndürmüyor. Seçenekler: (a) panel cevabına `reseller_code` eklesin, (b) bayi başına derleme, (c) kullanıcı girsin |
-| 3 | **`DNSFailoverService` çağrılmıyor** | Yazılmış ama hiçbir yerden kullanılmıyor. (2) çözülünce sunucu düştüğünde otomatik yedeğe geçiş devreye girer |
-| 4 | Mevcut M3U kaynakları dönüşmüyor | Dönüşüm yalnızca **yeni** eklemede. Eski kayıtlar silinip yeniden eklenmeli — ya da senkronizasyonda göç yazılmalı |
-| 5 | `PanelEndpoint.defaultBaseURL` force unwrap | CLAUDE.md yasaklıyor, `check-architecture.sh` yakalamıyor |
-| 6 | HEVC gerçek cihazda doğrulanmadı | Simülatörde HEVC çözülemiyor ve her UHD kanal yedeğe düşüyor. **Gerçek iPhone'da AVPlayer HEVC'yi donanımda çözer** — orada yedeğe hiç düşmemesi beklenir. Ölçülmeden optimize edilmemeli |
+| 1 | **Bayi kodu ucu bağlı değil** | `/api/public/reseller-config/{kod}` app_name, logo, iletişim, `minimum_version` ve **DNS yedek listesi** döndürüyor. Uygulama bu ucu hiç çağırmıyor çünkü **bayi kodunu bilmiyor** — aktivasyon cevabı kodu döndürmüyor. Seçenekler: (a) panel cevabına `reseller_code` eklesin, (b) bayi başına derleme, (c) kullanıcı girsin |
+| 2 | **`DNSFailoverService` çağrılmıyor** | Yazılmış ama hiçbir yerden kullanılmıyor. (1) çözülünce sunucu düştüğünde otomatik yedeğe geçiş devreye girer |
+| 3 | Mevcut M3U kaynakları dönüşmüyor | Dönüşüm yalnızca **yeni** eklemede. Eski kayıtlar silinip yeniden eklenmeli — ya da senkronizasyonda göç yazılmalı |
+| 4 | `PanelEndpoint.defaultBaseURL` force unwrap | CLAUDE.md yasaklıyor, `check-architecture.sh` yakalamıyor |
+| 5 | HEVC gerçek cihazda doğrulanmadı | Simülatörde HEVC çözülemiyor ve her UHD kanal yedeğe düşüyor. **Gerçek iPhone'da AVPlayer HEVC'yi donanımda çözer** — orada yedeğe hiç düşmemesi beklenir. Ölçülmeden optimize edilmemeli |
 
 ### Doğrulanmış gerçekler (tahmin değil)
 

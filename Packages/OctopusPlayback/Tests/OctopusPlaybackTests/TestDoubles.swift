@@ -58,6 +58,7 @@ final class TestEngine: PlaybackEngine {
     private(set) var seekedTo: [TimeInterval] = []
     private(set) var selectedTracks: [MediaTrack] = []
     private(set) var requestedRates: [Float] = []
+    private(set) var requestedVolumes: [Float] = []
     private(set) var videoFit: VideoFit = .fit
     private let loadDelay: Duration?
 
@@ -84,7 +85,7 @@ final class TestEngine: PlaybackEngine {
     func pause() { pauseCount += 1 }
     func stop() {}
     func seek(to seconds: TimeInterval) async { seekedTo.append(seconds) }
-    func setVolume(_ volume: Float) {}
+    func setVolume(_ volume: Float) { requestedVolumes.append(volume) }
     func setRate(_ rate: Float) { requestedRates.append(rate) }
     func select(track: MediaTrack) { selectedTracks.append(track) }
     func setVideoFit(_ fit: VideoFit) { videoFit = fit }

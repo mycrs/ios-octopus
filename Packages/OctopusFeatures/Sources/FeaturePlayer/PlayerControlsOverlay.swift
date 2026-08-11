@@ -30,6 +30,8 @@ struct PlayerControlsOverlay: View {
     let onToggleFit: () -> Void
     let onSetRate: (Float) -> Void
     let onPictureInPicture: () -> Void
+    let onLock: () -> Void
+    let onShowLivePanel: () -> Void
     /// Canlı yayında kanal değiştirir: -1 önceki, +1 sonraki.
     let onZap: (Int) -> Void
 
@@ -73,6 +75,9 @@ struct PlayerControlsOverlay: View {
             }
             .padding(Theme.Spacing.md)
 
+            PlayerLockControl(isLocked: false, action: onLock)
+                .padding(.leading, Theme.Spacing.md)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 
@@ -90,6 +95,15 @@ struct PlayerControlsOverlay: View {
                     .kerning(1.5)
                     .foregroundColor(.white)
                 Spacer()
+                Button(action: onShowLivePanel) {
+                    Label("Kanallar", systemImage: "list.bullet.rectangle")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, Theme.Spacing.sm)
+                        .frame(height: 36)
+                        .background(.black.opacity(0.42), in: Capsule())
+                }
+                .buttonStyle(.plain)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {

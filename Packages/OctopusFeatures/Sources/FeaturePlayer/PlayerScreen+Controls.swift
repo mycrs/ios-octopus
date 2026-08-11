@@ -12,11 +12,22 @@ extension PlayerScreen {
     func controlsLayer(_ item: PlaybackItem) -> some View {
         ZStack {
             // Dokunma alanı tüm ekran: kullanıcı düğmeyi aramak zorunda kalmasın.
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture { toggleControls() }
+            PlayerGestureSurface(
+                isEnabled: !isControlsLocked,
+                isLive: item.isLive,
+                volume: controller.volume,
+                onSingleTap: toggleControls,
+                onSkip: handleGestureSkip,
+                onVolume: handleGestureVolume,
+                onBrightness: handleGestureBrightness
+            )
 
-            if showsControls {
+            if isControlsLocked {
+                PlayerLockControl(isLocked: true) {
+                    isControlsLocked = false
+                    scheduleControlsHide()
+                }
+            } else if showsControls {
                 PlayerControlsOverlay(
                     title: item.title,
                     subtitle: item.subtitle,
@@ -65,6 +76,15 @@ extension PlayerScreen {
                         // asılı kalmasın.
                         showsControls = false
                     },
+                    onLock: {
+                        hideControlsTask?.cancel()
+                        isControlsLocked = true
+                        showsControls = false
+                    },
+                    onShowLivePanel: {
+                        hideControlsTask?.cancel()
+                        isShowingLivePanel = true
+                    },
                     onZap: { step in
                         Task { await viewModel.zap(by: step) }
                         // Kanal değişince denetimler açık kalsın: kullanıcı
@@ -74,6 +94,22 @@ extension PlayerScreen {
                 )
                 .transition(.opacity)
             }
+
+            if let episode = presentedNextEpisode,
+               let countdown = presentedNextEpisodeCountdown {
+                NextEpisodeOverlay(
+                    episode: episode,
+                    countdown: countdown,
+                    onPlay: playNextEpisodeNow,
+                    onCancel: cancelNextEpisode
+                )
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+
+            if let gestureNotice {
+                PlayerGestureNoticeView(notice: gestureNotice)
+                    .transition(.scale.combined(with: .opacity))
+            }
         }
         .animation(.easeInOut(duration: 0.2), value: showsControls)
     }
@@ -82,20 +118,10 @@ extension PlayerScreen {
         controller.audioTracks.count > 1 || !controller.subtitleTracks.isEmpty
     }
 
-    @ViewBuilder
-    var trackPicker: some View {
-        PlayerTrackPicker(
-            audioTracks: controller.audioTracks,
-            subtitleTracks: controller.subtitleTracks,
-            selectedAudio: controller.selectedAudioTrack,
-            selectedSubtitle: controller.selectedSubtitleTrack,
-            onSelect: controller.select
-        )
-    }
-
     // MARK: - Denetim görünürlüğü
 
     func toggleControls() {
+        guard !isControlsLocked else { return }
         showsControls.toggle()
         if showsControls {
             scheduleControlsHide()
@@ -122,4 +148,5 @@ extension PlayerScreen {
             showsControls = false
         }
     }
+
 }

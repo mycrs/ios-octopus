@@ -238,6 +238,29 @@ jobs:
           sleep 10
           xcrun simctl io booted screenshot screenshots/12-vod-pip.png
 
+          # Yeni oynatıcı deneyimleri: sonraki bölüm, kontrol kilidi ve
+          # oynatıcıdan çıkmadan açılan canlı kanal/EPG paneli.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -keepPlayerControls -previewNextEpisode \
+            -startup.player "movie:demo#vod#0" >/dev/null
+          sleep 10
+          xcrun simctl io booted screenshot screenshots/13-sonraki-bolum.png
+
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -keepPlayerControls -previewPlayerLock \
+            -startup.player "movie:demo#vod#0" >/dev/null
+          sleep 10
+          xcrun simctl io booted screenshot screenshots/14-player-lock.png
+
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -keepPlayerControls -previewLivePanel \
+            -startup.player "live:demo#live#0" >/dev/null
+          sleep 10
+          xcrun simctl io booted screenshot screenshots/15-live-panel.png
+
           # 3) Dynamic Type — büyük erişilebilirlik yazı boyutu.
           #
           # Kod tabanında bunu ele alan neredeyse hiçbir şey yok

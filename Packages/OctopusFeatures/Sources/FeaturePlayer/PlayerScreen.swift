@@ -5,46 +5,6 @@ import OctopusDesignSystem
 import OctopusNavigation
 import OctopusPlayback
 
-public struct PlayerDependencies {
-    public let resolver: PlaybackEngineResolver
-    public let streams: StreamResolving
-    public let progress: PlaybackProgressRepository
-    public let history: WatchHistoryRepository
-    public let channels: ChannelRepository
-    public let vod: VODRepository
-    public let series: SeriesRepository
-
-    /// ⚠️ Oynatıcı da kilidi uygulamak **zorunda**: kanal değiştirme
-    /// listesi süzülmezse kullanıcı zaplayarak yetişkin bir kanala
-    /// düşebilir — kilit o yoldan atlatılmış olur.
-    public let parental: ParentalControlling
-
-    /// Kullanıcının Ayarlar'daki oynatma tercihleri.
-    public let preferences: PlaybackPreferences?
-
-    public init(
-        resolver: PlaybackEngineResolver,
-        streams: StreamResolving,
-        progress: PlaybackProgressRepository,
-        history: WatchHistoryRepository,
-        channels: ChannelRepository,
-        vod: VODRepository,
-        series: SeriesRepository,
-        preferences: PlaybackPreferences? = nil,
-        parental: ParentalControlling = OpenParentalControl()
-    ) {
-        self.preferences = preferences
-        self.resolver = resolver
-        self.streams = streams
-        self.progress = progress
-        self.history = history
-        self.channels = channels
-        self.vod = vod
-        self.series = series
-        self.parental = parental
-    }
-}
-
 /// Tam ekran oynatıcı.
 ///
 /// ⚠️ Bu ekran **hangi motorun** çalıştığını bilmez. `PlaybackEngineResolver`
@@ -60,17 +20,24 @@ public struct PlayerScreen: View {
     @StateObject var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.locale) var locale
 
-    // ⚠️ Bu üçü `private` değil: denetim mantığı `PlayerScreen+Controls.swift`
-    // içinde ve Swift'te `private`, **aynı dosyadaki** uzantılardan erişilebilir.
-    // Ayrı dosyaya taşınınca modül içi görünürlük gerekiyor.
+    // Alt dosyalardaki denetim, gesture, sheet ve bölüm uzantıları bu durumu
+    // paylaşır; bu nedenle dosya-özel değil modül içi görünürlüktedir.
     @State var showsControls = true
     @State var hideControlsTask: Task<Void, Never>?
     @State var isShowingTracks = false
+    @State var isShowingLivePanel = false
+    @State var isControlsLocked = false
+    @State var nextEpisodeCountdown: Int?
+    @State var nextEpisodeTask: Task<Void, Never>?
+    @State var gestureNotice: PlayerGestureNotice?
+    @State var gestureNoticeTask: Task<Void, Never>?
 
     let autoHideDelay: Duration
     let keepsControlsVisible: Bool
     let previewsPictureInPictureButton: Bool
+    let previewsNextEpisodeOverlay: Bool
 
     public init(presentation: PlayerPresentation, dependencies: PlayerDependencies) {
 #if DEBUG
@@ -78,12 +45,22 @@ public struct PlayerScreen: View {
         previewsPictureInPictureButton = ProcessInfo.processInfo.arguments.contains(
             "-previewPictureInPictureButton"
         )
+        previewsNextEpisodeOverlay = ProcessInfo.processInfo.arguments.contains(
+            "-previewNextEpisode"
+        )
+        _isControlsLocked = State(
+            initialValue: ProcessInfo.processInfo.arguments.contains("-previewPlayerLock")
+        )
+        _isShowingLivePanel = State(
+            initialValue: ProcessInfo.processInfo.arguments.contains("-previewLivePanel")
+        )
         autoHideDelay = keepsControlsVisible
             ? .seconds(60)
             : .seconds(3.5)
 #else
         keepsControlsVisible = false
         previewsPictureInPictureButton = false
+        previewsNextEpisodeOverlay = false
         autoHideDelay = .seconds(3.5)
 #endif
         _viewModel = StateObject(
@@ -115,6 +92,8 @@ public struct PlayerScreen: View {
         .statusBarHidden(true)
         .task { await viewModel.resolve() }
         .sheet(isPresented: $isShowingTracks) { trackPicker }
+        .sheet(isPresented: $isShowingLivePanel) { livePanel }
+        .onChange(of: controller.state, perform: handlePlaybackStateChange)
         // ⚠️ Konum normalde 5 sn'de bir yazılıyor. Kullanıcı uygulamayı
         // arka plana alıp sistem onu öldürürse son 5 saniye kaybolurdu —
         // filmi tekrar açtığında biraz geriden başlardı. Arka plana geçiş
@@ -122,6 +101,10 @@ public struct PlayerScreen: View {
         .onChange(of: scenePhase) { phase in
             guard phase != .active else { return }
             Task { await controller.persistPosition() }
+        }
+        .onDisappear {
+            nextEpisodeTask?.cancel()
+            gestureNoticeTask?.cancel()
         }
     }
 

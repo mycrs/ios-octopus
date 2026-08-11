@@ -22,20 +22,25 @@ public final class PlayerViewModel: ObservableObject {
         case failed(String)
     }
 
-    @Published public private(set) var phase: Phase = .resolving
+    @Published public internal(set) var phase: Phase = .resolving
 
     /// Canlı yayında kanal değiştirilebilir mi? (Liste tek kanaldan ibaretse hayır.)
     @Published public private(set) var canZap = false
+    @Published public internal(set) var nextEpisode: Episode?
+    @Published public private(set) var liveChannels: [Channel] = []
+    @Published public internal(set) var currentProgram: EPGProgram?
+    @Published public internal(set) var followingProgram: EPGProgram?
 
-    private let dependencies: PlayerDependencies
+    let dependencies: PlayerDependencies
     /// Yönlendirmeden gelen açık başlangıç konumu, kayıtlı ilerlemeyi ezer.
     private let startAt: TimeInterval?
 
     /// Şu an oynayan kaynak — zaplama bunu değiştirir.
-    private var source: PlaybackItem.Source
+    var source: PlaybackItem.Source
+    private var didApplyExplicitStartPosition = false
 
     /// Zaplama sırası. **Ebeveyn kilidiyle süzülmüş** hâli tutulur.
-    private var zapList: [Channel] = []
+    var zapList: [Channel] = []
 
     public init(
         dependencies: PlayerDependencies,
@@ -50,8 +55,12 @@ public final class PlayerViewModel: ObservableObject {
     public func resolve() async {
         phase = .resolving
         do {
-            phase = .ready(applyingStartPosition(to: try await resolveItem()))
+            let resolved = try await resolveItem()
+            phase = .ready(applyingStartPosition(to: resolved))
+            didApplyExplicitStartPosition = true
             await prepareZapping()
+            await prepareEpisodeContext()
+            await prepareLiveGuide()
         } catch {
             phase = .failed(AppError.wrap(error).userMessage)
         }
@@ -59,6 +68,7 @@ public final class PlayerViewModel: ObservableObject {
 
     private func applyingStartPosition(to item: PlaybackItem) -> PlaybackItem {
         guard
+            !didApplyExplicitStartPosition,
             !item.isLive,
             let startAt,
             startAt.isFinite,
@@ -75,9 +85,10 @@ public final class PlayerViewModel: ObservableObject {
     /// ⚠️ Liste **kilitle süzülür**. Süzülmezse kullanıcı zaplayarak
     /// yetişkin bir kanala düşebilir ve kilit bu yoldan atlatılmış olur
     /// (bkz. BRAIN.md — kilit tek yerde tutulur, **yedi** yerde uygulanır).
-    private func prepareZapping() async {
+    func prepareZapping() async {
         guard case .liveChannel(let id) = source else {
             zapList = []
+            liveChannels = []
             canZap = false
             return
         }
@@ -91,6 +102,7 @@ public final class PlayerViewModel: ObservableObject {
         )) ?? []
 
         zapList = filter.filter(all)
+        liveChannels = zapList
         canZap = zapList.count > 1
     }
 
@@ -114,13 +126,14 @@ public final class PlayerViewModel: ObservableObject {
 
         do {
             phase = .ready(try await resolveItem())
+            await prepareLiveGuide()
         } catch {
             phase = .failed(AppError.wrap(error).userMessage)
         }
     }
 
     /// Kaynağa göre doğru depodan içeriği bulup akış adresini çözer.
-    private func resolveItem() async throws -> PlaybackItem {
+    func resolveItem() async throws -> PlaybackItem {
         switch source {
         case .liveChannel(let id):
             guard let channel = try await dependencies.channels.channel(id: id) else {
