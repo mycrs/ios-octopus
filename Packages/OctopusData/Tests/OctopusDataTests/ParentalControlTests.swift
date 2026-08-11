@@ -199,7 +199,8 @@ final class ParentalFilterTests: XCTestCase {
     }
 
     func test_freshKeychainControlStartsProtected() async {
-        let filter = await ParentalFilter.current(control)
+        let freshControl = KeychainParentalControl(secrets: FakeSecretStore())
+        let filter = await ParentalFilter.current(freshControl)
 
         XCTAssertTrue(filter.hidesAdultContent)
         XCTAssertFalse(filter.allows(movie: makeMovie(isAdult: true)))
