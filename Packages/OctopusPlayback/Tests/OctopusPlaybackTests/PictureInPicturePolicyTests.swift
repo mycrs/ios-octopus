@@ -23,8 +23,8 @@ final class PictureInPicturePolicyTests: XCTestCase {
         )
     }
 
-    func test_liveChannelNeverShowsButton() {
-        XCTAssertFalse(
+    func test_liveChannelShowsButtonWhenEngineIsReady() {
+        XCTAssertTrue(
             PictureInPicturePolicy.canShowButton(
                 for: makeItem(source: .liveChannel(Channel.ID("channel-1"))),
                 engineIsReady: true

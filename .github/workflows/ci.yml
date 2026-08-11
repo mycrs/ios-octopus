@@ -212,7 +212,7 @@ jobs:
           # ve fallback zincirinin yerleşmesi için yeterli süre beklenir.
           xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
           xcrun simctl launch booted com.octopus.iptv \
-            -seedDemoData -keepPlayerControls \
+            -seedDemoData -keepPlayerControls -previewPictureInPictureButton \
             -startup.player "live:demo#live#0" >/dev/null
           sleep 10
           xcrun simctl io booted screenshot screenshots/10-oynatici-denetimler.png
@@ -229,7 +229,7 @@ jobs:
           xcrun simctl io booted screenshot screenshots/11-vod-denetimler.png
 
           # PiP gerçek cihaz özelliğidir ve iOS simülatöründe desteklenmez.
-          # DEBUG önizlemesi yalnızca film/bölüm üst çubuğundaki manuel PiP
+          # DEBUG önizlemesi canlı ve VOD üst çubuklarındaki manuel PiP
           # düğmesinin yerleşimini görsel regresyona dahil eder.
           xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
           xcrun simctl launch booted com.octopus.iptv \
