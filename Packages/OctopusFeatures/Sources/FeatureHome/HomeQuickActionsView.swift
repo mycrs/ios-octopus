@@ -12,26 +12,18 @@ struct HomeQuickActionsView: View {
 
     @Environment(\.brandColor) private var brandColor
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(spacing: Theme.Spacing.sm) {
-            HStack(spacing: Theme.Spacing.sm) {
-                actionButton(
-                    title: "Yeni liste",
-                    icon: "plus.rectangle.on.rectangle",
-                    isPrimary: true,
-                    action: onAdd
-                )
-
-                actionButton(
-                    title: "Listeyi yenile",
-                    icon: "arrow.clockwise",
-                    isPrimary: false,
-                    showsProgress: isRefreshing,
-                    action: onRefresh
-                )
-                .disabled(!canRefresh)
-                .opacity(canRefresh || isRefreshing ? 1 : 0.48)
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: Theme.Spacing.sm) {
+                    buttons
+                }
+            } else {
+                HStack(spacing: Theme.Spacing.sm) {
+                    buttons
+                }
             }
 
             if let message {
@@ -44,6 +36,26 @@ struct HomeQuickActionsView: View {
         }
         .padding(.horizontal, Theme.Spacing.md)
         .animation(.easeInOut(duration: 0.2), value: message)
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        actionButton(
+            title: "Yeni liste",
+            icon: "plus.rectangle.on.rectangle",
+            isPrimary: true,
+            action: onAdd
+        )
+
+        actionButton(
+            title: "Listeyi yenile",
+            icon: "arrow.clockwise",
+            isPrimary: false,
+            showsProgress: isRefreshing,
+            action: onRefresh
+        )
+        .disabled(!canRefresh)
+        .opacity(canRefresh || isRefreshing ? 1 : 0.48)
     }
 
     private func actionButton(

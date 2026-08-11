@@ -7,29 +7,18 @@ struct HomeHeroAccountView: View {
     let account: HomeAccount?
     @Environment(\.brandColor) private var brandColor
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @ViewBuilder
     var body: some View {
         if let account, account.username != nil || account.expiryDateText != nil {
-            HStack(spacing: Theme.Spacing.sm) {
-                if let username = account.username {
-                    tile(
-                        icon: "person.fill",
-                        caption: "KULLANICI",
-                        value: username,
-                        detail: "Aktif hesap",
-                        tint: brandColor
-                    )
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: Theme.Spacing.sm) {
+                    accountTiles(account)
                 }
-
-                if let expiryDate = account.expiryDateText {
-                    tile(
-                        icon: "calendar.badge.clock",
-                        caption: "BİTİŞ TARİHİ",
-                        value: expiryDate,
-                        detail: account.expiryText,
-                        tint: statusColor(for: account)
-                    )
+            } else {
+                HStack(spacing: Theme.Spacing.sm) {
+                    accountTiles(account)
                 }
             }
         } else {
@@ -37,6 +26,29 @@ struct HomeHeroAccountView: View {
                 .font(Theme.Typography.caption)
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(Theme.Palette.success, Theme.Palette.textSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private func accountTiles(_ account: HomeAccount) -> some View {
+        if let username = account.username {
+            tile(
+                icon: "person.fill",
+                caption: "KULLANICI",
+                value: username,
+                detail: "Aktif hesap",
+                tint: brandColor
+            )
+        }
+
+        if let expiryDate = account.expiryDateText {
+            tile(
+                icon: "calendar.badge.clock",
+                caption: "BİTİŞ TARİHİ",
+                value: expiryDate,
+                detail: account.expiryText,
+                tint: statusColor(for: account)
+            )
         }
     }
 
@@ -63,14 +75,14 @@ struct HomeHeroAccountView: View {
                 Text(value)
                     .font(Theme.Typography.caption.weight(.semibold))
                     .foregroundColor(Theme.Palette.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                     .minimumScaleFactor(0.72)
 
                 if let detail {
                     Text(AppLocalization.localized(detail, locale: locale))
                         .font(Theme.Typography.badge)
                         .foregroundColor(tint.opacity(0.9))
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                 }
             }
 

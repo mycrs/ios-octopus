@@ -13,6 +13,7 @@ struct HomeHeaderView: View {
 
     @Environment(\.brandColor) private var brandColor
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -38,27 +39,39 @@ struct HomeHeaderView: View {
         .padding(.top, Theme.Spacing.sm)
     }
 
+    @ViewBuilder
     private var brandRow: some View {
-        HStack {
-            HStack(spacing: Theme.Spacing.md) {
-                HomeBrandLogo(logoURL: brandLogoURL, size: 54)
-                    .shadow(color: brandColor.opacity(0.25), radius: 12, y: 6)
-
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text(brandName)
-                        .font(Theme.Typography.rowTitle.weight(.bold))
-                        .foregroundColor(Theme.Palette.textPrimary)
-                        .lineLimit(1)
-
-                    Label("SANA ÖZEL", systemImage: "sparkles")
-                        .font(Theme.Typography.badge)
-                        .tracking(0.8)
-                        .foregroundColor(brandColor)
-                }
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                brandIdentity
+                clock
             }
+        } else {
+            HStack {
+                brandIdentity
+                Spacer(minLength: Theme.Spacing.sm)
+                clock
+            }
+        }
+    }
 
-            Spacer(minLength: Theme.Spacing.sm)
-            clock
+    private var brandIdentity: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            HomeBrandLogo(logoURL: brandLogoURL, size: 54)
+                .shadow(color: brandColor.opacity(0.25), radius: 12, y: 6)
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                Text(brandName)
+                    .font(Theme.Typography.rowTitle.weight(.bold))
+                    .foregroundColor(Theme.Palette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+
+                Label("SANA ÖZEL", systemImage: "sparkles")
+                    .font(Theme.Typography.badge)
+                    .tracking(0.8)
+                    .foregroundColor(brandColor)
+            }
         }
     }
 
@@ -68,6 +81,8 @@ struct HomeHeaderView: View {
                 Image(systemName: "clock")
                 Text(context.date, format: .dateTime.hour().minute())
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
             .font(Theme.Typography.caption.weight(.semibold))
             .foregroundColor(Theme.Palette.textPrimary)
@@ -92,21 +107,33 @@ struct HomeHeaderView: View {
         }
     }
 
+    @ViewBuilder
     private var actions: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            heroButton(
-                title: "Canlı TV",
-                icon: "play.fill",
-                isPrimary: true,
-                action: onWatchLive
-            )
-            heroButton(
-                title: "Filmleri keşfet",
-                icon: "film.fill",
-                isPrimary: false,
-                action: onExplore
-            )
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(spacing: Theme.Spacing.sm) {
+                actionButtons
+            }
+        } else {
+            HStack(spacing: Theme.Spacing.sm) {
+                actionButtons
+            }
         }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        heroButton(
+            title: "Canlı TV",
+            icon: "play.fill",
+            isPrimary: true,
+            action: onWatchLive
+        )
+        heroButton(
+            title: "Filmleri keşfet",
+            icon: "film.fill",
+            isPrimary: false,
+            action: onExplore
+        )
     }
 
     private func heroButton(
