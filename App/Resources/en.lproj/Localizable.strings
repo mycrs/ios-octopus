@@ -92,6 +92,8 @@
 "AKTAR" = "IMPORT";
 "HAZIR" = "READY";
 "Hazırlanıyor" = "Preparing";
+"Kütüphanen hazır" = "Your library is ready";
+"İçeriklerin hazır. İzlemeye başlayabilirsin." = "Your content is ready. Start watching anytime.";
 
 /* Provider connection */
 "Markanı bağla" = "Connect your provider";

@@ -133,6 +133,8 @@ public final class AddPlaylistViewModel: ObservableObject {
 
     @Published public private(set) var step: Step = .form
     @Published public private(set) var errorMessage: String?
+    /// İlk kurulum boyunca tamamlanan katalogların gerçek öğe adetleri.
+    @Published public private(set) var syncCounts = SyncContentCounts.empty
     /// Doğrulama başarılıysa hesap bilgisi (abonelik bitişi vb.).
     @Published public private(set) var account: ProviderAccount?
     /// Kod ile girişte bayinin müşteri kaydındaki ad — karşılamada gösterilir.
@@ -156,6 +158,7 @@ public final class AddPlaylistViewModel: ObservableObject {
     private let dependencies: OnboardingDependencies
     private let makeID: () -> Playlist.ID
     private let now: () -> Date
+    private let completionDelayNanoseconds: UInt64
     private var progressTask: Task<Void, Never>?
     /// Bayi kodu çözüldüğünde gerçek DNS burada tutulur; formdaki dört rakam
     /// URL ile değiştirilmez ve kullanıcı teknik adresi hiçbir zaman görmez.
@@ -164,11 +167,13 @@ public final class AddPlaylistViewModel: ObservableObject {
     public init(
         dependencies: OnboardingDependencies,
         makeID: @escaping () -> Playlist.ID = { Playlist.ID(UUID().uuidString) },
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        completionDelayNanoseconds: UInt64 = 1_600_000_000
     ) {
         self.dependencies = dependencies
         self.makeID = makeID
         self.now = now
+        self.completionDelayNanoseconds = completionDelayNanoseconds
     }
 
     deinit {
@@ -277,11 +282,16 @@ public final class AddPlaylistViewModel: ObservableObject {
     }
 
     private func runInitialSync(playlistID: Playlist.ID) async {
+        syncCounts = .empty
         step = .syncing(.idle)
         observeProgress(playlistID: playlistID)
 
         do {
             try await dependencies.sync.sync(playlistID: playlistID)
+            // Son adetlerin animasyonla yerleşmesi ve kullanıcının sonucu
+            // okuyabilmesi için başarı yüzeyi kısa süre ekranda kalır.
+            step = .syncing(.finished(at: now(), counts: syncCounts))
+            try? await Task.sleep(nanoseconds: completionDelayNanoseconds)
             progressTask?.cancel()
             step = .done
         } catch {
@@ -298,6 +308,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         progressTask = Task { [weak self, dependencies] in
             for await stage in dependencies.sync.observeProgress(playlistID: playlistID) {
                 guard let self, !Task.isCancelled else { return }
+                self.syncCounts.record(stage)
                 // Bitiş ve hata ayrı ele alınır; burada yalnızca ara aşamalar.
                 if case .syncing = self.step {
                     self.step = .syncing(stage)

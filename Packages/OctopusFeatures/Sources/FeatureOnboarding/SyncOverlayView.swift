@@ -10,6 +10,7 @@ import OctopusDesignSystem
 struct SyncOverlayView: View {
 
     let step: AddPlaylistViewModel.Step
+    let counts: SyncContentCounts
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.brandColor) private var brandColor
     @Environment(\.locale) private var locale
@@ -24,7 +25,12 @@ struct SyncOverlayView: View {
                 .opacity(0.16)
 
             VStack(spacing: Theme.Spacing.xl) {
-                indicator
+                SyncProgressIndicator(
+                    fraction: fraction,
+                    isFinished: isFinished,
+                    isPulsing: isPulsing,
+                    reduceMotion: reduceMotion
+                )
 
                 VStack(spacing: Theme.Spacing.sm) {
                     Text(AppLocalization.localized(eyebrow, locale: locale))
@@ -44,6 +50,15 @@ struct SyncOverlayView: View {
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                }
+
+                if showsContentStats {
+                    SyncContentStatsView(
+                        counts: counts,
+                        activeKind: activeCatalog,
+                        isFinished: isFinished
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 progressTrack
@@ -67,45 +82,6 @@ struct SyncOverlayView: View {
                 + AppLocalization.localized(detail ?? "", locale: locale)
         )
         .onAppear { isPulsing = true }
-    }
-
-    private var indicator: some View {
-        ZStack {
-            Circle()
-                .fill(brandColor.opacity(0.10))
-                .frame(width: 104, height: 104)
-                .scaleEffect(isPulsing && !reduceMotion ? 1.10 : 0.96)
-                .opacity(isPulsing && !reduceMotion ? 0.42 : 1)
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: 1.2).repeatForever(autoreverses: true),
-                    value: isPulsing
-                )
-
-            Circle()
-                .stroke(Theme.Palette.separator, lineWidth: 6)
-                .frame(width: 82, height: 82)
-
-            if let fraction {
-                Circle()
-                    .trim(from: 0, to: max(fraction, 0.04))
-                    .stroke(
-                        brandColor,
-                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 82, height: 82)
-                    .animation(.easeInOut(duration: 0.35), value: fraction)
-
-                Text("\(Int(fraction * 100))%")
-                    .font(.system(.headline, design: .rounded).weight(.bold))
-                    .foregroundColor(Theme.Palette.textPrimary)
-                    .monospacedDigit()
-            } else {
-                ProgressView()
-                    .tint(brandColor)
-                    .scaleEffect(1.15)
-            }
-        }
     }
 
     private var progressTrack: some View {
@@ -147,7 +123,7 @@ struct SyncOverlayView: View {
         case .validating:
             return "Bağlantı sınanıyor"
         case .syncing(let stage):
-            return stage.title
+            return isFinished ? "Kütüphanen hazır" : stage.title
         case .form, .done:
             return ""
         }
@@ -156,7 +132,7 @@ struct SyncOverlayView: View {
     private var eyebrow: String {
         switch step {
         case .searchingServer, .validating: return "BAĞLANTI KURULUYOR"
-        case .syncing: return "İÇERİKLER HAZIRLANIYOR"
+        case .syncing: return isFinished ? "HAZIR" : "İÇERİKLER HAZIRLANIYOR"
         case .form, .done: return "KURULUM"
         }
     }
@@ -168,7 +144,9 @@ struct SyncOverlayView: View {
         case .validating:
             return "Bilgilerin güvenli şekilde doğrulanıyor."
         case .syncing:
-            return "İlk kurulum biraz sürebilir. Büyük listelerde bu adım uzun olabilir."
+            return isFinished
+                ? "İçeriklerin hazır. İzlemeye başlayabilirsin."
+                : "İlk kurulum biraz sürebilir. Büyük listelerde bu adım uzun olabilir."
         case .form, .done:
             return nil
         }
@@ -185,26 +163,26 @@ struct SyncOverlayView: View {
             guard total > 0 else { return 0.10 }
             return min(0.25, 0.08 + (Double(index) / Double(total)) * 0.17)
         case .validating: return 0.28
-        case .syncing: return 0.28 + (fraction ?? 0.08) * 0.68
+        case .syncing(.finished): return 1
+        case .syncing(let stage):
+            return 0.28 + (stage.fraction ?? stage.fallbackFraction) * 0.68
         case .form: return 0
         case .done: return 1
         }
     }
-}
 
-private extension SyncStage {
-    var title: String {
-        switch self {
-        case .idle: return "Hazırlanıyor"
-        case .authenticating: return "Hesap doğrulanıyor"
-        case .fetchingCategories: return "Kategoriler alınıyor"
-        case .fetchingChannels: return "Kanallar alınıyor"
-        case .fetchingMovies: return "Filmler alınıyor"
-        case .fetchingSeries: return "Diziler alınıyor"
-        case .fetchingEPG: return "Yayın akışı alınıyor"
-        case .persisting: return "Cihaza kaydediliyor"
-        case .finished: return "Tamamlandı"
-        case .failed: return "Bir sorun oluştu"
-        }
+    private var activeCatalog: SyncCatalogKind? {
+        guard case .syncing(let stage) = step else { return nil }
+        return stage.catalogKind
+    }
+
+    private var showsContentStats: Bool {
+        guard case .syncing = step else { return false }
+        return true
+    }
+
+    private var isFinished: Bool {
+        guard case .syncing(.finished) = step else { return false }
+        return true
     }
 }

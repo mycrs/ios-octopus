@@ -27,7 +27,8 @@ final class AddPlaylistViewModelTests: XCTestCase {
                 sync: sync
             ),
             makeID: { "p1" },
-            now: { Date(timeIntervalSince1970: 0) }
+            now: { Date(timeIntervalSince1970: 0) },
+            completionDelayNanoseconds: 0
         )
     }
 
@@ -71,7 +72,8 @@ final class AddPlaylistViewModelTests: XCTestCase {
                     return true
                 },
                 resellerServers: { [first, second] }
-            )
+            ),
+            completionDelayNanoseconds: 0
         )
 
         validator.queuedResults = [
@@ -104,7 +106,8 @@ final class AddPlaylistViewModelTests: XCTestCase {
                     appliedCodes.append(code)
                     return false
                 }
-            )
+            ),
+            completionDelayNanoseconds: 0
         )
         viewModel.host = "http://xyz.example.com:8080//"
         viewModel.username = "u"
@@ -198,6 +201,10 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertEqual(sync.syncedIDs, ["p1"], "İlk senkronizasyon başlatılmalı")
         XCTAssertEqual(viewModel.step, .done)
         XCTAssertNil(viewModel.errorMessage)
+        XCTAssertEqual(
+            viewModel.syncCounts,
+            SyncContentCounts(channels: 24, movies: 12, series: 3)
+        )
     }
 
     func test_syncFailure_stillCompletesButWarns() async {
@@ -383,6 +390,7 @@ private final class SpySync: ContentSyncing, @unchecked Sendable {
 
     func sync(playlistID: Playlist.ID) async throws {
         syncedIDs.append(playlistID)
+        try await Task.sleep(nanoseconds: 20_000_000)
         if let error { throw error }
     }
 
@@ -390,7 +398,11 @@ private final class SpySync: ContentSyncing, @unchecked Sendable {
 
     func observeProgress(playlistID: Playlist.ID) -> AsyncStream<SyncStage> {
         AsyncStream { continuation in
-            continuation.yield(.fetchingChannels(done: 0, total: nil))
+            let counts = SyncContentCounts(channels: 24, movies: 12, series: 3)
+            continuation.yield(.fetchingChannels(done: 24, total: 24))
+            continuation.yield(.fetchingMovies(done: 12, total: 12))
+            continuation.yield(.fetchingSeries(done: 3, total: 3))
+            continuation.yield(.finished(at: Date(), counts: counts))
             continuation.finish()
         }
     }

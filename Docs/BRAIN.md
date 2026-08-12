@@ -621,6 +621,7 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 | Son eklenen diziler rafı | ✅ | `SeriesRepository.recentlyAdded` (sıralama `lastModified`) |
 | Abonelik bitişi kalıcı | ✅ | `authenticate()` sonucu atılıyordu; artık `playlist.expiresAt` |
 | Aktivasyon kodu | ✅ | GET→POST, iç içe cevap, normalleştirme — üç ayrı hata |
+| Giriş sonrası katalog özeti | ✅ | Kanal, film ve dizi adetleri gerçek senkronizasyon sonucundan gelir; temalı kartlarda sayarak görünür ve başarı anı kısa süre korunur |
 | M3U → Xtream dönüşümü | ✅ | `XtreamLink`. Kanıt: m3u'da 315k kanal/0 film · xtream'de 3k kanal/38k film/4k dizi |
 | Bayi markası | ✅ | `theme.primary_color` okunuyor **ve** artık uygulanıyor |
 | KSPlayer denemesi | ❌ | Entegre edildi, çalıştı, **çöktü** (kütüphane içi trap), kaldırıldı |

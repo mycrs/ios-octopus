@@ -51,7 +51,7 @@ public struct AddPlaylistView: View {
             .scrollDismissesKeyboard(.interactively)
 
             if displayedStep.isBusy {
-                SyncOverlayView(step: displayedStep)
+                SyncOverlayView(step: displayedStep, counts: displayedCounts)
             }
         }
         .onChange(of: viewModel.step) { step in
@@ -217,5 +217,12 @@ public struct AddPlaylistView: View {
         if let step = OnboardingDebugLaunch.forcedStep { return step }
 #endif
         return viewModel.step
+    }
+
+    private var displayedCounts: SyncContentCounts {
+#if DEBUG
+        if let counts = OnboardingDebugLaunch.forcedCounts { return counts }
+#endif
+        return viewModel.syncCounts
     }
 }

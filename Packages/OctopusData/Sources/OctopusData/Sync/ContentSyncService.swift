@@ -77,6 +77,7 @@ public actor ContentSyncService: ContentSyncing {
         }
 
         let provider = try await providerFactory.makeProvider(for: playlist)
+        var contentCounts = SyncContentCounts.empty
 
         publish(.authenticating, for: playlistID)
         let account = try await provider.authenticate()
@@ -100,6 +101,11 @@ public actor ContentSyncService: ContentSyncing {
         publish(.fetchingChannels(done: 0, total: nil), for: playlistID)
         let channels = try await provider.fetchChannels(categoryID: nil)
         try Task.checkCancellation()
+        contentCounts.channels = channels.count
+        publish(
+            .fetchingChannels(done: channels.count, total: channels.count),
+            for: playlistID
+        )
 
         publish(.persisting, for: playlistID)
         try await writer.replaceLiveCatalog(
@@ -128,6 +134,11 @@ public actor ContentSyncService: ContentSyncing {
                 categories: categories,
                 movies: AdultContentDetector.markAdultContent(movies, categories: categories)
             )
+            contentCounts.movies = movies.count
+            self.publish(
+                .fetchingMovies(done: movies.count, total: movies.count),
+                for: playlistID
+            )
         }
 
         try await syncOptional(
@@ -141,6 +152,11 @@ public actor ContentSyncService: ContentSyncing {
                 playlistID: playlistID,
                 categories: categories,
                 series: AdultContentDetector.markAdultContent(series, categories: categories)
+            )
+            contentCounts.series = series.count
+            self.publish(
+                .fetchingSeries(done: series.count, total: series.count),
+                for: playlistID
             )
         }
 
@@ -158,7 +174,7 @@ public actor ContentSyncService: ContentSyncing {
 
         let finishedAt = now()
         try await writer.markSynced(playlistID: playlistID, at: finishedAt)
-        publish(.finished(at: finishedAt), for: playlistID)
+        publish(.finished(at: finishedAt, counts: contentCounts), for: playlistID)
     }
 
     /// İsteğe bağlı bölüm: başarısızlık loglanır ama senkronizasyon sürer.

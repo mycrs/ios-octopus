@@ -145,11 +145,19 @@ final class ContentSyncServiceTests: XCTestCase {
         try await service.sync(playlistID: "p1")
 
         var sawFinished = false
+        var finishedCounts: SyncContentCounts?
         for _ in 0..<10 {
             guard let stage = await iterator.next() else { break }
-            if case .finished = stage { sawFinished = true; break }
+            if case .finished(_, let counts) = stage {
+                sawFinished = true
+                finishedCounts = counts
+                break
+            }
         }
         XCTAssertTrue(sawFinished, "Senkronizasyon bitişi yayınlanmalı")
+        XCTAssertEqual(finishedCounts?.channels, 1)
+        XCTAssertEqual(finishedCounts?.movies, 0)
+        XCTAssertEqual(finishedCounts?.series, 0)
     }
 
     func test_failureIsPublishedToObservers() async throws {

@@ -14,6 +14,23 @@ public protocol StreamResolving: Sendable {
     func playbackItem(for episode: Episode, in series: Series) async throws -> PlaybackItem
 }
 
+/// İlk kurulum sonunda kullanıcıya gösterilen gerçek katalog adetleri.
+/// `nil`, ilgili kataloğun sunucu tarafından sağlanamadığını ifade eder;
+/// boş ama başarıyla alınmış katalog ise `0` olarak taşınır.
+public struct SyncContentCounts: Hashable, Sendable {
+    public var channels: Int?
+    public var movies: Int?
+    public var series: Int?
+
+    public init(channels: Int? = nil, movies: Int? = nil, series: Int? = nil) {
+        self.channels = channels
+        self.movies = movies
+        self.series = series
+    }
+
+    public static let empty = SyncContentCounts()
+}
+
 /// Senkronizasyonun hangi aşamada olduğu — onboarding ekranı bunu gösterir.
 public enum SyncStage: Hashable, Sendable {
     case idle
@@ -25,7 +42,7 @@ public enum SyncStage: Hashable, Sendable {
     case fetchingSeries(done: Int, total: Int?)
     case fetchingEPG
     case persisting
-    case finished(at: Date)
+    case finished(at: Date, counts: SyncContentCounts = .empty)
     case failed(AppError)
 
     /// 0...1 arası kaba ilerleme — belirsizse nil (spinner gösterilir).
