@@ -282,7 +282,7 @@ final class AppContainer: ObservableObject {
             themeController.apply(
                 branding: BrandConfiguration(
                     primaryColorHex: "#FF3B30",
-                    resellerName: nil,
+                    resellerName: "Nova Play",
                     logoURL: nil
                 )
             )

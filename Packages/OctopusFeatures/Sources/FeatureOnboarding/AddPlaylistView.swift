@@ -8,6 +8,7 @@ public struct AddPlaylistView: View {
     @StateObject private var viewModel: AddPlaylistViewModel
     private let onFinished: () -> Void
     @Environment(\.brandColor) private var brandColor
+    @EnvironmentObject private var theme: ThemeController
 
     @FocusState private var focusedField: Field?
 
@@ -51,7 +52,12 @@ public struct AddPlaylistView: View {
             .scrollDismissesKeyboard(.interactively)
 
             if displayedStep.isBusy {
-                SyncOverlayView(step: displayedStep, counts: displayedCounts)
+                SyncOverlayView(
+                    step: displayedStep,
+                    counts: displayedCounts,
+                    brandName: theme.resellerName ?? "Octopus",
+                    logoURL: theme.logoURL
+                )
             }
         }
         .onChange(of: viewModel.step) { step in

@@ -85,6 +85,7 @@ public struct OnboardingScreen: View {
 
     private let dependencies: OnboardingDependencies
     @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var theme: ThemeController
     @State private var showsForm = false
     @State private var showsResellerCode = false
     @State private var savedCode: String?
@@ -126,8 +127,8 @@ public struct OnboardingScreen: View {
                             .frame(maxHeight: 72)
 
                         OnboardingWelcomeBrand(
-                            brandName: dependencies.brandName() ?? "Octopus",
-                            logoURL: dependencies.brandLogoURL()
+                            brandName: theme.resellerName ?? dependencies.brandName() ?? "Octopus",
+                            logoURL: theme.logoURL ?? dependencies.brandLogoURL()
                         )
                         OnboardingCapabilities()
 

@@ -133,7 +133,7 @@ jobs:
 
           xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
           xcrun simctl launch booted com.octopus.iptv \
-            -startupOnboardingLoading >/dev/null
+            -startupOnboardingLoading -startupRedBrand >/dev/null
           sleep 3
           xcrun simctl io booted screenshot screenshots/01c-senkronizasyon.png
 

@@ -44,22 +44,32 @@ struct OnboardingWelcomeBrand: View {
 
     @ViewBuilder
     private var brandMark: some View {
+        OnboardingBrandLogo(logoURL: logoURL, size: 92)
+        .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
+    }
+}
+
+/// Kurulum akışındaki bütün marka yüzeylerinin aynı logo/fallback kuralını kullanmasını sağlar.
+struct OnboardingBrandLogo: View {
+    let logoURL: URL?
+    let size: CGFloat
+
+    @ViewBuilder
+    var body: some View {
         if let logoURL {
-            RemoteImageView(url: logoURL, contentMode: .fit, targetWidth: 184) {
-                defaultMark
+            RemoteImageView(url: logoURL, contentMode: .fit, targetWidth: size * 2) {
+                fallback
             }
-            .frame(width: 92, height: 92)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous))
         } else {
-            defaultMark
+            fallback
         }
     }
 
-    private var defaultMark: some View {
+    private var fallback: some View {
         DefaultBrandLogoView()
-        .frame(width: 92, height: 92)
-        .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
+            .frame(width: size, height: size)
     }
 }
 

@@ -11,6 +11,8 @@ struct SyncOverlayView: View {
 
     let step: AddPlaylistViewModel.Step
     let counts: SyncContentCounts
+    let brandName: String
+    let logoURL: URL?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.brandColor) private var brandColor
     @Environment(\.locale) private var locale
@@ -29,8 +31,15 @@ struct SyncOverlayView: View {
                     fraction: fraction,
                     isFinished: isFinished,
                     isPulsing: isPulsing,
-                    reduceMotion: reduceMotion
+                    reduceMotion: reduceMotion,
+                    logoURL: logoURL
                 )
+
+                Text(brandName)
+                    .font(Theme.Typography.rowTitle.weight(.semibold))
+                    .foregroundColor(Theme.Palette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
 
                 VStack(spacing: Theme.Spacing.sm) {
                     Text(AppLocalization.localized(eyebrow, locale: locale))
@@ -65,7 +74,17 @@ struct SyncOverlayView: View {
             }
             .padding(Theme.Spacing.xxl)
             .frame(maxWidth: 380)
-            .background(.regularMaterial)
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(.regularMaterial)
+                    LinearGradient(
+                        colors: [brandColor.opacity(0.14), .clear, brandColor.opacity(0.04)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            }
             .environment(\.colorScheme, .dark)
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .overlay {
