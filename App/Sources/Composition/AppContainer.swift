@@ -625,7 +625,8 @@ final class AppContainer: ObservableObject {
             isActivePlaylistLocked = false
             return
         }
-        isActivePlaylistLocked = await playlistAccess.isProtected(active.id)
-            && !(await playlistAccess.isUnlocked(active.id))
+        let isProtected = await playlistAccess.isProtected(active.id)
+        let isUnlocked = await playlistAccess.isUnlocked(active.id)
+        isActivePlaylistLocked = isProtected && !isUnlocked
     }
 }
