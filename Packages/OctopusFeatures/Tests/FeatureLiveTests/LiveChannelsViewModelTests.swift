@@ -134,6 +134,10 @@ final class LiveChannelsViewModelTests: XCTestCase {
         let countBefore = channels.observedCategoryIDs.count
 
         viewModel.selectCategory(MediaCategory.ID("spor"))
+        await waitUntil("kategori gözlemi başlamalı") {
+            channels.observedCategoryIDs.count == countBefore + 1
+        }
+        await waitABit(100)
 
         XCTAssertEqual(
             channels.observedCategoryIDs.count,
