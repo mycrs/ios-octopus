@@ -174,6 +174,33 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.message, "PIN 4-8 haneli olmalı ve yalnızca rakam içermeli.")
     }
 
+    func test_changePINRequiresMatchingConfirmation() async {
+        let viewModel = makeViewModel()
+
+        await viewModel.changeParentalPIN(
+            currentPIN: "0000",
+            newPIN: "4821",
+            confirmation: "4822"
+        )
+
+        XCTAssertTrue(parental.changedPINs.isEmpty)
+        XCTAssertEqual(viewModel.message, "Yeni PIN'ler eşleşmiyor.")
+    }
+
+    func test_changePINPassesCurrentAndNewPIN() async {
+        let viewModel = makeViewModel()
+
+        await viewModel.changeParentalPIN(
+            currentPIN: "0000",
+            newPIN: "4821",
+            confirmation: "4821"
+        )
+
+        XCTAssertEqual(parental.changedPINs.first?.current, "0000")
+        XCTAssertEqual(parental.changedPINs.first?.newPIN, "4821")
+        XCTAssertEqual(viewModel.message, "PIN değiştirildi.")
+    }
+
     func test_unlockWithWrongPINKeepsContentLocked() async {
         parental.enabled = true
         parental.unlockSucceeds = false
@@ -247,6 +274,7 @@ private final class SettingsStubParental: ParentalControlling, @unchecked Sendab
     var setError: Error?
     var disableError: Error?
     private(set) var receivedPINs: [String] = []
+    private(set) var changedPINs: [(current: String, newPIN: String)] = []
     private(set) var lockCount = 0
 
     func isEnabled() async -> Bool { enabled }
@@ -255,6 +283,13 @@ private final class SettingsStubParental: ParentalControlling, @unchecked Sendab
     func setPIN(_ pin: String) async throws {
         receivedPINs.append(pin)
         if let setError { throw setError }
+        enabled = true
+        unlocked = true
+    }
+
+    func changePIN(currentPIN: String, newPIN: String) async throws {
+        if let setError { throw setError }
+        changedPINs.append((currentPIN, newPIN))
         enabled = true
         unlocked = true
     }

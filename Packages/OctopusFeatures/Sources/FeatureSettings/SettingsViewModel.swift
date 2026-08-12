@@ -15,6 +15,8 @@ public final class SettingsViewModel: ObservableObject {
     @Published public private(set) var message: String?
     @Published public private(set) var isParentalEnabled = false
     @Published public private(set) var isProtectedContentUnlocked = false
+    @Published public private(set) var contentCategories: [MediaCategory] = []
+    @Published public private(set) var hiddenCategoryKeys: Set<String> = []
 
     private let dependencies: SettingsDependencies
     private let now: () -> Date
@@ -34,6 +36,12 @@ public final class SettingsViewModel: ObservableObject {
             lastSyncedText = Self.relativeText(active?.lastSyncedAt, now: now())
             isParentalEnabled = await dependencies.parental.isEnabled()
             isProtectedContentUnlocked = await dependencies.parental.isUnlocked()
+            hiddenCategoryKeys = await dependencies.parental.hiddenCategoryKeys()
+            if let active {
+                contentCategories = try await loadCategories(playlistID: active.id)
+            } else {
+                contentCategories = []
+            }
         } catch {
             message = AppError.wrap(error).userMessage
         }
@@ -56,15 +64,45 @@ public final class SettingsViewModel: ObservableObject {
         }
     }
 
-    public func unlockProtectedContent(with pin: String) async {
+    public func changeParentalPIN(
+        currentPIN: String,
+        newPIN: String,
+        confirmation: String
+    ) async {
+        guard newPIN == confirmation else {
+            message = "Yeni PIN'ler eşleşmiyor."
+            Haptics.warning()
+            return
+        }
+
+        do {
+            try await dependencies.parental.changePIN(
+                currentPIN: currentPIN,
+                newPIN: newPIN
+            )
+            isParentalEnabled = true
+            isProtectedContentUnlocked = await dependencies.parental.isUnlocked()
+            message = "PIN değiştirildi."
+            dependencies.notifyProtectionChanged()
+            Haptics.success()
+        } catch {
+            message = Self.parentalMessage(for: error)
+            Haptics.warning()
+        }
+    }
+
+    @discardableResult
+    public func unlockProtectedContent(with pin: String) async -> Bool {
         if await dependencies.parental.unlock(with: pin) {
             isProtectedContentUnlocked = true
             message = "İçerik kilidi bu oturum için açıldı."
             dependencies.notifyProtectionChanged()
             Haptics.success()
+            return true
         } else {
             message = "PIN hatalı."
             Haptics.warning()
+            return false
         }
     }
 
@@ -86,6 +124,47 @@ public final class SettingsViewModel: ObservableObject {
             return "Henüz PIN belirlenmemiş."
         case .storageFailure, .none:
             return "İşlem tamamlanamadı."
+        }
+    }
+
+    // MARK: - Kategori görünürlüğü
+
+    public func isCategoryVisible(_ category: MediaCategory) -> Bool {
+        !hiddenCategoryKeys.contains(ParentalFilter.categoryKey(category))
+    }
+
+    public func setCategory(_ category: MediaCategory, visible: Bool) async {
+        await dependencies.parental.setCategory(category, hidden: !visible)
+        hiddenCategoryKeys = await dependencies.parental.hiddenCategoryKeys()
+        message = visible ? "Kategori gösteriliyor." : "Kategori gizlendi."
+        dependencies.notifyProtectionChanged()
+        Haptics.selection()
+    }
+
+    public func setAllCategories(kind: MediaCategory.Kind, visible: Bool) async {
+        for category in contentCategories where category.kind == kind {
+            await dependencies.parental.setCategory(category, hidden: !visible)
+        }
+        hiddenCategoryKeys = await dependencies.parental.hiddenCategoryKeys()
+        dependencies.notifyProtectionChanged()
+        Haptics.success()
+    }
+
+    private func loadCategories(playlistID: Playlist.ID) async throws -> [MediaCategory] {
+        var result: [MediaCategory] = []
+        if let channels = dependencies.channels {
+            result += try await channels.categories(playlistID: playlistID)
+        }
+        if let vod = dependencies.vod {
+            result += try await vod.categories(playlistID: playlistID)
+        }
+        if let series = dependencies.series {
+            result += try await series.categories(playlistID: playlistID)
+        }
+        return result.sorted {
+            if $0.kind != $1.kind { return $0.kind.rawValue < $1.kind.rawValue }
+            if $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
     }
 

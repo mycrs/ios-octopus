@@ -159,6 +159,28 @@ extension SettingsScreen {
                 if viewModel.isProtectedContentUnlocked {
                     Task { await viewModel.lockProtectedContent() }
                 } else {
+                    opensCategoriesAfterUnlock = false
+                    isEnteringPIN = true
+                }
+            }
+
+            SettingsRow(
+                icon: "number.square.fill",
+                title: "PIN'i değiştir",
+                detail: "Mevcut PIN gerekir"
+            ) {
+                isChangingPIN = true
+            }
+
+            SettingsRow(
+                icon: "rectangle.3.group.fill",
+                title: "Kategorileri yönet",
+                detail: categoryManagementDetail
+            ) {
+                if viewModel.isProtectedContentUnlocked {
+                    isManagingCategories = true
+                } else {
+                    opensCategoriesAfterUnlock = true
                     isEnteringPIN = true
                 }
             }
@@ -167,16 +189,22 @@ extension SettingsScreen {
 
     private var protectionTitle: String {
         if viewModel.isProtectedContentUnlocked { return "Şimdi kilitle" }
-        return viewModel.isParentalEnabled ? "Kilidi geçici aç" : "PIN belirle"
+        return "Kilidi geçici aç"
     }
 
     private var protectionDetail: String {
         if viewModel.isProtectedContentUnlocked {
             return "Hassas içerikler bu oturumda görünür"
         }
-        return viewModel.isParentalEnabled
-            ? "Hassas içerikler PIN ile korunuyor"
-            : "Hassas içerikler otomatik olarak gizli"
+        return "Hassas içerikler PIN ile korunuyor"
+    }
+
+    private var categoryManagementDetail: String {
+        let hidden = viewModel.hiddenCategoryKeys.count
+        if !viewModel.isProtectedContentUnlocked { return "Önce içerik kilidini aç" }
+        return hidden == 0
+            ? "Tüm kategoriler görünür"
+            : language.localized("%ld kategori gizli", hidden)
     }
 
     var dataSection: some View {

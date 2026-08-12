@@ -340,6 +340,26 @@
 "Görsel önbelleği temizlendi" = "Image cache cleared";
 "Önce bir kaynak seçmelisin." = "Select a source first.";
 "Bu içerik koruma nedeniyle gizli." = "This content is hidden by content protection.";
+"PIN'i değiştir" = "Change PIN";
+"Mevcut PIN" = "Current PIN";
+"Yeni PIN" = "New PIN";
+"Yeni PIN tekrar" = "Confirm new PIN";
+"İlk kullanımda mevcut PIN 0000'dır." = "The current PIN is 0000 on first use.";
+"Mevcut PIN gerekir" = "Current PIN required";
+"Kategorileri yönet" = "Manage categories";
+"Önce içerik kilidini aç" = "Unlock content protection first";
+"Tüm kategoriler görünür" = "All categories are visible";
+"Kategori görünürlüğü" = "Category visibility";
+"Kategori bulunamadı" = "No categories found";
+"Önce kaynağını güncellemeyi dene." = "Try refreshing your source first.";
+"Tümünü göster" = "Show all";
+"Tümünü gizle" = "Hide all";
+"Bitti" = "Done";
+"Yeni PIN'ler eşleşmiyor." = "The new PINs do not match.";
+"PIN değiştirildi." = "PIN changed.";
+"Kategori gösteriliyor." = "Category is visible.";
+"Kategori gizlendi." = "Category hidden.";
+"%ld kategori gizli" = "%ld categories hidden";
 
 /* Accessibility and loading */
 "Saat" = "Time";

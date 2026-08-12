@@ -527,6 +527,9 @@ final class AppContainer: ObservableObject {
             // Destek kanalları panelden gelir; henüz çekilmediyse boş.
             contact: appConfig?.contact ?? .empty,
             parental: parental,
+            channels: channels,
+            vod: vod,
+            series: series,
             notifyProtectionChanged: { [weak self] in
                 self?.contentProtectionDidChange()
             }

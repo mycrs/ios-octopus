@@ -14,20 +14,25 @@ import OctopusDomain
 public actor KeychainParentalControl: ParentalControlling {
 
     private let secrets: SecretStore
+    private let preferences: UserDefaults
     private var unlockedInSession = false
 
     private static let hashKey = "parental.pin.hash"
     private static let saltKey = "parental.pin.salt"
+    private static let hiddenCategoriesKey = "parental.hiddenCategories"
+    private static let defaultPIN = "0000"
 
-    public init(secrets: SecretStore) {
+    public init(secrets: SecretStore, preferences: UserDefaults = .standard) {
         self.secrets = secrets
+        self.preferences = preferences
     }
 
     // MARK: - Durum
 
     public func isEnabled() async -> Bool {
-        // `try?` iç içe optional'ı düzleştirir (SE-0230): tip `String??` değil `String?`.
-        (try? secrets.read(for: Self.hashKey)) != nil
+        // +18 koruması ilk kurulumdan itibaren açıktır; kullanıcı PIN
+        // oluşturmadan önce güvenli varsayılan 0000 geçerlidir.
+        true
     }
 
     public func isUnlocked() async -> Bool {
@@ -56,12 +61,28 @@ public actor KeychainParentalControl: ParentalControlling {
         unlockedInSession = true
     }
 
+    public func changePIN(currentPIN: String, newPIN: String) async throws {
+        guard Self.normalizePIN(newPIN) != nil else {
+            throw ParentalControlError.invalidFormat
+        }
+        guard await unlock(with: currentPIN) else {
+            throw ParentalControlError.wrongPIN
+        }
+        try await setPIN(newPIN)
+    }
+
     @discardableResult
     public func unlock(with pin: String) async -> Bool {
-        guard let normalized = Self.normalizePIN(pin),
-              let storedHash = try? secrets.read(for: Self.hashKey),
+        guard let normalized = Self.normalizePIN(pin) else { return false }
+
+        guard let storedHash = try? secrets.read(for: Self.hashKey),
               let salt = try? secrets.read(for: Self.saltKey)
-        else { return false }
+        else {
+            // Özelleştirilmiş PIN yoksa cihazın güvenli başlangıç PIN'i.
+            guard Self.constantTimeEquals(normalized, Self.defaultPIN) else { return false }
+            unlockedInSession = true
+            return true
+        }
 
         let candidate = Self.hash(pin: normalized, salt: salt)
 
@@ -78,7 +99,6 @@ public actor KeychainParentalControl: ParentalControlling {
     }
 
     public func disable(with pin: String) async throws {
-        guard await isEnabled() else { throw ParentalControlError.notConfigured }
         guard await unlock(with: pin) else { throw ParentalControlError.wrongPIN }
 
         do {
@@ -87,7 +107,25 @@ public actor KeychainParentalControl: ParentalControlling {
         } catch {
             throw ParentalControlError.storageFailure
         }
+        // Koruma kapatılmaz; özel PIN kaldırılınca varsayılan 0000'a döner.
         unlockedInSession = false
+    }
+
+    // MARK: - Kategori görünürlüğü
+
+    public func hiddenCategoryKeys() async -> Set<String> {
+        Set(preferences.stringArray(forKey: Self.hiddenCategoriesKey) ?? [])
+    }
+
+    public func setCategory(_ category: MediaCategory, hidden: Bool) async {
+        var keys = await hiddenCategoryKeys()
+        let key = ParentalFilter.categoryKey(category)
+        if hidden {
+            keys.insert(key)
+        } else {
+            keys.remove(key)
+        }
+        preferences.set(keys.sorted(), forKey: Self.hiddenCategoriesKey)
     }
 
     // MARK: - Kriptografi

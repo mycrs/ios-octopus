@@ -7,11 +7,22 @@ final class ParentalControlTests: XCTestCase {
 
     private var secrets: FakeSecretStore!
     private var control: KeychainParentalControl!
+    private var preferences: UserDefaults!
+    private var preferencesSuiteName: String!
 
     override func setUp() {
         super.setUp()
         secrets = FakeSecretStore()
-        control = KeychainParentalControl(secrets: secrets)
+        preferencesSuiteName = "ParentalControlTests.\(UUID().uuidString)"
+        preferences = UserDefaults(suiteName: preferencesSuiteName)!
+        control = KeychainParentalControl(secrets: secrets, preferences: preferences)
+    }
+
+    override func tearDown() {
+        preferences.removePersistentDomain(forName: preferencesSuiteName)
+        preferences = nil
+        preferencesSuiteName = nil
+        super.tearDown()
     }
 
     // MARK: - PIN saklama
@@ -58,6 +69,38 @@ final class ParentalControlTests: XCTestCase {
     func test_validPINLengthsAreAccepted() async throws {
         try await control.setPIN("1234")
         try await control.setPIN("12345678")
+    }
+
+    func test_defaultPINUnlocksFreshInstallation() async {
+        let didUnlock = await control.unlock(with: "0000")
+        XCTAssertTrue(didUnlock)
+    }
+
+    func test_defaultPINStopsWorkingAfterPINChange() async throws {
+        try await control.changePIN(currentPIN: "0000", newPIN: "4821")
+        await control.lock()
+
+        let defaultUnlock = await control.unlock(with: "0000")
+        let customUnlock = await control.unlock(with: "4821")
+        XCTAssertFalse(defaultUnlock)
+        XCTAssertTrue(customUnlock)
+    }
+
+    func test_changePINRequiresCurrentPIN() async throws {
+        try await control.setPIN("4821")
+
+        do {
+            try await control.changePIN(currentPIN: "1111", newPIN: "7392")
+            XCTFail("Yanlış mevcut PIN ile değişiklik yapılmamalı")
+        } catch {
+            XCTAssertEqual(error as? ParentalControlError, .wrongPIN)
+        }
+
+        await control.lock()
+        let oldUnlock = await control.unlock(with: "4821")
+        let rejectedNewUnlock = await control.unlock(with: "7392")
+        XCTAssertTrue(oldUnlock)
+        XCTAssertFalse(rejectedNewUnlock)
     }
 
     // MARK: - Doğrulama
@@ -123,18 +166,36 @@ final class ParentalControlTests: XCTestCase {
         try await control.disable(with: "4821")
 
         let isEnabled = await control.isEnabled()
-        XCTAssertFalse(isEnabled)
+        XCTAssertTrue(isEnabled, "Varsayılan 0000 koruması etkin kalmalı")
         XCTAssertNil(try secrets.read(for: "parental.pin.hash"))
         XCTAssertNil(try secrets.read(for: "parental.pin.salt"), "Tuz da silinmeli")
     }
 
-    func test_disableWithoutSetupThrows() async {
+    func test_disableWithoutCustomPINRequiresDefaultPIN() async {
         do {
             try await control.disable(with: "1234")
-            XCTFail("Kurulmamış kilit kaldırılamaz")
+            XCTFail("Yanlış PIN kabul edilmemeli")
         } catch {
-            XCTAssertEqual(error as? ParentalControlError, .notConfigured)
+            XCTAssertEqual(error as? ParentalControlError, .wrongPIN)
         }
+    }
+
+    func test_hiddenCategoryPreferencePersists() async {
+        let category = MediaCategory(
+            id: "sports",
+            playlistID: "p1",
+            kind: .live,
+            name: "Spor"
+        )
+        await control.setCategory(category, hidden: true)
+
+        let fresh = KeychainParentalControl(secrets: secrets, preferences: preferences)
+        let storedKeys = await fresh.hiddenCategoryKeys()
+        XCTAssertTrue(storedKeys.contains(ParentalFilter.categoryKey(category)))
+
+        await fresh.setCategory(category, hidden: false)
+        let clearedKeys = await fresh.hiddenCategoryKeys()
+        XCTAssertTrue(clearedKeys.isEmpty)
     }
 
     // MARK: - Sabit süreli karşılaştırma
@@ -188,6 +249,25 @@ final class ParentalFilterTests: XCTestCase {
         XCTAssertFalse(filter.hidesAdultContent)
         XCTAssertTrue(filter.allows(channel: makeChannel(isAdult: true)))
         XCTAssertTrue(filter.allows(movie: makeMovie(isAdult: true)))
+    }
+
+    func test_manuallyHiddenCategoryStaysHiddenWhenAdultLockIsOpen() {
+        let category = makeCategory("Spor")
+        let filter = ParentalFilter(
+            isEnabled: true,
+            isUnlocked: true,
+            hiddenCategoryKeys: [ParentalFilter.categoryKey(category)]
+        )
+        let channel = Channel(
+            id: "sport-channel",
+            playlistID: "p1",
+            name: "Spor Kanalı",
+            streamKey: "1",
+            categoryID: category.id
+        )
+
+        XCTAssertTrue(filter.filter([category]).isEmpty)
+        XCTAssertFalse(filter.allows(channel: channel))
     }
 
     func test_unconfiguredFilterStillHidesProtectedContent() {

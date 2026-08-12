@@ -12,6 +12,10 @@ public struct SettingsDependencies {
     /// Bayinin destek kanalları (panelden gelir).
     public let contact: ContactChannels
     public let parental: ParentalControlling
+    /// Kategori görünürlük yönetimi için katalog depoları.
+    public let channels: ChannelRepository?
+    public let vod: VODRepository?
+    public let series: SeriesRepository?
     /// Kilit durumu değişince açık katalog ekranlarını güvenle yeniler.
     public let notifyProtectionChanged: @MainActor () -> Void
 
@@ -22,6 +26,9 @@ public struct SettingsDependencies {
         history: WatchHistoryRepository,
         contact: ContactChannels = .empty,
         parental: ParentalControlling = OpenParentalControl(),
+        channels: ChannelRepository? = nil,
+        vod: VODRepository? = nil,
+        series: SeriesRepository? = nil,
         notifyProtectionChanged: @escaping @MainActor () -> Void = {}
     ) {
         self.playlists = playlists
@@ -30,6 +37,9 @@ public struct SettingsDependencies {
         self.history = history
         self.contact = contact
         self.parental = parental
+        self.channels = channels
+        self.vod = vod
+        self.series = series
         self.notifyProtectionChanged = notifyProtectionChanged
     }
 }
@@ -55,6 +65,12 @@ public struct SettingsScreen: View {
     @State var confirmingAction: DataAction?
     @State var isEnteringPIN = false
     @State var pinInput = ""
+    @State var isChangingPIN = false
+    @State var currentPINInput = ""
+    @State var newPINInput = ""
+    @State var confirmPINInput = ""
+    @State var isManagingCategories = false
+    @State var opensCategoriesAfterUnlock = false
 
     enum DataAction: String, Identifiable {
         case history
@@ -89,7 +105,7 @@ public struct SettingsScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                     if let message = viewModel.message {
-                        InlineMessageView(text: message, kind: .info)
+                        InlineMessageView(text: language.localized(message), kind: .info)
                     }
 
                     sourceSection
@@ -138,33 +154,69 @@ public struct SettingsScreen: View {
             Text(language.localized(confirmingAction?.message ?? ""))
         }
         .alert(
-            language.localized(viewModel.isParentalEnabled ? "PIN'i gir" : "Yeni PIN belirle"),
+            language.localized("PIN'i gir"),
             isPresented: $isEnteringPIN
         ) {
             // Güvenli alan: PIN ekranda görünmemeli.
             SecureField("4-8 rakam", text: $pinInput)
                 .keyboardType(.numberPad)
 
-            Button(language.localized(viewModel.isParentalEnabled ? "Aç" : "Kaydet")) {
+            Button(language.localized("Aç")) {
                 let pin = pinInput
                 pinInput = ""
                 Task {
-                    if viewModel.isParentalEnabled {
-                        await viewModel.unlockProtectedContent(with: pin)
-                    } else {
-                        await viewModel.setParentalPIN(pin)
+                    let didUnlock = await viewModel.unlockProtectedContent(with: pin)
+                    if didUnlock && opensCategoriesAfterUnlock {
+                        opensCategoriesAfterUnlock = false
+                        isManagingCategories = true
                     }
                 }
             }
-            Button("Vazgeç", role: .cancel) { pinInput = "" }
+            Button("Vazgeç", role: .cancel) {
+                pinInput = ""
+                opensCategoriesAfterUnlock = false
+            }
         } message: {
             Text(
                 language.localized(
-                    viewModel.isParentalEnabled
-                        ? "Hassas içerikleri bu oturumda göstermek için PIN'ini gir."
-                        : "Hassas içerikler otomatik olarak gizlidir. Görüntülemek için bir PIN belirle."
+                    "Hassas içerikleri bu oturumda göstermek için PIN'ini gir."
                 )
             )
         }
+        .alert("PIN'i değiştir", isPresented: $isChangingPIN) {
+            SecureField("Mevcut PIN", text: $currentPINInput)
+                .keyboardType(.numberPad)
+            SecureField("Yeni PIN", text: $newPINInput)
+                .keyboardType(.numberPad)
+            SecureField("Yeni PIN tekrar", text: $confirmPINInput)
+                .keyboardType(.numberPad)
+
+            Button("Kaydet") {
+                let current = currentPINInput
+                let new = newPINInput
+                let confirmation = confirmPINInput
+                clearPINChangeInputs()
+                Task {
+                    await viewModel.changeParentalPIN(
+                        currentPIN: current,
+                        newPIN: new,
+                        confirmation: confirmation
+                    )
+                }
+            }
+            Button("Vazgeç", role: .cancel) { clearPINChangeInputs() }
+        } message: {
+            Text("İlk kullanımda mevcut PIN 0000'dır.")
+        }
+        .sheet(isPresented: $isManagingCategories) {
+            CategoryVisibilitySheet(viewModel: viewModel)
+                .environmentObject(language)
+        }
+    }
+
+    private func clearPINChangeInputs() {
+        currentPINInput = ""
+        newPINInput = ""
+        confirmPINInput = ""
     }
 }
