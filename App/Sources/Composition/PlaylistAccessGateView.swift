@@ -45,7 +45,7 @@ struct PlaylistAccessGateView: View {
                             .foregroundColor(Theme.Palette.textSecondary)
 
                         Text("Hızlı kurulumda belirlenen 4 haneli PIN'i gir.")
-                            .font(Theme.Typography.body)
+                            .font(Theme.Typography.rowSubtitle)
                             .foregroundColor(Theme.Palette.textTertiary)
                             .multilineTextAlignment(.center)
 
