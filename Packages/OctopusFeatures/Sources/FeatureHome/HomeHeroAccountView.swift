@@ -24,7 +24,7 @@ struct HomeHeroAccountView: View {
 
     @ViewBuilder
     private func accountSurface(_ account: HomeAccount) -> some View {
-        if dynamicTypeSize.isAccessibilitySize {
+        if usesStackedLayout {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 accountItems(account, usesVerticalDivider: false)
             }
@@ -98,14 +98,14 @@ struct HomeHeroAccountView: View {
                 Text(value)
                     .font(Theme.Typography.caption.weight(.semibold))
                     .foregroundColor(Theme.Palette.textPrimary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                    .lineLimit(usesStackedLayout ? 2 : 1)
                     .minimumScaleFactor(0.72)
 
                 if let detail {
                     Text(AppLocalization.localized(detail, locale: locale))
                         .font(Theme.Typography.badge)
                         .foregroundColor(tint.opacity(0.88))
-                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                        .lineLimit(usesStackedLayout ? 2 : 1)
                 }
             }
 
@@ -121,6 +121,13 @@ struct HomeHeroAccountView: View {
         case .soon: return Theme.Palette.warning
         case .expired: return Theme.Palette.error
         }
+    }
+
+    /// Hero üst seviyede erişilebilirlik boyutunu `xxxLarge` ile sınırlar.
+    /// Bu nedenle yalnızca `isAccessibilitySize` kontrolü kullanılsaydı hesap
+    /// satırı yatay kalıp metinleri keserdi; büyük standart boyutlarda da dizilir.
+    private var usesStackedLayout: Bool {
+        dynamicTypeSize >= .xxLarge
     }
 }
 
