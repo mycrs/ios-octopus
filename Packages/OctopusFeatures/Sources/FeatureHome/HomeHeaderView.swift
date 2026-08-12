@@ -34,6 +34,10 @@ struct HomeHeaderView: View {
         .shadow(color: Color.black.opacity(0.30), radius: 24, y: 16)
         .padding(.horizontal, Theme.Spacing.md)
         .padding(.top, Theme.Spacing.sm)
+        // Hero çok sayıda bilgiyi tek yüzeyde taşıyor. Sistem erişilebilirlik
+        // boyutunun tamamını burada uygulamak kartı birkaç ekran yüksekliğine
+        // çıkarıp asıl içeriği erişilemez yapıyor; okunabilir üst sınır korunur.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     @ViewBuilder
