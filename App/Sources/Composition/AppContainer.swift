@@ -289,6 +289,11 @@ final class AppContainer: ObservableObject {
                 try? await playlistAccess.configure(active.id, pin: "4821")
                 await playlistAccess.lockAll()
                 await refreshActivePlaylistAccess(active: active)
+                // CODE_SIGNING_ALLOWED=NO ile çalışan CI simülatöründe Keychain
+                // yazımı reddedilebilir. Görsel regresyon yine de gerçek kök
+                // kapısını çizsin; üretim davranışı bu DEBUG yedeğine bağlı değil.
+                isActivePlaylistLocked = true
+                activePlaylistName = active.name
             }
             #endif
         } catch {
