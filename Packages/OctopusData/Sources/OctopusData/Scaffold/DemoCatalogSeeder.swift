@@ -81,6 +81,11 @@ public enum DemoCatalogSeeder {
             categories: movieCategories(playlistID),
             movies: movies(playlistID)
         )
+        try await writer.replaceSeriesCatalog(
+            playlistID: playlistID,
+            categories: seriesCategories(playlistID),
+            series: series(playlistID)
+        )
 
         // Canlı TV'nin "kaldığın kanal" önizleme kartı bu kayıt olmadan
         // hiç görünmez — kare almadan önce doğrulanamazdı.
@@ -184,6 +189,42 @@ public enum DemoCatalogSeeder {
                 // Puan rozeti hem dolu hem boş hâliyle görünsün.
                 rating: index % 3 == 0 ? nil : Double(60 + index * 3) / 10,
                 addedAt: Date(timeIntervalSince1970: 1_700_000_000 - Double(index) * 86_400)
+            )
+        }
+    }
+
+    private static func seriesCategories(_ playlistID: Playlist.ID) -> [MediaCategory] {
+        ["Dram", "Bilim Kurgu", "Suç"].enumerated().map { index, name in
+            MediaCategory(
+                id: EntityID.category(playlistID: playlistID, kind: .series, rawID: name),
+                playlistID: playlistID,
+                kind: .series,
+                name: name,
+                sortOrder: index
+            )
+        }
+    }
+
+    private static func series(_ playlistID: Playlist.ID) -> [Series] {
+        let titles = [
+            "Kuzey Hattı", "Gece Vardiyası", "Kayıp Dosyalar", "Son İstasyon",
+            "Gölgedekiler", "Sessiz Şehir", "Kırık Zaman", "Derin İzler",
+            "Mavi Oda", "Sınır Hattı", "Yarım Kalan", "Karanlık Sokaklar"
+        ]
+        return titles.enumerated().map { index, title in
+            Series(
+                id: EntityID.series(playlistID: playlistID, rawID: "\(index)"),
+                playlistID: playlistID,
+                title: title,
+                streamKey: "\(index)",
+                posterURL: URL(string: "https://example.com/series/\(index).jpg"),
+                categoryID: EntityID.category(
+                    playlistID: playlistID,
+                    kind: .series,
+                    rawID: index.isMultiple(of: 2) ? "Dram" : "Bilim Kurgu"
+                ),
+                rating: index % 3 == 0 ? nil : Double(65 + index * 2) / 10,
+                lastModified: Date(timeIntervalSince1970: 1_700_000_000 - Double(index) * 86_400)
             )
         }
     }
