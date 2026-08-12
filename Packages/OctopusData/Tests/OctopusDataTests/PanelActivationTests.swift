@@ -168,6 +168,29 @@ final class PanelActivationTests: XCTestCase {
         XCTAssertNil(result.password)
     }
 
+    func test_protectedQuickSetupCarriesPlaylistPIN() throws {
+        let result = try PanelActivationService.parse(json("""
+            {"success":true,
+             "playlist":{"playlist_type":"m3u","playlist_name":"Korumalı Liste",
+                         "m3u_url":"http://liste.example.com/kanallar.m3u",
+                         "playlist_protected":true,"playlist_pin":"4821"}}
+            """))
+
+        XCTAssertTrue(result.isProtected)
+        XCTAssertEqual(result.playlistPIN, "4821")
+    }
+
+    func test_protectedQuickSetupWithoutValidPINIsRejected() {
+        XCTAssertThrowsError(
+            try PanelActivationService.parse(json("""
+                {"success":true,
+                 "playlist":{"playlist_type":"m3u",
+                             "m3u_url":"http://liste.example.com/kanallar.m3u",
+                             "playlist_protected":true,"playlist_pin":"12"}}
+                """))
+        )
+    }
+
     /// İç içe gelen Xtream bilgileri de okunmalı.
     func test_parsesNestedXtreamPayload() throws {
         let result = try PanelActivationService.parse(json("""

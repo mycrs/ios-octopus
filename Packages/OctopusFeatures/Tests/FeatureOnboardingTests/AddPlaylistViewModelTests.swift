@@ -272,6 +272,41 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertEqual(validator.callCount, 1, "Kod ile girişte de sunucu doğrulanmalı")
     }
 
+    func test_protectedActivationConfiguresPlaylistPIN() async {
+        activation.result = .success(
+            ActivationResult(
+                kind: .m3u(url: URL(string: "http://liste.example.com/p.m3u")!),
+                password: nil,
+                displayName: "Korumalı Liste",
+                isProtected: true,
+                playlistPIN: "4821"
+            )
+        )
+        var activatedPIN: String?
+        let dependencies = OnboardingDependencies(
+            playlists: playlists,
+            validator: validator,
+            activation: activation,
+            sync: sync,
+            activatePlaylist: { id, pin in
+                activatedPIN = pin
+                try await self.playlists.setActive(id: id)
+            }
+        )
+        let viewModel = AddPlaylistViewModel(
+            dependencies: dependencies,
+            makeID: { "p1" },
+            completionDelayNanoseconds: 0
+        )
+        viewModel.sourceKind = .activationCode
+        viewModel.activationCode = "1234"
+
+        await viewModel.submit()
+
+        XCTAssertEqual(activatedPIN, "4821")
+        XCTAssertEqual(playlists.activatedIDs, ["p1"])
+    }
+
     func test_activationFailure_showsActionableMessage() async {
         // Süresi dolmuş kod için "tekrar dene" demek yanlış olur.
         activation.result = .failure(ActivationError.expired)

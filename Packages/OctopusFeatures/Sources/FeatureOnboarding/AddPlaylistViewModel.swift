@@ -205,6 +205,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         // Doğrulama başka bir sunucuda tutabilir; liste değişebilir olmalı.
         var playlist = resolved.0
         let password = resolved.1
+        let playlistPIN = resolved.2
 
         // 2. Sunucu doğrulaması — kaydetmeden önce.
         //    Kod ile girişte de yapılır: panel bilgileri doğru olsa bile
@@ -241,7 +242,14 @@ public final class AddPlaylistViewModel: ObservableObject {
         // 3. Kayıt ve etkinleştirme.
         do {
             try await dependencies.playlists.add(playlist, password: password)
-            try await dependencies.playlists.setActive(id: playlist.id)
+            do {
+                try await dependencies.activatePlaylist(playlist.id, playlistPIN)
+            } catch {
+                // PIN güvenli alana yazılamadıysa erişim kapısı olmayan korumalı
+                // bir kaynak bırakma; ekleme işlemini geri al.
+                try? await dependencies.playlists.delete(id: playlist.id)
+                throw error
+            }
         } catch {
             step = .form
             errorMessage = AppError.wrap(error).userMessage
@@ -325,7 +333,7 @@ public final class AddPlaylistViewModel: ObservableObject {
     /// Kaynak türüne göre erişim bilgilerini hazırlar.
     ///
     /// - Returns: Başarısızsa `nil` — hata mesajı zaten ayarlanmış olur.
-    private func resolveCredentials() async -> (Playlist, String?)? {
+    private func resolveCredentials() async -> (Playlist, String?, String?)? {
         switch sourceKind {
 
         case .activationCode:
@@ -346,7 +354,11 @@ public final class AddPlaylistViewModel: ObservableObject {
                     kind: result.kind,
                     createdAt: now()
                 )
-                return (playlist, result.password)
+                return (
+                    playlist,
+                    result.password,
+                    result.isProtected ? result.playlistPIN : nil
+                )
             } catch let error as ActivationError {
                 step = .form
                 errorMessage = error.userMessage
@@ -360,7 +372,8 @@ public final class AddPlaylistViewModel: ObservableObject {
         case .xtream, .m3u:
             // Form doğrulaması ağa çıkmadan yapılır.
             do {
-                return try makeDraft().build(id: makeID(), createdAt: now())
+                let resolved = try makeDraft().build(id: makeID(), createdAt: now())
+                return (resolved.0, resolved.1, nil)
             } catch let error as PlaylistDraftError {
                 errorMessage = error.userMessage
                 return nil

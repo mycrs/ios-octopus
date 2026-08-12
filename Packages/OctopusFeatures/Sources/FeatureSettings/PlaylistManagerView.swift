@@ -9,6 +9,7 @@ public struct PlaylistManagerView: View {
     @StateObject private var viewModel: PlaylistManagerViewModel
     @EnvironmentObject private var router: AppRouter
     @State private var pendingDeletion: PlaylistManagerViewModel.Row?
+    @State private var playlistPIN = ""
 
     public init(dependencies: SettingsDependencies) {
         _viewModel = StateObject(wrappedValue: PlaylistManagerViewModel(dependencies: dependencies))
@@ -50,6 +51,30 @@ public struct PlaylistManagerView: View {
             Button("Vazgeç", role: .cancel) { pendingDeletion = nil }
         } message: {
             Text("Kanallar ve filmler silinir. Favorilerin ve izleme geçmişin korunur.")
+        }
+        .alert("Liste kilitli", isPresented: .init(
+            get: { viewModel.pendingUnlockID != nil },
+            set: {
+                if !$0 {
+                    playlistPIN = ""
+                    viewModel.cancelUnlock()
+                }
+            }
+        )) {
+            SecureField("4 haneli PIN", text: $playlistPIN)
+                .keyboardType(.numberPad)
+            Button("Aç") {
+                guard let id = viewModel.pendingUnlockID else { return }
+                let pin = playlistPIN
+                playlistPIN = ""
+                Task { await viewModel.activate(id, pin: pin) }
+            }
+            Button("Vazgeç", role: .cancel) {
+                playlistPIN = ""
+                viewModel.cancelUnlock()
+            }
+        } message: {
+            Text("Bu kaynağı kullanmak için hızlı kurulumda belirlenen PIN'i gir.")
         }
     }
 
@@ -109,6 +134,12 @@ private struct PlaylistRowView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(Theme.Palette.accent)
                         .accessibilityLabel("Aktif kaynak")
+                }
+
+                if row.isProtected {
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(Theme.Palette.textSecondary)
+                        .accessibilityLabel("PIN korumalı")
                 }
 
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {

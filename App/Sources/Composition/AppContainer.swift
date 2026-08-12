@@ -53,6 +53,8 @@ final class AppContainer: ObservableObject {
     private let resellerConfig: ResellerConfigProviding
     /// Ebeveyn kilidi depolamadan bağımsız çalışır (Keychain).
     private let parental: ParentalControlling
+    /// Hızlı kurulumla korunan listenin, +18 kilidinden ayrı erişim kapısı.
+    private let playlistAccess: PlaylistAccessControlling
 
     /// Yalnızca CI ekran görüntüsü tohumlaması için saklanır.
     /// Depolar protokol arkasında; bu referans onların yerine geçmez.
@@ -78,6 +80,8 @@ final class AppContainer: ObservableObject {
     /// İçerik erişimi değiştiğinde sekme köklerini yeniden kurar. Böylece
     /// daha önce yüklenmiş listelerde korumalı bir kart görünür kalmaz.
     @Published private(set) var contentProtectionRevision = 0
+    @Published private(set) var isActivePlaylistLocked = false
+    @Published private(set) var activePlaylistName: String?
 
     /// Oynatma tercihleri — hem Ayarlar ekranı düzenler, hem motorlar okur.
     /// Tek örnek olmalı: iki kopya olsaydı ayarı değiştirmek oynatıcıya
@@ -108,6 +112,12 @@ final class AppContainer: ObservableObject {
     /// Uygulama görünürlüğünü kaybedince geçici erişim sona erer.
     func lockProtectedContent() async {
         await parental.lock()
+        await playlistAccess.lockAll()
+        await refreshActivePlaylistAccess()
+        if isActivePlaylistLocked {
+            // Korumalı liste arka planda PiP veya açık detay üzerinden görünür kalmamalı.
+            router.clearOpenScreens()
+        }
         // Tam ekran oynatıcı dışarıdaki PiP oturumunu yönetir; burada onu
         // koşulsuz kapatmak normal içerikte PiP'i bozardı. Sekme kökleri
         // yeniden kurulur, oynatıcı da kendi kaynağını ayrıca doğrular.
@@ -126,6 +136,7 @@ final class AppContainer: ObservableObject {
         let secretStore = KeychainSecretStore()
         secrets = secretStore
         parental = KeychainParentalControl(secrets: secretStore)
+        playlistAccess = KeychainPlaylistAccessControl(secrets: secretStore)
 
         let openedDatabase = database ?? Self.openDatabase()
         seedableDatabase = openedDatabase
@@ -268,9 +279,23 @@ final class AppContainer: ObservableObject {
         do {
             let active = try await playlists.activePlaylist()
             router.needsOnboarding = (active == nil)
+            await refreshActivePlaylistAccess(active: active)
+
+            #if DEBUG
+            // CI görsel denetimi: hızlı kurulumdan PIN ile gelen gerçek liste
+            // kapısının uygulama açılışında katalogdan önce durduğunu gösterir.
+            if ProcessInfo.processInfo.arguments.contains("-startupPlaylistLock"),
+               let active {
+                try? await playlistAccess.configure(active.id, pin: "4821")
+                await playlistAccess.lockAll()
+                await refreshActivePlaylistAccess(active: active)
+            }
+            #endif
         } catch {
             Log.app.error("Açılış kontrolü başarısız: \(String(describing: error))")
             router.needsOnboarding = true
+            isActivePlaylistLocked = false
+            activePlaylistName = nil
         }
 
         await refreshRemoteConfig()
@@ -407,6 +432,10 @@ final class AppContainer: ObservableObject {
             validator: validator,
             activation: activation,
             sync: sync,
+            activatePlaylist: { [weak self] id, pin in
+                guard let self else { return }
+                try await self.activatePlaylist(id, setupPIN: pin)
+            },
             // Panel elle girişi kapattıysa yalnızca aktivasyon kodu sunulur.
             // Yapılandırma henüz gelmediyse açık kabul edilir — kullanıcıyı
             // kaynak ekleyemez hâlde bırakmak en kötü seçenek.
@@ -530,9 +559,73 @@ final class AppContainer: ObservableObject {
             channels: channels,
             vod: vod,
             series: series,
+            playlistAccess: playlistAccess,
+            activatePlaylist: { [weak self] id, pin in
+                guard let self else { return false }
+                return try await self.activatePlaylist(id, enteredPIN: pin)
+            },
+            removePlaylistLock: { [weak self] id in
+                await self?.playlistAccess.remove(id)
+            },
+            notifyPlaylistChanged: { [weak self] in
+                await self?.refreshActivePlaylistAccess()
+            },
             notifyProtectionChanged: { [weak self] in
                 self?.contentProtectionDidChange()
             }
         )
+    }
+
+    // MARK: - Hızlı kurulum liste kilidi
+
+    func unlockActivePlaylist(with pin: String) async -> Bool {
+        guard let active = try? await playlists.activePlaylist() else {
+            return false
+        }
+        let didUnlock = await playlistAccess.unlock(active.id, with: pin)
+        await refreshActivePlaylistAccess(active: active)
+        return didUnlock
+    }
+
+    private func activatePlaylist(_ id: Playlist.ID, setupPIN: String?) async throws {
+        if let setupPIN {
+            try await playlistAccess.configure(id, pin: setupPIN)
+        } else {
+            await playlistAccess.remove(id)
+        }
+        do {
+            try await playlists.setActive(id: id)
+        } catch {
+            await playlistAccess.remove(id)
+            throw error
+        }
+        await refreshActivePlaylistAccess()
+    }
+
+    private func activatePlaylist(_ id: Playlist.ID, enteredPIN: String?) async throws -> Bool {
+        if await playlistAccess.isProtected(id), !(await playlistAccess.isUnlocked(id)) {
+            guard let enteredPIN,
+                  await playlistAccess.unlock(id, with: enteredPIN)
+            else { return false }
+        }
+        try await playlists.setActive(id: id)
+        await refreshActivePlaylistAccess()
+        return true
+    }
+
+    private func refreshActivePlaylistAccess(active supplied: Playlist? = nil) async {
+        let active: Playlist?
+        if let supplied {
+            active = supplied
+        } else {
+            active = try? await playlists.activePlaylist()
+        }
+        activePlaylistName = active?.name
+        guard let active else {
+            isActivePlaylistLocked = false
+            return
+        }
+        isActivePlaylistLocked = await playlistAccess.isProtected(active.id)
+            && !(await playlistAccess.isUnlocked(active.id))
     }
 }

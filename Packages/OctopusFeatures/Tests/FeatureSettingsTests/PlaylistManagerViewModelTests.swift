@@ -8,10 +8,12 @@ final class PlaylistManagerViewModelTests: XCTestCase {
 
     private var playlists: StubPlaylistRepository!
     private var sync: NoopSync!
+    private var access: StubPlaylistAccess!
 
     override func setUp() async throws {
         playlists = StubPlaylistRepository()
         sync = NoopSync()
+        access = StubPlaylistAccess()
     }
 
     private func makeViewModel(now: Date = Date(timeIntervalSince1970: 100_000)) -> PlaylistManagerViewModel {
@@ -20,7 +22,8 @@ final class PlaylistManagerViewModelTests: XCTestCase {
                 playlists: playlists,
                 sync: sync,
                 progress: NoopProgress(),
-                history: NoopHistory()
+                history: NoopHistory(),
+                playlistAccess: access
             ),
             now: { now }
         )
@@ -114,6 +117,30 @@ final class PlaylistManagerViewModelTests: XCTestCase {
         XCTAssertEqual(active.first?.name, "Yedek")
     }
 
+    func test_protectedSourceRequiresCorrectPIN() async {
+        playlists.storage = [
+            makePlaylist(id: "p1", name: "Ev", isActive: true),
+            makePlaylist(id: "p2", name: "Korumalı", isActive: false)
+        ]
+        access.protectedIDs = ["p2"]
+        access.expectedPIN = "4821"
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await viewModel.activate("p2")
+
+        XCTAssertEqual(viewModel.pendingUnlockID, "p2")
+        XCTAssertTrue(playlists.storage[0].isActive)
+
+        await viewModel.activate("p2", pin: "0000")
+        XCTAssertEqual(viewModel.pendingUnlockID, "p2")
+        XCTAssertTrue(playlists.storage[0].isActive)
+
+        await viewModel.activate("p2", pin: "4821")
+        XCTAssertNil(viewModel.pendingUnlockID)
+        XCTAssertTrue(playlists.storage[1].isActive)
+    }
+
     // MARK: - Silme
 
     func test_deletingActiveSource_activatesAnotherOne() async {
@@ -199,6 +226,38 @@ private final class NoopSync: ContentSyncing, @unchecked Sendable {
     func syncEPG(playlistID: Playlist.ID) async throws {}
     func observeProgress(playlistID: Playlist.ID) -> AsyncStream<SyncStage> {
         AsyncStream { $0.finish() }
+    }
+}
+
+private actor StubPlaylistAccess: PlaylistAccessControlling {
+    nonisolated(unsafe) var protectedIDs: Set<Playlist.ID> = []
+    nonisolated(unsafe) var expectedPIN = ""
+    private var unlockedIDs: Set<Playlist.ID> = []
+
+    func isProtected(_ playlistID: Playlist.ID) async -> Bool {
+        protectedIDs.contains(playlistID)
+    }
+
+    func isUnlocked(_ playlistID: Playlist.ID) async -> Bool {
+        !protectedIDs.contains(playlistID) || unlockedIDs.contains(playlistID)
+    }
+
+    func configure(_ playlistID: Playlist.ID, pin: String) async throws {
+        protectedIDs.insert(playlistID)
+        expectedPIN = pin
+    }
+
+    @discardableResult
+    func unlock(_ playlistID: Playlist.ID, with pin: String) async -> Bool {
+        guard pin == expectedPIN else { return false }
+        unlockedIDs.insert(playlistID)
+        return true
+    }
+
+    func lockAll() async { unlockedIDs.removeAll() }
+    func remove(_ playlistID: Playlist.ID) async {
+        protectedIDs.remove(playlistID)
+        unlockedIDs.remove(playlistID)
     }
 }
 

@@ -13,6 +13,7 @@ public final class PlaylistManagerViewModel: ObservableObject {
         public let name: String
         public let detail: String
         public let isActive: Bool
+        public let isProtected: Bool
         public let lastSyncedText: String?
     }
 
@@ -21,6 +22,8 @@ public final class PlaylistManagerViewModel: ObservableObject {
     @Published public private(set) var errorMessage: String?
     /// Yenilenmekte olan kaynak — satırda gösterge için.
     @Published public private(set) var syncingID: Playlist.ID?
+    /// Korumalı kaynağa geçiş için PIN bekleyen kimlik.
+    @Published public private(set) var pendingUnlockID: Playlist.ID?
 
     private let dependencies: SettingsDependencies
     private let now: () -> Date
@@ -38,7 +41,16 @@ public final class PlaylistManagerViewModel: ObservableObject {
 
         do {
             let playlists = try await dependencies.playlists.all()
-            rows = playlists.map(makeRow)
+            var resolvedRows: [Row] = []
+            for playlist in playlists {
+                resolvedRows.append(
+                    makeRow(
+                        playlist,
+                        isProtected: await dependencies.playlistAccess.isProtected(playlist.id)
+                    )
+                )
+            }
+            rows = resolvedRows
             errorMessage = nil
         } catch {
             errorMessage = AppError.wrap(error).userMessage
@@ -47,13 +59,24 @@ public final class PlaylistManagerViewModel: ObservableObject {
 
     // MARK: - Eylemler
 
-    public func activate(_ id: Playlist.ID) async {
+    public func activate(_ id: Playlist.ID, pin: String? = nil) async {
         do {
-            try await dependencies.playlists.setActive(id: id)
+            let didActivate = try await dependencies.activatePlaylist(id, pin)
+            guard didActivate else {
+                pendingUnlockID = id
+                if pin != nil { errorMessage = "Liste PIN'i hatalı." }
+                return
+            }
+            pendingUnlockID = nil
             await load()
+            await dependencies.notifyPlaylistChanged()
         } catch {
             errorMessage = AppError.wrap(error).userMessage
         }
+    }
+
+    public func cancelUnlock() {
+        pendingUnlockID = nil
     }
 
     public func resync(_ id: Playlist.ID) async {
@@ -76,6 +99,7 @@ public final class PlaylistManagerViewModel: ObservableObject {
     public func delete(_ id: Playlist.ID) async {
         do {
             try await dependencies.playlists.delete(id: id)
+            await dependencies.removePlaylistLock(id)
             await load()
 
             // Silinen kaynak aktifse, kalanlardan biri etkinleştirilir —
@@ -84,6 +108,7 @@ public final class PlaylistManagerViewModel: ObservableObject {
                 try await dependencies.playlists.setActive(id: first.id)
                 await load()
             }
+            await dependencies.notifyPlaylistChanged()
         } catch {
             errorMessage = AppError.wrap(error).userMessage
         }
@@ -91,12 +116,13 @@ public final class PlaylistManagerViewModel: ObservableObject {
 
     // MARK: - Sunum
 
-    private func makeRow(_ playlist: Playlist) -> Row {
+    private func makeRow(_ playlist: Playlist, isProtected: Bool) -> Row {
         Row(
             id: playlist.id,
             name: playlist.name,
             detail: Self.detailText(for: playlist.kind),
             isActive: playlist.isActive,
+            isProtected: isProtected,
             lastSyncedText: lastSyncedText(playlist.lastSyncedAt)
         )
     }

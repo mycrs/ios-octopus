@@ -209,6 +209,7 @@ struct ActivationResponseDTO: Decodable {
     @Lenient var playlistUrl: String?
 
     @Lenient var playlistProtected: Bool?
+    @Lenient var playlistPin: String?
 
     // Bayi markası
     @Lenient var resellerName: String?
@@ -252,6 +253,7 @@ struct ActivationResponseDTO: Decodable {
         case m3uUrl = "m3u_url"
         case epgUrl = "epg_url"
         case playlistProtected = "playlist_protected"
+        case playlistPin = "playlist_pin"
         case resellerName = "reseller_name"
         case resellerLogoUrl = "reseller_logo_url"
         case resellerPrimaryColor = "reseller_primary_color"
@@ -300,13 +302,17 @@ struct ActivationResponseDTO: Decodable {
             ? (effectivePassword ?? xtreamFromLink?.password)
             : nil
 
+        let accessPIN = effectiveProtected ? effectivePlaylistPIN : nil
+        guard !effectiveProtected || accessPIN != nil else { return nil }
+
         return ActivationResult(
             kind: kind,
             password: password,
             displayName: name,
             customerName: customerName,
             branding: branding,
-            isProtected: effectiveProtected
+            isProtected: effectiveProtected,
+            playlistPIN: accessPIN
         )
     }
 
@@ -331,6 +337,12 @@ struct ActivationResponseDTO: Decodable {
 
     private var effectiveProtected: Bool {
         playlist?.playlistProtected ?? playlistProtected ?? false
+    }
+
+    private var effectivePlaylistPIN: String? {
+        let raw = playlist?.playlistPin ?? playlistPin
+        guard let raw else { return nil }
+        return PlaylistAccessPIN.normalize(raw)
     }
 
     /// M3U bağlantısı Xtream kimliği taşıyorsa çözülmüş hâli.

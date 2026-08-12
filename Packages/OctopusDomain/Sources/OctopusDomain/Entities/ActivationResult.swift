@@ -19,6 +19,8 @@ public struct ActivationResult: Equatable, Sendable {
     public let branding: BrandConfiguration?
     /// Liste ebeveyn kilidiyle korunuyor mu?
     public let isProtected: Bool
+    /// Hızlı kurulumda belirlenen dört haneli liste erişim PIN'i.
+    public let playlistPIN: String?
 
     public init(
         kind: Playlist.Kind,
@@ -26,7 +28,8 @@ public struct ActivationResult: Equatable, Sendable {
         displayName: String,
         customerName: String? = nil,
         branding: BrandConfiguration? = nil,
-        isProtected: Bool = false
+        isProtected: Bool = false,
+        playlistPIN: String? = nil
     ) {
         self.kind = kind
         self.password = password
@@ -34,6 +37,7 @@ public struct ActivationResult: Equatable, Sendable {
         self.customerName = customerName
         self.branding = branding
         self.isProtected = isProtected
+        self.playlistPIN = playlistPIN
     }
 }
 

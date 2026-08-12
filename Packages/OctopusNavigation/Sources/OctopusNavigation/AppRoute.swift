@@ -77,6 +77,7 @@ public enum AppSheet: Hashable, Identifiable, Sendable {
     case editPlaylist(Playlist.ID)
     case trackSelection
     case parentalLock
+    case playlistManager
 
     public var id: Self { self }
 }

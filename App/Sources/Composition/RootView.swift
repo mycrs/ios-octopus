@@ -40,6 +40,14 @@ struct RootView: View {
                 )
             } else if router.needsOnboarding {
                 OnboardingScreen(dependencies: container.makeOnboardingDependencies())
+            } else if container.isActivePlaylistLocked {
+                PlaylistAccessGateView(
+                    playlistName: container.activePlaylistName,
+                    logoURL: container.themeController.logoURL,
+                    brandName: container.themeController.resellerName ?? "Octopus",
+                    onUnlock: { pin in await container.unlockActivePlaylist(with: pin) },
+                    onManageSources: { router.present(.playlistManager) }
+                )
             } else {
                 mainContent
                     .id(container.contentProtectionRevision)

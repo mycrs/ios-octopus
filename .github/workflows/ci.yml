@@ -272,6 +272,15 @@ jobs:
           shoot live 08-buyuk-yazi-canli-tv.png
           xcrun simctl ui booted content_size large
 
+          # Hızlı kurulumda PIN ile korunan liste, uygulama açılışında içerik
+          # çizilmeden önce kendi erişim kapısını göstermeli. Bu kare hem kapının
+          # gerçekten bağlı olduğunu hem de marka temasını kullandığını kanıtlar.
+          xcrun simctl terminate booted com.octopus.iptv 2>/dev/null || true
+          xcrun simctl launch booted com.octopus.iptv \
+            -seedDemoData -startupPlaylistLock -startupRedBrand >/dev/null
+          sleep 5
+          xcrun simctl io booted screenshot screenshots/16-liste-pin-kapisi.png
+
           # Not: açık tema karesi alınmıyor — uygulama şu an
           # .preferredColorScheme(.dark) ile koyu temayı zorluyor.
           # Faz 3'te ThemeController gelince tema kareleri anlamlı olacak.

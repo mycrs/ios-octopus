@@ -75,6 +75,15 @@ extension RootView {
             }
         case .trackSelection, .parentalLock:
             SettingsScreen(dependencies: container.makeSettingsDependencies())
+        case .playlistManager:
+            NavigationStack {
+                PlaylistManagerView(dependencies: container.makeSettingsDependencies())
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Kapat") { router.dismissSheet() }
+                        }
+                    }
+            }
         }
     }
 }

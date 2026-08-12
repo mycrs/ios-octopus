@@ -15,6 +15,8 @@ public struct OnboardingDependencies {
     /// Bayi aktivasyon kodunu gerçek erişim bilgilerine çevirir.
     public let activation: ActivationRedeeming
     public let sync: ContentSyncing
+    /// Kaynağı etkinleştirir ve varsa hızlı kurulum liste PIN'ini güvenli saklar.
+    public let activatePlaylist: @MainActor (Playlist.ID, String?) async throws -> Void
 
     /// Panel elle girişe (Xtream/M3U formu) izin veriyor mu?
     ///
@@ -56,6 +58,7 @@ public struct OnboardingDependencies {
         validator: PlaylistValidating,
         activation: ActivationRedeeming,
         sync: ContentSyncing,
+        activatePlaylist: (@MainActor (Playlist.ID, String?) async throws -> Void)? = nil,
         isManualLoginEnabled: @escaping @MainActor () -> Bool = { true },
         onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in },
         applyResellerCode: @escaping @MainActor (String) async -> Bool = { _ in false },
@@ -74,6 +77,9 @@ public struct OnboardingDependencies {
         self.validator = validator
         self.activation = activation
         self.sync = sync
+        self.activatePlaylist = activatePlaylist ?? { id, _ in
+            try await playlists.setActive(id: id)
+        }
         self.isManualLoginEnabled = isManualLoginEnabled
     }
 }
