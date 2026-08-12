@@ -233,6 +233,10 @@ struct ActivationResponseDTO: Decodable {
     }
 
     var theme: ThemePayload?
+    /// Aktivasyon servisinin canlı cevabında marka bilgileri bu nesnede gelir.
+    /// Aynı yapı bayi yapılandırma servisiyle paylaşıldığı için tek sözleşme
+    /// tipi kullanılır; alan adları iki yerde birbirinden kopmaz.
+    var resellerConfig: ResellerConfigDTO?
     /// Bayi adı bazı panellerde `app_name` olarak geliyor.
     @Lenient var appName: String?
 
@@ -252,6 +256,7 @@ struct ActivationResponseDTO: Decodable {
         case resellerLogoUrl = "reseller_logo_url"
         case resellerPrimaryColor = "reseller_primary_color"
         case theme
+        case resellerConfig = "reseller_config"
         case appName = "app_name"
     }
 
@@ -271,17 +276,23 @@ struct ActivationResponseDTO: Decodable {
         // ⚠️ Renk `theme.primary_color`'dan okunmazsa bayinin markası hiç
         // uygulanmıyor — panel bu alanı düz `reseller_primary_color` olarak
         // göndermiyor.
-        let colorHex = theme?.primaryColor ?? resellerPrimaryColor
-        let brandName = [resellerName, appName]
+        let colorHex = theme?.primaryColor
+            ?? resellerConfig?.theme?.primaryColor
+            ?? resellerPrimaryColor
+        let brandName = [resellerName, appName, resellerConfig?.appName]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
+        let logoURL = [resellerLogoUrl, resellerConfig?.logoUrl]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+            .flatMap { URL(string: $0) }
 
         let branding: BrandConfiguration? = (
-            colorHex != nil || brandName != nil || resellerLogoUrl != nil
+            colorHex != nil || brandName != nil || logoURL != nil
         ) ? BrandConfiguration(
             primaryColorHex: colorHex,
             resellerName: brandName,
-            logoURL: resellerLogoUrl.flatMap { URL(string: $0) }
+            logoURL: logoURL
         ) : nil
 
         // Parola: panelin ayrı alanı → yoksa bağlantının içindeki.

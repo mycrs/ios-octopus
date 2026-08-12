@@ -230,6 +230,28 @@ final class PanelActivationTests: XCTestCase {
         XCTAssertNotNil(result.branding?.logoURL)
     }
 
+    /// Canlı aktivasyon cevabında bayi adı ve logosu üst seviyede değil,
+    /// `reseller_config` içinde geliyor. Bu sözleşme desteklenmezse kodla
+    /// giriş başarılı olsa bile arayüz varsayılan marka ile açılır.
+    func test_nestedResellerConfigBrandingIsCarried() throws {
+        let result = try PanelActivationService.parse(json("""
+            {"success":true,
+             "playlist":{"playlist_type":"m3u","playlist_name":"Liste",
+                         "m3u_url":"http://ornek.example.com/list.m3u"},
+             "theme":{"primary_color":"#2196F3"},
+             "reseller_config":{"app_name":"Qruze Player",
+                                  "logo_url":"https://cdn.example.com/qruze.png",
+                                  "theme":{"primary_color":"#AA22CC"}}}
+            """))
+
+        XCTAssertEqual(result.branding?.resellerName, "Qruze Player")
+        XCTAssertEqual(result.branding?.effectiveColorHex, "#2196F3")
+        XCTAssertEqual(
+            result.branding?.logoURL?.absoluteString,
+            "https://cdn.example.com/qruze.png"
+        )
+    }
+
     func test_noBrandingWhenPanelSendsNone() throws {
         let result = try PanelActivationService.parse(json("""
             {"m3u_url":"http://liste.example.com/p.m3u"}
