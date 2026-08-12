@@ -65,6 +65,7 @@ extension SettingsScreen {
                         .foregroundColor(Theme.Palette.textTertiary)
                 }
             }
+            .settingsSurface()
         }
     }
 
@@ -109,13 +110,7 @@ extension SettingsScreen {
                 .pickerStyle(.menu)
                 .tint(brandColor)
             }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                    .strokeBorder(brandColor.opacity(0.12), lineWidth: 1)
-            }
+            .settingsSurface()
         }
     }
 
@@ -143,9 +138,7 @@ extension SettingsScreen {
                 }
             }
             .pickerStyle(.menu)
-            .padding(Theme.Spacing.md)
-            .background(Theme.Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .settingsSurface()
         }
     }
 
@@ -243,9 +236,7 @@ extension SettingsScreen {
                     .font(Theme.Typography.rowSubtitle)
                     .foregroundColor(Theme.Palette.textTertiary)
             }
-            .padding(Theme.Spacing.md)
-            .background(Theme.Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .settingsSurface()
         }
     }
 
@@ -255,8 +246,11 @@ extension SettingsScreen {
     ) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text(AppLocalization.localized(title, locale: language.locale))
-                .font(Theme.Typography.sectionTitle)
-                .foregroundColor(Theme.Palette.textPrimary)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .tracking(0.7)
+                .foregroundColor(Theme.Palette.textSecondary)
+                .padding(.horizontal, Theme.Spacing.xs)
             content()
         }
     }

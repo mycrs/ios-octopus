@@ -115,7 +115,9 @@ public final class LiveChannelsViewModel: ObservableObject {
         guard selectedCategoryID != id else { return }
         Haptics.selection()
         selectedCategoryID = id
-        clearSearch()
+        searchTask?.cancel()
+        isSearching = false
+        if !searchText.isEmpty { searchText = "" }
 
         guard let playlistID = activePlaylistID else { return }
         observeChannels(playlistID: playlistID, categoryID: id)
@@ -174,6 +176,7 @@ public final class LiveChannelsViewModel: ObservableObject {
             channels = allowed
             state = .loaded(allowed.count)
         } catch {
+            guard !Task.isCancelled else { return }
             state = .failed(AppError.wrap(error))
         }
     }
@@ -233,8 +236,12 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     public func clearSearch() {
         searchTask?.cancel()
-        searchText = ""
+        let shouldRestoreCategory = isSearching
         isSearching = false
+        if !searchText.isEmpty { searchText = "" }
+        if shouldRestoreCategory, let playlistID = activePlaylistID {
+            observeChannels(playlistID: playlistID, categoryID: selectedCategoryID)
+        }
     }
 
     // MARK: - Gömülü oynatma

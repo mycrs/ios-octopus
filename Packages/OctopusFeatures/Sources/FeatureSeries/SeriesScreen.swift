@@ -31,6 +31,7 @@ public struct SeriesScreen: View {
 
     @StateObject private var viewModel: SeriesViewModel
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.brandColor) private var brandColor
 
     private let columns = [
         GridItem(.adaptive(minimum: 104), spacing: Theme.Spacing.md)
@@ -92,26 +93,48 @@ public struct SeriesScreen: View {
     }
 
     private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                ForEach(viewModel.series) { item in
-                    SeriesPosterCell(
-                        series: item,
-                        isFavorite: viewModel.isFavorite(item),
-                        onTap: { router.push(.seriesDetail(item.id)) },
-                        onToggleFavorite: { Task { await viewModel.toggleFavorite(item) } }
-                    )
-                    .task { await viewModel.loadMoreIfNeeded(currentItem: item) }
+        ScrollViewReader { proxy in
+            ScrollView {
+                Color.clear.frame(height: 0).id(gridTopID)
+
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                    ForEach(viewModel.series) { item in
+                        SeriesPosterCell(
+                            series: item,
+                            isFavorite: viewModel.isFavorite(item),
+                            onTap: { router.push(.seriesDetail(item.id)) },
+                            onToggleFavorite: { Task { await viewModel.toggleFavorite(item) } }
+                        )
+                        .task { await viewModel.loadMoreIfNeeded(currentItem: item) }
+                    }
+                }
+                .padding(Theme.Spacing.md)
+                .opacity(viewModel.isChangingCategory ? 0.68 : 1)
+
+                if viewModel.canLoadMore && !viewModel.isSearching {
+                    ProgressView()
+                        .tint(brandColor)
+                        .padding(Theme.Spacing.lg)
                 }
             }
-            .padding(Theme.Spacing.md)
-
-            if viewModel.canLoadMore && !viewModel.isSearching {
-                ProgressView()
-                    .tint(Theme.Palette.accent)
-                    .padding(Theme.Spacing.lg)
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.immediately)
+            .overlay(alignment: .top) {
+                if viewModel.isChangingCategory {
+                    CatalogTransitionOverlay()
+                        .padding(.top, Theme.Spacing.md)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
+            .onChange(of: viewModel.selectedCategoryID) { _ in
+                withAnimation(.easeOut(duration: 0.22)) {
+                    proxy.scrollTo(gridTopID, anchor: .top)
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: viewModel.isChangingCategory)
         }
         .padding(.bottom, 56)
     }
+
+    private var gridTopID: String { "series-grid-top" }
 }

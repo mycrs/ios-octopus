@@ -18,6 +18,7 @@ public final class MoviesViewModel: ObservableObject {
     }
 
     public private(set) var isSearching = false
+    @Published public private(set) var isChangingCategory = false
     /// Listenin sonuna gelindiğinde daha fazla yüklenebilir mi?
     public private(set) var canLoadMore = true
 
@@ -34,6 +35,7 @@ public final class MoviesViewModel: ObservableObject {
     /// aynı filmler tekrar tekrar gelirdi.
     private var fetchedRowCount = 0
     private var isLoadingPage = false
+    private var catalogGeneration = 0
     private var searchTask: Task<Void, Never>?
     private var favoritesTask: Task<Void, Never>?
 
@@ -80,24 +82,42 @@ public final class MoviesViewModel: ObservableObject {
 
     public func selectCategory(_ id: MediaCategory.ID?) async {
         guard selectedCategoryID != id else { return }
+        Haptics.selection()
         selectedCategoryID = id
-        clearSearch()
+        searchTask?.cancel()
+        isSearching = false
+        if !searchText.isEmpty { searchText = "" }
+        isChangingCategory = true
         await reloadFirstPage()
     }
 
     private func reloadFirstPage() async {
         guard let playlistID = activePlaylistID else { return }
 
-        canLoadMore = true
-        fetchedRowCount = 0
-        movies = []
+        catalogGeneration &+= 1
+        let generation = catalogGeneration
+        let categoryID = selectedCategoryID
         isLoadingPage = true
-        defer { isLoadingPage = false }
+        defer {
+            if generation == catalogGeneration {
+                isLoadingPage = false
+                isChangingCategory = false
+            }
+        }
 
         do {
-            try await fetchVisiblePages(playlistID: playlistID)
+            let batch = try await fetchVisiblePages(
+                playlistID: playlistID,
+                categoryID: categoryID,
+                offset: 0
+            )
+            guard generation == catalogGeneration else { return }
+            movies = batch.items
+            fetchedRowCount = batch.fetchedCount
+            canLoadMore = batch.canLoadMore
             state = .loaded(movies.count)
         } catch {
+            guard generation == catalogGeneration else { return }
             state = .failed(AppError.wrap(error))
         }
     }
@@ -118,14 +138,31 @@ public final class MoviesViewModel: ObservableObject {
               let playlistID = activePlaylistID
         else { return }
 
+        let generation = catalogGeneration
+        let categoryID = selectedCategoryID
+        let offset = fetchedRowCount
         isLoadingPage = true
-        defer { isLoadingPage = false }
+        defer {
+            if generation == catalogGeneration { isLoadingPage = false }
+        }
 
         do {
-            try await fetchVisiblePages(playlistID: playlistID)
+            let batch = try await fetchVisiblePages(
+                playlistID: playlistID,
+                categoryID: categoryID,
+                offset: offset
+            )
+            guard generation == catalogGeneration,
+                  categoryID == selectedCategoryID,
+                  !isSearching
+            else { return }
+            movies.append(contentsOf: batch.items)
+            fetchedRowCount += batch.fetchedCount
+            canLoadMore = batch.canLoadMore
             state = .loaded(movies.count)
         } catch {
             // Sayfa hatası mevcut listeyi düşürmemeli.
+            guard generation == catalogGeneration else { return }
             canLoadMore = false
         }
     }
@@ -136,23 +173,35 @@ public final class MoviesViewModel: ObservableObject {
     /// olabilir. Tek sayfa çekip durmak listeyi boş gösterir, kullanıcı da
     /// "daha fazla" tetikleyecek bir şey göremediği için orada kalırdı.
     /// Üst sınır var: baştan sona gizli bir katalogda sonsuza kadar dönmesin.
-    private func fetchVisiblePages(playlistID: Playlist.ID) async throws {
+    private struct PageBatch {
+        var items: [Movie] = []
+        var fetchedCount = 0
+        var canLoadMore = true
+    }
+
+    private func fetchVisiblePages(
+        playlistID: Playlist.ID,
+        categoryID: MediaCategory.ID?,
+        offset: Int
+    ) async throws -> PageBatch {
+        var batch = PageBatch()
         for _ in 0..<Self.maxPagesPerFetch {
             let page = try await dependencies.vod.movies(
                 playlistID: playlistID,
-                categoryID: selectedCategoryID,
+                categoryID: categoryID,
                 limit: pageSize,
-                offset: fetchedRowCount
+                offset: offset + batch.fetchedCount
             )
-            fetchedRowCount += page.count
-            canLoadMore = page.count == pageSize
+            batch.fetchedCount += page.count
+            batch.canLoadMore = page.count == pageSize
 
             // Sıralama sabit olduğu için sayfalar üst üste binmez.
             let allowed = parentalFilter.filter(page)
-            movies.append(contentsOf: allowed)
+            batch.items.append(contentsOf: allowed)
 
-            if !allowed.isEmpty || !canLoadMore { return }
+            if !allowed.isEmpty || !batch.canLoadMore { return batch }
         }
+        return batch
     }
 
     private static let maxPagesPerFetch = 5
@@ -191,7 +240,10 @@ public final class MoviesViewModel: ObservableObject {
 
     private func performSearch(_ query: String) async {
         guard let playlistID = activePlaylistID else { return }
+        catalogGeneration &+= 1
+        let generation = catalogGeneration
         isSearching = true
+        isChangingCategory = false
 
         do {
             let results = try await dependencies.vod.search(
@@ -199,20 +251,23 @@ public final class MoviesViewModel: ObservableObject {
                 playlistID: playlistID,
                 limit: 200
             )
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, generation == catalogGeneration else { return }
             // Arama sonuçları da süzülür; aksi halde kilit aramayla atlatılırdı.
             movies = parentalFilter.filter(results)
             canLoadMore = false
             state = .loaded(movies.count)
         } catch {
+            guard generation == catalogGeneration, !Task.isCancelled else { return }
             state = .failed(AppError.wrap(error))
         }
     }
 
     public func clearSearch() {
         searchTask?.cancel()
-        searchText = ""
+        let shouldReload = isSearching
         isSearching = false
+        searchText = ""
+        if shouldReload { Task { await reloadFirstPage() } }
     }
 
     // MARK: - Favoriler

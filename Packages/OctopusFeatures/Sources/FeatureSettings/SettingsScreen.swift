@@ -125,6 +125,11 @@ public struct SettingsScreen: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
+                    SettingsHeaderView(
+                        name: theme.resellerName ?? "Octopus",
+                        logoURL: theme.logoURL
+                    )
+
                     if let message = viewModel.message {
                         InlineMessageView(text: language.localized(message), kind: .info)
                     }
@@ -141,6 +146,8 @@ public struct SettingsScreen: View {
                 }
                 .padding(Theme.Spacing.md)
             }
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .disabled(viewModel.isBusy)
 
             if viewModel.isBusy {

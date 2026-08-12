@@ -236,32 +236,37 @@ public struct LiveScreen: View {
     }
 
     private var channelList: some View {
-        ScrollView {
-            // ⚠️ Önizleme kartı burada **değil**: referansta video sabit
-            // duruyor, liste onun altında kayıyor. Kart artık `body`'de,
-            // ScrollView'in dışında.
-            //
-            // LazyVStack: 20.000 kanallı listede yalnızca görünen satırlar
-            // oluşturulur.
-            LazyVStack(spacing: Theme.Spacing.xs) {
-                ForEach(viewModel.channels) { channel in
-                    ChannelRowView(
-                        channel: channel,
-                        program: viewModel.currentProgram(for: channel),
-                        clock: viewModel.clock,
-                        isFavorite: viewModel.isFavorite(channel),
-                        // ⚠️ Tam ekran **değil**: referansta liste dokunuşu
-                        // yayını üstteki gömülü oynatıcıda başlatır.
-                        // Tam ekran o alana dokununca açılır.
-                        onTap: { play(channel) },
-                        onToggleFavorite: { Task { await viewModel.toggleFavorite(channel) } },
-                        onShowGuide: { router.push(.channelGuide(channel.id)) }
-                    )
+        ScrollViewReader { proxy in
+            ScrollView {
+                Color.clear.frame(height: 0).id(channelListTopID)
+
+                // LazyVStack: büyük listelerde yalnızca görünen satırlar kurulur.
+                LazyVStack(spacing: Theme.Spacing.xs) {
+                    ForEach(viewModel.channels) { channel in
+                        ChannelRowView(
+                            channel: channel,
+                            program: viewModel.currentProgram(for: channel),
+                            clock: viewModel.clock,
+                            isFavorite: viewModel.isFavorite(channel),
+                            onTap: { play(channel) },
+                            onToggleFavorite: { Task { await viewModel.toggleFavorite(channel) } },
+                            onShowGuide: { router.push(.channelGuide(channel.id)) }
+                        )
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+            }
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.immediately)
+            .onChange(of: viewModel.selectedCategoryID) { _ in
+                withAnimation(.easeOut(duration: 0.22)) {
+                    proxy.scrollTo(channelListTopID, anchor: .top)
                 }
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
         }
         .padding(.bottom, 56)
     }
+
+    private var channelListTopID: String { "live-channel-list-top" }
 }

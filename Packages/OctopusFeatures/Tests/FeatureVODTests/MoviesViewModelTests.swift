@@ -258,6 +258,40 @@ final class MoviesViewModelTests: XCTestCase {
         XCTAssertEqual(vod.pageRequests.last?.categoryID?.value, "aksiyon")
     }
 
+    func test_categoryTransitionKeepsGridAndNewestSelectionWins() async {
+        vod.stored = makeMovies(5, prefix: "Eski")
+        vod.categoryResults = [
+            "yavas": makeMovies(5, prefix: "Yavaş"),
+            "hizli": makeMovies(5, prefix: "Hızlı")
+        ]
+        vod.categoryDelays = ["yavas": 180, "hizli": 10]
+
+        let viewModel = makeViewModel(pageSize: 5)
+        await viewModel.load()
+        let originalTitles = viewModel.movies.map(\.title)
+
+        let slowSelection = Task {
+            await viewModel.selectCategory(MediaCategory.ID("yavas"))
+        }
+        await waitUntil("kategori geçişi başlamalı") { viewModel.isChangingCategory }
+
+        XCTAssertEqual(
+            viewModel.movies.map(\.title),
+            originalTitles,
+            "Yeni kategori hazırlanırken mevcut ızgara kaybolmamalı"
+        )
+
+        let fastSelection = Task {
+            await viewModel.selectCategory(MediaCategory.ID("hizli"))
+        }
+        await fastSelection.value
+        await slowSelection.value
+
+        XCTAssertEqual(viewModel.selectedCategoryID?.value, "hizli")
+        XCTAssertTrue(viewModel.movies.allSatisfy { $0.title.hasPrefix("Hızlı") })
+        XCTAssertFalse(viewModel.isChangingCategory)
+    }
+
     // MARK: - Arama
 
     func test_searchReplacesListAndStopsPagination() async {
@@ -363,6 +397,9 @@ private final class StubVOD: VODRepository, @unchecked Sendable {
     var stored: [Movie] = []
     var searchResults: [Movie] = []
     var error: Error?
+    var categoryResults: [String: [Movie]] = [:]
+    /// Kategori kimliği -> yapay gecikme (ms).
+    var categoryDelays: [String: UInt64] = [:]
 
     private(set) var pageRequests: [(categoryID: MediaCategory.ID?, offset: Int)] = []
 
@@ -376,7 +413,11 @@ private final class StubVOD: VODRepository, @unchecked Sendable {
     ) async throws -> [Movie] {
         pageRequests.append((categoryID, offset))
         if let error { throw error }
-        return Array(stored.dropFirst(offset).prefix(limit))
+        if let key = categoryID?.value, let delay = categoryDelays[key] {
+            try await Task.sleep(nanoseconds: delay * 1_000_000)
+        }
+        let source = categoryID.flatMap { categoryResults[$0.value] } ?? stored
+        return Array(source.dropFirst(offset).prefix(limit))
     }
 
     func movie(id: Movie.ID) async throws -> Movie? { stored.first { $0.id == id } }

@@ -55,12 +55,12 @@ final class SeriesViewModelTests: XCTestCase {
         XCTFail("Zaman aşımı: \(description)")
     }
 
-    private func makeSeries(_ count: Int) -> [Series] {
+    private func makeSeries(_ count: Int, prefix: String = "Dizi") -> [Series] {
         (0..<count).map {
             Series(
                 id: Series.ID("s-\($0)"),
                 playlistID: "p1",
-                title: "Dizi \($0)",
+                title: "\(prefix) \($0)",
                 streamKey: "\($0)"
             )
         }
@@ -97,6 +97,40 @@ final class SeriesViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.series.isEmpty)
         XCTAssertEqual(viewModel.state, .loaded(0))
+    }
+
+    func test_categoryTransitionKeepsGridAndNewestSelectionWins() async {
+        series.stored = makeSeries(5, prefix: "Eski")
+        series.categoryResults = [
+            "yavas": makeSeries(5, prefix: "Yavaş"),
+            "hizli": makeSeries(5, prefix: "Hızlı")
+        ]
+        series.categoryDelays = ["yavas": 180, "hizli": 10]
+
+        let viewModel = makeViewModel(pageSize: 5)
+        await viewModel.load()
+        let originalTitles = viewModel.series.map(\.title)
+
+        let slowSelection = Task {
+            await viewModel.selectCategory(MediaCategory.ID("yavas"))
+        }
+        await waitUntil("kategori geçişi başlamalı") { viewModel.isChangingCategory }
+
+        XCTAssertEqual(
+            viewModel.series.map(\.title),
+            originalTitles,
+            "Yeni kategori hazırlanırken mevcut ızgara kaybolmamalı"
+        )
+
+        let fastSelection = Task {
+            await viewModel.selectCategory(MediaCategory.ID("hizli"))
+        }
+        await fastSelection.value
+        await slowSelection.value
+
+        XCTAssertEqual(viewModel.selectedCategoryID?.value, "hizli")
+        XCTAssertTrue(viewModel.series.allSatisfy { $0.title.hasPrefix("Hızlı") })
+        XCTAssertFalse(viewModel.isChangingCategory)
     }
 
     // MARK: - Diziye özgü: favori anahtarı
@@ -162,6 +196,8 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
 
     var stored: [Series] = []
     var searchResults: [Series] = []
+    var categoryResults: [String: [Series]] = [:]
+    var categoryDelays: [String: UInt64] = [:]
 
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
 
@@ -171,7 +207,11 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
         limit: Int,
         offset: Int
     ) async throws -> [Series] {
-        Array(stored.dropFirst(offset).prefix(limit))
+        if let key = categoryID?.value, let delay = categoryDelays[key] {
+            try await Task.sleep(nanoseconds: delay * 1_000_000)
+        }
+        let source = categoryID.flatMap { categoryResults[$0.value] } ?? stored
+        return Array(source.dropFirst(offset).prefix(limit))
     }
 
     func series(id: Series.ID) async throws -> Series? { stored.first { $0.id == id } }

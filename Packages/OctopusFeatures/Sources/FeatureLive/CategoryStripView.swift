@@ -11,22 +11,34 @@ struct CategoryStripView: View {
     let categories: [MediaCategory]
     let selectedID: MediaCategory.ID?
     let onSelect: (MediaCategory.ID?) -> Void
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: Theme.Spacing.sm) {
-                chip(title: "Tümü", isSelected: selectedID == nil) { onSelect(nil) }
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    chip(title: "Tümü", isSelected: selectedID == nil) { onSelect(nil) }
+                        .id(allChipID)
 
-                ForEach(categories) { category in
-                    chip(title: category.name, isSelected: selectedID == category.id) {
-                        onSelect(category.id)
+                    ForEach(categories) { category in
+                        chip(title: category.name, isSelected: selectedID == category.id) {
+                            onSelect(category.id)
+                        }
+                        .id(category.id.value)
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, Theme.Spacing.sm)
+            .onChange(of: selectedID) { newValue in
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(newValue?.value ?? allChipID, anchor: .center)
+                }
+            }
         }
     }
+
+    private var allChipID: String { "__live_all__" }
 
     private func chip(
         title: String,
@@ -45,11 +57,15 @@ struct CategoryStripView: View {
                 .lineLimit(1)
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
-                .background(isSelected ? Theme.Palette.accentMuted : Theme.Palette.surface)
-                .foregroundColor(
-                    isSelected ? Theme.Palette.accent : Theme.Palette.textSecondary
-                )
+                .background(isSelected ? brandColor.opacity(0.18) : Theme.Palette.surface)
+                .foregroundColor(isSelected ? brandColor : Theme.Palette.textSecondary)
                 .clipShape(Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(isSelected ? brandColor.opacity(0.35) : .clear, lineWidth: 1)
+                }
+                .animation(.easeInOut(duration: 0.2), value: isSelected)
         }
+        .buttonStyle(.plain)
     }
 }

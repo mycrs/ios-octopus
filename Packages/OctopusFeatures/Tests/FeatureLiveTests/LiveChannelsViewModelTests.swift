@@ -120,6 +120,29 @@ final class LiveChannelsViewModelTests: XCTestCase {
         XCTAssertEqual(channels.observedCategoryIDs.count, countBefore)
     }
 
+    func test_selectingCategoryFromSearchStartsSingleObservation() async {
+        channels.categories = [makeCategory("spor", "Spor")]
+        channels.stored = [makeChannel("1", "TRT 1")]
+        channels.searchResults = [makeChannel("9", "Spor Kanalı")]
+
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        await waitUntil("ilk gözlem başlamalı") { channels.isObserving }
+
+        viewModel.searchText = "spor"
+        await waitUntil("arama başlamalı") { viewModel.isSearching }
+        let countBefore = channels.observedCategoryIDs.count
+
+        viewModel.selectCategory(MediaCategory.ID("spor"))
+
+        XCTAssertEqual(
+            channels.observedCategoryIDs.count,
+            countBefore + 1,
+            "Aramadan kategoriye geçiş aynı gözlemi iki kez başlatmamalı"
+        )
+        XCTAssertEqual(channels.observedCategoryIDs.last??.value, "spor")
+    }
+
     // MARK: - Arama
 
     func test_searchIsDebounced() async {

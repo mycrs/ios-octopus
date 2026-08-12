@@ -31,6 +31,7 @@ public struct MoviesScreen: View {
 
     @StateObject private var viewModel: MoviesViewModel
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.brandColor) private var brandColor
 
     /// Esnek sütun sayısı: iPhone'da 3, iPad'de daha fazla afiş sığar.
     private let columns = [
@@ -97,30 +98,52 @@ public struct MoviesScreen: View {
     }
 
     private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
-                ForEach(viewModel.movies) { movie in
-                    MoviePosterCell(
-                        movie: movie,
-                        isFavorite: viewModel.isFavorite(movie),
-                        onTap: { router.push(.movieDetail(movie.id)) },
-                        onToggleFavorite: { Task { await viewModel.toggleFavorite(movie) } }
-                    )
-                    .task {
-                        // Sona yaklaşınca sonraki sayfa yüklenir; kullanıcı
-                        // kaydırırken duraklama olmaz.
-                        await viewModel.loadMoreIfNeeded(currentItem: movie)
+        ScrollViewReader { proxy in
+            ScrollView {
+                Color.clear.frame(height: 0).id(gridTopID)
+
+                LazyVGrid(columns: columns, spacing: Theme.Spacing.lg) {
+                    ForEach(viewModel.movies) { movie in
+                        MoviePosterCell(
+                            movie: movie,
+                            isFavorite: viewModel.isFavorite(movie),
+                            onTap: { router.push(.movieDetail(movie.id)) },
+                            onToggleFavorite: { Task { await viewModel.toggleFavorite(movie) } }
+                        )
+                        .task {
+                            // Sona yaklaşınca sonraki sayfa yüklenir; kullanıcı
+                            // kaydırırken duraklama olmaz.
+                            await viewModel.loadMoreIfNeeded(currentItem: movie)
+                        }
                     }
                 }
-            }
-            .padding(Theme.Spacing.md)
+                .padding(Theme.Spacing.md)
+                .opacity(viewModel.isChangingCategory ? 0.68 : 1)
 
-            if viewModel.canLoadMore && !viewModel.isSearching {
-                ProgressView()
-                    .tint(Theme.Palette.accent)
-                    .padding(Theme.Spacing.lg)
+                if viewModel.canLoadMore && !viewModel.isSearching {
+                    ProgressView()
+                        .tint(brandColor)
+                        .padding(Theme.Spacing.lg)
+                }
             }
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.immediately)
+            .overlay(alignment: .top) {
+                if viewModel.isChangingCategory {
+                    CatalogTransitionOverlay()
+                        .padding(.top, Theme.Spacing.md)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .onChange(of: viewModel.selectedCategoryID) { _ in
+                withAnimation(.easeOut(duration: 0.22)) {
+                    proxy.scrollTo(gridTopID, anchor: .top)
+                }
+            }
+            .animation(.easeInOut(duration: 0.18), value: viewModel.isChangingCategory)
         }
         .padding(.bottom, 56)
     }
+
+    private var gridTopID: String { "movies-grid-top" }
 }

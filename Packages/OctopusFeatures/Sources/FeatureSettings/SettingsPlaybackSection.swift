@@ -117,9 +117,6 @@ extension SettingsScreen {
         @ViewBuilder content: () -> Content
     ) -> some View {
         content()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Theme.Spacing.md)
-            .background(Theme.Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
+            .settingsSurface()
     }
 }

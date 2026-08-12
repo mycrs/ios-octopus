@@ -66,6 +66,7 @@ struct MediaCategoryStrip: View {
     let categories: [MediaCategory]
     let selectedID: MediaCategory.ID?
     let onSelect: (MediaCategory.ID?) -> Void
+    @Environment(\.brandColor) private var brandColor
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -118,9 +119,13 @@ struct MediaCategoryStrip: View {
                 .lineLimit(1)
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.sm)
-                .background(isSelected ? Theme.Palette.accentMuted : Theme.Palette.surface)
-                .foregroundColor(isSelected ? Theme.Palette.accent : Theme.Palette.textSecondary)
+                .background(isSelected ? brandColor.opacity(0.18) : Theme.Palette.surface)
+                .foregroundColor(isSelected ? brandColor : Theme.Palette.textSecondary)
                 .clipShape(Capsule())
+                .overlay {
+                    Capsule()
+                        .strokeBorder(isSelected ? brandColor.opacity(0.35) : .clear, lineWidth: 1)
+                }
                 // Seçim rengi anında değil, yumuşak geçsin: kategori
                 // değiştirmek ekranın en sık yapılan hareketi.
                 .animation(.easeInOut(duration: 0.2), value: isSelected)

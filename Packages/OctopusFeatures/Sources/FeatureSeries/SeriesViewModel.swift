@@ -25,6 +25,7 @@ public final class SeriesViewModel: ObservableObject {
     }
 
     public private(set) var isSearching = false
+    @Published public private(set) var isChangingCategory = false
     public private(set) var canLoadMore = true
 
     private let dependencies: SeriesDependencies
@@ -36,6 +37,7 @@ public final class SeriesViewModel: ObservableObject {
     /// Depodan **çekilen** satır sayısı — `series.count` değil.
     private var fetchedRowCount = 0
     private var isLoadingPage = false
+    private var catalogGeneration = 0
     private var searchTask: Task<Void, Never>?
     private var favoritesTask: Task<Void, Never>?
 
@@ -80,24 +82,42 @@ public final class SeriesViewModel: ObservableObject {
 
     public func selectCategory(_ id: MediaCategory.ID?) async {
         guard selectedCategoryID != id else { return }
+        Haptics.selection()
         selectedCategoryID = id
-        clearSearch()
+        searchTask?.cancel()
+        isSearching = false
+        if !searchText.isEmpty { searchText = "" }
+        isChangingCategory = true
         await reloadFirstPage()
     }
 
     private func reloadFirstPage() async {
         guard let playlistID = activePlaylistID else { return }
 
-        canLoadMore = true
-        fetchedRowCount = 0
-        series = []
+        catalogGeneration &+= 1
+        let generation = catalogGeneration
+        let categoryID = selectedCategoryID
         isLoadingPage = true
-        defer { isLoadingPage = false }
+        defer {
+            if generation == catalogGeneration {
+                isLoadingPage = false
+                isChangingCategory = false
+            }
+        }
 
         do {
-            try await fetchVisiblePages(playlistID: playlistID)
+            let batch = try await fetchVisiblePages(
+                playlistID: playlistID,
+                categoryID: categoryID,
+                offset: 0
+            )
+            guard generation == catalogGeneration else { return }
+            series = batch.items
+            fetchedRowCount = batch.fetchedCount
+            canLoadMore = batch.canLoadMore
             state = .loaded(series.count)
         } catch {
+            guard generation == catalogGeneration else { return }
             state = .failed(AppError.wrap(error))
         }
     }
@@ -114,13 +134,30 @@ public final class SeriesViewModel: ObservableObject {
               let playlistID = activePlaylistID
         else { return }
 
+        let generation = catalogGeneration
+        let categoryID = selectedCategoryID
+        let offset = fetchedRowCount
         isLoadingPage = true
-        defer { isLoadingPage = false }
+        defer {
+            if generation == catalogGeneration { isLoadingPage = false }
+        }
 
         do {
-            try await fetchVisiblePages(playlistID: playlistID)
+            let batch = try await fetchVisiblePages(
+                playlistID: playlistID,
+                categoryID: categoryID,
+                offset: offset
+            )
+            guard generation == catalogGeneration,
+                  categoryID == selectedCategoryID,
+                  !isSearching
+            else { return }
+            series.append(contentsOf: batch.items)
+            fetchedRowCount += batch.fetchedCount
+            canLoadMore = batch.canLoadMore
             state = .loaded(series.count)
         } catch {
+            guard generation == catalogGeneration else { return }
             canLoadMore = false
         }
     }
@@ -130,22 +167,34 @@ public final class SeriesViewModel: ObservableObject {
     /// Kalıp film ekranıyla aynı — gerekçesi de: ofset **çekilen ham satır**
     /// sayısıdır, görünen değil. Ebeveyn kilidi bir sayfanın tamamını
     /// gizleyebilir; tek sayfa çekip durmak listeyi boş bırakırdı.
-    private func fetchVisiblePages(playlistID: Playlist.ID) async throws {
+    private struct PageBatch {
+        var items: [Series] = []
+        var fetchedCount = 0
+        var canLoadMore = true
+    }
+
+    private func fetchVisiblePages(
+        playlistID: Playlist.ID,
+        categoryID: MediaCategory.ID?,
+        offset: Int
+    ) async throws -> PageBatch {
+        var batch = PageBatch()
         for _ in 0..<Self.maxPagesPerFetch {
             let page = try await dependencies.series.series(
                 playlistID: playlistID,
-                categoryID: selectedCategoryID,
+                categoryID: categoryID,
                 limit: pageSize,
-                offset: fetchedRowCount
+                offset: offset + batch.fetchedCount
             )
-            fetchedRowCount += page.count
-            canLoadMore = page.count == pageSize
+            batch.fetchedCount += page.count
+            batch.canLoadMore = page.count == pageSize
 
             let allowed = parentalFilter.filter(page)
-            series.append(contentsOf: allowed)
+            batch.items.append(contentsOf: allowed)
 
-            if !allowed.isEmpty || !canLoadMore { return }
+            if !allowed.isEmpty || !batch.canLoadMore { return batch }
         }
+        return batch
     }
 
     private static let maxPagesPerFetch = 5
@@ -181,7 +230,10 @@ public final class SeriesViewModel: ObservableObject {
 
     private func performSearch(_ query: String) async {
         guard let playlistID = activePlaylistID else { return }
+        catalogGeneration &+= 1
+        let generation = catalogGeneration
         isSearching = true
+        isChangingCategory = false
 
         do {
             let results = try await dependencies.series.search(
@@ -189,20 +241,23 @@ public final class SeriesViewModel: ObservableObject {
                 playlistID: playlistID,
                 limit: 200
             )
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, generation == catalogGeneration else { return }
             // Arama sonuçları da süzülür; aksi halde kilit aramayla atlatılırdı.
             series = parentalFilter.filter(results)
             canLoadMore = false
             state = .loaded(series.count)
         } catch {
+            guard generation == catalogGeneration, !Task.isCancelled else { return }
             state = .failed(AppError.wrap(error))
         }
     }
 
     public func clearSearch() {
         searchTask?.cancel()
-        searchText = ""
+        let shouldReload = isSearching
         isSearching = false
+        searchText = ""
+        if shouldReload { Task { await reloadFirstPage() } }
     }
 
     // MARK: - Favoriler
