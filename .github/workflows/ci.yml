@@ -327,7 +327,7 @@ jobs:
       # Bir paket düşse bile diğerlerinin sonucu görülsün.
       fail-fast: false
       matrix:
-        package: [OctopusData, OctopusPlayback, OctopusFeatures]
+        package: [OctopusData, OctopusPlayback, OctopusFeatures, OctopusDesignSystem]
     steps:
       - uses: actions/checkout@v5
 

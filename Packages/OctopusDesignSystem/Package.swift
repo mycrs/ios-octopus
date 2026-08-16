@@ -27,6 +27,12 @@ let package = Package(
                 .product(name: "Nuke", package: "Nuke"),
                 .product(name: "NukeUI", package: "Nuke")
             ]
+        ),
+        // ⚠️ Yeni test hedefi eklenince `.github/workflows/ci.yml` içindeki
+        // paket matrisine de eklenmeli — yoksa test yazılır ama hiç koşmaz.
+        .testTarget(
+            name: "OctopusDesignSystemTests",
+            dependencies: ["OctopusDesignSystem"]
         )
     ]
 )

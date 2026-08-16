@@ -64,11 +64,31 @@ public enum AppLocalization {
         return String(format: format, locale: locale, arguments: arguments)
     }
 
-    private static func localizedEnglishDynamic(
-        _ key: String,
-        bundle: Bundle,
-        locale: Locale
-    ) -> String? {
+    /// Ters-ayrıştırmadan çıkan argüman. `CVarArg` `Equatable` olmadığı için
+    /// testlerde karşılaştırılamıyordu; bu sarmalayıcı onu mümkün kılıyor.
+    enum FormatArgument: Equatable {
+        case number(Int)
+        case text(String)
+
+        var cVarArg: CVarArg {
+            switch self {
+            case .number(let value): return value
+            case .text(let value): return value
+            }
+        }
+    }
+
+    /// Biçimlenmiş bir metinden çeviri anahtarını ve argümanlarını geri çıkarır.
+    ///
+    /// ⚠️ **Saf fonksiyon** — paket, dil, hiçbir I/O yok. Ayrılmasının sebebi
+    /// test edilebilirlik: eşleme mantığı `Bundle` okumasıyla iç içeydi ve
+    /// `Bundle.main` paket testinde uygulama paketi olmadığı için bu 130 satır
+    /// hiç test edilememişti.
+    ///
+    /// Asıl çözüm bu ters-ayrıştırmayı hiç yapmamak olurdu: ViewModel'ler
+    /// biçimlenmiş Türkçe metin yerine anahtar + argüman taşısaydı. O gün
+    /// gelene kadar en azından davranış kilitli.
+    static func dynamicFormat(for key: String) -> (formatKey: String, arguments: [FormatArgument])? {
         let singleNumberPatterns: [(suffix: String, formatKey: String)] = [
             (" dakika önce güncellendi", "%ld dakika önce güncellendi"),
             (" saat önce güncellendi", "%ld saat önce güncellendi"),
@@ -86,12 +106,7 @@ public enum AppLocalization {
         for pattern in singleNumberPatterns where key.hasSuffix(pattern.suffix) {
             let rawNumber = key.dropLast(pattern.suffix.count)
             guard let number = Int(rawNumber) else { continue }
-            return formatted(
-                pattern.formatKey,
-                bundle: bundle,
-                locale: locale,
-                arguments: [number]
-            )
+            return (pattern.formatKey, [.number(number)])
         }
 
         let spacedDuration = key.split(separator: " ")
@@ -102,23 +117,13 @@ public enum AppLocalization {
             let hours = Int(spacedDuration[0]),
             let minutes = Int(spacedDuration[2])
         {
-            return formatted(
-                "%ld sa %ld dk",
-                bundle: bundle,
-                locale: locale,
-                arguments: [hours, minutes]
-            )
+            return ("%ld sa %ld dk", [.number(hours), .number(minutes)])
         }
 
         if key.hasSuffix("dk") {
             let withoutMinutes = key.dropLast(2)
             if let minute = Int(withoutMinutes) {
-                return formatted(
-                    "%ld dk",
-                    bundle: bundle,
-                    locale: locale,
-                    arguments: [minute]
-                )
+                return ("%ld dk", [.number(minute)])
             }
 
             let parts = withoutMinutes.split(separator: "s", maxSplits: 1)
@@ -127,12 +132,7 @@ public enum AppLocalization {
                 let hours = Int(parts[0]),
                 let minutes = Int(String(parts[1]).trimmingCharacters(in: .whitespaces))
             {
-                return formatted(
-                    "%ld sa %ld dk",
-                    bundle: bundle,
-                    locale: locale,
-                    arguments: [hours, minutes]
-                )
+                return ("%ld sa %ld dk", [.number(hours), .number(minutes)])
             }
         }
 
@@ -143,21 +143,11 @@ public enum AppLocalization {
 
         for pattern in numberedTrackPatterns where key.hasPrefix(pattern.prefix) {
             guard let number = Int(key.dropFirst(pattern.prefix.count)) else { continue }
-            return formatted(
-                pattern.formatKey,
-                bundle: bundle,
-                locale: locale,
-                arguments: [number]
-            )
+            return (pattern.formatKey, [.number(number)])
         }
 
         if key.hasSuffix(". Sezon"), let season = Int(key.dropLast(". Sezon".count)) {
-            return formatted(
-                "%ld. Sezon",
-                bundle: bundle,
-                locale: locale,
-                arguments: [season]
-            )
+            return ("%ld. Sezon", [.number(season)])
         }
 
         let suffixPatterns: [(suffix: String, formatKey: String)] = [
@@ -169,12 +159,7 @@ public enum AppLocalization {
 
         for pattern in suffixPatterns where key.hasSuffix(pattern.suffix) {
             let value = String(key.dropLast(pattern.suffix.count))
-            return formatted(
-                pattern.formatKey,
-                bundle: bundle,
-                locale: locale,
-                arguments: [value]
-            )
+            return (pattern.formatKey, [.text(value)])
         }
 
         let prefixPatterns: [(prefix: String, formatKey: String)] = [
@@ -184,15 +169,25 @@ public enum AppLocalization {
 
         for pattern in prefixPatterns where key.hasPrefix(pattern.prefix) {
             let value = String(key.dropFirst(pattern.prefix.count))
-            return formatted(
-                pattern.formatKey,
-                bundle: bundle,
-                locale: locale,
-                arguments: [value]
-            )
+            return (pattern.formatKey, [.text(value)])
         }
 
         return nil
+    }
+
+    /// Saf eşlemeyi paket okumasıyla birleştiren ince katman.
+    private static func localizedEnglishDynamic(
+        _ key: String,
+        bundle: Bundle,
+        locale: Locale
+    ) -> String? {
+        guard let match = dynamicFormat(for: key) else { return nil }
+        return formatted(
+            match.formatKey,
+            bundle: bundle,
+            locale: locale,
+            arguments: match.arguments.map(\.cVarArg)
+        )
     }
 
     private static func formatted(
