@@ -215,6 +215,10 @@
 "%@ — devam et" = "%@ — continue";
 "%@ oynat" = "Play %@";
 "%ld dk" = "%ld min";
+/* SwiftUI `Text("\(dakika) dk")` anahtarı %ld değil %lld üretir; ikisi de
+   gerekiyor. Eksikken dizi bölüm süreleri İngilizcede "42 dk" kalıyordu.
+   Aynı ikizleme "%lld gün kaldı" ve "%lld kaynak kayıtlı" için de var. */
+"%lld dk" = "%lld min";
 "%ld sa" = "%ld hr";
 "%ld sa %ld dk" = "%ld hr %ld min";
 "%ld bölüm" = "%ld episodes";
