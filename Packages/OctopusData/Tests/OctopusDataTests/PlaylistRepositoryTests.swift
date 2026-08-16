@@ -133,18 +133,41 @@ final class PlaylistRepositoryTests: XCTestCase {
 }
 
 /// Testlerde gerçek Keychain'e dokunmamak için sahte depo.
+///
+/// `failingKeys` ile tek tek anahtarlar patlatılabilir: Keychain okuma/yazma
+/// hatasının kilidi **açmadığını** doğrulamak için gerekiyor.
 final class FakeSecretStore: SecretStore, @unchecked Sendable {
 
     private var storage: [String: String] = [:]
+    private var failingReads: Set<String> = []
+    private var failingWrites: Set<String> = []
     private let lock = NSLock()
+
+    /// Bu anahtarların okunması `SecretStoreError` fırlatır.
+    func failReads(for keys: String...) {
+        lock.lock(); defer { lock.unlock() }
+        failingReads.formUnion(keys)
+    }
+
+    /// Bu anahtarların yazılması `SecretStoreError` fırlatır.
+    func failWrites(for keys: String...) {
+        lock.lock(); defer { lock.unlock() }
+        failingWrites.formUnion(keys)
+    }
 
     func save(_ secret: String, for key: String) throws {
         lock.lock(); defer { lock.unlock() }
+        guard !failingWrites.contains(key) else {
+            throw SecretStoreError.keychain(status: -34018)
+        }
         storage[key] = secret
     }
 
     func read(for key: String) throws -> String? {
         lock.lock(); defer { lock.unlock() }
+        guard !failingReads.contains(key) else {
+            throw SecretStoreError.keychain(status: -34018)
+        }
         return storage[key]
     }
 

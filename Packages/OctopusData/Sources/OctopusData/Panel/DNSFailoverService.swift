@@ -74,8 +74,12 @@ public actor DNSFailoverService: HostResolving {
             cachedHosts = list
             return list
         } catch {
+            // ⚠️ Başarısızlık **önbelleğe alınmaz**. Buraya yalnızca kayıtlı
+            // sunucu ölüyken geliniyor — yani ağın zaten sorunlu olduğu an.
+            // Boş listeyi saklamak, o tek talihsiz isteğin failover'ı oturum
+            // boyunca sessizce kapatması demekti: sonraki her çağrı önbellekten
+            // `[]` alır, panele bir daha hiç sorulmazdı.
             Log.network.info("Yedek sunucu listesi alınamadı")
-            cachedHosts = []
             return []
         }
     }

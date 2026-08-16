@@ -99,6 +99,41 @@ final class DNSFailoverTests: XCTestCase {
         XCTAssertEqual(resolved, primary)
     }
 
+    func test_listFetchFailureIsNotCachedForever() async {
+        // ⚠️ Yedek listesi yalnızca kayıtlı sunucu ÖLÜYKEN çekilir — yani ağın
+        // zaten sorunlu olduğu an. Başarısızlık önbelleğe alınırsa o tek
+        // talihsiz istek failover'ı oturum boyunca sessizce kapatır: sonraki
+        // her çağrı önbellekten boş liste alır, panele bir daha sorulmaz.
+        let panelIsDown = LockedBox<Bool>(true)
+
+        let service = DNSFailoverService(
+            httpClient: StubHTTPClient { url in
+                if url.path.contains("dns-list") {
+                    if panelIsDown.get() { throw AppError.network(reason: "panel kopuk") }
+                    return Data(#"[{"url":"http://yeni.example.com"}]"#.utf8)
+                }
+                guard url.host == "yeni.example.com" else {
+                    throw AppError.network(reason: "erişilemiyor")
+                }
+                return Data()
+            },
+            probeTimeout: 1
+        )
+
+        // 1. tur: panel de ölü — kullanıcı kendi adresini görsün.
+        let first = await service.resolve(preferring: primary)
+        XCTAssertEqual(first, primary)
+
+        // 2. tur: panel ayağa kalktı. Liste yeniden sorulmalı ve yedeğe geçilmeli.
+        panelIsDown.set(false)
+        let second = await service.resolve(preferring: primary)
+        XCTAssertEqual(
+            second,
+            backup,
+            "Başarısız liste isteği önbelleğe alınmamalı; panel dönünce yedek bulunmalı"
+        )
+    }
+
     // MARK: - Erişilebilirlik ölçütü
 
     func test_authErrorMeansHostIsAlive() async {

@@ -13,7 +13,16 @@ public actor KeychainPlaylistAccessControl: PlaylistAccessControlling {
     }
 
     public func isProtected(_ playlistID: Playlist.ID) async -> Bool {
-        (try? secrets.read(for: hashKey(playlistID))) != nil
+        do {
+            let storedHash = try secrets.read(for: hashKey(playlistID))
+            return storedHash != nil
+        } catch {
+            // ⚠️ Okuma hatasında "korumasız" demek kapıyı tamamen açardı:
+            // `isUnlocked` true döner, PIN ekranı hiç çizilmez. Şüphede
+            // kalınca korumalı sayılır — kilit ancak PIN ile açılır.
+            Log.app.error("Liste kilidi okunamadı: \(String(describing: error))")
+            return true
+        }
     }
 
     public func isUnlocked(_ playlistID: Playlist.ID) async -> Bool {

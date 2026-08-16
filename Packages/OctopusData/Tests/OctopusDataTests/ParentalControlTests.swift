@@ -119,6 +119,52 @@ final class ParentalControlTests: XCTestCase {
         XCTAssertTrue(isUnlockedAfter)
     }
 
+    // MARK: - Keychain hatası kilidi açmamalı
+
+    func test_keychainReadFailureDoesNotUnlock() async throws {
+        // ⚠️ "Okuyamadım" ile "kayıt yok" aynı şey değil. `try?` ikisini de
+        // nil'e düzleştiriyordu ve kilit varsayılan 0000'a açılıyordu:
+        // kullanıcı kendi PIN'ini kurmuş sanarken kapı açık kalıyordu.
+        try await control.setPIN("4821")
+        await control.lock()
+        secrets.failReads(for: "parental.pin.hash")
+
+        let withDefaultPIN = await control.unlock(with: "0000")
+        XCTAssertFalse(withDefaultPIN, "Okuma hatası varsayılan PIN'i geçerli kılmamalı")
+
+        let isUnlocked = await control.isUnlocked()
+        XCTAssertFalse(isUnlocked)
+    }
+
+    func test_inconsistentRecordDoesNotFallBackToDefaultPIN() async throws {
+        // Özet var, tuz yok: yarım kalmış bir yazımın izi. Varsayılana
+        // düşmek yine fail-open olurdu.
+        try await control.setPIN("4821")
+        await control.lock()
+        try secrets.delete(for: "parental.pin.salt")
+
+        let withDefaultPIN = await control.unlock(with: "0000")
+        XCTAssertFalse(withDefaultPIN, "Tutarsız kayıt varsayılan PIN'i açmamalı")
+    }
+
+    func test_partialSaveIsRolledBack() async {
+        // Tuz yazılamazsa yetim özet bırakılmamalı; aksi halde depo
+        // kalıcı olarak tutarsız kayıtla kalır ve kimse kilidi açamaz.
+        secrets.failWrites(for: "parental.pin.salt")
+
+        do {
+            try await control.setPIN("4821")
+            XCTFail("Yazım başarısızsa hata fırlatılmalı")
+        } catch {
+            XCTAssertEqual(error as? ParentalControlError, .storageFailure)
+        }
+
+        XCTAssertNil(
+            try? secrets.read(for: "parental.pin.hash"),
+            "Yarım kayıt geri alınmalı"
+        )
+    }
+
     func test_wrongPINDoesNotUnlock() async throws {
         try await control.setPIN("4821")
         await control.lock()

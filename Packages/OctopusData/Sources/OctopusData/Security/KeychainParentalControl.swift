@@ -53,6 +53,11 @@ public actor KeychainParentalControl: ParentalControlling {
             try secrets.save(hash, for: Self.hashKey)
             try secrets.save(salt, for: Self.saltKey)
         } catch {
+            // Yarım kayıt bırakma: yalnızca özet yazılıp tuz yazılamazsa
+            // `unlock` tutarsız bir kayıtla karşılaşır. Aynı geri alma
+            // `KeychainPlaylistAccessControl.configure` içinde de var.
+            try? secrets.delete(for: Self.hashKey)
+            try? secrets.delete(for: Self.saltKey)
             Log.app.error("Ebeveyn PIN'i kaydedilemedi: \(String(describing: error))")
             throw ParentalControlError.storageFailure
         }
@@ -75,9 +80,27 @@ public actor KeychainParentalControl: ParentalControlling {
     public func unlock(with pin: String) async -> Bool {
         guard let normalized = Self.normalizePIN(pin) else { return false }
 
-        guard let storedHash = try? secrets.read(for: Self.hashKey),
-              let salt = try? secrets.read(for: Self.saltKey)
-        else {
+        // ⚠️ "Okuyamadım" ile "kayıt yok" **aynı şey değil**. Burada `try?`
+        // kullanılıyordu ve SE-0230 ikisini de tek bir `nil`e düzleştiriyordu:
+        // Keychain okuması hata verince kilit varsayılan PIN'e açılıyor,
+        // kullanıcı kendi PIN'ini kurmuş sanarken 0000 kabul ediliyordu.
+        let storedHash: String?
+        let salt: String?
+        do {
+            storedHash = try secrets.read(for: Self.hashKey)
+            salt = try secrets.read(for: Self.saltKey)
+        } catch {
+            Log.app.error("Ebeveyn PIN'i okunamadı: \(String(describing: error))")
+            return false
+        }
+
+        guard let storedHash, let salt else {
+            // Yalnızca biri varsa kayıt tutarsızdır (yarım kalmış bir yazımın
+            // izi). Varsayılana düşmek yine fail-open olurdu; kilit kapalı kalır.
+            if storedHash != nil || salt != nil {
+                Log.app.error("Ebeveyn PIN kaydı tutarsız; kilit açılmıyor")
+                return false
+            }
             // Özelleştirilmiş PIN yoksa cihazın güvenli başlangıç PIN'i.
             guard Self.constantTimeEquals(normalized, Self.defaultPIN) else { return false }
             unlockedInSession = true

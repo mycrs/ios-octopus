@@ -27,6 +27,19 @@ final class PlaylistAccessControlTests: XCTestCase {
         )
     }
 
+    func test_readFailureKeepsPlaylistProtected() async throws {
+        // ⚠️ Okuma hatasında "korumasız" demek kapıyı tamamen açardı:
+        // `isUnlocked` true döner, PIN ekranı hiç çizilmezdi.
+        try await control.configure(playlistID, pin: "4821")
+        secrets.failReads(for: "playlist.lock.protected-list.hash")
+
+        let isProtected = await control.isProtected(playlistID)
+        let isUnlocked = await control.isUnlocked(playlistID)
+
+        XCTAssertTrue(isProtected, "Şüphede kalınca korumalı sayılmalı")
+        XCTAssertFalse(isUnlocked, "PIN kapısı atlanmamalı")
+    }
+
     func test_onlyCorrectPINUnlocks() async throws {
         try await control.configure(playlistID, pin: "4821")
 

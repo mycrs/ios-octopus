@@ -564,6 +564,10 @@ gerçekten yaşandı; tekrar keşfetmeye gerek yok.
 | `.menu` Picker'ın etiketine güvenmek | `Form`/`List` dışında etiket **hiç çizilmiyor**, ekranda yalnızca seçili değer duruyor ("Dengeli" yazıyor, neyin dengeli olduğu yazmıyor) | Etiketi elle çiz, Picker'a `.labelsHidden()` |
 | Oranı görsele uygulamak | `RemoteImageView`'a `.aspectRatio` verilince görsel kendi doğal genişliğini dayatıyor, **tüm blok ekrandan taşıyor** | Oranı boş kutuya ver: `Color.clear.aspectRatio(…).overlay { görsel }` |
 | Sinematik başlığı tek bileşen sanmak | Opak gezinme çubuğu görselin üst ~110pt'sini ve afişin tepesini örtüyor | Ekran ayrıca `.toolbarBackground(.hidden, for: .navigationBar)` demeli — bu bir **iki parçalı sözleşme** |
+| **Başarısızlığı önbelleğe almak** | Yedek sunucu listesi bir kez alınamayınca `cachedHosts = []` yazılıyor ve `if let cachedHosts` artık hep doğru: panele bir daha **hiç** sorulmuyor, failover oturum boyunca sessizce ölüyor. Üstelik bu kod yalnızca kayıtlı sunucu ölüyken çalışıyor — yani ağın zaten sorunlu olduğu an | Yalnızca **başarılı** sonucu önbelleğe al. Negatif önbellek gerekiyorsa süreli olsun |
+| Güvenlik kontrolünde `try?` | `try? secrets.read(…)` "kayıt yok" ile "okunamadı"yı SE-0230 ile tek `nil`e düzleştiriyor; Keychain hatası kilidi **varsayılan PIN'e açıyor**. Kullanıcı kendi PIN'ini kurmuş sanarken 0000 kabul ediliyor | Hatayı `do/catch` ile ayır, şüphede **kapalı** kal. Yarım kayıt (özet var, tuz yok) da varsayılana düşmemeli |
+| Çok anahtarlı Keychain yazımını atomik sanmak | Özet yazılıp tuz yazılamazsa depo kalıcı olarak tutarsız kalıyor | Hata yolunda ikisini de sil (`KeychainPlaylistAccessControl.configure` bunu baştan doğru yapıyordu) |
+| **Testi olan ama çağrılmayan kod** | `DNSFailoverService.reset()` ve `DefaultContentProviderFactory.invalidate` için test **var**, üretimde call-site **yok**. Yeşil test "bu özellik çalışıyor" sanısı veriyor | Testin varlığı bağlanmışlığı kanıtlamaz. Yeni bir genel API yazınca call-site'ı da aynı commit'te bağla |
 
 > 🔍 **Yöntem dersi:** Ekran boyutu hatası iki tur **tahminle** kovalandı,
 > üçüncüde `plutil -p` ile derlenmiş plist okununca cevap tek satırda çıktı.
@@ -631,7 +635,7 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 | # | İş | Neden bekliyor |
 |---|---|---|
 | 1 | **Bayi kodu ucu bağlı değil** | `/api/public/reseller-config/{kod}` app_name, logo, iletişim, `minimum_version` ve **DNS yedek listesi** döndürüyor. Uygulama bu ucu hiç çağırmıyor çünkü **bayi kodunu bilmiyor** — aktivasyon cevabı kodu döndürmüyor. Seçenekler: (a) panel cevabına `reseller_code` eklesin, (b) bayi başına derleme, (c) kullanıcı girsin |
-| 2 | **`DNSFailoverService` çağrılmıyor** | Yazılmış ama hiçbir yerden kullanılmıyor. (1) çözülünce sunucu düştüğünde otomatik yedeğe geçiş devreye girer |
+| 2 | **Sağlayıcı önbelleği hiç boşaltılmıyor** | `DefaultContentProviderFactory.invalidate` / `invalidateAll` **ve** `DNSFailoverService.reset()` üretimde hiçbir yerden çağrılmıyor (yalnızca testleri var). Sonucu: kaynak düzenlense bile oturum boyunca eski kimlik bilgileri ve eski çözülmüş sunucu adresi kullanılır. Doğru kanca `ContentSyncService.performSync` başı — ama `ContentProviderFactory` protokolü yalnızca `makeProvider` tanımlıyor, önce protokol genişletilmeli |
 | 3 | Mevcut M3U kaynakları dönüşmüyor | Dönüşüm yalnızca **yeni** eklemede. Eski kayıtlar silinip yeniden eklenmeli — ya da senkronizasyonda göç yazılmalı |
 | 4 | `PanelEndpoint.defaultBaseURL` force unwrap | CLAUDE.md yasaklıyor, `check-architecture.sh` yakalamıyor |
 | 5 | HEVC gerçek cihazda doğrulanmadı | Simülatörde HEVC çözülemiyor ve her UHD kanal yedeğe düşüyor. **Gerçek iPhone'da AVPlayer HEVC'yi donanımda çözer** — orada yedeğe hiç düşmemesi beklenir. Ölçülmeden optimize edilmemeli |
