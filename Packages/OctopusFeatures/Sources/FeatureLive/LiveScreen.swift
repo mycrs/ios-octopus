@@ -265,7 +265,7 @@ public struct LiveScreen: View {
                 }
             }
         }
-        .padding(.bottom, 56)
+        .padding(.bottom, Theme.Layout.tabBarClearance)
     }
 
     private var channelListTopID: String { "live-channel-list-top" }

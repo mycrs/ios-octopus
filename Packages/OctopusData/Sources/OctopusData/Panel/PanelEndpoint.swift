@@ -23,7 +23,13 @@ public struct PanelEndpoint: Sendable {
     /// uygulama oraya istek atmaz. Yalnızca kullanıcı o bağlantıyı bayi
     /// kodu alanına yapıştırdığında koda çevrilir
     /// (bkz. `ResellerConfig.normalizeCode`).
-    public static let defaultBaseURL = URL(string: "https://octopusdocumentary.com")!
+    ///
+    /// Sabit ve geçerli bir adres olduğu için `URL(string:)` burada asla `nil`
+    /// dönmez; yine de `!` kullanılmıyor (CLAUDE.md). Beklenmedik durumda
+    /// panel istekleri çöküş yerine **hata** üretir — ağ hatası zaten her
+    /// çağıran tarafından ele alınıyor.
+    public static let defaultBaseURL = URL(string: "https://octopusdocumentary.com")
+        ?? URL(fileURLWithPath: "/")
 
     /// Bayi hızlı kurulum sayfası — kullanıcıya gösterilecek bağlantı.
     ///

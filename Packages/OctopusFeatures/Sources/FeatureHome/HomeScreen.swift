@@ -174,7 +174,7 @@ public struct HomeScreen: View {
             // Hero kenara **ve** üste yapışık; alttaki raflar için nefes payı.
             .padding(.bottom, Theme.Spacing.lg)
         }
-        .padding(.bottom, 56)
+        .padding(.bottom, Theme.Layout.tabBarClearance)
     }
 
     private var displayedAccount: HomeAccount? {

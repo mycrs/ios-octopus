@@ -57,8 +57,17 @@ hits=$(grep -rn -E '(InMemory|GRDB|Xtream|M3U|Scaffold)[A-Za-z]*(Repository|Prov
 if [ -z "$hits" ]; then ok "temiz"; else bad "feature içinde somut tip:"; echo "$hits" | sed 's/^/         /'; fi
 
 # 7 — Zorlama (force) kullanımı
+#
+# ⚠️ Kuralın adı "force unwrap yok" diyordu ama regex yalnızca try!/as!
+# arıyordu; `URL(string:)!` yıllarca "temiz" raporlandı (BRAIN.md açık iş #4
+# tam da bu yüzden açık kaldı — denetim yeşil olduğu için kimse görmedi).
+#
+# Force unwrap kalıpları, yanlış pozitif üretmeyecek kadar dar tutuldu:
+#   )!   → URL(string: "…")!  ·  ]!  → dizi[0]!  ·  ad!.  → nesne!.alan
+# `!=` ve önek `!` (olumsuzlama) bu kalıplara takılmaz.
 echo "7) try! / as! / force unwrap yok (test kodu hariç)"
-hits=$(grep -rn -E '(try!|as!)' Packages/*/Sources App/Sources 2>/dev/null | strip_comments)
+hits=$(grep -rn -E '(try!|as!|\)!|\]!|[A-Za-z0-9_]!\.)' Packages/*/Sources App/Sources 2>/dev/null \
+       | grep -v '!=' | strip_comments)
 if [ -z "$hits" ]; then ok "temiz"; else bad "zorlama kullanımı:"; echo "$hits" | sed 's/^/         /'; fi
 
 echo

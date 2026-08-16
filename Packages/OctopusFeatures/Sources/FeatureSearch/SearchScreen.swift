@@ -139,7 +139,7 @@ public struct SearchScreen: View {
             }
             .padding(.vertical, Theme.Spacing.md)
         }
-        .padding(.bottom, 56)
+        .padding(.bottom, Theme.Layout.tabBarClearance)
     }
 }
 

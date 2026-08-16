@@ -24,9 +24,12 @@ public final class SeriesViewModel: ObservableObject {
         didSet { scheduleSearch() }
     }
 
-    public private(set) var isSearching = false
+    /// ⚠️ `@Published` şart: `SeriesScreen` kategori şeridini ve "daha fazla"
+    /// göstergesini bunlara bakarak çiziyor. Yayınlanmadıklarında ekran
+    /// yalnızca `state`/`series` değiştiği için tazeleniyordu.
+    @Published public private(set) var isSearching = false
     @Published public private(set) var isChangingCategory = false
-    public private(set) var canLoadMore = true
+    @Published public private(set) var canLoadMore = true
 
     private let dependencies: SeriesDependencies
     private let pageSize: Int

@@ -32,3 +32,8 @@ Secrets.xcconfig
 # Araçlar
 fastlane/report.xml
 fastlane/screenshots
+
+# CI'dan indirilen ekran görüntüleri ve ajan ekleri — yerel inceleme içindir,
+# repoya girmez (yüzlerce PNG).
+.artifacts/
+.codex-remote-attachments/

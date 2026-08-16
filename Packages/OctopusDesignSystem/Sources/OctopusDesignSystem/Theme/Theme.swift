@@ -67,6 +67,18 @@ public enum Theme {
         public static let xxl: CGFloat = 32
     }
 
+    // MARK: - Yerleşim payları
+
+    public enum Layout {
+        /// Sekme çubuğunun kaydırılabilir içeriğin son satırını örtmemesi için
+        /// bırakılan pay.
+        ///
+        /// ⚠️ Altı kök ekranda `56` sabiti tek tek yazılıydı; biri değişse
+        /// diğerleri sessizce ayrı düşerdi. Push edilen ekranlarda (Ayarlar,
+        /// detaylar, liste yöneticisi) ise hiç yoktu — bkz. `Docs/BRAIN.md`.
+        public static let tabBarClearance: CGFloat = 56
+    }
+
     // MARK: - Köşe yarıçapı
 
     public enum Radius {

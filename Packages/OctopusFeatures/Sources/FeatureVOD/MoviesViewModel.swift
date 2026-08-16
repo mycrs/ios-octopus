@@ -17,10 +17,13 @@ public final class MoviesViewModel: ObservableObject {
         didSet { scheduleSearch() }
     }
 
-    public private(set) var isSearching = false
+    /// ⚠️ `@Published` şart: `MoviesScreen` kategori şeridini buna bakarak
+    /// gizliyor. Yayınlanmadığında ekran yalnızca `state`/`movies` değiştiği
+    /// için tazeleniyordu — yani kazara çalışıyordu.
+    @Published public private(set) var isSearching = false
     @Published public private(set) var isChangingCategory = false
     /// Listenin sonuna gelindiğinde daha fazla yüklenebilir mi?
-    public private(set) var canLoadMore = true
+    @Published public private(set) var canLoadMore = true
 
     private let dependencies: VODDependencies
     private let pageSize: Int

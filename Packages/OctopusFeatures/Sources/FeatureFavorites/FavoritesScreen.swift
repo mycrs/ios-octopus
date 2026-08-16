@@ -120,7 +120,7 @@ public struct FavoritesScreen: View {
             }
             .padding(Theme.Spacing.md)
         }
-        .padding(.bottom, 56)
+        .padding(.bottom, Theme.Layout.tabBarClearance)
     }
 
     private func section<Content: View>(

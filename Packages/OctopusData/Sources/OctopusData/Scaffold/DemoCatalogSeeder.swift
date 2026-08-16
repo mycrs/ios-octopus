@@ -47,6 +47,11 @@ public enum DemoCatalogSeeder {
         .liveChannel(EntityID.channel(playlistID: "demo", rawID: "0"))
     }
 
+    /// Demo kaynağın sahte adresi. Hiç indirilmediği için değeri önemsiz;
+    /// `!` kullanmamak adına düşülecek yedeği de var (CLAUDE.md).
+    private static let demoSourceURL = URL(string: "http://example.com/demo.m3u")
+        ?? URL(fileURLWithPath: "/demo.m3u")
+
     public static func seed(into database: AppDatabase, secrets: SecretStore) async throws {
         let playlistID: Playlist.ID = "demo"
 
@@ -63,7 +68,9 @@ public enum DemoCatalogSeeder {
             Playlist(
                 id: playlistID,
                 name: "Demo Kaynak",
-                kind: .m3u(url: URL(string: "http://example.com/demo.m3u")!),
+                // Demo kaynak hiçbir zaman indirilmez — katalog doğrudan
+                // veritabanına yazılır; adres yalnızca `kind` alanını doldurur.
+                kind: .m3u(url: Self.demoSourceURL),
                 createdAt: Date(),
                 isActive: true
             ),

@@ -142,7 +142,7 @@ public struct MoviesScreen: View {
             }
             .animation(.easeInOut(duration: 0.18), value: viewModel.isChangingCategory)
         }
-        .padding(.bottom, 56)
+        .padding(.bottom, Theme.Layout.tabBarClearance)
     }
 
     private var gridTopID: String { "movies-grid-top" }

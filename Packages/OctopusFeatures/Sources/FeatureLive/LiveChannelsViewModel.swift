@@ -41,7 +41,10 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     /// Arama sonuçları listeyi geçici olarak değiştirir; temizlenince
     /// kullanıcı kaldığı kategoriye döner.
-    public private(set) var isSearching = false
+    ///
+    /// ⚠️ `@Published` şart: `LiveScreen` buna bakarak çiziyor. Yayınlanmazsa
+    /// ekran yalnızca başka bir alan değiştiği için tazelenir — kazara çalışır.
+    @Published public private(set) var isSearching = false
 
     private let dependencies: LiveDependencies
     private let searchDebounce: Duration
