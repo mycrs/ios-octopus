@@ -19,7 +19,20 @@ public actor DefaultContentProviderFactory: ContentProviderFactory {
     private let liveFormat: XtreamContentProvider.LiveFormat
     private let hostResolver: HostResolving
 
-    private var cache: [String: ContentProvider] = [:]
+    /// Önbellek anahtarı **kimlik + kaynak tanımı**.
+    ///
+    /// ⚠️ Yalnızca `id` ile anahtarlanıyordu. Kullanıcı sunucu adresini ya da
+    /// kullanıcı adını değiştirdiğinde önbellekteki sağlayıcı **eski** bilgilerle
+    /// çalışmaya devam ediyordu — `invalidate` üretimde hiçbir yerden
+    /// çağrılmadığı için oturum boyunca. Anahtara `kind` girince kaynak
+    /// değişimi yeni sağlayıcıyı kendiliğinden zorunlu kılar ve unutulabilecek
+    /// bir call-site kalmaz. (`Playlist.Kind` zaten `Hashable`.)
+    private struct CacheKey: Hashable {
+        let id: String
+        let kind: Playlist.Kind
+    }
+
+    private var cache: [CacheKey: ContentProvider] = [:]
 
     public init(
         httpClient: HTTPClient,
@@ -34,16 +47,20 @@ public actor DefaultContentProviderFactory: ContentProviderFactory {
     }
 
     public func makeProvider(for playlist: Playlist) async throws -> ContentProvider {
-        if let cached = cache[playlist.id.value] { return cached }
+        let key = CacheKey(id: playlist.id.value, kind: playlist.kind)
+        if let cached = cache[key] { return cached }
 
         let provider = try await buildProvider(for: playlist)
-        cache[playlist.id.value] = provider
+        cache[key] = provider
         return provider
     }
 
     /// Kaynak düzenlendiğinde veya senkronizasyon taze veri istediğinde.
+    ///
+    /// Kaynak **tanımı** değişince önbellek zaten kendiliğinden ıskalar
+    /// (bkz. `CacheKey`); bu yalnızca elle boşaltma gerektiğinde kullanılır.
     public func invalidate(playlistID: Playlist.ID) {
-        cache[playlistID.value] = nil
+        cache = cache.filter { $0.key.id != playlistID.value }
     }
 
     public func invalidateAll() {

@@ -216,6 +216,29 @@ final class StreamResolverTests: XCTestCase {
         )
     }
 
+    func test_editingSourceAddressForcesNewProvider() async throws {
+        // ⚠️ Önbellek yalnızca `id` ile anahtarlanıyordu: kullanıcı sunucu
+        // adresini değiştirse bile eski adrese bakan sağlayıcı oturum boyunca
+        // kullanılmaya devam ediyordu. `invalidate` üretimde hiçbir yerden
+        // çağrılmadığı için kimse fark etmiyordu.
+        let fetched = try await playlists.playlist(id: "m3u1")
+        let original = try XCTUnwrap(fetched)
+
+        let before = try await factory.makeProvider(for: original)
+
+        let newURL = try XCTUnwrap(URL(string: "http://yeni.example.com/liste.m3u"))
+        var edited = original
+        edited.kind = .m3u(url: newURL)
+        try await playlists.update(edited)
+
+        let after = try await factory.makeProvider(for: edited)
+
+        XCTAssertFalse(
+            (before as AnyObject) === (after as AnyObject),
+            "Adres değişince yeni sağlayıcı kurulmalı"
+        )
+    }
+
     func test_invalidate_forcesNewProvider() async throws {
         let fetched = try await playlists.playlist(id: "m3u1")
         let playlist = try XCTUnwrap(fetched)
