@@ -28,6 +28,19 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 
+	<!--
+	  İhracat uyumluluğu. Bu anahtar olmadan her yükleme App Store
+	  Connect'te "Missing Compliance" durumunda bekler ve derlemeyi
+	  TestFlight'a/incelemeye gönderemezsin — her seferinde elle
+	  cevaplaman gerekir.
+
+	  `false` doğru beyan: uygulama yalnızca muaf şifreleme kullanıyor —
+	  HTTPS (URLSession), Keychain ve PIN özeti için CryptoKit SHA-256.
+	  Kendi şifreleme algoritması yok, şifreli veri ihraç etmiyor.
+	-->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
 	<!-- Arka planda ses: kullanıcı uygulamadan çıkınca yayının sesi devam eder. -->
 	<key>UIBackgroundModes</key>
 	<array>

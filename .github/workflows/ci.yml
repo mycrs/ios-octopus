@@ -110,6 +110,30 @@ jobs:
             || echo "(ekranla ilgili anahtar bulunamadı)"
           echo "::endgroup::"
 
+          # ── Yayın hazırlığı: paketin İÇİNDE ne var? ────────────────
+          #
+          # ⚠️ Bu iki madde derlemede değil, App Store Connect'e YÜKLERKEN
+          # patlar — yani sorunu ancak başvuru anında görürsün.
+          #   · PrivacyInfo.xcprivacy eksikse → ITMS-91053
+          #   · ITSAppUsesNonExemptEncryption yoksa → "Missing Compliance"
+          # Kaynakta var olmaları yetmez; pakete GİRDİKLERİ doğrulanmalı.
+          echo "::group::Yayın hazırlığı"
+          if [ -f "$APP_PATH/PrivacyInfo.xcprivacy" ]; then
+            echo "✅ PrivacyInfo.xcprivacy paket kökünde"
+            plutil -p "$APP_PATH/PrivacyInfo.xcprivacy" | head -20
+          else
+            echo "::error::PrivacyInfo.xcprivacy pakete girmemiş — yükleme ITMS-91053 ile reddedilir"
+            exit 1
+          fi
+
+          if plutil -p "$APP_PATH/Info.plist" | grep -q "ITSAppUsesNonExemptEncryption"; then
+            echo "✅ ITSAppUsesNonExemptEncryption bildirilmiş"
+          else
+            echo "::error::ITSAppUsesNonExemptEncryption eksik — her yükleme Missing Compliance'ta bekler"
+            exit 1
+          fi
+          echo "::endgroup::"
+
           xcrun simctl install booted "$APP_PATH"
 
           # 1) Kaynak eklenmemiş hâl — karşılama ekranı.

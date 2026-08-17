@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Gizlilik bildirimi — 1 Mayıs 2024'ten beri ZORUNLU.
+  Eksikse App Store Connect yüklemeyi ITMS-91053 ("Missing API declaration")
+  ile geri çevirir; hata derlemede değil, yükleme sırasında çıkar.
+
+  Buradaki her madde kodda taranarak doğrulandı:
+    · UserDefaults      → 20 çağrı (dil, tema, ebeveyn kilidi, oynatıcı
+                          tercihleri, açılış sekmesi, senkronizasyon damgası)
+    · Takip/IDFA        → YOK (AdSupport, AppTrackingTransparency içe
+                          aktarılmıyor)
+    · Cihaz tanımlayıcı → YOK (identifierForVendor kullanılmıyor)
+    · Dosya zaman damgası / disk alanı / açılış zamanı / aktif klavye → YOK
+
+  ⚠️ `NSPrivacyCollectedDataTypes` boş: uygulama panele yalnızca aktivasyon
+  kodunu gönderiyor, kullanıcıya bağlı hiçbir veri toplamıyor. IPTV hesap
+  parolası cihazda Keychain'de kalır. Panelin SUNUCU tarafında tuttuğu
+  kayıtlar (IP vb.) bu bildirimin kapsamı değildir ama App Store Connect'teki
+  "App Privacy" cevaplarını bunlara göre gözden geçir.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<!--
+			  Uygulama kendi tercihlerini okuyup yazıyor.
+			  CA92.1 = "uygulamanın kendisine ait bilgiye erişim".
+			-->
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
