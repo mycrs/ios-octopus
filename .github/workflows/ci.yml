@@ -120,7 +120,9 @@ jobs:
           echo "::group::Yayın hazırlığı"
           if [ -f "$APP_PATH/PrivacyInfo.xcprivacy" ]; then
             echo "✅ PrivacyInfo.xcprivacy paket kökünde"
-            plutil -p "$APP_PATH/PrivacyInfo.xcprivacy" | head -20
+            # ⚠️ `| head` YOK: bu adım `set -o pipefail` altında çalışıyor,
+            # head erken kapanırsa plutil SIGPIPE alır ve adım 141 ile düşer.
+            plutil -p "$APP_PATH/PrivacyInfo.xcprivacy" || true
           else
             echo "::error::PrivacyInfo.xcprivacy pakete girmemiş — yükleme ITMS-91053 ile reddedilir"
             exit 1
