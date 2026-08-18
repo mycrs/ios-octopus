@@ -51,9 +51,10 @@
 "Kaldığın yerden devam et" = "Continue where you left off";
 "İçerik kilidi" = "Content lock";
 "Hassas içerikleri otomatik korur" = "Automatically protects sensitive content";
+"Kesintisiz oynatma" = "Uninterrupted playback";
+"Yayın koparsa kendiliğinden geri döner" = "Reconnects on its own if the stream drops";
+"Bu uygulama yalnızca bir oynatıcıdır: içerik sağlamaz ve barındırmaz. Yayınlar eklediğin kendi aboneliğinden gelir." = "This app is only a player: it does not provide or host any content. Streams come from the subscription you add yourself.";
 "Kuruluma başla" = "Start setup";
-"Hizmet sağlayıcımı bağla" = "Connect my provider";
-"Marka bağlantısı aktif" = "Provider connection active";
 "GÜVENLİ KURULUM" = "SECURE SETUP";
 "Kaynak ekle" = "Add source";
 "Aboneliğinin bilgilerini gir. Kaydetmeden önce bağlantı sınanır." = "Enter your subscription details. The connection is checked before saving.";

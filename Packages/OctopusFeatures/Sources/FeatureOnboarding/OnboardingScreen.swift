@@ -135,6 +135,7 @@ public struct OnboardingScreen: View {
                             logoURL: theme.logoURL ?? dependencies.brandLogoURL()
                         )
                         OnboardingCapabilities()
+                        OnboardingContentDisclaimer()
 
                         Spacer(minLength: Theme.Spacing.xl)
                         startButton

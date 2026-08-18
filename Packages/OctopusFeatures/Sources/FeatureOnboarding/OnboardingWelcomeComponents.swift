@@ -81,7 +81,11 @@ struct OnboardingCapabilities: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             capability("tv", "Canlı TV", "Kategoriler, favoriler ve yayın akışı")
             capability("film", "Film ve dizi", "Kaldığın yerden devam et")
-            capability("lock.shield", "İçerik kilidi", "Hassas içerikleri otomatik korur")
+            capability(
+                "bolt.horizontal.circle",
+                "Kesintisiz oynatma",
+                "Yayın koparsa kendiliğinden geri döner"
+            )
         }
         .padding(Theme.Spacing.lg)
         .background(Theme.Palette.surface.opacity(0.54))
@@ -110,6 +114,40 @@ struct OnboardingCapabilities: View {
 
             Spacer(minLength: 0)
         }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Uygulamanın içerik sağlamadığını söyleyen not.
+///
+/// ⚠️ Yalnızca hukuki bir dipnot değil, **App Store incelemesi** için de
+/// gerekli: Apple, IPTV istemcilerini "telifli içeriğe erişimi
+/// kolaylaştırıyor" gerekçesiyle (Guideline 5.2.3) sıkça reddediyor.
+/// Uygulamanın içerik barındırmadığı ve kaynağın kullanıcıya ait olduğu
+/// ilk ekranda açıkça yazılı olmalı — inceleyen kişi bunu görmeli.
+struct OnboardingContentDisclaimer: View {
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.sm) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 12))
+                .foregroundColor(Theme.Palette.textTertiary)
+
+            // ⚠️ Marka adı **yazılmıyor**: uygulama bayiye göre "Qruze
+            // Player" gibi başka bir adla açılabiliyor. Sabit "Octopus"
+            // yazsaydı beyaz etiketli kurulumlarda yanlış ada işaret ederdi.
+            Text(
+                AppLocalization.localized(
+                    "Bu uygulama yalnızca bir oynatıcıdır: içerik sağlamaz ve barındırmaz. Yayınlar eklediğin kendi aboneliğinden gelir.",
+                    locale: locale
+                )
+            )
+            .font(Theme.Typography.caption)
+            .foregroundColor(Theme.Palette.textTertiary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }
