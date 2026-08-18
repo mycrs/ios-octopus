@@ -131,7 +131,11 @@ public struct AddPlaylistView: View {
 
             case .xtream:
                 FormFieldView(
-                    title: "DNS adresi",
+                    // ⚠️ "DNS adresi" değil: DNS bir ad çözümleme
+                    // sistemidir, girilen şey sunucunun adresi. Sektörde
+                    // yaygın olsa da yanlış terim, uygulamayı amatör
+                    // gösteriyor ve İngilizcede hiç anlaşılmıyor.
+                    title: "Sunucu adresi",
                     placeholder: "http://panel.example.com:8080",
                     text: $viewModel.host,
                     icon: "network",

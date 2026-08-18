@@ -159,7 +159,7 @@ struct SyncOverlayView: View {
     private var detail: String? {
         switch step {
         case .searchingServer:
-            return "Bilgilerin kontrol ediliyor. Bu işlem kısa sürebilir."
+            return "Bilgilerin kontrol ediliyor. Bu işlem biraz sürebilir."
         case .validating:
             return "Bilgilerin güvenli şekilde doğrulanıyor."
         case .syncing:

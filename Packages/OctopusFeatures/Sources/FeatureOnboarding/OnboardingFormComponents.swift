@@ -92,7 +92,7 @@ struct ActivationCodeIntro: View {
                 Text("Tek kodla hazır")
                     .font(Theme.Typography.rowTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
-                Text("Hesabın güvenli şekilde otomatik olarak hazırlanır.")
+                Text("Hesabın otomatik ve güvenli şekilde hazırlanır.")
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Palette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

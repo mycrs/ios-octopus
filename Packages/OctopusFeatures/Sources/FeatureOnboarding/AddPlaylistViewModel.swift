@@ -480,7 +480,13 @@ extension ActivationError {
         case .rateLimited:
             return "Sunucu şu an yoğun. Birkaç dakika sonra tekrar dene."
         case .invalidFormat:
-            return "Kod biçimi geçersiz. Harf, rakam ve tire kullanılır."
+            // ⚠️ Eskiden "Harf, rakam ve tire kullanılır." yazıyordu —
+            // uygulamada böyle bir kural **yok** (yerel karakter süzgeci
+            // bilerek kaldırıldı, bkz. BRAIN.md § 11.1). Var olmayan bir
+            // kuralı anlatan hata, doğru kodu yazan kullanıcıyı kodunu
+            // "düzeltmeye" iterek büsbütün yanıltıyordu. Panel bu yanıtı
+            // okuyamadığı gövdeler için de döndürüyor.
+            return "Kod doğrulanamadı. Kodu kontrol edip tekrar dene."
         case .unknown:
             return "Kod doğrulanamadı. Tekrar dene."
         }
