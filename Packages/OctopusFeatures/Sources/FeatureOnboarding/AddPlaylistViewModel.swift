@@ -11,10 +11,12 @@ import OctopusDesignSystem   // AppError.userMessage sunum uzantısı
 public final class AddPlaylistViewModel: ObservableObject {
 
     public enum SourceKind: String, CaseIterable, Identifiable, Sendable {
-        /// Bayi kodu en başta: müşterilerin çoğu sunucu adresi değil kod alıyor.
-        case activationCode
+        /// ⚠️ Sıra ekrandaki seçicinin sırasıdır (`allCases`): önce elle
+        /// giriş (Xtream → M3U), en sonda kod. Varsayılan seçim `xtream`
+        /// olduğundan kodun başa alınması seçiciyi ortadan başlatıyordu.
         case xtream
         case m3u
+        case activationCode
 
         public var id: String { rawValue }
 

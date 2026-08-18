@@ -9,7 +9,9 @@ final class PlaybackPreferencesTests: XCTestCase {
         let (preferences, _, _) = makePreferences()
 
         XCTAssertEqual(preferences.videoFit, .fit)
-        XCTAssertEqual(preferences.liveBuffer, .balanced)
+        // Varsayılan **Kararlı**: takılan bir yayın, geç açılan yayından
+        // daha kötü bir ilk izlenim bırakıyor.
+        XCTAssertEqual(preferences.liveBuffer, .stable)
         XCTAssertTrue(preferences.autoReconnect)
         XCTAssertTrue(preferences.useFallbackEngine)
     }

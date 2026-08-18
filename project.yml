@@ -118,6 +118,17 @@ targets:
     platform: iOS
     sources:
       - path: Tests
+    # ⚠️ Test paketinin de bir Info.plist'i olmak zorunda; yoksa imzalama
+    # adımı "target does not have an Info.plist file" ile düşer ve
+    # `xcodebuild test -scheme Octopus` hiç koşmaz.
+    #
+    # Uygulamada `INFOPLIST_FILE` ile elle yazılmış dosya kullanılıyor
+    # (XcodeGen'in `info:` bölümü onu eziyordu — bkz. Octopus hedefi).
+    # Test paketinde saklanacak bir içerik yok: Xcode'un kendi ürettiği
+    # plist yeterli ve depoda bakımı gereken bir dosya bırakmıyor.
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Octopus
 

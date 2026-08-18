@@ -93,8 +93,6 @@ public struct OnboardingScreen: View {
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var theme: ThemeController
     @State private var showsForm = false
-    @State private var showsResellerCode = false
-    @State private var savedCode: String?
 
     public init(dependencies: OnboardingDependencies) {
         self.dependencies = dependencies
@@ -140,23 +138,12 @@ public struct OnboardingScreen: View {
 
                         Spacer(minLength: Theme.Spacing.xl)
                         startButton
-                        OnboardingResellerCodeButton(savedCode: savedCode) {
-                            showsResellerCode = true
-                        }
                     }
                     .padding(Theme.Spacing.xl)
                     .frame(maxWidth: 560)
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: proxy.size.height)
                 }
-            }
-        }
-        .task { savedCode = await dependencies.savedResellerCode() }
-        .sheet(isPresented: $showsResellerCode) {
-            ResellerCodeSheet(currentCode: savedCode) { code in
-                let isValid = await dependencies.applyResellerCode(code)
-                savedCode = await dependencies.savedResellerCode()
-                return isValid
             }
         }
     }

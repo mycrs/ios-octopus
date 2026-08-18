@@ -37,8 +37,8 @@ public final class PlaybackPreferences: ObservableObject {
         public var detail: String {
             switch self {
             case .fast: return "En kısa açılış, dalgalı hatta takılabilir"
-            case .balanced: return "Önerilen"
-            case .stable: return "Geç açılır, en az takılma"
+            case .balanced: return "Dengeli açılış ve akıcılık"
+            case .stable: return "Önerilen — en az takılma, biraz geç açılır"
             }
         }
 
@@ -96,8 +96,12 @@ public final class PlaybackPreferences: ObservableObject {
         let rawFit = store.string(forKey: Keys.videoFit) ?? VideoFit.fit.rawValue
         self.videoFit = VideoFit(rawValue: rawFit) ?? .fit
 
-        let rawBuffer = store.string(forKey: Keys.liveBuffer) ?? LiveBuffer.balanced.rawValue
-        self.liveBuffer = LiveBuffer(rawValue: rawBuffer) ?? .balanced
+        // ⚠️ Varsayılan **Kararlı**: IPTV sunucuları dalgalı, takılan bir
+        // yayın kullanıcıya "uygulama bozuk" hissi veriyor. Açılışın biraz
+        // gecikmesi, izlerken donmaktan iyidir. Hızlı zaplama isteyen
+        // kullanıcı Ayarlar'dan "Hızlı"ya alabilir.
+        let rawBuffer = store.string(forKey: Keys.liveBuffer) ?? LiveBuffer.stable.rawValue
+        self.liveBuffer = LiveBuffer(rawValue: rawBuffer) ?? .stable
 
         // ⚠️ `object(forKey:)` kontrolü şart: `bool(forKey:)` kayıt yokken
         // `false` döner ve iki özellik de kapalı başlardı. Varsayılanları
