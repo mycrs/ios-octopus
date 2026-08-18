@@ -172,3 +172,82 @@ Sonra Xcode'da **Product → Archive** (Release yapılandırması).
 paket içeriğini göster ve `PrivacyInfo.xcprivacy` dosyasının **kökte**
 olduğunu gözünle doğrula. CI bunu kontrol ediyor ama arşiv farklı bir
 yapılandırma (Release) ile üretiliyor.
+
+---
+
+## 6. ARŞİV VE `.ipa` ÜRETİMİ — çalışan yol
+
+> 2026-08-19'da bu Mac'te uçtan uca çalıştırıldı; aşağıdaki komutlar
+> imzalı bir `.ipa` üretiyor.
+
+### Neden `Product → Archive` doğrudan çalışmıyor
+
+Otomatik imzalamada Xcode **arşivi geliştirme kimliğiyle** imzalar,
+dağıtım kimliğine ancak *dışa aktarma* adımında geçer. Geliştirme profili
+ise takımda **en az bir kayıtlı cihaz** ister. Cihaz kaydı yoksa arşiv
+şu hatayla düşer:
+
+```
+Your team has no devices from which to generate a provisioning profile
+No profiles for 'com.octopus.iptv' were found
+```
+
+⚠️ `CODE_SIGN_IDENTITY`'yi "Apple Distribution" olarak dayatmak **çözüm
+değil**: otomatik imzalama bunu "çakışan, elle belirtilmiş kimlik" sayıp
+reddediyor (*"automatically signed for development, but a conflicting
+code signing identity ... has been manually specified"*).
+
+### Çözüm: imzayı dışa aktarma adımına bırak
+
+App Store profili cihaz kaydı istemez. Arşivi imzasız al, `.ipa`'yı
+dışa aktarırken imzalat:
+
+```bash
+xcodegen generate
+
+xcodebuild archive -scheme Octopus -configuration Release \
+  -destination 'generic/platform=iOS' \
+  -archivePath ~/Desktop/Octopus.xcarchive \
+  CODE_SIGNING_ALLOWED=NO
+
+xcodebuild -exportArchive \
+  -archivePath ~/Desktop/Octopus.xcarchive \
+  -exportPath ~/Desktop/OctopusExport \
+  -exportOptionsPlist ExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+`ExportOptions.plist`:
+
+```xml
+<key>method</key>            <string>app-store-connect</string>
+<key>teamID</key>            <string>V5ZC6396XD</string>
+<key>signingStyle</key>      <string>automatic</string>
+<key>uploadSymbols</key>     <true/>
+```
+
+### Üretilen paketi doğrula
+
+```bash
+cd $(mktemp -d) && unzip -q ~/Desktop/OctopusExport/Octopus.ipa
+codesign -dv --verbose=2 Payload/Octopus.app
+```
+
+Beklenen:
+
+| Alan | Değer |
+|---|---|
+| `Authority` | `Apple Distribution: …` (Development **değil**) |
+| `TeamIdentifier` | `V5ZC6396XD` |
+| Profil adı | `iOS Team Store Provisioning Profile: com.octopus.iptv` |
+| `get-task-allow` | `false` |
+| `PrivacyInfo.xcprivacy` | `Payload/Octopus.app/` **kökünde** |
+
+### Yükleme
+
+`.ipa` hazır olduktan sonra App Store Connect'te uygulama kaydı **zaten
+oluşturulmuş olmalı**, yoksa yükleme reddedilir. Sonra:
+
+- **Transporter** uygulaması (App Store'dan ücretsiz) ile sürükle-bırak, ya da
+- `xcrun altool`/`notarytool` yerine güncel yol: Xcode Organizer →
+  *Distribute App*
