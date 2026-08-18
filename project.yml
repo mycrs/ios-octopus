@@ -20,6 +20,21 @@ settings:
     SWIFT_STRICT_CONCURRENCY: targeted     # Swift 6'ya kademeli geçiş için
     CLANG_ENABLE_MODULE_VERIFIER: NO
     DEAD_CODE_STRIPPING: YES
+
+    # ⚠️ Takım kimliği **proje** seviyesinde, hedefte değil.
+    #
+    # İki sebep:
+    # 1. `.xcodeproj` git'e girmiyor; Xcode'un "Signing & Capabilities"
+    #    sekmesinden seçilen takım her `xcodegen generate` sonrası
+    #    kaybolur ve arşiv "requires a development team" ile düşer.
+    # 2. Yalnızca uygulama hedefine yazmak yetmiyor: SPM paketlerinin
+    #    kaynak paketleri (GRDB_GRDB gibi) ayrı hedef olarak imzalanıyor
+    #    ve "Signing for GRDB_GRDB requires a development team" hatası
+    #    veriyor. Proje seviyesinde tanımlanınca hepsi devralıyor.
+    #
+    # CI'ı etkilemez: iş akışı `CODE_SIGNING_ALLOWED=NO` ile derliyor.
+    DEVELOPMENT_TEAM: V5ZC6396XD
+    CODE_SIGN_STYLE: Automatic
   configs:
     Debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
