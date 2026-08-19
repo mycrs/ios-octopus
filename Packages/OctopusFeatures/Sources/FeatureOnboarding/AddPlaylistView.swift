@@ -129,6 +129,8 @@ public struct AddPlaylistView: View {
                     kind: .info
                 )
 
+                QuickSetupLink()
+
             case .xtream:
                 FormFieldView(
                     // ⚠️ "DNS adresi" değil: DNS bir ad çözümleme

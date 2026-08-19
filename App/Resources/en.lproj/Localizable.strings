@@ -73,6 +73,7 @@
 "isteğe bağlı" = "optional";
 "Kodun doğrulandığında hesabın otomatik olarak hazırlanır." = "Your account is prepared automatically once your code is verified.";
 "Tek kodla hazır" = "Ready with one code";
+"Kodun yok mu? Kurulum rehberine bak" = "Don't have a code? See the setup guide";
 "Hesabın otomatik ve güvenli şekilde hazırlanır." = "Your account is set up automatically and securely.";
 "Kodu doğrula" = "Verify code";
 "Kaydet ve içeriği getir" = "Save and load content";

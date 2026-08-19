@@ -102,6 +102,34 @@ struct ActivationCodeIntro: View {
     }
 }
 
+/// "Kodun yok mu?" bağlantısı — kurulum rehberine götürür.
+///
+/// ⚠️ Aktivasyon kodu ekranının web'e giden **tek** çıkışı buydu ve
+/// eksikti: kodu olmayan kullanıcı nereye bakacağını bilemiyordu.
+/// Bayiye özel bir bağlantı değil, uygulamanın kendi kurulum sayfası —
+/// bu yüzden panelden değil, sabit URL'den geliyor.
+struct QuickSetupLink: View {
+    @Environment(\.brandColor) private var brandColor
+
+    private var quickSetupURL: URL? {
+        URL(string: "https://octopusplayer.com/quick-setup/")
+    }
+
+    var body: some View {
+        if let quickSetupURL {
+            Link(destination: quickSetupURL) {
+                HStack(spacing: Theme.Spacing.xs) {
+                    Text("Kodun yok mu? Kurulum rehberine bak")
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .font(Theme.Typography.caption.weight(.semibold))
+            }
+            .tint(brandColor)
+        }
+    }
+}
+
 struct OnboardingSubmitButton: View {
     let title: String
     let isEnabled: Bool
