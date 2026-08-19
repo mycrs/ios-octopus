@@ -95,13 +95,19 @@ kaynak yetişkin kategori içeriyorsa gösterilebiliyor.
 
 ### 🟠 5. App Store Connect zorunlu alanları
 
-- [ ] **Gizlilik politikası URL'i** (zorunlu)
-- [ ] **Destek URL'i** (zorunlu)
+- [x] **Gizlilik politikası URL'i** → `https://octopusplayer.com/privacy-policy/`
+- [ ] **Destek URL'i** (zorunlu) — henüz belirlenmedi
 - [ ] **App Privacy** cevapları — kodda toplanan veri yok, ama **panelinin
       sunucu tarafında** tuttukları (IP kaydı vb.) varsa cevapları ona göre
-      ver. Manifest yalnızca uygulamanın kendisini kapsar
-- [ ] Ekran görüntüleri: **iPhone 6.7" + iPad 12.9"** (iPad desteği beyan
-      edildiği için iPad görselleri zorunlu)
+      ver. Manifest yalnızca uygulamanın kendisini kapsar. Öneri:
+      `Docs/APP-STORE-METIN-TASLAKLARI.md` §9
+- [x] Ekran görüntüleri: **iPhone 6.9" (1320×2868) + iPad 13" (2064×2752)**
+      — `~/Desktop/AppStoreScreenshots/` altında hazır, gerçek içerikle
+      (`google-review/test.m3u` — Blender Foundation açık lisanslı filmler,
+      telif riski yok) çekildi. Apple'ın istediği çözünürlükle birebir
+      uyuyor, ek kırpma gerekmiyor
+- [x] Açıklama, alt başlık, anahtar kelimeler, review notu taslağı,
+      yaş sınırı ve gizlilik anketi önerileri → `Docs/APP-STORE-METIN-TASLAKLARI.md`
 
 ---
 
