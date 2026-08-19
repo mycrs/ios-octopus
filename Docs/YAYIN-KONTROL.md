@@ -52,15 +52,14 @@ yani ancak başvuru anında görülecekti.
 isteniyor. Kaynak yoksa uygulama **boş**. İnceleyici içeriği göremezse
 "could not review" der ve reddeder.
 
-App Review Notes'a yaz:
+**Karar verildi: demo M3U kullanılacak** (`google-review/test.m3u`) —
+hesap açmaya gerek yok, tam metin `Docs/APP-STORE-METIN-TASLAKLARI.md`
+§6'da hazır, App Review Notes'a olduğu gibi yapıştırılabilir.
 
-- [ ] Çalışan bir **aktivasyon kodu** ya da Xtream `host / kullanıcı / parola`
-- [ ] Kaynağın inceleme boyunca (**günlerce**, birden fazla cihazdan) canlı
-      kalacağından emin ol
-- [ ] **Eşzamanlı bağlantı limitini yükselt** — limit 1 ise inceleyici
-      "çalışmıyor" görür. Bu çok sık yaşanan bir ret sebebidir
-- [ ] Adım adım anlat: *"Uygulamayı aç → Aktivasyon Kodu sekmesi → şu kodu
-      gir → katalog yüklenecek"*
+- [x] Çalışan bir kaynak: demo M3U linki (aktivasyon kodu yerine)
+- [x] Kaynak kalıcı — kendi sunucumuzdaki statik dosya, süresi dolmaz
+- [x] Adım adım anlatım metne eklendi: *"Kaynak ekle → M3U sekmesi →
+      linki yapıştır → Kaydet ve içeriği getir"*
 
 ### 🔴 2. İçerik sahipliğini açıkla (Guideline 5.2.3)
 
@@ -96,7 +95,7 @@ kaynak yetişkin kategori içeriyorsa gösterilebiliyor.
 ### 🟠 5. App Store Connect zorunlu alanları
 
 - [x] **Gizlilik politikası URL'i** → `https://octopusplayer.com/privacy-policy/`
-- [ ] **Destek URL'i** (zorunlu) — henüz belirlenmedi
+- [x] **Destek URL'i** → `https://octopusplayer.com/support/`
 - [ ] **App Privacy** cevapları — kodda toplanan veri yok, ama **panelinin
       sunucu tarafında** tuttukları (IP kaydı vb.) varsa cevapları ona göre
       ver. Manifest yalnızca uygulamanın kendisini kapsar. Öneri:

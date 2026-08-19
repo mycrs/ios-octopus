@@ -113,14 +113,21 @@ Third-party IPTV providers deliver streams over plain HTTP and are
 outside our control; the app cannot require HTTPS for user-supplied
 sources (see NSAppTransportSecurity justification in Info.plist).
 
-Test credentials:
-[BURAYA ÇALIŞAN BİR AKTİVASYON KODU VEYA XTREAM HESABI YAZ]
+To test: open the app → tap "Kaynak ekle" (Add source) → select the
+"M3U" tab → paste the link below → tap "Kaydet ve içeriği getir"
+(Save and load content). A working demo channel list loads immediately,
+no account needed.
+
+Demo M3U link:
+https://octopusplayer.com/google-review/test.m3u
+
+If a full account is preferred, one can be requested at:
+https://octopusplayer.com/support/
 ```
 
-⚠️ **Bu alanı boş bırakma** — inceleyici çalışan bir kaynak göremezse
-"Guideline 2.1: Information Needed" ile geri döner. Demo M3U'yu
-(`google-review/test.m3u`) da verebilirsin, ama Xtream/aktivasyon
-akışının da çalıştığını göstermek daha güvenli.
+✅ **Karar verildi:** demo M3U yeterli — inceleyici hesap açmadan,
+tek bir linki yapıştırarak test edebiliyor. Ekstra bir aktivasyon kodu
+üretmeye gerek yok.
 
 ---
 
@@ -128,8 +135,8 @@ akışının da çalıştığını göstermek daha güvenli.
 
 | Alan | Değer |
 |---|---|
-| Gizlilik politikası (zorunlu) | `https://octopusplayer.com/privacy-policy/` ✅ verdin |
-| Destek URL'i (zorunlu) | ⚠️ **eksik** — `octopusplayer.com` üzerinde ayrı bir destek/iletişim sayfası var mı? Yoksa aynı domain'in ana sayfasını kullanabiliriz |
+| Gizlilik politikası (zorunlu) | `https://octopusplayer.com/privacy-policy/` ✅ |
+| Destek URL'i (zorunlu) | `https://octopusplayer.com/support/` ✅ |
 | Pazarlama URL'i (isteğe bağlı) | `https://octopusplayer.com` önerilir |
 
 ---
