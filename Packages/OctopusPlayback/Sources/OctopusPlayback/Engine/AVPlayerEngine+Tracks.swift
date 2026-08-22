@@ -28,8 +28,22 @@ extension AVPlayerEngine {
         do {
             // Geçerli radyo/ses akışları doğal olarak görüntü üretmez. Video
             // gözcüsü bunları codec hatası sanıp gereksizce VLC'ye atmasın.
+            //
+            // ⚠️ Video listesine **tek başına** bakmak yetmez: HLS'te (m3u8)
+            // `loadTracks` her zaman boş döner, çünkü izler varyant bazında
+            // çalışma anında belirlenir ve asset seviyesinde listelenmez.
+            // Yalnızca `videoTracks.isEmpty` kontrolü bu yüzden **her canlı
+            // kanalı** "ses akışı" sanıp gözcüyü kalıcı olarak kapatıyordu:
+            // AVPlayer'ın çözemediği HEVC kanallarda ses akıyor, ekran siyah
+            // kalıyor ve yedek motor hiç denenmiyordu (gerçek cihazda
+            // bildirilen hata tam olarak buydu).
+            //
+            // Doğru ayrım: ses izi **dolu** ama video izi boşsa bu gerçekten
+            // bir ses akışıdır. İkisi de boşsa asset hiçbir şey söylemiyor
+            // demektir — o durumda karar gözcüye bırakılır.
             let videoTracks = try? await asset.loadTracks(withMediaType: .video)
-            if videoTracks?.isEmpty == true {
+            let audioTracks = try? await asset.loadTracks(withMediaType: .audio)
+            if videoTracks?.isEmpty == true, audioTracks?.isEmpty == false {
                 markAudioOnlyPlayback()
             }
 
