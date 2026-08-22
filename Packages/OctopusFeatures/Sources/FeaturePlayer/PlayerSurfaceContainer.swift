@@ -63,6 +63,23 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
             makeSurface: makeSurface
         )
     }
+
+    /// Ekran kapanırken paylaşılan yüzeyi **serbest bırakır**.
+    ///
+    /// ⚠️ Atlanamaz: video yüzeyi motora ait ve mini oynatıcıyla
+    /// paylaşılıyor. Denetim katmanı ise yüzeyin **içinde** duruyor
+    /// (VLC'nin GL görünümü kardeşlerini örttüğü için kasıtlı). Yüzey
+    /// serbest bırakılmazsa mini oynatıcı onu geri alırken denetim
+    /// katmanını da yanında götürüyor; barındıran controller başka bir
+    /// hiyerarşide kalıyor ve UIKit `UIViewControllerHierarchyInconsistency`
+    /// ile uygulamayı **çökertiyor** (gerçek cihazda tam ekranı kapatınca
+    /// yaşanan tam olarak buydu).
+    static func dismantleUIViewController(
+        _ controller: PlayerSurfaceViewController<PlayerHostedOverlay<Overlay>>,
+        coordinator: Coordinator
+    ) {
+        controller.releaseSurface()
+    }
 }
 
 final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
@@ -104,6 +121,18 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
         bringOverlayToFront()
     }
 
+    /// ⚠️ `dismantleUIViewController` **çok geç** kalıyor: mini oynatıcı
+    /// yüzeyi ondan önce geri alabiliyor ve çökme oluşuyor. Ekran gözden
+    /// kaybolur kaybolmaz yüzeyi bırakmak devrin sırasını garantiliyor.
+    ///
+    /// Üstte sayfa (iz seçici, kanal paneli) açıldığında bu çağrılmaz —
+    /// o sunumlar `viewWillDisappear` tetiklemez, dolayısıyla denetimler
+    /// kaybolmaz.
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        releaseSurface()
+    }
+
     func update(
         surfaceGeneration: Int,
         makeSurface: () -> UIView?
@@ -130,6 +159,31 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
         attachOverlay()
     }
 
+    /// Paylaşılan yüzeyi bu ekrandan koparır.
+    ///
+    /// ⚠️ Denetim katmanı **yok edilmiyor**, kendi görünümümüze geri
+    /// taşınıyor. Barındıran controller'ın görünümü kendi ebeveyninin
+    /// hiyerarşisinde kaldığı sürece UIKit mutlu; yüzey ise yalnız
+    /// başına mini oynatıcıya devredilebiliyor.
+    ///
+    /// Katman yüzeyin içinde bırakılırsa yüzeyle birlikte taşınıyor,
+    /// barındıran controller başka bir hiyerarşide kalıyor ve UIKit
+    /// `UIViewControllerHierarchyInconsistency` ile çökertiyor.
+    func releaseSurface() {
+        // ⚠️ `removeFromSuperview()` **çağrılmıyor** — kasıtlı.
+        //
+        // Yüzey bir an bile ekransız (superview'suz) kalırsa VLC'nin video
+        // çıkışı yıkılıyor ve geri alındığında siyah kalıyor: tam ekrandan
+        // mini oynatıcıya dönerken yaşanan buydu. Mini oynatıcı yüzeyi
+        // kendi taşıyıcısına eklerken `addSubview` onu eski üst
+        // görünümden zaten çıkarıyor; bu **tek adımlık** taşıma çıkışı
+        // bozmuyor.
+        //
+        // Burada yalnızca referans bırakılıyor ki bu controller artık
+        // yüzeyi kendi malı sanmasın.
+        surface = nil
+    }
+
     private func install(_ surface: UIView) {
         // VLCKit kendi renderer görünümünü bu yüzeye sonradan ekler. Kırpma,
         // renderer'ın drawable sınırlarının dışına taşmasını engeller.
@@ -143,10 +197,22 @@ final class PlayerSurfaceViewController<Overlay: View>: UIViewController {
     }
 
     private func attachOverlay() {
-        // VLC, drawable içine kendi opak OpenGL görünümünü sonradan ekler.
-        // Host'u drawable'ın içinde ve daha yüksek z düzleminde tutmak,
-        // renderer'ın SwiftUI gliflerini aralıklı olarak kapatmasını önler.
-        guard let parent = surface ?? view else { return }
+        // ⚠️ Katman **her zaman bu controller'ın kendi görünümüne** eklenir,
+        // video yüzeyinin içine değil.
+        //
+        // Eskiden yüzeyin içine ekleniyordu: VLC drawable'ın içine kendi
+        // opak OpenGL görünümünü sonradan ekliyor ve katmanı orada tutmak
+        // renderer'ın denetimleri örtmesini önlüyordu. Ne var ki yüzey
+        // artık mini oynatıcıyla **paylaşılıyor** ve ekranlar arasında
+        // taşınıyor; katman içinde kalınca yüzeyle birlikte gidiyor,
+        // barındıran controller yabancı bir hiyerarşide kalıyor ve UIKit
+        // `UIViewControllerHierarchyInconsistency` ile uygulamayı
+        // çökertiyordu (tam ekranı kapatınca yaşanan buydu).
+        //
+        // Kardeş olarak eklenip `zPosition` + `bringSubviewToFront` ile
+        // öne alınıyor: GL görünümü yüzeyin **alt ağacında** kaldığı için
+        // kardeş sıralaması onu da kapsıyor.
+        guard let parent = view else { return }
         overlayHost.loadViewIfNeeded()
         guard let child = overlayHost.view else { return }
         child.translatesAutoresizingMaskIntoConstraints = false

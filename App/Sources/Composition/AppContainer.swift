@@ -88,6 +88,10 @@ final class AppContainer: ObservableObject {
     /// ulaşmazdı (`ThemeController` ile aynı gerekçe).
     let playbackPreferences = PlaybackPreferences()
 
+    /// Mini oynatıcı ve tam ekran oynatıcının **paylaştığı** denetleyici.
+    /// `init` sonunda kurulur; motor zinciri hazır olmadan üretilemez.
+    let playbackController: PlayerController
+
     private var dismissedAnnouncementID: String? {
         get { UserDefaults.standard.string(forKey: "announcement.dismissed") }
         set { UserDefaults.standard.set(newValue, forKey: "announcement.dismissed") }
@@ -233,6 +237,24 @@ final class AppContainer: ObservableObject {
         engineResolver = PlaybackEngineResolver(
             native: { AVPlayerEngine(preferences: preferences) },
             fallback: Self.makeFallbackEngineFactory(preferences: preferences)
+        )
+
+        // ⚠️ Oynatma denetleyicisi **tek örnek**: mini oynatıcı (Canlı TV)
+        // ile tam ekran oynatıcı aynı motoru paylaşır.
+        //
+        // Ayrı controller'lar kurulduğunda tam ekrana geçmek yayını
+        // sıfırdan açıyordu (motor bırakılıp yeniden bağlanıyordu) ve
+        // kullanıcı birkaç saniye siyah ekran görüyordu. Tek örnekle geçiş
+        // yalnızca video yüzeyinin yer değiştirmesinden ibaret.
+        //
+        // Aynı anda iki bağlantı riski de böylece ortadan kalkıyor: IPTV
+        // panelleri eşzamanlı oturumu sınırlar ve iki motor açık kalırsa
+        // kullanıcı hızla `connectionLimitReached` görürdü.
+        playbackController = PlayerController(
+            resolver: engineResolver,
+            progress: progress,
+            history: history,
+            preferences: playbackPreferences
         )
 
         Log.app.info("AppContainer hazır — yedek motor: \(Self.fallbackEngineName, privacy: .public)")
@@ -493,6 +515,8 @@ final class AppContainer: ObservableObject {
             resolver: engineResolver,
             streams: streams,
             progress: progress,
+            // Tam ekran oynatıcıyla aynı örnek — geçiş kesintisiz olsun.
+            controller: playbackController,
             preferences: playbackPreferences,
             parental: parental
         )
@@ -545,6 +569,8 @@ final class AppContainer: ObservableObject {
             channels: channels,
             vod: vod,
             series: series,
+            // Mini oynatıcıyla aynı örnek — bkz. LiveDependencies.
+            controller: playbackController,
             epg: epg,
             preferences: playbackPreferences,
             // Zaplama listesi de süzülmeli — yoksa kilit oynatıcıdan atlatılır.

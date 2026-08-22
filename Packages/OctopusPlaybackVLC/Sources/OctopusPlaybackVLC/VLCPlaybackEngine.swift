@@ -78,7 +78,22 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     private var didStopManually = false
     private var lastReportedSize: CGSize = .zero
     private var videoFit: VideoFit = .fit
-    private weak var surface: UIView?
+    /// Motorun **tek** çizim yüzeyi.
+    ///
+    /// ⚠️ Güçlü tutuluyor ve her istekte yenisi üretilmiyor — kasıtlı.
+    /// VLCKit `drawable`'ı yalnızca video çıkışı kurulurken dikkate alır;
+    /// oynatma sürerken yeni bir görünüme atamak **işe yaramaz**, çıkış
+    /// eski görünüme bağlı kalır ve yeni yüzey siyah görünür. Gerçek
+    /// cihazda mini oynatıcıdan tam ekrana geçince yaşanan tam olarak
+    /// buydu (kanal değiştirince düzelmesi de bunu doğruluyordu: yeni
+    /// medya yüklenince çıkış baştan kuruluyor).
+    ///
+    /// Çözüm: aynı görünüm iki ekran arasında **taşınır**. `addSubview`
+    /// onu eski üst görünümden zaten çıkarır, çıkış hiç bozulmaz.
+    /// Ömrü `teardown()` ile biter; SwiftUI'a bırakılamaz çünkü devir
+    /// anında eski taşıyıcı yok edilirken yeni taşıyıcı henüz istemiş
+    /// olmayabilir ve zayıf referans o aralıkta ölürdü.
+    private var surface: UIView?
 
     /// Kullanıcının seçtiği hız.
     ///
@@ -260,13 +275,17 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     // MARK: - Görüntü
 
     public func makeVideoView() -> UIView {
+        // Yüzey zaten varsa **aynısı** döner: çağıran onu kendi taşıyıcısına
+        // ekleyince görünüm eski üst görünümden çıkıp yenisine taşınır.
+        // Yeni bir görünüm üretmek video çıkışını kopardığı için siyah
+        // ekrana yol açıyordu (bkz. `surface` üzerindeki not).
+        if let surface { return surface }
+
         let view = VLCVideoSurfaceView()
         view.backgroundColor = .black
         // Doldurma oranı yalnızca ilk karede değil, cihaz döndüğünde de
         // yeniden hesaplanmalı. Düz `UIView` bu değişimi motora bildirmiyordu.
         view.onLayout = { [weak self] in self?.applyVideoFit() }
-        // ⚠️ Zayıf tutulur: yüzeyin ömrü SwiftUI'ın elinde. Motor onu
-        // hayatta tutarsa ekran kapandıktan sonra da bellekte kalır.
         surface = view
         player.drawable = view
         applyVideoFit()
@@ -310,6 +329,10 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         player.delegate = nil
         player.stop()
         player.drawable = nil
+        // Yüzey güçlü tutulduğu için burada bırakılmalı, yoksa motor
+        // bırakıldıktan sonra da bellekte kalır.
+        surface?.removeFromSuperview()
+        surface = nil
         audioSession.stopObserving()
         audioSession.deactivate()
         continuation.finish()

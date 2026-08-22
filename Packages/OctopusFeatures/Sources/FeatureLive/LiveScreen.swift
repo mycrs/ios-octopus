@@ -28,6 +28,14 @@ public struct LiveDependencies {
     /// tam ekran oynatıcıyla aynı tampon/yerleşim ayarlarını kullanmalı.
     public let preferences: PlaybackPreferences?
 
+    /// Tam ekran oynatıcıyla **paylaşılan** denetleyici.
+    ///
+    /// ⚠️ Paylaşım şart: ayrı örneklerle tam ekrana geçmek motoru bırakıp
+    /// yeniden bağlanmak demekti ve kullanıcı her geçişte siyah ekran
+    /// görüyordu. Tek örnekle yayın kesintisiz sürüyor, yalnızca video
+    /// yüzeyi yer değiştiriyor. Somut tip yine `AppContainer`'da üretilir.
+    public let controller: PlayerController
+
     public init(
         playlists: PlaylistRepository,
         channels: ChannelRepository,
@@ -37,9 +45,11 @@ public struct LiveDependencies {
         resolver: PlaybackEngineResolver,
         streams: StreamResolving,
         progress: PlaybackProgressRepository,
+        controller: PlayerController,
         preferences: PlaybackPreferences? = nil,
         parental: ParentalControlling = OpenParentalControl()
     ) {
+        self.controller = controller
         self.preferences = preferences
         self.playlists = playlists
         self.channels = channels
@@ -72,20 +82,17 @@ public struct LiveDependencies {
 public struct LiveScreen: View {
 
     @StateObject private var viewModel: LiveChannelsViewModel
-    @StateObject private var controller: PlayerController
+    /// ⚠️ `@StateObject` **değil**: denetleyici bu ekrana ait değil,
+    /// tam ekran oynatıcıyla paylaşılıyor ve ömrü `AppContainer`'da.
+    /// `@StateObject` yapılsaydı ekran her kurulduğunda yeni bir motor
+    /// üretilir, paylaşımın amacı ortadan kalkardı.
+    @ObservedObject private var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
 
     public init(dependencies: LiveDependencies) {
         _viewModel = StateObject(wrappedValue: LiveChannelsViewModel(dependencies: dependencies))
-        _controller = StateObject(
-            wrappedValue: PlayerController(
-                resolver: dependencies.resolver,
-                progress: dependencies.progress,
-                history: dependencies.history,
-                preferences: dependencies.preferences
-            )
-        )
+        _controller = ObservedObject(wrappedValue: dependencies.controller)
     }
 
     /// Üstteki oynatıcı alanı görünüyor mu?
@@ -110,6 +117,8 @@ public struct LiveScreen: View {
                             .flatMap(viewModel.currentProgram),
                         controller: controller,
                         placeholderChannel: viewModel.lastWatchedChannel,
+                        // Tam ekran kapalıyken yüzeyin sahibi burasıdır.
+                        ownsSurface: router.player == nil,
                         onExpand: expandToFullScreen
                     )
                 }
@@ -147,6 +156,10 @@ public struct LiveScreen: View {
         // bağlantıyı sınırlar ve bırakılmayan her akış kotadan bir hak yer
         // (bkz. PlaybackEngine.teardown). Sekme değişince de tetiklenir.
         .onDisappear {
+            // ⚠️ Tam ekrana devrederken bırakma: `fullScreenCover` açılınca
+            // bu ekran da "kayboldu" sayılıyor ve koşulsuz `finish()`
+            // devraldığımız yayını hemen öldürürdü.
+            guard router.player == nil else { return }
             Task {
                 await controller.finish()
                 viewModel.clearPlayingChannel()
@@ -156,6 +169,9 @@ public struct LiveScreen: View {
         // listesine bakarken sesin arka planda sürmesini beklemez —
         // arka plan sesi tam ekran oynatıcının işi.
         .onChange(of: scenePhase) { phase in
+            // Tam ekran açıkken oynatmanın sahibi o ekran: arka plan sesi
+            // orada **isteniyor**, burada duraklatmak onu susturur.
+            guard router.player == nil else { return }
             guard viewModel.playingChannel != nil else { return }
             if phase == .active {
                 // Mini oynatıcıda ayrı bir oynat düğmesi yok. Arka plan için
@@ -191,16 +207,16 @@ public struct LiveScreen: View {
 
     /// Tam ekrana geçer.
     ///
-    /// ⚠️ Gömülü motor **önce bırakılır**: iki oynatıcı aynı anda açık
-    /// kalırsa panelde iki bağlantı tutulur ve kullanıcı hızla
-    /// `connectionLimitReached` görür.
+    /// ⚠️ Motor **bırakılmıyor** — kasıtlı. Eskiden burada `finish()`
+    /// çağrılıyordu (gerekçe: iki oynatıcı açık kalırsa panelde iki
+    /// bağlantı tutulur). Denetleyici artık tam ekranla paylaşıldığı için
+    /// ortada tek motor var, dolayısıyla ikinci bağlantı riski yok;
+    /// bırakmak yalnızca yayını gereksizce sıfırdan açtırıyordu.
+    /// Tam ekran aynı yayını devralır (`PlayerController.start` aynı
+    /// canlı akış için etkisizdir), geçiş kesintisiz olur.
     private func expandToFullScreen() {
         guard let channel = viewModel.playingChannel ?? viewModel.lastWatchedChannel else { return }
-        Task {
-            await controller.finish()
-            viewModel.clearPlayingChannel()
-            router.presentPlayer(.liveChannel(channel.id))
-        }
+        router.presentPlayer(.liveChannel(channel.id))
     }
 
     @ViewBuilder

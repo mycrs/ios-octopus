@@ -15,6 +15,13 @@ public struct PlayerDependencies {
     public let parental: ParentalControlling
     public let preferences: PlaybackPreferences?
 
+    /// Canlı TV'deki mini oynatıcıyla **paylaşılan** denetleyici.
+    ///
+    /// ⚠️ Paylaşım şart: ayrı örneklerle tam ekrana geçmek motoru bırakıp
+    /// yeniden bağlanmak demekti; kullanıcı her geçişte birkaç saniye
+    /// siyah ekran görüyordu. Tek örnekle yayın kesintisiz devam eder.
+    public let controller: PlayerController
+
     public init(
         resolver: PlaybackEngineResolver,
         streams: StreamResolving,
@@ -23,10 +30,12 @@ public struct PlayerDependencies {
         channels: ChannelRepository,
         vod: VODRepository,
         series: SeriesRepository,
+        controller: PlayerController,
         epg: EPGRepository? = nil,
         preferences: PlaybackPreferences? = nil,
         parental: ParentalControlling = OpenParentalControl()
     ) {
+        self.controller = controller
         self.resolver = resolver
         self.streams = streams
         self.progress = progress

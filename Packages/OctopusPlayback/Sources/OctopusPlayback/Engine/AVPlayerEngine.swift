@@ -74,7 +74,15 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// Görüntüsüz oynatmayı yakalayan gözcü.
     private var videoWatchdog: Task<Void, Never>?
     private var videoFit: VideoFit = .fit
-    private weak var layerView: PlayerLayerView?
+    /// Motorun **tek** çizim yüzeyi.
+    ///
+    /// ⚠️ Güçlü tutuluyor ve her istekte yenisi üretilmiyor: aynı
+    /// `AVPlayer`'a ikinci bir `AVPlayerLayer` bağlamak güvenilir değil —
+    /// AVFoundation tek katmana çizer, diğeri siyah kalır. Mini oynatıcı
+    /// ile tam ekran arasında geçerken yüzey **taşınıyor** (bkz.
+    /// `VLCPlaybackEngine.surface` üzerindeki ayrıntılı not).
+    /// Ömrü `releaseCurrentItem()`/`teardown()` ile biter.
+    private var layerView: PlayerLayerView?
     /// AVKit'e bağımlı tek parça — `AVPlayerEngine+PictureInPicture.swift`.
     var pictureInPictureController: AVPictureInPictureController?
 
@@ -233,12 +241,17 @@ public final class AVPlayerEngine: PlaybackEngine {
     }
 
     public func makeVideoView() -> UIView {
+        // Yüzey zaten varsa **aynısı** döner; çağıran onu kendi taşıyıcısına
+        // ekleyince görünüm taşınır. İkinci bir katman üretmek yerine
+        // taşımak, ekranlar arası geçişte siyah kalmayı önler.
+        if let layerView {
+            layerView.videoGravity = Self.gravity(for: videoFit)
+            return layerView
+        }
+
         let view = PlayerLayerView()
         view.player = player
         view.videoGravity = Self.gravity(for: videoFit)
-        // Zayıf tutulur: yüzeyin ömrü SwiftUI'ın elinde, motor onu
-        // hayatta tutmamalı — aksi hâlde ekran kapandıktan sonra da
-        // katman bellekte kalırdı.
         layerView = view
         // PiP bir **katmana** bağlıdır; katman her yenilendiğinde kontrolör
         // de yenilenmeli, yoksa ölü bir katmanı işaret eder.
@@ -264,6 +277,10 @@ public final class AVPlayerEngine: PlaybackEngine {
         trackDiscovery = nil
         releaseCurrentItem()
         player.replaceCurrentItem(with: nil)
+        // Yüzey güçlü tutulduğu için burada bırakılmalı, yoksa motor
+        // bırakıldıktan sonra da katman bellekte kalır.
+        layerView?.removeFromSuperview()
+        layerView = nil
         audioSession.stopObserving()
         audioSession.deactivate()
         continuation.finish()

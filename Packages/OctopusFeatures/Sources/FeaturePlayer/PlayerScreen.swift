@@ -17,7 +17,7 @@ import OctopusPlayback
 public struct PlayerScreen: View {
 
     @StateObject var viewModel: PlayerViewModel
-    @StateObject var controller: PlayerController
+    @ObservedObject var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.locale) var locale
@@ -70,14 +70,11 @@ public struct PlayerScreen: View {
                 startAt: presentation.startAt
             )
         )
-        _controller = StateObject(
-            wrappedValue: PlayerController(
-                resolver: dependencies.resolver,
-                progress: dependencies.progress,
-                history: dependencies.history,
-                preferences: dependencies.preferences
-            )
-        )
+        // ⚠️ `@StateObject` **değil**: denetleyici Canlı TV'deki mini
+        // oynatıcıyla paylaşılıyor ve ömrü `AppContainer`'da. Burada yeni
+        // bir örnek üretmek, tam ekrana her geçişte yayını sıfırdan
+        // açtırıyordu — kullanıcının gördüğü "tekrar bağlanıyor" buydu.
+        _controller = ObservedObject(wrappedValue: dependencies.controller)
     }
 
     public var body: some View {
@@ -151,6 +148,19 @@ public struct PlayerScreen: View {
         }
         .onDisappear {
             hideControlsTask?.cancel()
+            // ⚠️ Canlı yayında ve Canlı TV sekmesine dönülüyorsa motor
+            // **bırakılmaz**: oradaki mini oynatıcı aynı denetleyiciyi
+            // paylaşıyor ve yayını kesintisiz devralıyor. Bırakmak,
+            // kullanıcının tam ekrandan çıkar çıkmaz yeniden bağlanmayı
+            // beklemesi demekti.
+            //
+            // Diğer her durumda bırakılır — özellikle canlı bir kanal
+            // Ana Sayfa'dan açıldıysa: orada devralacak bir yüzey yok,
+            // motor açık kalsa kullanıcı görüntüsüz ses dinlerdi.
+            if item.isLive, router.selectedTab == .live {
+                Task { await controller.persistPosition() }
+                return
+            }
             // Motoru bırakmak ve son konumu yazmak: ikisi de atlanamaz.
             // Ekran kapanırken görev iptal edilmesin diye `Task.detached`
             // değil, controller'ın kendi ömrüne bağlı bir görev kullanılıyor.

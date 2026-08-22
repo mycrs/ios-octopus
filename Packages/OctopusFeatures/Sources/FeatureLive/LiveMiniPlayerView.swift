@@ -21,6 +21,15 @@ struct LiveMiniPlayerView: View {
     /// Hiçbir kanal seçilmemişken gösterilecek afiş — ilk açılışta
     /// ekranın tepesi boş kalmasın.
     let placeholderChannel: Channel?
+
+    /// Video yüzeyi **şu an bu ekranın mı**?
+    ///
+    /// ⚠️ Motorun tek bir çizim yüzeyi vardır (VLC'de `player.drawable`,
+    /// AVPlayer'da katman). Tam ekran açıkken mini oynatıcı da yüzey
+    /// isterse ikisi birbirinden çalar: son isteyen kazanır, diğeri
+    /// siyah kalır. Gerçek cihazda görülen "tam ekran siyah, mini normal"
+    /// tam olarak buydu. Sahiplik bu bayrakla **tek yerde** belirleniyor.
+    let ownsSurface: Bool
     let onExpand: () -> Void
     @Environment(\.locale) private var locale
 
@@ -61,13 +70,19 @@ struct LiveMiniPlayerView: View {
 
     @ViewBuilder
     private var surface: some View {
-        if channel != nil {
+        // Tam ekran açıkken yüzey **istenmez**: sahiplik oradadır.
+        // Kapanınca bu görünüm yeniden kurulur ve yüzeyi geri alır.
+        if channel != nil, ownsSurface {
             // ⚠️ `.id`: her yeni motorda yüzey baştan kurulmalı, yoksa
             // ekranda bırakılmış eski motorun katmanı kalır
             // (bkz. `PlayerController.surfaceGeneration`).
             VideoSurfaceView(makeSurface: controller.makeVideoView)
                 .id(controller.surfaceGeneration)
                 .background(Color.black)
+        } else if channel != nil {
+            // Yayın sürüyor ama yüzey tam ekranda: siyah zemin yeterli,
+            // kullanıcı zaten tam ekrana bakıyor.
+            Color.black
         } else {
             placeholderBackdrop
         }

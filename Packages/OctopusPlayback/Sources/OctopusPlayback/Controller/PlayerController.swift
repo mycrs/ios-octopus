@@ -158,6 +158,25 @@ public final class PlayerController: ObservableObject {
 
     /// İçeriği açar. Devam konumu burada eklenir.
     public func start(_ requested: PlaybackItem) async {
+        // ⚠️ Aynı yayın **zaten çalışıyorsa hiçbir şey yapılmaz.**
+        //
+        // Mini oynatıcı ile tam ekran oynatıcı aynı controller'ı paylaşıyor
+        // ve ikisi de göründüğünde `start()` çağırıyor. Bu guard olmadan
+        // tam ekrana geçmek yayını sıfırdan açıyordu: motor bırakılıyor,
+        // yeniden bağlanılıyor, kullanıcı birkaç saniye siyah ekran
+        // görüyordu. Guard sayesinde geçiş yalnızca video yüzeyinin yer
+        // değiştirmesinden ibaret kalıyor — yayın hiç kesilmiyor.
+        //
+        // Yalnızca **canlı** akış korunuyor: VOD'da aynı filmi yeniden
+        // açmak "baştan başlat" beklentisi taşıyabilir ve `start()` orada
+        // kaldığın yeri de yeniden hesaplıyor.
+        if requested.isLive,
+           item?.url == requested.url,
+           engine != nil,
+           state.isActive {
+            return
+        }
+
         sessionGeneration &+= 1
         let session = sessionGeneration
         recoveryTask?.cancel()
