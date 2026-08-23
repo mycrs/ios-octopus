@@ -70,10 +70,6 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// kalır — hata hiç düşmez. Bu bayrak olmadan kullanıcı siyah ekranda
     /// ses dinler, yedek motor da hiç devreye girmez.
     private var didRenderVideo = false
-#if DEBUG
-    /// GEÇİCİ TANI: ilk kare gecikmesini ölçmek için.
-    private var diagnosticLoadStartedAt: Date?
-#endif
 
     /// Görüntüsüz oynatmayı yakalayan gözcü.
     private var videoWatchdog: Task<Void, Never>?
@@ -135,11 +131,6 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         didReachEnd = false
         didRenderVideo = false
-#if DEBUG
-        // GEÇİCİ TANI: ilk karenin ne kadar sonra geldiğini ölçüyoruz.
-        diagnosticLoadStartedAt = Date()
-        print("TANI[AVPlayer] load: \(item.url.absoluteString.prefix(80))")
-#endif
         isLiveContent = item.isLive
         audioTracks = []
         subtitleTracks = []
@@ -560,10 +551,6 @@ public final class AVPlayerEngine: PlaybackEngine {
         videoWatchdog?.cancel()
         videoWatchdog = nil
 
-#if DEBUG
-        let elapsed = diagnosticLoadStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
-        print("TANI[AVPlayer] VİDEO İZİ YOK: \(elapsed) ms — hemen yedeğe")
-#endif
         Log.playback.notice("Video izi yok — yedek motora yönlendiriliyor")
         fail(with: .playbackFailed(reason:
             "Görüntü çözülemedi (muhtemelen HEVC/H.265). Yedek oynatıcı deneniyor."
@@ -580,13 +567,6 @@ public final class AVPlayerEngine: PlaybackEngine {
         // düşer. Yedek motor onları sorunsuz açtığı için zarar yok;
         // "video izi var mı" sorusunu HLS'te AVFoundation zaten
         // cevaplamıyor, o yüzden ayrım yapılamıyor.
-#if DEBUG
-        let elapsed = diagnosticLoadStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
-        let trackInfo = player.currentItem?.tracks
-            .map { "\($0.assetTrack?.mediaType.rawValue ?? "?"):\($0.isEnabled ? "açık" : "kapalı")" }
-            .joined(separator: ",") ?? "yok"
-        print("TANI[AVPlayer] KÖR KARAR: \(elapsed) ms sonra · izler=[\(trackInfo)]")
-#endif
         Log.playback.notice("Ses var, görüntü yok — yedek motora yönlendiriliyor")
 
         fail(with: .playbackFailed(reason:
@@ -630,12 +610,6 @@ public final class AVPlayerEngine: PlaybackEngine {
               size.width > 0, size.height > 0
         else { return }
 
-#if DEBUG
-        if !didRenderVideo, let started = diagnosticLoadStartedAt {
-            let ms = Int(Date().timeIntervalSince(started) * 1000)
-            print("TANI[AVPlayer] İLK KARE: \(ms) ms · \(Int(size.width))x\(Int(size.height))")
-        }
-#endif
         // Görüntü geldi: gözcünün işi bitti.
         didRenderVideo = true
         videoWatchdog?.cancel()
