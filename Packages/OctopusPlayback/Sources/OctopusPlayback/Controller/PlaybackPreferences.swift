@@ -86,6 +86,50 @@ public final class PlaybackPreferences: ObservableObject {
         static let liveBuffer = "playback.liveBuffer"
         static let autoReconnect = "playback.autoReconnect"
         static let useFallbackEngine = "playback.useFallbackEngine"
+        static let fallbackSources = "playback.fallbackSources"
+    }
+
+    /// Daha önce yedek motor gerektirmiş kaynakların kararlı anahtarları.
+    ///
+    /// ⚠️ Neden kalıcı? Bir kanalın codec'i (ör. HEVC) değişmez. Her
+    /// açılışta önce AVPlayer'ı deneyip başarısız olmasını beklemek,
+    /// kullanıcıyı **her seferinde** siyah ekranda tutuyordu. Bir kez
+    /// öğrenildikten sonra o kanal doğrudan yedek motorla açılıyor ve
+    /// bekleme tamamen ortadan kalkıyor.
+    ///
+    /// Küçük tutulur: yalnızca anahtarlar saklanıyor, sınır aşılırsa en
+    /// eskiler düşer — liste sonsuza kadar büyüyemez.
+    private var fallbackSources: [String] {
+        get { store.stringArray(forKey: Keys.fallbackSources) ?? [] }
+        set { store.set(newValue, forKey: Keys.fallbackSources) }
+    }
+
+    private static let fallbackMemoryLimit = 300
+
+    /// Bu kaynak daha önce yedek motor gerektirdi mi?
+    public func requiresFallbackEngine(for storageKey: String) -> Bool {
+        fallbackSources.contains(storageKey)
+    }
+
+    /// Kaynağı "yedek motor gerekiyor" diye işaretler.
+    public func rememberFallbackEngine(for storageKey: String) {
+        var keys = fallbackSources
+        guard !keys.contains(storageKey) else { return }
+        keys.append(storageKey)
+        if keys.count > Self.fallbackMemoryLimit {
+            keys.removeFirst(keys.count - Self.fallbackMemoryLimit)
+        }
+        fallbackSources = keys
+    }
+
+    /// Kaynak artık yedeğe ihtiyaç duymuyorsa işareti kaldırır.
+    ///
+    /// Sağlayıcı kanalı yeniden kodladığında (HEVC → H.264) kullanıcının
+    /// kalıcı olarak yedek motora mahkûm kalmaması için gerekli.
+    public func forgetFallbackEngine(for storageKey: String) {
+        let keys = fallbackSources
+        guard keys.contains(storageKey) else { return }
+        fallbackSources = keys.filter { $0 != storageKey }
     }
 
     private let store: UserDefaults

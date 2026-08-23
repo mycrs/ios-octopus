@@ -204,7 +204,14 @@ public final class PlayerController: ObservableObject {
 #else
         let forcesFallback = false
 #endif
-        let wanted: PlaybackEngineResolver.Decision = forcesFallback
+        // Bu kanal daha önce native motorda açılamadıysa **doğrudan** yedekle
+        // başlanır. Aksi hâlde kullanıcı her açılışta aynı başarısız denemeyi
+        // ve siyah ekranı baştan yaşıyordu.
+        let isKnownFallbackSource = allowsFallback
+            && resolver.hasFallback
+            && (preferences?.requiresFallbackEngine(for: prepared.source.storageKey) ?? false)
+
+        let wanted: PlaybackEngineResolver.Decision = (forcesFallback || isKnownFallbackSource)
             ? .fallback
             : resolver.decide(for: prepared.format, allowingFallback: allowsFallback)
 
@@ -522,6 +529,9 @@ public final class PlayerController: ObservableObject {
         {
             didAttemptFallback = true
             decision = .fallback
+            // Bir dahaki açılışta doğrudan yedekle başlanır: kanalın
+            // codec'i değişmez, aynı bekleyişi tekrarlatmanın anlamı yok.
+            preferences?.rememberFallbackEngine(for: target.source.storageKey)
             Log.playback.notice("Native motor açamadı, yedeğe geçiliyor: \(String(describing: error))")
 
             // Kaldığı yer korunur: kullanıcı motor değiştiğini fark etmemeli.
@@ -533,6 +543,15 @@ public final class PlayerController: ObservableObject {
 
         if await reconnectIfLive() { return }
         guard !Task.isCancelled else { return }
+
+        // Yedek motor da açamadıysa "bu kanal yedek ister" bilgisi yanlış
+        // ya da eskimiş demektir (sağlayıcı kanalı yeniden kodlamış
+        // olabilir). İşaret kaldırılır ki bir dahaki sefere native motor
+        // yeniden şansını denesin — aksi hâlde kanal kalıcı olarak
+        // çalışmayan bir motora mahkûm kalırdı.
+        if decision == .fallback, let target = item {
+            preferences?.forgetFallbackEngine(for: target.source.storageKey)
+        }
 
         state = .failed(error)
         setScreenAwake(false)

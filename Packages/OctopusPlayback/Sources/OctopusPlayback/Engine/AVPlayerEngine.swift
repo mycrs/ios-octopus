@@ -70,6 +70,10 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// kalır — hata hiç düşmez. Bu bayrak olmadan kullanıcı siyah ekranda
     /// ses dinler, yedek motor da hiç devreye girmez.
     private var didRenderVideo = false
+#if DEBUG
+    /// GEÇİCİ TANI: ilk kare gecikmesini ölçmek için.
+    private var diagnosticLoadStartedAt: Date?
+#endif
 
     /// Görüntüsüz oynatmayı yakalayan gözcü.
     private var videoWatchdog: Task<Void, Never>?
@@ -131,6 +135,11 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         didReachEnd = false
         didRenderVideo = false
+#if DEBUG
+        // GEÇİCİ TANI: ilk karenin ne kadar sonra geldiğini ölçüyoruz.
+        diagnosticLoadStartedAt = Date()
+        print("TANI[AVPlayer] load: \(item.url.absoluteString.prefix(80))")
+#endif
         isLiveContent = item.isLive
         audioTracks = []
         subtitleTracks = []
@@ -306,6 +315,12 @@ public final class AVPlayerEngine: PlaybackEngine {
             playerItem.observe(\.presentationSize, options: [.new, .initial]) { [weak self] _, _ in
                 Task { @MainActor in self?.reportNaturalSize() }
             },
+            // İz listesi dolunca "video çözülebiliyor mu" sorusu **kesin**
+            // olarak cevaplanabiliyor; gözcünün saniyelerce beklemesine
+            // gerek kalmıyor (bkz. `failIfVideoTrackMissing`).
+            playerItem.observe(\.tracks, options: [.new, .initial]) { [weak self] _, _ in
+                Task { @MainActor in self?.failIfVideoTrackMissing() }
+            },
             player.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] _, _ in
                 Task { @MainActor in self?.syncPlaybackState() }
             }
@@ -371,6 +386,11 @@ public final class AVPlayerEngine: PlaybackEngine {
         case .failed:
             fail(with: Self.classify(playerItem))
         case .readyToPlay:
+            // ⚠️ İz kontrolü **burada da** yapılmalı: `tracks` gözlemi
+            // çoğu zaman `readyToPlay`'den **önce** düşüyor ve o an karar
+            // verilemediği için bir daha tetiklenmiyordu. Ölçümde kesin
+            // kontrol hiç çalışmamış, karar 5 saniyelik gözcüye kalmıştı.
+            failIfVideoTrackMissing()
             syncPlaybackState()
         case .unknown:
             break
@@ -491,15 +511,63 @@ public final class AVPlayerEngine: PlaybackEngine {
         guard !didRenderVideo, videoWatchdog == nil else { return }
 
         videoWatchdog = Task { [weak self] in
-            // Karar süresi: **oynatma başladıktan** sonra sayılıyor, yani
-            // ses çoktan akıyor. O noktada 3 saniye boyunca hiç kare
-            // gelmediyse video izi çözülmüyor demektir. Daha uzun beklemek
-            // (önceki hâli 5 sn) zaplarken kullanıcıyı siyah ekranda tutuyor.
-            try? await Task.sleep(for: .seconds(3))
+            // ⚠️ Bu artık **son çare**, birincil karar mekanizması değil.
+            //
+            // "Çözülemiyor" kararını asıl `failIfVideoTrackMissing` veriyor
+            // ve bunu iz listesine bakarak **kesin** olarak yapıyor. Buradaki
+            // süre yalnızca iz listesi hiç gelmezse devreye giriyor.
+            //
+            // Süre 3 sn'den 8 sn'ye çıkarıldı: gerçek cihazda ölçüldü,
+            // sağlam bir 1080p kanal ilk kareyi 2928 ms'de verebiliyor.
+            // 3 saniyelik sınır bu tür yavaş açılan **çalışan** yayınları
+            // gereksiz yere yedeğe yolluyordu. Kesin kontrol devreye
+            // girdiği için uzun süre artık kimseyi bekletmiyor.
+            try? await Task.sleep(for: .seconds(8))
             guard !Task.isCancelled else { return }
             // `Task` ana aktör bağlamını miras alır — `await` gerekmiyor.
             self?.failIfStillBlind()
         }
+    }
+
+    /// AVPlayer bu akış için **hiç video izi kurmadıysa** hemen yedeğe geçer.
+    ///
+    /// ## Neden gözcüden daha iyi?
+    /// Gözcü "3 saniyedir kare yok" diye **tahmin** ediyor; bu ise kesin
+    /// bilgi. Gerçek cihazda ölçüldü: çözülemeyen HEVC kanallarda
+    /// `AVPlayerItem.tracks` yalnızca `soun` (ses) içeriyor, video izi hiç
+    /// oluşturulmuyor — AVPlayer codec'i tanımayınca izi komple atıyor.
+    /// Kullanıcı bu yüzden 4–5 saniye siyah ekranda bekliyordu; artık
+    /// karar iz listesi dolar dolmaz veriliyor.
+    ///
+    /// ⚠️ `readyToPlay` şartı önemli: iz listesi hazırlık sırasında geçici
+    /// olarak boş ya da eksik olabilir, erken karar sağlam yayınları
+    /// boşuna yedeğe yollardı.
+    ///
+    /// ⚠️ Gerçek ses akışları (radyo) da buraya düşer ve yedek motora
+    /// gider. Zararsız: VLC onları sorunsuz açıyor ve HLS'te "video izi
+    /// var mıydı" sorusunu AVFoundation zaten cevaplamıyor.
+    private func failIfVideoTrackMissing() {
+        guard !didRenderVideo,
+              let playerItem = player.currentItem,
+              playerItem.status == .readyToPlay
+        else { return }
+
+        let tracks = playerItem.tracks
+        // Liste henüz gelmediyse karar verilemez.
+        guard !tracks.isEmpty else { return }
+        guard !tracks.contains(where: { $0.assetTrack?.mediaType == .video }) else { return }
+
+        videoWatchdog?.cancel()
+        videoWatchdog = nil
+
+#if DEBUG
+        let elapsed = diagnosticLoadStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+        print("TANI[AVPlayer] VİDEO İZİ YOK: \(elapsed) ms — hemen yedeğe")
+#endif
+        Log.playback.notice("Video izi yok — yedek motora yönlendiriliyor")
+        fail(with: .playbackFailed(reason:
+            "Görüntü çözülemedi (muhtemelen HEVC/H.265). Yedek oynatıcı deneniyor."
+        ))
     }
 
     /// Gözcünün kararı. Ayrı metot: `Task` gövdesinden izole çağrı gerekiyor.
@@ -512,6 +580,13 @@ public final class AVPlayerEngine: PlaybackEngine {
         // düşer. Yedek motor onları sorunsuz açtığı için zarar yok;
         // "video izi var mı" sorusunu HLS'te AVFoundation zaten
         // cevaplamıyor, o yüzden ayrım yapılamıyor.
+#if DEBUG
+        let elapsed = diagnosticLoadStartedAt.map { Int(Date().timeIntervalSince($0) * 1000) } ?? -1
+        let trackInfo = player.currentItem?.tracks
+            .map { "\($0.assetTrack?.mediaType.rawValue ?? "?"):\($0.isEnabled ? "açık" : "kapalı")" }
+            .joined(separator: ",") ?? "yok"
+        print("TANI[AVPlayer] KÖR KARAR: \(elapsed) ms sonra · izler=[\(trackInfo)]")
+#endif
         Log.playback.notice("Ses var, görüntü yok — yedek motora yönlendiriliyor")
 
         fail(with: .playbackFailed(reason:
@@ -555,6 +630,12 @@ public final class AVPlayerEngine: PlaybackEngine {
               size.width > 0, size.height > 0
         else { return }
 
+#if DEBUG
+        if !didRenderVideo, let started = diagnosticLoadStartedAt {
+            let ms = Int(Date().timeIntervalSince(started) * 1000)
+            print("TANI[AVPlayer] İLK KARE: \(ms) ms · \(Int(size.width))x\(Int(size.height))")
+        }
+#endif
         // Görüntü geldi: gözcünün işi bitti.
         didRenderVideo = true
         videoWatchdog?.cancel()
