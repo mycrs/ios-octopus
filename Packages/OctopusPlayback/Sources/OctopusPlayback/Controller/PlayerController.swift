@@ -544,14 +544,14 @@ public final class PlayerController: ObservableObject {
         if await reconnectIfLive() { return }
         guard !Task.isCancelled else { return }
 
-        // Yedek motor da açamadıysa "bu kanal yedek ister" bilgisi yanlış
-        // ya da eskimiş demektir (sağlayıcı kanalı yeniden kodlamış
-        // olabilir). İşaret kaldırılır ki bir dahaki sefere native motor
-        // yeniden şansını denesin — aksi hâlde kanal kalıcı olarak
-        // çalışmayan bir motora mahkûm kalırdı.
-        if decision == .fallback, let target = item {
-            preferences?.forgetFallbackEngine(for: target.source.storageKey)
-        }
+        // ⚠️ "Bu kanal yedek ister" işareti burada **silinmiyor**.
+        //
+        // Önce siliniyordu: yedek motorun geçici bir ağ hatası bile işareti
+        // kaldırıyor, sonraki açılış yine native'i deniyor, yine
+        // başarısız oluyor ve yine yedeğe düşülüyordu. Her tur fazladan
+        // bağlantı açıp panelin eşzamanlı oturum kotasını yiyordu.
+        // Yanlış işaret zaten kendiliğinden eskiyor
+        // (bkz. `PlaybackPreferences.fallbackMemoryLifetime`).
 
         state = .failed(error)
         setScreenAwake(false)

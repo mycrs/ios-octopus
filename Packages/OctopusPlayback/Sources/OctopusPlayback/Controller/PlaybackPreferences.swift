@@ -89,47 +89,63 @@ public final class PlaybackPreferences: ObservableObject {
         static let fallbackSources = "playback.fallbackSources"
     }
 
-    /// Daha önce yedek motor gerektirmiş kaynakların kararlı anahtarları.
+    /// Daha önce yedek motor gerektirmiş kaynaklar: `anahtar|zamanDamgası`.
     ///
     /// ⚠️ Neden kalıcı? Bir kanalın codec'i (ör. HEVC) değişmez. Her
     /// açılışta önce AVPlayer'ı deneyip başarısız olmasını beklemek,
-    /// kullanıcıyı **her seferinde** siyah ekranda tutuyordu. Bir kez
-    /// öğrenildikten sonra o kanal doğrudan yedek motorla açılıyor ve
-    /// bekleme tamamen ortadan kalkıyor.
+    /// kullanıcıyı her seferinde siyah ekranda tutuyordu. Bir kez
+    /// öğrenildikten sonra o kanal doğrudan yedek motorla açılıyor.
     ///
-    /// Küçük tutulur: yalnızca anahtarlar saklanıyor, sınır aşılırsa en
-    /// eskiler düşer — liste sonsuza kadar büyüyemez.
-    private var fallbackSources: [String] {
-        get { store.stringArray(forKey: Keys.fallbackSources) ?? [] }
-        set { store.set(newValue, forKey: Keys.fallbackSources) }
+    /// ⚠️ Zaman damgası şart: sağlayıcı kanalı yeniden kodlayabilir
+    /// (HEVC → H.264). İşaret süresiz kalsaydı kanal kalıcı olarak yedek
+    /// motora mahkûm olur, sistem entegrasyonu (PiP, AirPlay) bir daha
+    /// hiç geri gelmezdi. Süre dolunca native motor yeniden şansını dener.
+    ///
+    /// ⚠️ **Başarısızlıkta silinmiyor** — kasıtlı. Önce siliniyordu ve
+    /// yedek motorun geçici bir ağ hatası bile işareti kaldırıyordu:
+    /// sonraki açılış yine native'i deniyor, yine başarısız oluyor, yine
+    /// yedeğe düşülüyordu. Her tur fazladan bir bağlantı yakıyor ve
+    /// panelin eşzamanlı oturum kotasını tüketiyordu.
+    private var fallbackEntries: [String: Date] {
+        get {
+            let raw = store.stringArray(forKey: Keys.fallbackSources) ?? []
+            var result: [String: Date] = [:]
+            for entry in raw {
+                let parts = entry.split(separator: "|", maxSplits: 1)
+                guard parts.count == 2, let seconds = TimeInterval(parts[1]) else { continue }
+                result[String(parts[0])] = Date(timeIntervalSince1970: seconds)
+            }
+            return result
+        }
+        set {
+            let raw = newValue
+                .sorted { $0.value < $1.value }
+                .suffix(Self.fallbackMemoryLimit)
+                .map { "\($0.key)|\($0.value.timeIntervalSince1970)" }
+            store.set(raw, forKey: Keys.fallbackSources)
+        }
     }
 
     private static let fallbackMemoryLimit = 300
+    /// İşaretin ömrü. Yeniden kodlanan kanalın native motora dönmesi için.
+    private static let fallbackMemoryLifetime: TimeInterval = 14 * 24 * 60 * 60
 
-    /// Bu kaynak daha önce yedek motor gerektirdi mi?
+    /// Bu kaynak daha önce yedek motor gerektirdi mi? (Süresi dolmuşsa hayır.)
     public func requiresFallbackEngine(for storageKey: String) -> Bool {
-        fallbackSources.contains(storageKey)
+        guard let markedAt = fallbackEntries[storageKey] else { return false }
+        return Date().timeIntervalSince(markedAt) < Self.fallbackMemoryLifetime
     }
 
-    /// Kaynağı "yedek motor gerekiyor" diye işaretler.
+    /// Kaynağı "yedek motor gerekiyor" diye işaretler (süre yeniden başlar).
     public func rememberFallbackEngine(for storageKey: String) {
-        var keys = fallbackSources
-        guard !keys.contains(storageKey) else { return }
-        keys.append(storageKey)
-        if keys.count > Self.fallbackMemoryLimit {
-            keys.removeFirst(keys.count - Self.fallbackMemoryLimit)
+        var entries = fallbackEntries
+        let now = Date()
+        // Süresi dolmuş kayıtlar burada temizlenir; liste kendiliğinden küçülür.
+        entries = entries.filter {
+            now.timeIntervalSince($0.value) < Self.fallbackMemoryLifetime
         }
-        fallbackSources = keys
-    }
-
-    /// Kaynak artık yedeğe ihtiyaç duymuyorsa işareti kaldırır.
-    ///
-    /// Sağlayıcı kanalı yeniden kodladığında (HEVC → H.264) kullanıcının
-    /// kalıcı olarak yedek motora mahkûm kalmaması için gerekli.
-    public func forgetFallbackEngine(for storageKey: String) {
-        let keys = fallbackSources
-        guard keys.contains(storageKey) else { return }
-        fallbackSources = keys.filter { $0 != storageKey }
+        entries[storageKey] = now
+        fallbackEntries = entries
     }
 
     private let store: UserDefaults
