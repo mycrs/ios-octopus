@@ -51,7 +51,47 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.canSubmit)
     }
 
-    func test_resellerCode_resolvesAndTriesDNSInOrder() async {
+    /// ⚠️ Dört haneli girişin gizlice bir bayi koduna dönüşmesi kaldırıldı.
+    /// App Review bu davranışı "gizlenmiş özellik" sayıp uygulamayı
+    /// reddetti (guideline 5.6): kullanıcı adres yazan bir alanın aslında
+    /// belgelenmemiş başka sunuculara yönlendirebildiğini bilemiyordu.
+    /// Artık sunucu adresi **her zaman** yazıldığı gibi değerlendirilir;
+    /// "8811" geçerli bir adres değildir ve normal geçersiz-adres hatasını
+    /// alır — `test_invalidHost_showsErrorWithoutTouchingNetwork` ile aynı yol.
+    func test_fourDigitHostIsNotSpecialCased() async {
+        let viewModel = makeViewModel()
+        viewModel.host = "8811"
+        viewModel.username = "u"
+        viewModel.password = "p"
+
+        await viewModel.submit()
+
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertEqual(validator.callCount, 0, "Geçersiz adresle sunucuya gidilmemeli")
+        XCTAssertEqual(playlists.addedPlaylists.count, 0)
+        XCTAssertEqual(viewModel.step, .form)
+    }
+
+    func test_longDNSConnectsDirectly() async {
+        let viewModel = makeViewModel()
+        viewModel.host = "http://xyz.example.com:8080//"
+        viewModel.username = "u"
+        viewModel.password = "p"
+
+        await viewModel.submit()
+
+        XCTAssertEqual(validator.receivedHosts, ["xyz.example.com"])
+        XCTAssertEqual(playlists.addedPlaylists.count, 1)
+        XCTAssertEqual(viewModel.step, .done)
+    }
+
+    // MARK: - Kısa kodla giriş (açık seçim)
+    //
+    // ⚠️ Bu akış yalnızca `xtreamEntryMode == .code` **açıkça** seçiliyken
+    // çalışır — `host` alanının içeriğine bakılarak tetiklenmez. Gerekçe
+    // için bkz. `AddPlaylistViewModel.XtreamEntryMode`.
+
+    func test_resellerCode_resolvesAndTriesServersInOrder() async {
         let first = ResellerServer(
             code: "TR1", name: "Birinci",
             baseURL: URL(string: "https://first.example.com")!
@@ -80,7 +120,9 @@ final class AddPlaylistViewModelTests: XCTestCase {
             .failure(AppError.unauthorized),
             .success(validator.successAccount)
         ]
-        viewModel.host = "8811"
+        viewModel.sourceKind = .xtream
+        viewModel.xtreamEntryMode = .code
+        viewModel.resellerCode = "8811"
         viewModel.username = "u"
         viewModel.password = "p"
 
@@ -90,11 +132,12 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertEqual(appliedCodes, ["8811"])
         XCTAssertEqual(validator.receivedHosts, ["first.example.com", "second.example.com"])
         XCTAssertEqual(playlists.addedPlaylists.count, 1)
-        XCTAssertEqual(viewModel.host, "8811", "Çözülen DNS form alanına sızmamalı")
         XCTAssertEqual(viewModel.step, .done)
     }
 
-    func test_longDNSConnectsDirectlyWithoutResellerLookup() async {
+    /// DNS modundayken kısa kod servisine hiç dokunulmamalı — iki mod
+    /// tamamen ayrık.
+    func test_dnsModeNeverCallsResellerService() async {
         var appliedCodes: [String] = []
         let viewModel = AddPlaylistViewModel(
             dependencies: OnboardingDependencies(
@@ -104,31 +147,21 @@ final class AddPlaylistViewModelTests: XCTestCase {
                 sync: sync,
                 applyResellerCode: { code in
                     appliedCodes.append(code)
-                    return false
+                    return true
                 }
             ),
             completionDelayNanoseconds: 0
         )
-        viewModel.host = "http://xyz.example.com:8080//"
+        viewModel.sourceKind = .xtream
+        viewModel.xtreamEntryMode = .dns
+        viewModel.host = "http://xyz.example.com"
         viewModel.username = "u"
         viewModel.password = "p"
 
         await viewModel.submit()
 
         XCTAssertTrue(appliedCodes.isEmpty)
-        XCTAssertEqual(validator.receivedHosts, ["xyz.example.com"])
-        XCTAssertEqual(playlists.addedPlaylists.count, 1)
         XCTAssertEqual(viewModel.step, .done)
-    }
-
-    func test_onlyFourDigitsAreRecognizedAsResellerCode() {
-        XCTAssertEqual(AddPlaylistViewModel.resellerCode(from: "8811"), "8811")
-        XCTAssertEqual(AddPlaylistViewModel.resellerCode(from: " 3622 "), "3622")
-        XCTAssertEqual(AddPlaylistViewModel.resellerCode(from: "88 11"), "8811")
-        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "881"))
-        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "88111"))
-        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "88A1"))
-        XCTAssertNil(AddPlaylistViewModel.resellerCode(from: "http://xyz.example.com"))
     }
 
     // MARK: - Form doğrulaması ağa çıkmadan

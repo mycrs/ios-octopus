@@ -229,11 +229,23 @@ final class AppContainer: ObservableObject {
         // girdiyse marka ve sunucu listesi her koşulda gelmeli.
         resellerConfig = PanelResellerConfigService()
 
-        // Motor zinciri: AVPlayer her zaman var, yedek motor bağlıysa eklenir.
-        // Hiçbiri yoksa uygulama AVPlayer'la çalışmaya devam eder — çökmez.
-        // Motorlar tercihleri **kendileri** okur (tampon süresi gibi
+        // Motor zinciri: AVPlayer her zaman var, yedek motor (VLC) bağlıysa
+        // eklenir. Hiçbiri yoksa uygulama AVPlayer'la çalışmaya devam eder —
+        // çökmez. Motorlar tercihleri **kendileri** okur (tampon süresi gibi
         // değerler `load()` anında geçerli olmalı, kurulum anında değil).
         let preferences = playbackPreferences
+        // ⚠️ Motor sırası biçime göre — ölçümle verilmiş karar.
+        //
+        // Bir ara VLC ana motor yapılmıştı; her kanalı açtığı için bekleme
+        // olmuyordu. Gerçek cihazda ölçünce bedeli çıktı: sıradan bir kanal
+        // 49 MB yerine 117 MB, 4K kanal ~400 MB ve **PiP ile AirPlay tüm
+        // katalogda kayboluyordu** — VLC ikisini de desteklemiyor.
+        //
+        // Karışık bir katalogda bu kötü takas: `.ts` canlı yayınlar zaten
+        // `isNativelySupported == false` olduğu için beklemeden VLC'ye
+        // gidiyor; AVPlayer'ı ana motor tutmak yalnızca HLS ve `.mp4`
+        // içerikte fark yaratıyor ve orada sistem entegrasyonunu geri
+        // veriyor. Filmler için PiP/AirPlay kaybı özellikle ağırdı.
         engineResolver = PlaybackEngineResolver(
             native: { AVPlayerEngine(preferences: preferences) },
             fallback: Self.makeFallbackEngineFactory(preferences: preferences)
@@ -270,6 +282,10 @@ final class AppContainer: ObservableObject {
     /// (bkz. `Docs/BRAIN.md`). Bırakılan ders: yeni bir motor eklemek
     /// yalnızca burayı ve yeni modülü ilgilendirir — resolver, controller
     /// ve ekranlar değişmez.
+    /// Ana motor fabrikası.
+    ///
+    /// ⚠️ VLC bağlı değilse (modül çıkarılmışsa) AVPlayer'a düşülür —
+    /// uygulama motorsuz kalmaz.
     private static func makeFallbackEngineFactory(
         preferences: PlaybackPreferences
     ) -> PlaybackEngineResolver.EngineFactory? {
@@ -413,18 +429,16 @@ final class AppContainer: ObservableObject {
         return base.applying(reseller)
     }
 
-    /// Kullanıcının girdiği bayi kodunu kaydeder ve yapılandırmayı tazeler.
+    /// Kullanıcının girdiği kısa kodu kaydeder ve yapılandırmayı tazeler.
     ///
     /// - Returns: Kod panelde bulunduysa `true`.
+    ///
+    /// ⚠️ Yalnızca Xtream sekmesinde kullanıcı **açıkça** "Kısa kodla
+    /// giriş" seçtiğinde çağrılır (bkz. `OnboardingDependencies.
+    /// applyResellerCode`). Adres alanının içeriğine bakılarak tetiklenen
+    /// eski sürüm App Review tarafından "gizlenmiş özellik" sayılmıştı.
     @discardableResult
-    func applyResellerCode(_ code: String?) async -> Bool {
-        // Kod siliniyorsa: kaydı temizle, markayı globale geri döndür.
-        guard let code, ResellerConfig.normalizeCode(code) != nil else {
-            await resellerConfig.save(code: nil)
-            await refreshRemoteConfig()
-            return true
-        }
-
+    func applyResellerCode(_ code: String) async -> Bool {
         await resellerConfig.save(code: code)
         let fetched = await resellerConfig.fetch(code: code)
 
@@ -437,12 +451,7 @@ final class AppContainer: ObservableObject {
         return fetched != nil
     }
 
-    /// Kayıtlı bayi kodu (Ayarlar ekranı gösterir).
-    func savedResellerCode() async -> String? {
-        await resellerConfig.savedCode()
-    }
-
-    /// Bayinin sunucu listesi — kaynak eklerken adres yazdırmamak için.
+    /// Kısa koda tanımlı sunucu listesi.
     func resellerServers() async -> [ResellerServer] {
         let cached = await resellerConfig.cached()
         return cached?.servers ?? []
@@ -473,12 +482,10 @@ final class AppContainer: ObservableObject {
             onBrandingResolved: { [weak self] branding in
                 self?.themeController.apply(branding: branding)
             },
-            // Bayi kodu: markayı ve sunucu listesini getirir.
+            // Kısa kod: yalnızca kullanıcı Xtream sekmesinde "Kısa kodla
+            // giriş" seçtiğinde çağrılır (bkz. OnboardingDependencies).
             applyResellerCode: { [weak self] code in
                 await self?.applyResellerCode(code) ?? false
-            },
-            savedResellerCode: { [weak self] in
-                await self?.savedResellerCode()
             },
             resellerServers: { [weak self] in
                 await self?.resellerServers() ?? []

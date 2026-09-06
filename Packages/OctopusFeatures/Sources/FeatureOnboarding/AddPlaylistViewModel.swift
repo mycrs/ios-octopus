@@ -62,44 +62,41 @@ public final class AddPlaylistViewModel: ObservableObject {
         sourceKind = .activationCode
     }
 
-    /// Daha önce doğrulanmış dört rakamlı bayi kodu varsa tek bağlantı
-    /// alanını onunla doldurur. Kayıt yoksa alan normal DNS girişi olarak kalır.
-    public func prepareXtreamLogin() async {
-        guard let savedCode = await dependencies.savedResellerCode(),
-              let normalized = Self.resellerCode(from: savedCode)
-        else { return }
-
-        host = normalized
-        resellerServers = await dependencies.resellerServers()
-    }
-
-    /// Seçilen bayi DNS'ini kullanıcıya göstermeden bağlantı için saklar.
+    /// Xtream sekmesinde adres nasıl girilecek — **açık kullanıcı seçimi.**
     ///
-    /// Şema (`http://`) burada eklenmiyor: `PlaylistDraft` eksik şemayı
-    /// zaten tamamlıyor ve iki yerde yapmak çift `http://` üretirdi.
-    public func select(server: ResellerServer) {
-        resolvedHost = server.baseURL.absoluteString
-    }
+    /// ⚠️ Önceki sürümde tek bir alan (dört rakamsa kod, değilse adres diye)
+    /// içeriğine bakarak kendi kendine karar veriyordu. App Review bunu
+    /// "gizlenmiş özellik" saydı (guideline 5.6): kullanıcı adres yazan bir
+    /// alanın aslında belgelenmemiş başka sunuculara yönlendirebildiğini
+    /// bilemiyordu. Artık ayrım **etiketli bir seçicide**: hangi mod
+    /// seçiliyse hangi alan gösteriliyorsa davranış tam olarak odur.
+    public enum XtreamEntryMode: String, CaseIterable, Identifiable, Sendable {
+        case dns
+        case code
 
-#if DEBUG
-    /// GitHub simülatöründe URL'siz bayi giriş yüzeyini görsel olarak denetler.
-    func prepareDebugResellerQuickLogin() {
-        guard let url = URL(string: "https://hidden.example.com") else { return }
-        let server = ResellerServer(code: "TR1", name: "Türkiye", baseURL: url)
-        host = "8811"
-        resellerServers = [server]
-        select(server: server)
+        public var id: String { rawValue }
+
+        public var title: String {
+            switch self {
+            case .dns: return "DNS ile giriş"
+            case .code: return "Kısa kodla giriş"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .dns: return "network"
+            case .code: return "number"
+            }
+        }
     }
-#endif
 
     /// Akışın hangi adımda olduğu.
     public enum Step: Equatable {
         case form
-        /// Bayinin sunucuları sırayla deneniyor (kaçıncısı / toplam).
-        ///
-        /// ⚠️ Ayrı bir durum: bu adım uzun sürebiliyor (her sunucu için bir
-        /// ağ turu) ve kullanıcı "donmuş mu?" diye düşünmemeli. İlerlemeyi
-        /// göstermek beklemeyi katlanılır kılıyor.
+        /// Kısa kodun bağlı olduğu sunucular sırayla deneniyor (kaçıncısı /
+        /// toplam). Ayrı bir durum: bu adım uzun sürebiliyor (her sunucu
+        /// için bir ağ turu) ve kullanıcı "donmuş mu?" diye düşünmemeli.
         case searchingServer(index: Int, total: Int)
         case validating
         case syncing(SyncStage)
@@ -124,12 +121,16 @@ public final class AddPlaylistViewModel: ObservableObject {
     @Published public var epgURL = ""
     @Published public var activationCode = ""
 
-    /// Bayi kodu doğrulandıktan sonra sırayla denenecek DNS listesi.
+    /// Xtream sekmesinde hangi giriş biçimi seçili. Varsayılan DNS: bu,
+    /// ürünün asıl anlattığı yol (bkz. App Review notları — "generic IPTV
+    /// player"). Kısa kod, hizmet sağlayıcısından öyle bir kod almış
+    /// kullanıcı için **ayrı ve açık** bir seçenek olarak duruyor.
+    @Published public var xtreamEntryMode: XtreamEntryMode = .dns
+    /// Kısa kod alanı — `host`'tan tamamen ayrı. İki farklı anlam tek
+    /// alanda birleşmiyor ki hiçbir davranış içerikten çıkarılmasın.
+    @Published public var resellerCode = ""
+    /// Kısa kod bir sunucuya çözüldüğünde sırayla denenecek liste.
     @Published public private(set) var resellerServers: [ResellerServer] = []
-
-    /// Tek bağlantı alanındaki değer tam dört rakamsa bayi kodudur.
-    /// Diğer bütün değerler normal DNS/URL olarak değerlendirilir.
-    public var isResellerCodeInput: Bool { Self.resellerCode(from: host) != nil }
 
     // MARK: - Durum
 
@@ -149,7 +150,10 @@ public final class AddPlaylistViewModel: ObservableObject {
         case .activationCode:
             return activationCode.trimmed.count >= 4
         case .xtream:
-            return !host.trimmed.isEmpty
+            let addressProvided = xtreamEntryMode == .code
+                ? !resellerCode.trimmed.isEmpty
+                : !host.trimmed.isEmpty
+            return addressProvided
                 && !username.trimmed.isEmpty
                 && !password.isEmpty
         case .m3u:
@@ -162,8 +166,7 @@ public final class AddPlaylistViewModel: ObservableObject {
     private let now: () -> Date
     private let completionDelayNanoseconds: UInt64
     private var progressTask: Task<Void, Never>?
-    /// Bayi kodu çözüldüğünde gerçek DNS burada tutulur; formdaki dört rakam
-    /// URL ile değiştirilmez ve kullanıcı teknik adresi hiçbir zaman görmez.
+    /// Kısa kod bir sunucuya çözüldüğünde gerçek adres burada tutulur.
     private var resolvedHost = ""
 
     public init(
@@ -187,18 +190,14 @@ public final class AddPlaylistViewModel: ObservableObject {
     public func submit() async {
         errorMessage = nil
 
-        // Tek alan otomatik ayrıştırılır: tam dört rakam bayi kodudur;
-        // bunun dışındaki giriş doğrudan DNS/URL kabul edilir.
-        if sourceKind == .xtream {
-            if let code = Self.resellerCode(from: host) {
-                guard await resolveResellerCode(code), let first = resellerServers.first else {
-                    return
-                }
-                select(server: first)
-            } else {
-                resolvedHost = host
-                resellerServers = []
-            }
+        // Kısa kod modu açıkça seçilmişse önce sunucu listesi çözülür.
+        // ⚠️ Sırf bu mod seçiliyken devreye girer — `host` alanına ne
+        // yazıldığına bakılmıyor, iki alan birbirinin yerine geçmiyor.
+        if sourceKind == .xtream, xtreamEntryMode == .code {
+            guard await resolveResellerCode(resellerCode.trimmed),
+                  let first = resellerServers.first
+            else { return }
+            select(server: first)
         }
 
         // 1. Erişim bilgilerini elde et.
@@ -218,27 +217,32 @@ public final class AddPlaylistViewModel: ObservableObject {
         } catch {
             let validationError = AppError.wrap(error)
 
-            // Normal DNS girişi yalnızca kullanıcının yazdığı adresi dener.
-            // Aktivasyon ve M3U da bayi listesinin failover zincirine giremez.
-            guard sourceKind == .xtream, isResellerCodeInput else {
+            // M3U bağlantısı Xtream'e çevrilmişti ama panel kabul etmedi:
+            // düz M3U olarak yeniden denenir.
+            //
+            // ⚠️ Bazı paneller `get.php` ile listeyi verir, `player_api.php`
+            // ucunu kapatır. Dönüştürmeyi tek yol saymak, çalışan bir
+            // kaynağı kurulamaz hâle getiriyordu — kullanıcı "M3U
+            // çalışmıyor" diyor, oysa M3U hiç denenmiyordu.
+            if sourceKind == .m3u, case .xtream = playlist.kind,
+               let fallback = await validateAsPlainM3U() {
+                playlist = fallback.0
+                account = fallback.1
+            } else if sourceKind == .xtream, xtreamEntryMode == .code {
+                // Kısa kodun ilk sunucusu kabul etmedi. Aynı hesap koda
+                // bağlı diğer sunucularda geçerli olabilir — kullanıcı
+                // hangisinin kendisine ait olduğunu bilmiyor, sırayla denenir.
+                guard let found = await findWorkingServer(
+                    failedWith: validationError,
+                    username: username,
+                    password: self.password
+                ) else { return }
+                playlist = found
+            } else {
                 step = .form
                 errorMessage = validationError.userMessage
                 return
             }
-
-            // Sunucu kabul etmedi. Bayinin başka sunucuları varsa onlar da
-            // denenir — aynı hesap çoğu bayide birden fazla sunucuda geçerli
-            // ve kullanıcı hangisinin kendisine ait olduğunu bilmiyor.
-            //
-            // Parola form alanından okunuyor: `resolved` içindeki değer
-            // isteğe bağlı (M3U'da yok) ama buraya yalnızca Xtream düşer.
-            guard let found = await findWorkingServer(
-                failedWith: validationError,
-                username: username,
-                password: self.password
-            ) else { return }
-
-            playlist = found
         }
 
         // 3. Kayıt ve etkinleştirme.
@@ -260,35 +264,6 @@ public final class AddPlaylistViewModel: ObservableObject {
 
         // 4. İlk senkronizasyon.
         await runInitialSync(playlistID: playlist.id)
-    }
-
-    /// Bayi kodunu doğrular ve yalnızca o bayiye tanımlı DNS listesini alır.
-    private func resolveResellerCode(_ code: String) async -> Bool {
-        step = .validating
-        let isValid = await dependencies.applyResellerCode(code)
-        guard isValid else {
-            step = .form
-            errorMessage = "Bilgiler doğrulanamadı. Girdiğini kontrol edip tekrar dene."
-            return false
-        }
-
-        resellerServers = await dependencies.resellerServers()
-        guard !resellerServers.isEmpty else {
-            step = .form
-            errorMessage = "Bağlantı hazırlanamadı. Hizmet sağlayıcınla iletişime geç."
-            return false
-        }
-        return true
-    }
-
-    /// Yalnızca dört ASCII rakam bayi kodu sayılır. `8811` kod olur;
-    /// `http://xyz`, `88111` ve `88A1` doğrudan DNS/URL yoluna gider.
-    static func resellerCode(from input: String) -> String? {
-        let value = input.trimmed.replacingOccurrences(of: " ", with: "")
-        guard value.count == 4,
-              value.allSatisfy({ $0 >= "0" && $0 <= "9" })
-        else { return nil }
-        return value
     }
 
     private func runInitialSync(playlistID: Playlist.ID) async {
@@ -335,6 +310,28 @@ public final class AddPlaylistViewModel: ObservableObject {
     /// Kaynak türüne göre erişim bilgilerini hazırlar.
     ///
     /// - Returns: Başarısızsa `nil` — hata mesajı zaten ayarlanmış olur.
+    /// Xtream'e çevrilmiş M3U bağlantısını **düz M3U olarak** dener.
+    ///
+    /// `nil` dönerse ikisi de olmadı demektir; çağıran asıl (Xtream)
+    /// hatasını gösterir — kullanıcıya "M3U de denedim" ayrıntısı
+    /// yardımcı olmaz, adresin kendisi yanlıştır.
+    private func validateAsPlainM3U() async -> (Playlist, ProviderAccount)? {
+        guard
+            let plain = try? makeDraft().build(
+                id: makeID(),
+                createdAt: now(),
+                convertingXtreamLinks: false
+            )
+        else { return nil }
+
+        guard let account = try? await dependencies.validator.validate(
+            plain.playlist,
+            password: plain.password
+        ) else { return nil }
+
+        return (plain.playlist, account)
+    }
+
     private func resolveCredentials() async -> (Playlist, String?, String?)? {
         switch sourceKind {
 
@@ -386,7 +383,37 @@ public final class AddPlaylistViewModel: ObservableObject {
         }
     }
 
-    /// Bayinin sunucularını sırayla dener; kabul edeni döndürür.
+    /// Kısa kodu doğrular ve o koda tanımlı sunucu listesini alır.
+    ///
+    /// ⚠️ Yalnızca kullanıcı **açıkça** "Kısa kodla giriş" seçtiğinde
+    /// çağrılır — `host` alanının içeriğine bakılarak tetiklenmez.
+    private func resolveResellerCode(_ code: String) async -> Bool {
+        step = .validating
+        let isValid = await dependencies.applyResellerCode(code)
+        guard isValid else {
+            step = .form
+            errorMessage = "Kod doğrulanamadı. Girdiğini kontrol edip tekrar dene."
+            return false
+        }
+
+        resellerServers = await dependencies.resellerServers()
+        guard !resellerServers.isEmpty else {
+            step = .form
+            errorMessage = "Bağlantı hazırlanamadı. Hizmet sağlayıcınla iletişime geç."
+            return false
+        }
+        return true
+    }
+
+    /// Seçilen sunucuyu kullanıcıya göstermeden bağlantı için saklar.
+    ///
+    /// Şema (`http://`) burada eklenmiyor: `PlaylistDraft` eksik şemayı
+    /// zaten tamamlıyor ve iki yerde yapmak çift `http://` üretirdi.
+    private func select(server: ResellerServer) {
+        resolvedHost = server.baseURL.absoluteString
+    }
+
+    /// Kısa koda bağlı sunucuları sırayla dener; kabul edeni döndürür.
     ///
     /// - Returns: Çalışan sunucuyla kurulmuş liste; hiçbiri olmazsa `nil`
     ///   (hata mesajı ayarlanmış olur).
@@ -395,7 +422,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         username: String,
         password: String
     ) async -> Playlist? {
-        // İlk bayi DNS'i zaten denendi; listede ikinci kez denenmesin.
+        // İlk sunucu zaten denendi; listede ikinci kez denenmesin.
         let candidates = resellerServers.filter {
             $0.baseURL.absoluteString != resolvedHost
         }
@@ -427,12 +454,11 @@ public final class AddPlaylistViewModel: ObservableObject {
                     candidate,
                     password: candidatePassword
                 )
-                // Bulundu: adres kullanıcıya gösterilmez, yalnızca içeride tutulur.
                 resolvedHost = server.baseURL.absoluteString
                 return candidate
             } catch {
-                // Bayinin hesabı yalnızca belirli bir DNS'te tanımlı olabilir.
-                // Hata türünden bağımsız olarak listedeki sıradaki adres denenir.
+                // Hesap yalnızca belirli bir sunucuda tanımlı olabilir.
+                // Hata türünden bağımsız olarak sıradaki adres denenir.
                 continue
             }
         }
@@ -448,7 +474,7 @@ public final class AddPlaylistViewModel: ObservableObject {
             return PlaylistDraft(
                 name: name,
                 kind: .xtream(
-                    host: sourceKind == .xtream ? resolvedHost : host,
+                    host: sourceKind == .xtream && xtreamEntryMode == .code ? resolvedHost : host,
                     username: username,
                     password: password
                 )
