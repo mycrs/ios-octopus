@@ -25,9 +25,19 @@ public struct PlaylistDraft: Equatable, Sendable {
     ///
     /// - Returns: Parola yalnızca Xtream kaynaklarında döner; entity'ye
     ///   hiçbir zaman girmez.
+    /// - Parameter convertingXtreamLinks: M3U bağlantısı Xtream kimliği
+    ///   taşıyorsa kaynak Xtream olarak kurulsun mu?
+    ///
+    ///   ⚠️ Varsayılan `true` ve neredeyse her zaman doğrusu bu (bkz.
+    ///   aşağıdaki gerekçe). `false` **yalnızca geri düşüş için**: bazı
+    ///   paneller `get.php` ile listeyi verir ama `player_api.php` ucunu
+    ///   kapatır. Öyle bir hesapta dönüştürme, çalışan bir kaynağı
+    ///   açılmaz hâle getiriyordu — kullanıcı "M3U çalışmıyor" diyor,
+    ///   oysa M3U'yu hiç denemiyorduk.
     public func build(
         id: Playlist.ID,
-        createdAt: Date
+        createdAt: Date,
+        convertingXtreamLinks: Bool = true
     ) throws -> (playlist: Playlist, password: String?) {
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -75,7 +85,7 @@ public struct PlaylistDraft: Equatable, Sendable {
             // kurulur. M3U olarak kurmak tüm kataloğu tek dosyada
             // indirmek demek; aynı hesap Xtream API'sinde sayfalı geliyor
             // (bkz. `XtreamLink`).
-            if let credentials = XtreamLink.credentials(from: url) {
+            if convertingXtreamLinks, let credentials = XtreamLink.credentials(from: url) {
                 return (
                     Playlist(
                         id: id,
