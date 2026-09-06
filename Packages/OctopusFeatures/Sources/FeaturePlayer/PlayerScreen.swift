@@ -26,11 +26,14 @@ public struct PlayerScreen: View {
     // paylaşır; bu nedenle dosya-özel değil modül içi görünürlüktedir.
     @State var showsControls = true
     @State var hideControlsTask: Task<Void, Never>?
-    @State var isShowingTracks = false
+    /// Açık iz seçicinin odağı; `nil` ise kapalı.
+    @State var trackPickerFocus: PlayerTrackPicker.Focus?
     @State var isShowingLivePanel = false
     @State var isControlsLocked = false
     @State var nextEpisodeCountdown: Int?
     @State var nextEpisodeTask: Task<Void, Never>?
+    /// Kullanıcı kartı kapattıysa aynı bölümde bir daha çıkmamalı.
+    @State var didDismissNextEpisode = false
     @State var gestureNotice: PlayerGestureNotice?
     @State var gestureNoticeTask: Task<Void, Never>?
 
@@ -88,9 +91,11 @@ public struct PlayerScreen: View {
         // titreşebilir; iOS video uygulamalarındaki gibi daima gizli tutulur.
         .statusBarHidden(true)
         .task { await viewModel.resolve() }
-        .sheet(isPresented: $isShowingTracks) { trackPicker }
+        .sheet(item: $trackPickerFocus) { trackPicker($0) }
         .sheet(isPresented: $isShowingLivePanel) { livePanel }
         .onChange(of: controller.state, perform: handlePlaybackStateChange)
+        // Bindirme jenerik akarken çıksın diye konuma da bakılıyor.
+        .onChange(of: controller.time, perform: updateNextEpisodePrompt)
         // ⚠️ Konum normalde 5 sn'de bir yazılıyor. Kullanıcı uygulamayı
         // arka plana alıp sistem onu öldürürse son 5 saniye kaybolurdu —
         // filmi tekrar açtığında biraz geriden başlardı. Arka plana geçiş

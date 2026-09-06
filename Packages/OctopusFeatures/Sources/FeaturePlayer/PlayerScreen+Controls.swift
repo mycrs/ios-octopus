@@ -37,7 +37,8 @@ extension PlayerScreen {
                     isLive: item.isLive,
                     state: controller.state,
                     time: controller.time,
-                    hasTracks: hasSelectableTracks,
+                    hasAudioChoice: controller.audioTracks.count > 1,
+                    hasSubtitleChoice: !controller.subtitleTracks.isEmpty,
                     showsAirPlay: controller.supportsAirPlay,
                     showsPictureInPicture: PictureInPicturePolicy.canShowButton(
                         for: item,
@@ -60,10 +61,10 @@ extension PlayerScreen {
                         Task { await controller.seek(to: position) }
                         scheduleControlsHide()
                     },
-                    onShowTracks: {
+                    onShowTracks: { focus in
                         hideControlsTask?.cancel()
                         showsControls = false
-                        isShowingTracks = true
+                        trackPickerFocus = focus
                     },
                     onToggleFit: {
                         controller.toggleVideoFit()
@@ -115,10 +116,6 @@ extension PlayerScreen {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: showsControls)
-    }
-
-    var hasSelectableTracks: Bool {
-        controller.audioTracks.count > 1 || !controller.subtitleTracks.isEmpty
     }
 
     // MARK: - Denetim görünürlüğü

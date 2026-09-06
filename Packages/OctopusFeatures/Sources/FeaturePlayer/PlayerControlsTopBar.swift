@@ -3,28 +3,22 @@ import Foundation
 import OctopusDesignSystem
 import OctopusPlayback
 
-/// Oynatıcı üst çubuğu. İkincil seçenekler tek iOS menüsünde toplanır;
-/// küçük iPhone'larda başlık PiP/AirPlay düğmeleri arasında ezilmez.
+/// Oynatıcı üst çubuğu: kapat, başlık ve **sistem** düğmeleri.
+///
+/// ⚠️ Burada yalnızca içeriği başka bir yere gönderen düğmeler kalır
+/// (PiP, AirPlay). Oynatmayı biçimlendiren seçenekler — ekran, hız,
+/// ses/altyazı — alttaki `PlayerActionBar`'da. Önce hepsi buradaydı ve
+/// üst çubuk beş denetimle sıkışıyordu; başlık ezilen ilk şey oluyordu.
 struct PlayerControlsTopBar: View {
-
-    @State private var showsOptions = false
 
     let title: String
     let subtitle: String?
-    let isLive: Bool
-    let hasTracks: Bool
     let showsAirPlay: Bool
     let showsPictureInPicture: Bool
-    let videoFit: VideoFit
-    let rate: Float
 
     let onClose: () -> Void
-    let onShowTracks: () -> Void
-    let onToggleFit: () -> Void
-    let onSetRate: (Float) -> Void
     let onPictureInPicture: () -> Void
 
-    private let rates: [Float] = [0.5, 1.0, 1.25, 1.5, 2.0]
     @Environment(\.locale) private var locale
 
     var body: some View {
@@ -75,7 +69,6 @@ struct PlayerControlsTopBar: View {
                         .accessibilityLabel("AirPlay")
                 }
 
-                optionsControl
             }
             .frame(width: geometry.size.width, height: 44, alignment: .leading)
         }
@@ -85,54 +78,14 @@ struct PlayerControlsTopBar: View {
     }
 
     private func titleWidth(in totalWidth: CGFloat) -> CGFloat {
-        let fixedControlCount = 2
+        // Kapat düğmesi + varsa PiP + varsa AirPlay.
+        let fixedControlCount = 1
             + (showsPictureInPicture ? 1 : 0)
             + (showsAirPlay ? 1 : 0)
         let controlsWidth = CGFloat(fixedControlCount) * 44
         // Başlık da bir HStack öğesi olduğundan boşluk sayısı denetim sayısıdır.
         let spacingWidth = CGFloat(fixedControlCount) * Theme.Spacing.sm
         return max(totalWidth - controlsWidth - spacingWidth, 0)
-    }
-
-    private var optionsControl: some View {
-        PlayerEdgeControl(
-            glyph: .options,
-            label: "Oynatıcı seçenekleri",
-            action: { showsOptions = true }
-        )
-        .frame(width: 44, height: 44)
-        .confirmationDialog(
-            "Oynatıcı seçenekleri",
-            isPresented: $showsOptions,
-            titleVisibility: .visible
-        ) {
-            Button(action: onToggleFit) {
-                Text(
-                    AppLocalization.localized(
-                        videoFit == .fill ? "Ekrana sığdır" : "Ekranı doldur",
-                        locale: locale
-                    )
-                )
-            }
-
-            if !isLive {
-                ForEach(rates, id: \.self) { option in
-                    Button {
-                        onSetRate(option)
-                    } label: {
-                        Text(AppLocalization.localized(rateOptionTitle(option), locale: locale))
-                    }
-                }
-            }
-
-            if hasTracks {
-                Button(action: onShowTracks) {
-                    Text("Ses ve altyazı")
-                }
-            }
-
-            Button("Vazgeç", role: .cancel) {}
-        }
     }
 
     private func iconButton(
@@ -153,14 +106,4 @@ struct PlayerControlsTopBar: View {
         .buttonStyle(.plain)
         .accessibilityLabel(AppLocalization.localized(label, locale: locale))
     }
-
-    private func rateTitle(_ value: Float) -> String {
-        String(format: "%g×", value)
-    }
-
-    private func rateOptionTitle(_ value: Float) -> String {
-        let title = rateTitle(value)
-        return abs(value - rate) < 0.01 ? "\(title) · Seçili" : title
-    }
-
 }

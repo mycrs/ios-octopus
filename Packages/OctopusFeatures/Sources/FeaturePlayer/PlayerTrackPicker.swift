@@ -9,6 +9,26 @@ import OctopusPlayback
 /// henüz bir şey seçmedi" ile "sistem Türkçeyi seçti" farklı durumlar.
 struct PlayerTrackPicker: View {
 
+    /// Hangi izler gösterilecek.
+    ///
+    /// ⚠️ Ayrım kullanıcı isteğiydi: film ve dizide ses ile altyazı
+    /// farklı ihtiyaçlar. Tek listede birleştirmek, altyazı arayan
+    /// kullanıcıyı önce ses bölümünden geçmeye zorluyordu.
+    enum Focus: String, Identifiable {
+        case audio
+        case subtitle
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .audio: return "Ses"
+            case .subtitle: return "Altyazı"
+            }
+        }
+    }
+
+    let focus: Focus
     let audioTracks: [MediaTrack]
     let subtitleTracks: [MediaTrack]
     let selectedAudio: MediaTrack?
@@ -21,26 +41,15 @@ struct PlayerTrackPicker: View {
     var body: some View {
         NavigationStack {
             List {
-                // Tek seçenekli grup gösterilmez: seçim yapılamayan bir
-                // listeyi göstermek kullanıcıya iş çıkarır, seçenek sunmaz.
-                if audioTracks.count > 1 {
-                    section(
-                        title: "Ses",
-                        tracks: audioTracks,
-                        selected: selectedAudio
-                    )
-                }
-
-                if !subtitleTracks.isEmpty {
-                    section(
-                        title: "Altyazı",
-                        tracks: subtitleTracks,
-                        selected: selectedSubtitle
-                    )
+                switch focus {
+                case .audio:
+                    section(tracks: audioTracks, selected: selectedAudio)
+                case .subtitle:
+                    section(tracks: subtitleTracks, selected: selectedSubtitle)
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Ses ve altyazı")
+            .navigationTitle(LocalizedStringKey(focus.title))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -51,7 +60,6 @@ struct PlayerTrackPicker: View {
     }
 
     private func section(
-        title: String,
         tracks: [MediaTrack],
         selected: MediaTrack?
     ) -> some View {
@@ -73,8 +81,6 @@ struct PlayerTrackPicker: View {
                 }
                 .accessibilityAddTraits(track.id == selected?.id ? [.isSelected] : [])
             }
-        } header: {
-            Text(LocalizedStringKey(title))
         }
     }
 }

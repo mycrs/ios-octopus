@@ -15,7 +15,8 @@ struct PlayerControlsOverlay: View {
     let isLive: Bool
     let state: PlaybackState
     let time: PlaybackTime
-    let hasTracks: Bool
+    let hasAudioChoice: Bool
+    let hasSubtitleChoice: Bool
     let showsAirPlay: Bool
     let showsPictureInPicture: Bool
     let canZap: Bool
@@ -26,7 +27,7 @@ struct PlayerControlsOverlay: View {
     let onTogglePlay: () -> Void
     let onSkip: (TimeInterval) -> Void
     let onSeek: (TimeInterval) -> Void
-    let onShowTracks: () -> Void
+    let onShowTracks: (PlayerTrackPicker.Focus) -> Void
     let onToggleFit: () -> Void
     let onSetRate: (Float) -> Void
     let onPictureInPicture: () -> Void
@@ -49,16 +50,9 @@ struct PlayerControlsOverlay: View {
                 PlayerControlsTopBar(
                     title: title,
                     subtitle: subtitle,
-                    isLive: isLive,
-                    hasTracks: hasTracks,
                     showsAirPlay: showsAirPlay,
                     showsPictureInPicture: showsPictureInPicture,
-                    videoFit: videoFit,
-                    rate: rate,
                     onClose: onClose,
-                    onShowTracks: onShowTracks,
-                    onToggleFit: onToggleFit,
-                    onSetRate: onSetRate,
                     onPictureInPicture: onPictureInPicture
                 )
                 Spacer(minLength: 0)
@@ -74,40 +68,49 @@ struct PlayerControlsOverlay: View {
                 bottomBar
             }
             .padding(Theme.Spacing.md)
-
-            PlayerLockControl(isLocked: false, action: onLock)
-                .padding(.leading, Theme.Spacing.md)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 
     // MARK: - Alt
 
-    @ViewBuilder
+    /// Alt bölge iki katmandır: üstte **içeriğin nerede olduğu** (canlı
+    /// rozeti ya da konum çubuğu), altta **ne yapılabileceği**.
+    ///
+    /// ⚠️ Ayrım bilinçli: ikisi tek satıra karıştığında konum çubuğu
+    /// düğmelerle yarışıyor ve dar ekranda sürükleme alanı kalmıyordu.
     private var bottomBar: some View {
-        if isLive {
-            HStack(spacing: Theme.Spacing.xs) {
-                Circle()
-                    .fill(Theme.Palette.live)
-                    .frame(width: 8, height: 8)
-                Text("CANLI")
-                    .font(Theme.Typography.badge)
-                    .kerning(1.5)
-                    .foregroundColor(.white)
-                Spacer()
-                Button(action: onShowLivePanel) {
-                    Label("Kanallar", systemImage: "list.bullet.rectangle")
-                        .font(Theme.Typography.caption)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, Theme.Spacing.sm)
-                        .frame(height: 36)
-                        .background(.black.opacity(0.42), in: Capsule())
-                }
-                .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            if isLive {
+                liveBadge
+            } else {
+                PlayerScrubBar(time: time, onSeek: onSeek)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            PlayerScrubBar(time: time, onSeek: onSeek)
+
+            PlayerActionBar(
+                isLive: isLive,
+                hasAudioChoice: hasAudioChoice,
+                hasSubtitleChoice: hasSubtitleChoice,
+                videoFit: videoFit,
+                rate: rate,
+                onToggleFit: onToggleFit,
+                onSetRate: onSetRate,
+                onShowTracks: onShowTracks,
+                onShowLivePanel: onShowLivePanel,
+                onLock: onLock
+            )
         }
+    }
+
+    private var liveBadge: some View {
+        HStack(spacing: Theme.Spacing.xs) {
+            Circle()
+                .fill(Theme.Palette.live)
+                .frame(width: 8, height: 8)
+            Text("CANLI")
+                .font(Theme.Typography.badge)
+                .kerning(1.5)
+                .foregroundColor(.white)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

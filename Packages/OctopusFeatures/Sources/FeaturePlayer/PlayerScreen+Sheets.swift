@@ -5,8 +5,9 @@ import OctopusDomain
 extension PlayerScreen {
 
     @ViewBuilder
-    var trackPicker: some View {
+    func trackPicker(_ focus: PlayerTrackPicker.Focus) -> some View {
         PlayerTrackPicker(
+            focus: focus,
             audioTracks: controller.audioTracks,
             subtitleTracks: controller.subtitleTracks,
             selectedAudio: controller.selectedAudioTrack,
