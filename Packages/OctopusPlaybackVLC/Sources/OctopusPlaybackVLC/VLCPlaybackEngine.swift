@@ -205,6 +205,20 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     /// siyah ekran demekti. 1500 ms, IPTV sunucularının düzensiz beslemesini
     /// karşılamaya yetiyor ve gecikmeyi yarıya indiriyor. VOD'da tampon
     /// aramayı (seek) yavaşlattığı için daha da düşük tutuluyor.
+    /// Cihaz panelinin gerçek piksel sınırı — çözücüye üst sınır olarak
+    /// verilir. Panelden büyük kareyi çözmek görüntüyü iyileştirmez,
+    /// yalnızca belleği ve pili yer.
+    ///
+    /// Alt sınır 1920x1080: küçük ekranlı bir cihazda bile kaliteyi
+    /// gereğinden fazla kısmamak için. Üstünde bir sınır konmuyor —
+    /// iPad Pro paneli neyi gösterebiliyorsa onu alsın.
+    static var displayCap: (width: Int, height: Int) {
+        let pixels = UIScreen.main.nativeBounds.size
+        let long = Int(max(pixels.width, pixels.height))
+        let short = Int(min(pixels.width, pixels.height))
+        return (max(long, 1920), max(short, 1080))
+    }
+
     static func mediaOptions(
         for item: PlaybackItem,
         liveBuffer: PlaybackPreferences.LiveBuffer = .balanced
@@ -212,7 +226,44 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         // VOD'da tampon aramayı (seek) yavaşlattığı için sabit ve düşük;
         // kullanıcı ayarı yalnızca canlıyı etkiler — orada anlamlı çünkü.
         var options: [String: Any] = [
-            "network-caching": item.isLive ? liveBuffer.milliseconds : 1000
+            "network-caching": item.isLive ? liveBuffer.milliseconds : 1000,
+
+            // ⚠️ BELLEK — asıl kazanç burada.
+            //
+            // Gerçek cihazda ölçüldü: normal kanallarda VLC 117 MB'da
+            // duruyor, UHD kanallarda **400-450 MB**'a çıkıyor. Fark
+            // doğrudan kare boyutu: 3840x2160 bir NV12 karesi ~12 MB ve
+            // çözücü havuzu bunlardan onlarca tutar.
+            //
+            // Bu taban **kararlı**: tek 4K kanal 3+ dakika açık tutulduğunda
+            // bellek 409 -> 390 MB'a indi, tırmanmadı. Yani birikme/sızıntı
+            // yok, sadece 4K çözmenin doğal bedeli. En eski desteklenen
+            // cihazın ön plan sınırı bile ~1,3 GB olduğu için risk değil.
+            //
+            // Telefon paneli o pikselleri zaten gösteremiyor — 4K akışı
+            // çözüp ekrana sığdırmak için küçültmek saf israf. Uyarlanır
+            // (HLS) akışlarda VLC'ye "panelden büyüğünü seçme" deniyor.
+            //
+            // ⚠️ ÖLÇÜLDÜ — sınırlı fayda. Yalnızca çok kaliteli
+            // (multi-variant) akışlarda işler: seçilecek varyant listesi
+            // yoksa VLC'nin elinden bir şey gelmez. Test edilen sağlayıcının
+            // 4K kanalları tek kaliteli ham TS olduğu için kare 3840x2160
+            // kaldı ve bu ayar hiçbir şey değiştirmedi. Uyarlanır kaynak
+            // kullanan panellerde kazanç gerçek, o yüzden duruyor — ama
+            // buradan bellek düşüşü beklenmemeli.
+            //
+            // ⚠️ Ekran yansıtmada (mirroring) sınır yine telefon paneline
+            // göre kalır; VLC'de AirPlay zaten yok, kabul edilen bedel.
+            "adaptive-maxwidth": displayCap.width,
+            "adaptive-maxheight": displayCap.height,
+
+            // Donanım çözmeyi açıkça iste. ⚠️ Ölçüm bunun **tek başına
+            // belleği düşürmediğini** gösterdi (444 MB -> 453 MB): iOS'ta
+            // VLC HEVC'yi zaten ayrı `videotoolbox` modülüyle donanımda
+            // çözüyor ve bu anahtar yalnızca `avcodec` yoluna dokunuyor.
+            // Zararsız ve nadir codec'lerde işe yarar diye duruyor, ama
+            // bellek beklentisi buna bağlanmamalı.
+            "avcodec-hw": "videotoolbox"
         ]
 
         // Başlık adları büyük/küçük harf duyarsız gelebilir.

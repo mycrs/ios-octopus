@@ -22,7 +22,10 @@ public struct PlaybackEngineResolver {
     private let makeNative: EngineFactory
     private let makeFallback: EngineFactory?
 
-    public init(native: @escaping EngineFactory, fallback: EngineFactory? = nil) {
+    public init(
+        native: @escaping EngineFactory,
+        fallback: EngineFactory? = nil
+    ) {
         self.makeNative = native
         self.makeFallback = fallback
     }

@@ -211,7 +211,20 @@ public final class PlayerController: ObservableObject {
             && resolver.hasFallback
             && (preferences?.requiresFallbackEngine(for: prepared.source.storageKey) ?? false)
 
-        let wanted: PlaybackEngineResolver.Decision = (forcesFallback || isKnownFallbackSource)
+        // Adında UHD/HEVC geçen yayın, biçim olarak HLS görünse bile
+        // AVPlayer'ı zorlayacaktır: iOS HEVC'yi yalnızca fMP4/CMAF
+        // paketinde açar, IPTV panelleri ise MPEG-TS parçası gönderir.
+        //
+        // Bu tahmin olmadan böyle bir kanal önce AVPlayer'da deneniyor,
+        // ~800 ms sonra yedeğe düşülüyordu. İpucu o ilk seferi de siliyor.
+        // Yanılırsa bedeli tek bir kanalın gereksiz yere VLC'de açılması —
+        // kurtarılabilir, o yüzden tahmine güveniliyor.
+        let nameSuggestsFallback = allowsFallback
+            && resolver.hasFallback
+            && HighEfficiencyHint.suggestsFallbackEngine(title: prepared.title)
+
+        let wanted: PlaybackEngineResolver.Decision =
+            (forcesFallback || isKnownFallbackSource || nameSuggestsFallback)
             ? .fallback
             : resolver.decide(for: prepared.format, allowingFallback: allowsFallback)
 
