@@ -5,7 +5,10 @@ import PackageDescription
 // GRDB burada hapsedilir; başka hiçbir modül SQLite görmez.
 let package = Package(
     name: "OctopusData",
-    platforms: [.iOS(.v16)],
+    // macOS yalnızca `swift test` için — bkz. OctopusDomain/Package.swift.
+    // Bu paket UIKit'e bağlı olmadığı için mümkün; testleri başka türlü
+    // hiçbir yerden koşmuyordu.
+    platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
         .library(name: "OctopusData", targets: ["OctopusData"])
     ],
