@@ -429,34 +429,6 @@ final class AppContainer: ObservableObject {
         return base.applying(reseller)
     }
 
-    /// Kullanıcının girdiği kısa kodu kaydeder ve yapılandırmayı tazeler.
-    ///
-    /// - Returns: Kod panelde bulunduysa `true`.
-    ///
-    /// ⚠️ Yalnızca Xtream sekmesinde kullanıcı **açıkça** "Kısa kodla
-    /// giriş" seçtiğinde çağrılır (bkz. `OnboardingDependencies.
-    /// applyResellerCode`). Adres alanının içeriğine bakılarak tetiklenen
-    /// eski sürüm App Review tarafından "gizlenmiş özellik" sayılmıştı.
-    @discardableResult
-    func applyResellerCode(_ code: String) async -> Bool {
-        await resellerConfig.save(code: code)
-        let fetched = await resellerConfig.fetch(code: code)
-
-        // Kod tutmadıysa kaydı geri al — yanlış kod kalıcı olmamalı.
-        if fetched == nil {
-            await resellerConfig.save(code: nil)
-        }
-
-        await refreshRemoteConfig()
-        return fetched != nil
-    }
-
-    /// Kısa koda tanımlı sunucu listesi.
-    func resellerServers() async -> [ResellerServer] {
-        let cached = await resellerConfig.cached()
-        return cached?.servers ?? []
-    }
-
     // MARK: - Feature bağımlılıkları
     //
     // Her feature yalnızca ihtiyaç duyduğunu alır. `FeatureLive`'a
@@ -481,14 +453,6 @@ final class AppContainer: ObservableObject {
             // Aktivasyon kodundan gelen bayi markasını uygula.
             onBrandingResolved: { [weak self] branding in
                 self?.themeController.apply(branding: branding)
-            },
-            // Kısa kod: yalnızca kullanıcı Xtream sekmesinde "Kısa kodla
-            // giriş" seçtiğinde çağrılır (bkz. OnboardingDependencies).
-            applyResellerCode: { [weak self] code in
-                await self?.applyResellerCode(code) ?? false
-            },
-            resellerServers: { [weak self] in
-                await self?.resellerServers() ?? []
             },
             // Bayi markası: panelden gelen ad ve logo karşılamada görünür.
             brandName: { [weak self] in self?.appConfig?.branding.resellerName },

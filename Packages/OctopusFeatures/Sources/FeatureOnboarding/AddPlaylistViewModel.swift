@@ -62,42 +62,9 @@ public final class AddPlaylistViewModel: ObservableObject {
         sourceKind = .activationCode
     }
 
-    /// Xtream sekmesinde adres nasıl girilecek — **açık kullanıcı seçimi.**
-    ///
-    /// ⚠️ Önceki sürümde tek bir alan (dört rakamsa kod, değilse adres diye)
-    /// içeriğine bakarak kendi kendine karar veriyordu. App Review bunu
-    /// "gizlenmiş özellik" saydı (guideline 5.6): kullanıcı adres yazan bir
-    /// alanın aslında belgelenmemiş başka sunuculara yönlendirebildiğini
-    /// bilemiyordu. Artık ayrım **etiketli bir seçicide**: hangi mod
-    /// seçiliyse hangi alan gösteriliyorsa davranış tam olarak odur.
-    public enum XtreamEntryMode: String, CaseIterable, Identifiable, Sendable {
-        case dns
-        case code
-
-        public var id: String { rawValue }
-
-        public var title: String {
-            switch self {
-            case .dns: return "DNS ile giriş"
-            case .code: return "Kısa kodla giriş"
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .dns: return "network"
-            case .code: return "number"
-            }
-        }
-    }
-
     /// Akışın hangi adımda olduğu.
     public enum Step: Equatable {
         case form
-        /// Kısa kodun bağlı olduğu sunucular sırayla deneniyor (kaçıncısı /
-        /// toplam). Ayrı bir durum: bu adım uzun sürebiliyor (her sunucu
-        /// için bir ağ turu) ve kullanıcı "donmuş mu?" diye düşünmemeli.
-        case searchingServer(index: Int, total: Int)
         case validating
         case syncing(SyncStage)
         case done
@@ -105,7 +72,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         public var isBusy: Bool {
             switch self {
             case .form, .done: return false
-            case .searchingServer, .validating, .syncing: return true
+            case .validating, .syncing: return true
             }
         }
     }
@@ -120,17 +87,6 @@ public final class AddPlaylistViewModel: ObservableObject {
     @Published public var m3uURL = ""
     @Published public var epgURL = ""
     @Published public var activationCode = ""
-
-    /// Xtream sekmesinde hangi giriş biçimi seçili. Varsayılan DNS: bu,
-    /// ürünün asıl anlattığı yol (bkz. App Review notları — "generic IPTV
-    /// player"). Kısa kod, hizmet sağlayıcısından öyle bir kod almış
-    /// kullanıcı için **ayrı ve açık** bir seçenek olarak duruyor.
-    @Published public var xtreamEntryMode: XtreamEntryMode = .dns
-    /// Kısa kod alanı — `host`'tan tamamen ayrı. İki farklı anlam tek
-    /// alanda birleşmiyor ki hiçbir davranış içerikten çıkarılmasın.
-    @Published public var resellerCode = ""
-    /// Kısa kod bir sunucuya çözüldüğünde sırayla denenecek liste.
-    @Published public private(set) var resellerServers: [ResellerServer] = []
 
     // MARK: - Durum
 
@@ -150,10 +106,7 @@ public final class AddPlaylistViewModel: ObservableObject {
         case .activationCode:
             return activationCode.trimmed.count >= 4
         case .xtream:
-            let addressProvided = xtreamEntryMode == .code
-                ? !resellerCode.trimmed.isEmpty
-                : !host.trimmed.isEmpty
-            return addressProvided
+            return !host.trimmed.isEmpty
                 && !username.trimmed.isEmpty
                 && !password.isEmpty
         case .m3u:
@@ -166,8 +119,6 @@ public final class AddPlaylistViewModel: ObservableObject {
     private let now: () -> Date
     private let completionDelayNanoseconds: UInt64
     private var progressTask: Task<Void, Never>?
-    /// Kısa kod bir sunucuya çözüldüğünde gerçek adres burada tutulur.
-    private var resolvedHost = ""
 
     public init(
         dependencies: OnboardingDependencies,
@@ -189,16 +140,6 @@ public final class AddPlaylistViewModel: ObservableObject {
 
     public func submit() async {
         errorMessage = nil
-
-        // Kısa kod modu açıkça seçilmişse önce sunucu listesi çözülür.
-        // ⚠️ Sırf bu mod seçiliyken devreye girer — `host` alanına ne
-        // yazıldığına bakılmıyor, iki alan birbirinin yerine geçmiyor.
-        if sourceKind == .xtream, xtreamEntryMode == .code {
-            guard await resolveResellerCode(resellerCode.trimmed),
-                  let first = resellerServers.first
-            else { return }
-            select(server: first)
-        }
 
         // 1. Erişim bilgilerini elde et.
         //    Kod ile girişte bunlar panelden gelir; diğerlerinde kullanıcı yazar.
@@ -228,16 +169,6 @@ public final class AddPlaylistViewModel: ObservableObject {
                let fallback = await validateAsPlainM3U() {
                 playlist = fallback.0
                 account = fallback.1
-            } else if sourceKind == .xtream, xtreamEntryMode == .code {
-                // Kısa kodun ilk sunucusu kabul etmedi. Aynı hesap koda
-                // bağlı diğer sunucularda geçerli olabilir — kullanıcı
-                // hangisinin kendisine ait olduğunu bilmiyor, sırayla denenir.
-                guard let found = await findWorkingServer(
-                    failedWith: validationError,
-                    username: username,
-                    password: self.password
-                ) else { return }
-                playlist = found
             } else {
                 step = .form
                 errorMessage = validationError.userMessage
@@ -383,98 +314,13 @@ public final class AddPlaylistViewModel: ObservableObject {
         }
     }
 
-    /// Kısa kodu doğrular ve o koda tanımlı sunucu listesini alır.
-    ///
-    /// ⚠️ Yalnızca kullanıcı **açıkça** "Kısa kodla giriş" seçtiğinde
-    /// çağrılır — `host` alanının içeriğine bakılarak tetiklenmez.
-    private func resolveResellerCode(_ code: String) async -> Bool {
-        step = .validating
-        let isValid = await dependencies.applyResellerCode(code)
-        guard isValid else {
-            step = .form
-            errorMessage = "Kod doğrulanamadı. Girdiğini kontrol edip tekrar dene."
-            return false
-        }
-
-        resellerServers = await dependencies.resellerServers()
-        guard !resellerServers.isEmpty else {
-            step = .form
-            errorMessage = "Bağlantı hazırlanamadı. Hizmet sağlayıcınla iletişime geç."
-            return false
-        }
-        return true
-    }
-
-    /// Seçilen sunucuyu kullanıcıya göstermeden bağlantı için saklar.
-    ///
-    /// Şema (`http://`) burada eklenmiyor: `PlaylistDraft` eksik şemayı
-    /// zaten tamamlıyor ve iki yerde yapmak çift `http://` üretirdi.
-    private func select(server: ResellerServer) {
-        resolvedHost = server.baseURL.absoluteString
-    }
-
-    /// Kısa koda bağlı sunucuları sırayla dener; kabul edeni döndürür.
-    ///
-    /// - Returns: Çalışan sunucuyla kurulmuş liste; hiçbiri olmazsa `nil`
-    ///   (hata mesajı ayarlanmış olur).
-    private func findWorkingServer(
-        failedWith firstError: AppError,
-        username: String,
-        password: String
-    ) async -> Playlist? {
-        // İlk sunucu zaten denendi; listede ikinci kez denenmesin.
-        let candidates = resellerServers.filter {
-            $0.baseURL.absoluteString != resolvedHost
-        }
-
-        guard !candidates.isEmpty else {
-            step = .form
-            errorMessage = firstError.userMessage
-            return nil
-        }
-
-        for (index, server) in candidates.enumerated() {
-            step = .searchingServer(index: index + 1, total: candidates.count)
-
-            let draft = PlaylistDraft(
-                name: name,
-                kind: .xtream(
-                    host: server.baseURL.absoluteString,
-                    username: username,
-                    password: password
-                )
-            )
-
-            guard let (candidate, candidatePassword) =
-                try? draft.build(id: makeID(), createdAt: now())
-            else { continue }
-
-            do {
-                account = try await dependencies.validator.validate(
-                    candidate,
-                    password: candidatePassword
-                )
-                resolvedHost = server.baseURL.absoluteString
-                return candidate
-            } catch {
-                // Hesap yalnızca belirli bir sunucuda tanımlı olabilir.
-                // Hata türünden bağımsız olarak sıradaki adres denenir.
-                continue
-            }
-        }
-
-        step = .form
-        errorMessage = "Bağlantı kurulamadı. Bilgilerini kontrol et veya hizmet sağlayıcınla iletişime geç."
-        return nil
-    }
-
     private func makeDraft() -> PlaylistDraft {
         switch sourceKind {
         case .xtream, .activationCode:
             return PlaylistDraft(
                 name: name,
                 kind: .xtream(
-                    host: sourceKind == .xtream && xtreamEntryMode == .code ? resolvedHost : host,
+                    host: host,
                     username: username,
                     password: password
                 )

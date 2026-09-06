@@ -137,8 +137,6 @@ struct SyncOverlayView: View {
 
     private var title: String {
         switch step {
-        case .searchingServer:
-            return "Bağlantı hazırlanıyor"
         case .validating:
             return "Bağlantı sınanıyor"
         case .syncing(let stage):
@@ -150,7 +148,7 @@ struct SyncOverlayView: View {
 
     private var eyebrow: String {
         switch step {
-        case .searchingServer, .validating: return "BAĞLANTI KURULUYOR"
+        case .validating: return "BAĞLANTI KURULUYOR"
         case .syncing: return isFinished ? "HAZIR" : "İÇERİKLER HAZIRLANIYOR"
         case .form, .done: return "KURULUM"
         }
@@ -158,8 +156,6 @@ struct SyncOverlayView: View {
 
     private var detail: String? {
         switch step {
-        case .searchingServer:
-            return "Bilgilerin kontrol ediliyor. Bu işlem biraz sürebilir."
         case .validating:
             return "Bilgilerin güvenli şekilde doğrulanıyor."
         case .syncing:
@@ -178,9 +174,6 @@ struct SyncOverlayView: View {
 
     private var trackFraction: Double {
         switch step {
-        case .searchingServer(let index, let total):
-            guard total > 0 else { return 0.10 }
-            return min(0.25, 0.08 + (Double(index) / Double(total)) * 0.17)
         case .validating: return 0.28
         case .syncing(.finished): return 1
         case .syncing(let stage):

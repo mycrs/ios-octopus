@@ -33,17 +33,6 @@ public struct OnboardingDependencies {
     /// feature modülü tema denetleyicisini tanımak zorunda kalmasın.
     public let onBrandingResolved: @MainActor (BrandConfiguration) -> Void
 
-    /// Kısa kodu panele sorar ve kaydeder. `true` → kod bulundu.
-    ///
-    /// ⚠️ Yalnızca kullanıcı Xtream sekmesinde **açıkça "Kısa kodla giriş"
-    /// seçtiğinde** çağrılır — bu, App Review'ın "gizlenmiş özellik"
-    /// itirazına (guideline 5.6) verilen yanıt: davranış artık etiketli
-    /// bir kullanıcı seçimine bağlı, alan içeriğinden çıkarılmıyor.
-    public let applyResellerCode: @MainActor (String) async -> Bool
-
-    /// Kısa koda tanımlı sunucu listesi.
-    public let resellerServers: @MainActor () async -> [ResellerServer]
-
     /// Karşılama ekranında gösterilecek marka adı (bayi varsa onunki).
     public let brandName: @MainActor () -> String?
     /// Karşılama ekranındaki logo (bayi varsa onunki).
@@ -57,16 +46,12 @@ public struct OnboardingDependencies {
         activatePlaylist: (@MainActor (Playlist.ID, String?) async throws -> Void)? = nil,
         isManualLoginEnabled: @escaping @MainActor () -> Bool = { true },
         onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in },
-        applyResellerCode: @escaping @MainActor (String) async -> Bool = { _ in false },
-        resellerServers: @escaping @MainActor () async -> [ResellerServer] = { [] },
         brandName: @escaping @MainActor () -> String? = { nil },
         brandLogoURL: @escaping @MainActor () -> URL? = { nil }
     ) {
-        self.resellerServers = resellerServers
         self.brandName = brandName
         self.brandLogoURL = brandLogoURL
         self.onBrandingResolved = onBrandingResolved
-        self.applyResellerCode = applyResellerCode
         self.playlists = playlists
         self.validator = validator
         self.activation = activation

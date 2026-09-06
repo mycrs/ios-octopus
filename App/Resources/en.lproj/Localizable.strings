@@ -200,10 +200,6 @@
 "Doldur" = "Fill";
 "Hız" = "Speed";
 "Ses izi" = "Audio track";
-"DNS ile giriş" = "Log in with server address";
-"Kısa kodla giriş" = "Log in with short code";
-"Kısa kod" = "Short code";
-"Hizmet sağlayıcından aldığın kısa kod, sunucu adresinin yerine geçer." = "The short code from your service provider replaces the server address.";
 "Kilit" = "Lock";
 "Oynatma hızı" = "Playback speed";
 "Resim içinde resim" = "Picture in Picture";
