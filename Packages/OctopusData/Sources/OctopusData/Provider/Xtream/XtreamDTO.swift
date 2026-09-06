@@ -165,7 +165,7 @@ struct XtreamVODStreamDTO: Decodable {
         case isAdult = "is_adult"
     }
 
-    func toDomain(playlistID: Playlist.ID) -> Movie? {
+    func toDomain(playlistID: Playlist.ID, sortOrder: Int) -> Movie? {
         guard let streamID, let name else { return nil }
         let rawID = String(streamID)
 
@@ -182,7 +182,8 @@ struct XtreamVODStreamDTO: Decodable {
             },
             rating: rating,
             isAdult: isAdult ?? false,
-            addedAt: XtreamDate.fromEpoch(added)
+            addedAt: XtreamDate.fromEpoch(added),
+            sortOrder: sortOrder
         )
     }
 }
@@ -211,7 +212,7 @@ struct XtreamSeriesDTO: Decodable {
         case backdropPath = "backdrop_path"
     }
 
-    func toDomain(playlistID: Playlist.ID) -> Series? {
+    func toDomain(playlistID: Playlist.ID, sortOrder: Int) -> Series? {
         guard let seriesID, let name else { return nil }
         let rawID = String(seriesID)
 
@@ -230,7 +231,8 @@ struct XtreamSeriesDTO: Decodable {
             genres: XtreamList.split(genre),
             cast: XtreamList.split(cast),
             releaseDate: XtreamDate.fromDayString(releaseDate),
-            lastModified: XtreamDate.fromEpoch(lastModified)
+            lastModified: XtreamDate.fromEpoch(lastModified),
+            sortOrder: sortOrder
         )
     }
 }

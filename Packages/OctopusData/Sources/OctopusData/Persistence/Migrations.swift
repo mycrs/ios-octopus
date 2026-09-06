@@ -11,11 +11,21 @@ extension AppDatabase {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
-        #if DEBUG
-        // Geliştirme sırasında şema değişince veritabanını sıfırdan kur.
-        // Yayına çıkmadan önce (Faz 11) kapatılacak.
-        migrator.eraseDatabaseOnSchemaChange = true
-        #endif
+        // ⚠️ `eraseDatabaseOnSchemaChange` **kapalı** — kasıtlı.
+        //
+        // Açıkken (DEBUG) yeni bir migration eklemek veritabanını silip
+        // sıfırdan kuruyordu. İki zararı vardı:
+        //
+        // 1. Gerçek cihazda katalog uçuyordu. 20 binlik bir listede
+        //    yeniden kurulum uzun sürüyor ve uygulama o sırada boş ekranda
+        //    kalıyor — "açılmıyor" diye görünen şey buydu.
+        // 2. Daha önemlisi: **asıl göç yolu hiç denenmiyordu.** Kullanıcının
+        //    cihazında çalışacak kod `ALTER TABLE` + veri taşıma; erase
+        //    açıkken geliştirici bunun yerine hep temiz kurulumu görüyor.
+        //    Yayına, bir kez bile çalıştırılmamış bir göçle çıkılıyordu.
+        //
+        // Bedeli: yayınlanmış bir migration'ı değiştirirsen şema uyuşmaz ve
+        // hata alırsın. Zaten yukarıdaki kural bunu yasaklıyor — yenisini ekle.
 
         migrator.registerMigration("v1_katalog") { db in
             try createSourceTables(db)
@@ -39,6 +49,55 @@ extension AppDatabase {
             try db.alter(table: "playlist") { t in
                 t.add(column: "expiresAt", .datetime)
             }
+        }
+
+        // Katalog sırası: panel ne sırayla veriyorsa o.
+        //
+        // ⚠️ Film ve diziler `title` ile sıralanıyordu. Sağlayıcı listeyi
+        // kasıtlı diziyor (yeni eklenenler, öne çıkarılanlar başta) ve
+        // alfabetik sıralamak o bilgiyi siliyordu; kullanıcının panelde
+        // gördüğü sırayla da uyuşmuyordu. Kanallarda `sortOrder` baştan
+        // vardı, VOD tarafında eksik kalmış.
+        migrator.registerMigration("v4_panel_sirasi") { db in
+            for table in ["movie", "series"] {
+                try db.alter(table: table) { t in
+                    t.add(column: "sortOrder", .integer).notNull().defaults(to: 0)
+                }
+            }
+
+            // ⚠️ Mevcut satırlara **dokunulmuyor** — kasıtlı ve önemli.
+            //
+            // Önce burada bir `UPDATE` ile eski alfabetik düzen sortOrder'a
+            // yazılıyordu. Gerçek cihazda uygulama açılmaz oldu: `movie`
+            // üstünde FTS arama tetikleyicisi var ve her güncellenen satır
+            // için arama indeksinden kaydı silip yeniden yazıyor. 16.898
+            // filme dokunmak 16.898 indeks yeniden yazımı demekti; açılış
+            // watchdog'u uygulamayı SIGKILL ile öldürüyordu.
+            //
+            // Gerek de yok: sıralama `sortOrder, title, id`. Senkronizasyon
+            // öncesi tüm değerler 0 olduğu için sıra kendiliğinden eski
+            // alfabetik düzen oluyor, ilk tazelemede panel sırasına geçiyor.
+            // Aynı sonuç, tek satır veri yazmadan.
+            try db.create(
+                index: "movie_byCategoryOrder",
+                on: "movie",
+                columns: ["playlistId", "categoryId", "sortOrder", "title", "id"]
+            )
+            try db.create(
+                index: "movie_byPlaylistOrder",
+                on: "movie",
+                columns: ["playlistId", "sortOrder", "title", "id"]
+            )
+            try db.create(
+                index: "series_byCategoryOrder",
+                on: "series",
+                columns: ["playlistId", "categoryId", "sortOrder", "title", "id"]
+            )
+            try db.create(
+                index: "series_byPlaylistOrder",
+                on: "series",
+                columns: ["playlistId", "sortOrder", "title", "id"]
+            )
         }
 
         return migrator

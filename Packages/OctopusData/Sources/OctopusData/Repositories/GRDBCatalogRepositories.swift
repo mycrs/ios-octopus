@@ -47,13 +47,23 @@ public actor GRDBVODRepository: VODRepository {
                 request = request.filter(Column("categoryId") == categoryID.value)
             }
             return try request
+                // ⚠️ Sıra panelden: sağlayıcı listeyi kasıtlı diziyor
+                // (yeni eklenenler, öne çıkarılanlar başta) ve alfabetik
+                // sıralamak o bilgiyi siliyordu.
+                //
+                // ⚠️ `title` ikinci sırada: göç mevcut satırlara dokunmuyor,
+                // hepsi `sortOrder = 0` ile geliyor. Bu sayede ilk
+                // senkronizasyona kadar sıra eski alfabetik düzen olarak
+                // kalıyor — kullanıcı arada bozulma görmüyor. Göçte veri
+                // yazmak (FTS tetikleyicileri yüzünden) uygulamayı
+                // açılamaz hâle getirmişti.
+                //
                 // ⚠️ `id` beraberlik bozucu — sıralamayı **kesin** yapar.
                 // IPTV listelerinde aynı film birden çok kalitede geçiyor
                 // ("Inception FHD", "Inception HD" değil, birebir aynı ad).
-                // Yalnızca `title` ile sıralarken eşit başlıkların sırası
-                // belirsizdi ve sayfa sınırında öğeler tekrar edip
-                // kaybolabiliyordu.
-                .order(Column("title"), Column("id"))
+                // Beraberlik bozucu olmadan eşit sıraların düzeni belirsizdi
+                // ve sayfa sınırında öğeler tekrar edip kaybolabiliyordu.
+                .order(Column("sortOrder"), Column("title"), Column("id"))
                 .limit(limit, offset: offset)
                 .fetchAll(db)
         }
@@ -108,7 +118,7 @@ public actor GRDBVODRepository: VODRepository {
                     SELECT movie.* FROM movie
                     JOIN movieSearch ON movieSearch.rowid = movie.rowid
                     WHERE movieSearch MATCH ? AND movie.playlistId = ?
-                    ORDER BY movie.title
+                    ORDER BY movie.sortOrder, movie.title, movie.id
                     LIMIT ?
                     """,
                 arguments: [pattern, playlistID.value, limit]
@@ -173,8 +183,9 @@ public actor GRDBSeriesRepository: SeriesRepository {
                 request = request.filter(Column("categoryId") == categoryID.value)
             }
             return try request
-                // Beraberlik bozucu — film kataloğuyla aynı gerekçe.
-                .order(Column("title"), Column("id"))
+                // Panel sırası + beraberlik bozucu — film kataloğuyla
+                // aynı gerekçe.
+                .order(Column("sortOrder"), Column("title"), Column("id"))
                 .limit(limit, offset: offset)
                 .fetchAll(db)
         }
@@ -295,7 +306,7 @@ public actor GRDBSeriesRepository: SeriesRepository {
                     SELECT series.* FROM series
                     JOIN seriesSearch ON seriesSearch.rowid = series.rowid
                     WHERE seriesSearch MATCH ? AND series.playlistId = ?
-                    ORDER BY series.title
+                    ORDER BY series.sortOrder, series.title, series.id
                     LIMIT ?
                     """,
                 arguments: [pattern, playlistID.value, limit]

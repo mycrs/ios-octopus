@@ -48,10 +48,13 @@ struct MovieRecord: Codable, FetchableRecord, PersistableRecord {
     var director: String?
     var isAdult: Bool
     var addedAt: Date?
+    /// Panelin döndürdüğü sıra; katalog bununla sıralanır.
+    var sortOrder: Int
     /// Detay (özet, oyuncular) çekildiyse zaman damgası — tekrar çekmemek için.
     var detailsLoadedAt: Date?
 
     init(_ movie: Movie, detailsLoadedAt: Date? = nil) {
+        self.sortOrder = movie.sortOrder
         self.id = movie.id.value
         self.playlistId = movie.playlistID.value
         self.title = movie.title
@@ -90,7 +93,8 @@ struct MovieRecord: Codable, FetchableRecord, PersistableRecord {
             cast: StringListColumn.decode(cast),
             director: director,
             isAdult: isAdult,
-            addedAt: addedAt
+            addedAt: addedAt,
+            sortOrder: sortOrder
         )
     }
 }
@@ -115,9 +119,12 @@ struct SeriesRecord: Codable, FetchableRecord, PersistableRecord {
     var releaseDate: Date?
     var lastModified: Date?
     var isAdult: Bool
+    /// Panelin döndürdüğü sıra; katalog bununla sıralanır.
+    var sortOrder: Int
     var detailsLoadedAt: Date?
 
     init(_ series: Series, detailsLoadedAt: Date? = nil) {
+        self.sortOrder = series.sortOrder
         self.id = series.id.value
         self.playlistId = series.playlistID.value
         self.title = series.title
@@ -150,7 +157,8 @@ struct SeriesRecord: Codable, FetchableRecord, PersistableRecord {
             cast: StringListColumn.decode(cast),
             releaseDate: releaseDate,
             lastModified: lastModified,
-            isAdult: isAdult
+            isAdult: isAdult,
+            sortOrder: sortOrder
         )
     }
 }

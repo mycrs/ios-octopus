@@ -29,6 +29,14 @@ public struct Movie: Identifiable, Hashable, Codable, Sendable {
     public var isAdult: Bool
     public var addedAt: Date?
 
+    /// Panelin döndürdüğü sıra.
+    ///
+    /// ⚠️ Katalog **alfabetik değil panel sırasıyla** gösterilir. Sağlayıcı
+    /// listeyi kasıtlı diziyor: yeni eklenenler, öne çıkarılanlar, kampanya
+    /// içeriği başa konuyor. Alfabetik sıralamak o bilgiyi siliyor ve
+    /// kullanıcının panelde/başka uygulamada gördüğü sırayla uyuşmuyordu.
+    public var sortOrder: Int
+
     public init(
         id: ID,
         playlistID: Playlist.ID,
@@ -46,7 +54,8 @@ public struct Movie: Identifiable, Hashable, Codable, Sendable {
         cast: [String] = [],
         director: String? = nil,
         isAdult: Bool = false,
-        addedAt: Date? = nil
+        addedAt: Date? = nil,
+        sortOrder: Int = 0
     ) {
         self.id = id
         self.playlistID = playlistID
@@ -65,5 +74,6 @@ public struct Movie: Identifiable, Hashable, Codable, Sendable {
         self.director = director
         self.isAdult = isAdult
         self.addedAt = addedAt
+        self.sortOrder = sortOrder
     }
 }

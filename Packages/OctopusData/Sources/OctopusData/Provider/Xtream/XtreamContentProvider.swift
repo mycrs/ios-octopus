@@ -102,7 +102,11 @@ public struct XtreamContentProvider: ContentProvider {
         let data = try await httpClient.get(url, headers: [:])
         let dtos = try decode([XtreamVODStreamDTO].self, from: data, context: "filmler")
 
-        let movies = dtos.compactMap { $0.toDomain(playlistID: playlistID) }
+        // ⚠️ Sıra panelden geliyor: indeks kaydediliyor ki katalog
+        // kullanıcının panelde gördüğü düzende gösterilebilsin.
+        let movies = dtos.enumerated().compactMap {
+            $0.element.toDomain(playlistID: playlistID, sortOrder: $0.offset)
+        }
         logDropped(total: dtos.count, kept: movies.count, kind: "film")
         return movies
     }
@@ -140,7 +144,9 @@ public struct XtreamContentProvider: ContentProvider {
         let data = try await httpClient.get(url, headers: [:])
         let dtos = try decode([XtreamSeriesDTO].self, from: data, context: "diziler")
 
-        let series = dtos.compactMap { $0.toDomain(playlistID: playlistID) }
+        let series = dtos.enumerated().compactMap {
+            $0.element.toDomain(playlistID: playlistID, sortOrder: $0.offset)
+        }
         logDropped(total: dtos.count, kept: series.count, kind: "dizi")
         return series
     }
