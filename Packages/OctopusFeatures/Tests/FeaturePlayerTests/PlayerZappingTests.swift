@@ -158,6 +158,11 @@ final class PlayerZappingTests: XCTestCase {
             channels: channels,
             vod: StubVOD(),
             series: StubSeries(),
+            controller: PlayerController(
+                resolver: PlaybackEngineResolver(native: { NullPlaybackEngine() }),
+                progress: StubProgress(),
+                history: StubHistory()
+            ),
             parental: parental
         )
 

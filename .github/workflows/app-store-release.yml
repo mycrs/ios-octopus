@@ -1,0 +1,80 @@
+name: App Store Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    name: İmzala ve TestFlight'a yükle
+    runs-on: macos-latest
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: XcodeGen'i kur
+        run: brew install xcodegen
+
+      - name: App Store Connect API anahtarını hazırla
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          test -n "$API_KEY_ID" && test -n "$API_ISSUER_ID" && test -n "$API_PRIVATE_KEY"
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$API_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+          chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+
+      - name: Projeyi üret ve arşivle
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          xcodegen generate
+          xcodebuild archive \
+            -project Octopus.xcodeproj \
+            -scheme Octopus \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Octopus.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8" \
+            -authenticationKeyID "$API_KEY_ID" \
+            -authenticationKeyIssuerID "$API_ISSUER_ID"
+
+      - name: IPA üret
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Octopus.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8" \
+            -authenticationKeyID "$API_KEY_ID" \
+            -authenticationKeyIssuerID "$API_ISSUER_ID"
+
+      - name: IPA'yı TestFlight'a yükle
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          xcrun iTMSTransporter \
+            -m upload \
+            -assetFile "$RUNNER_TEMP/export/Octopus.ipa" \
+            -apiKey "$API_KEY_ID" \
+            -apiIssuer "$API_ISSUER_ID"
+
+      - name: IPA'yı sakla
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: Octopus-ipa
+          path: ${{ runner.temp }}/export/Octopus.ipa
+          retention-days: 14
+          if-no-files-found: warn

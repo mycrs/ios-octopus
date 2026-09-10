@@ -18,7 +18,12 @@ final class PlayerNextEpisodeViewModelTests: XCTestCase {
             history: StubHistory(),
             channels: StubChannels(channels: []),
             vod: StubVOD(),
-            series: repository
+            series: repository,
+            controller: PlayerController(
+                resolver: PlaybackEngineResolver(native: { NullPlaybackEngine() }),
+                progress: StubProgress(),
+                history: StubHistory()
+            )
         )
         let viewModel = PlayerViewModel(
             dependencies: dependencies,
