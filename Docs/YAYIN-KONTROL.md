@@ -80,15 +80,17 @@ zaten yazılı; **aynı metni Review Notes'a da koy**:
 > outside our control; the app cannot require HTTPS for user-supplied
 > sources.
 
-### 🟠 4. Yaş sınırı
+### 🟠 4. Yaş derecelendirmesi
 
 Uygulamada yetişkin içerik tespiti var (`AdultContentDetector`), yani
 kaynak yetişkin kategori içeriyorsa gösterilebiliyor.
 
-- [ ] Yaş derecelendirmesini buna göre doldur (düşük seçip sonra
-      düzeltmek yeni bir inceleme turu demek)
+- [ ] **Parental Controls: Yes / Present** bırak
+- [ ] **Age Assurance: No / None** yap
+- [ ] **Override to Higher Age Rating: None** bırak; elle 17+ seçme
 - [ ] Ebeveyn kilidi **varsayılan açık** geliyor — ama varsayılan PIN
-      `0000`. İnceleyici sorarsa cevabın hazır olsun
+      `0000`. Review Notes'ta Ayarlar → Ebeveyn Kontrolleri yolunu ve
+      bu ilk kullanım PIN'ini açıkça yaz
 - [ ] Sorulursa: kilit yedi ekranda birden uygulanıyor
       (bkz. `BRAIN.md` → "İçerik kilidi nerede uygulanır?")
 

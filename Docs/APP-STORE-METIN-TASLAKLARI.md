@@ -121,6 +121,16 @@ no account needed.
 Demo M3U link:
 https://octopusplayer.com/google-review/test.m3u
 
+Parental Controls:
+After the demo source loads, tap the gear icon in the top-right corner
+→ Settings → Parental Controls. Protection is active by default. Tap
+"Temporarily unlock adult content" and enter 0000 on a fresh install.
+The same section also contains "Change PIN" and "Manage protected
+categories". Adult channels, movies, series, search results, favorites,
+home shelves, and player navigation are hidden while protection is active.
+
+The app does not use age assurance or age verification.
+
 If a full account is preferred, one can be requested at:
 https://octopusplayer.com/support/
 ```
@@ -141,20 +151,23 @@ tek bir linki yapıştırarak test edebiliyor. Ekstra bir aktivasyon kodu
 
 ---
 
-## 8. Yaş sınırı anketi — önerilen cevaplar
+## 8. Yaş derecelendirmesi anketi — önerilen cevaplar
 
-Uygulamada gerçek bir ebeveyn kilidi var (`AdultContentDetector` +
-7 ekranda uygulanan kilit, bkz. `BRAIN.md`), ama kaynağın ne
-göstereceği kontrol edilemediği için:
+Uygulamada gerçek bir ebeveyn kontrolü var (`AdultContentDetector` +
+7 ekranda uygulanan PIN kilidi, bkz. `BRAIN.md`). Ancak yaş doğrulama,
+doğum tarihi kontrolü veya kimlik doğrulama mekanizması yoktur.
+
+- **Parental Controls**: **Yes / Present**
+- **Age Assurance**: **No / None**
+- **Override to Higher Age Rating**: **None** — yalnızca IPTV oynatıcı
+  olduğu için elle 17+ seçme; derecelendirmeyi doğru içerik cevaplarından
+  Apple üretsin.
 
 - **Unrestricted Web Access**: Hayır (uygulama tarayıcı değil, sadece
   kullanıcının eklediği yayını oynatıyor)
-- **Realistic/Prolonged Graphic Violence, Sexual Content vb.**:
-  kaynak bağımlı olduğu için **"Infrequent/Mild"** yerine gerçekçi
-  olan — Apple'ın IPTV oynatıcılarına genelde uyguladığı gibi
-  **17+** dereceye çıkması bekleniyor. Düşük seçip sonra
-  yükseltmek yeni bir inceleme turu demek — baştan 17+ seçmek
-  daha az sürtünmeli.
+- Diğer içerik açıklamalarını uygulamanın sağladığı içerik ve özelliklere
+  göre doğru yanıtla. Bu ret yalnızca **Parental Controls / Age Assurance**
+  seçimlerinin uygulamada bulunabilirliğiyle ilgilidir.
 
 ## 9. App Privacy (Gizlilik Etiketi) anketi — önerilen cevaplar
 

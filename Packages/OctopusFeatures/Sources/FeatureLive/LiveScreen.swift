@@ -69,8 +69,7 @@ public struct LiveDependencies {
 /// Referans uygulamada sıra şöyle: **video → kategoriler → arama → liste**,
 /// ve video ekranın üst kenarına yapışık. Burada da öyle:
 /// - Gezinme çubuğu **gizli** — önizleme kartı durum çubuğunun altına uzansın
-///   (bu yüzden bu sekmede arama/ayarlar ikonu da görünmez; ayarlara diğer
-///   sekmelerin üst barından erişiliyor).
+///   diye. Ayarlar erişimi kaybolmasın diye sağ üstte ayrı bir düğme bulunur.
 /// - Arama kutusu `.searchable` yerine kendi alanımız: `.searchable` aramayı
 ///   gezinme çubuğuna koyuyor, biz kategorilerin **altında** istiyoruz.
 ///
@@ -151,6 +150,7 @@ public struct LiveScreen: View {
         // şeridi kalıyordu. Referansta da video durum çubuğunun **altından**
         // başlıyor. Artık tam 16:9'un tamamı görünür.
         .toolbar(.hidden, for: .navigationBar)
+        .overlay(alignment: .topTrailing) { settingsButton }
         .task { await viewModel.load() }
         // ⚠️ Motoru bırakmak **atlanamaz**: IPTV panelleri eşzamanlı
         // bağlantıyı sınırlar ve bırakılmayan her akış kotadan bir hak yer
@@ -182,6 +182,26 @@ public struct LiveScreen: View {
             }
         }
         .overlay(alignment: .bottom) { playbackMessage }
+    }
+
+    private var settingsButton: some View {
+        Button {
+            router.push(.about)
+        } label: {
+            Image(systemName: "gearshape.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay {
+                    Circle().strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                }
+                .shadow(color: Color.black.opacity(0.28), radius: 8, y: 3)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Ayarlar")
+        .padding(.top, Theme.Spacing.sm)
+        .padding(.trailing, Theme.Spacing.md)
     }
 
     /// Akış açılamadıysa listeyi bozmadan uyarır.

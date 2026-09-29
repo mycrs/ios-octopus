@@ -426,8 +426,8 @@ Referanstaki sıra birebir alındı: **video → kategoriler → arama → liste
 
 1. **Gezinme çubuğu gizli** (`.toolbar(.hidden, for: .navigationBar)`) —
    önizleme kartı ekranın üst kenarına yapışsın, durum çubuğunun altına
-   uzansın diye. Yan etkisi: bu sekmede arama/ayarlar ikonu görünmez;
-   ayarlara diğer dört sekmenin üst barından erişilir.
+   uzansın diye. Üst bardaki ayarlar ikonu da gizlendiğinden aynı erişim
+   `LiveScreen` üzerinde sağ üstteki ayrı düğmeyle korunur.
 2. **`.searchable` kullanılmıyor** — o değiştirici aramayı gezinme
    çubuğuna koyar, biz kategorilerin **altında** istiyoruz. Yerine
    `DesignSystem/SearchField`.

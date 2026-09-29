@@ -51,6 +51,20 @@
 "Kaldığın yerden devam et" = "Continue where you left off";
 "İçerik kilidi" = "Content lock";
 "Hassas içerikleri otomatik korur" = "Automatically protects sensitive content";
+"Ebeveyn Kontrolleri" = "Parental Controls";
+"Yetişkin içerik ve seçtiğin kategoriler PIN ile korunur." = "Adult content and selected categories are protected by a PIN.";
+"KORUMA ETKİN" = "PROTECTION ACTIVE";
+"İÇERİK BU OTURUMDA AÇIK" = "CONTENT UNLOCKED FOR THIS SESSION";
+"Yetişkin içerik kilidini geçici aç" = "Temporarily unlock adult content";
+"Korunmayı şimdi etkinleştir" = "Enable protection now";
+"Yetişkin içerik gizli; açmak için PIN gerekir" = "Adult content is hidden; a PIN is required to unlock it";
+"Yetişkin içerik bu oturumda görünür" = "Adult content is visible for this session";
+"Ebeveyn kontrolü PIN'ini güncelle" = "Update the parental control PIN";
+"Korumalı kategorileri yönet" = "Manage protected categories";
+"Önce ebeveyn kontrolü PIN'ini gir" = "Enter the parental control PIN first";
+"Ebeveyn kontrolü PIN'i" = "Parental control PIN";
+"Ebeveyn kontrolü PIN'ini değiştir" = "Change parental control PIN";
+"Yetişkin içerikleri bu oturumda göstermek için PIN'ini gir." = "Enter your PIN to show adult content for this session.";
 "Kesintisiz oynatma" = "Uninterrupted playback";
 "Yayın koparsa kendiliğinden geri döner" = "Reconnects on its own if the stream drops";
 "Bu uygulama yalnızca bir oynatıcıdır: içerik sağlamaz ve barındırmaz. Yayınlar eklediğin kendi aboneliğinden gelir." = "This app is only a player: it does not provide or host any content. Streams come from the subscription you add yourself.";
@@ -366,7 +380,6 @@
 "Önce kaynağını güncellemeyi dene." = "Try refreshing your source first.";
 "Tümünü göster" = "Show all";
 "Tümünü gizle" = "Hide all";
-"Bitti" = "Done";
 "Yeni PIN'ler eşleşmiyor." = "The new PINs do not match.";
 "PIN değiştirildi." = "PIN changed.";
 "Kategori gösteriliyor." = "Category is visible.";
@@ -381,7 +394,6 @@
 "Liste PIN'i hatalı." = "Incorrect playlist PIN.";
 "PIN korumalı" = "PIN protected";
 "Bu kaynağı kullanmak için hızlı kurulumda belirlenen PIN'i gir." = "Enter the PIN set during quick setup to use this source.";
-"Kapat" = "Close";
 
 /* Accessibility and loading */
 "Saat" = "Time";

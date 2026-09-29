@@ -134,12 +134,12 @@ public struct SettingsScreen: View {
                         InlineMessageView(text: language.localized(message), kind: .info)
                     }
 
+                    parentalSection
                     sourceSection
                     appearanceSection
                     languageSection
                     playbackSection
                     startupSection
-                    parentalSection
                     dataSection
                     if contact.hasAny { supportSection }
                     aboutSection
@@ -182,7 +182,7 @@ public struct SettingsScreen: View {
             Text(language.localized(confirmingAction?.message ?? ""))
         }
         .alert(
-            language.localized("PIN'i gir"),
+            language.localized("Ebeveyn kontrolü PIN'i"),
             isPresented: $isEnteringPIN
         ) {
             // Güvenli alan: PIN ekranda görünmemeli.
@@ -207,11 +207,11 @@ public struct SettingsScreen: View {
         } message: {
             Text(
                 language.localized(
-                    "Hassas içerikleri bu oturumda göstermek için PIN'ini gir."
+                    "Yetişkin içerikleri bu oturumda göstermek için PIN'ini gir."
                 )
             )
         }
-        .alert("PIN'i değiştir", isPresented: $isChangingPIN) {
+        .alert("Ebeveyn kontrolü PIN'ini değiştir", isPresented: $isChangingPIN) {
             SecureField("Mevcut PIN", text: $currentPINInput)
                 .keyboardType(.numberPad)
             SecureField("Yeni PIN", text: $newPINInput)
