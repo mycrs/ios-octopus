@@ -19,6 +19,20 @@ enum LiveTestPlayback {
     static func makeResolver() -> PlaybackEngineResolver {
         PlaybackEngineResolver(native: { NullPlaybackEngine() })
     }
+
+    /// Ekran bağımlılığındaki paylaşılan denetleyiciyi test depolarıyla kurar.
+    @MainActor
+    static func makeController(
+        progress: PlaybackProgressRepository,
+        history: WatchHistoryRepository
+    ) -> PlayerController {
+        PlayerController(
+            resolver: makeResolver(),
+            progress: progress,
+            history: history,
+            setScreenAwake: { _ in }
+        )
+    }
 }
 
 final class LiveStubStreams: StreamResolving, @unchecked Sendable {

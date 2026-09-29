@@ -64,11 +64,11 @@ jobs:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          xcrun iTMSTransporter \
-            -m upload \
-            -assetFile "$RUNNER_TEMP/export/Octopus.ipa" \
-            -apiKey "$API_KEY_ID" \
-            -apiIssuer "$API_ISSUER_ID"
+          xcrun altool --upload-app \
+            -f "$RUNNER_TEMP/export/Octopus.ipa" \
+            -t ios \
+            --apiKey "$API_KEY_ID" \
+            --apiIssuer "$API_ISSUER_ID"
 
       - name: IPA'yı sakla
         if: always()

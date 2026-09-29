@@ -28,7 +28,11 @@ final class ChannelGuideViewModelTests: XCTestCase {
                 history: GuideStubHistory(),
                 resolver: LiveTestPlayback.makeResolver(),
                 streams: LiveStubStreams(),
-                progress: LiveStubProgress()
+                progress: LiveStubProgress(),
+                controller: LiveTestPlayback.makeController(
+                    progress: LiveStubProgress(),
+                    history: GuideStubHistory()
+                )
             ),
             now: { self.now }
         )

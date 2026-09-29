@@ -33,6 +33,10 @@ final class LiveChannelsViewModelTests: XCTestCase {
                 resolver: LiveTestPlayback.makeResolver(),
                 streams: LiveStubStreams(),
                 progress: LiveStubProgress(),
+                controller: LiveTestPlayback.makeController(
+                    progress: LiveStubProgress(),
+                    history: history
+                ),
                 parental: parental
             ),
             // Testte beklememek için çok kısa gecikmeler.
