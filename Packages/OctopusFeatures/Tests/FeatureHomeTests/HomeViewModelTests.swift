@@ -12,6 +12,7 @@ final class HomeViewModelTests: XCTestCase {
     private var progress: StubProgress!
     private var history: StubHistory!
     private var sync: StubSync!
+    private var channels: StubChannels!
 
     override func setUp() async throws {
         playlists = StubPlaylists()
@@ -20,18 +21,21 @@ final class HomeViewModelTests: XCTestCase {
         progress = StubProgress()
         history = StubHistory()
         sync = StubSync()
+        channels = StubChannels()
     }
 
-    private func makeViewModel(now: @escaping () -> Date = Date.init) -> HomeViewModel {
+    private func makeViewModel(now: @escaping () -> Date = Date.init,
+                               parental: ParentalControlling = OpenParentalControl()) -> HomeViewModel {
         HomeViewModel(
             dependencies: HomeDependencies(
                 playlists: playlists,
-                channels: StubChannels(),
+                channels: channels,
                 vod: vod,
                 series: series,
                 progress: progress,
                 history: history,
-                sync: sync
+                sync: sync,
+                parental: parental
             ),
             now: now
         )
@@ -209,6 +213,130 @@ final class HomeViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .loaded(0))
     }
 
+    func test_firstM3UVisitShowsCatalogWithoutWatchHistory() async {
+        channels.items = (1...20).map {
+            Channel(id: Channel.ID("c\($0)"), playlistID: "p1", name: "Kanal \($0)", streamKey: "\($0)")
+        }
+        let viewModel = makeViewModel()
+
+        await viewModel.load()
+
+        XCTAssertFalse(viewModel.isEmpty)
+        XCTAssertTrue(viewModel.recentChannels.isEmpty)
+        XCTAssertEqual(viewModel.displayedChannels.count, 12)
+        XCTAssertEqual(viewModel.displayedChannels.first?.id, "c1")
+        XCTAssertEqual(viewModel.channelShelfTitle, "Canlı TV")
+        XCTAssertEqual(channels.pageRequests.map(\.playlistID), ["p1"])
+        XCTAssertEqual(channels.unboundedReads, 0)
+    }
+
+    func test_undatedMoviesAndSeriesUseCatalogTitles() async {
+        vod.movies = [makeMovie("m1")]
+        series.seriesList = [Series(id: "s1", playlistID: "p1", title: "Seçki", streamKey: "1")]
+        let viewModel = makeViewModel()
+
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.recentlyAdded.isEmpty)
+        XCTAssertTrue(viewModel.recentSeries.isEmpty)
+        XCTAssertEqual(viewModel.displayedMovies.map(\.id), ["m1"])
+        XCTAssertEqual(viewModel.displayedSeries.map(\.id), ["s1"])
+        XCTAssertEqual(viewModel.movieShelfTitle, "Filmler")
+        XCTAssertEqual(viewModel.seriesShelfTitle, "Diziler")
+        XCTAssertEqual(viewModel.state, .loaded(2))
+        XCTAssertTrue(channels.pageRequests.isEmpty, "Dolu film rafı için kanal kataloğu da okunmamalı")
+    }
+
+    func test_existingRecentShelvesDoNotReadFallbackCatalogs() async {
+        vod.recent = [makeMovie("m1")]
+        series.recent = [Series(id: "s1", playlistID: "p1", title: "Yeni dizi", streamKey: "1")]
+        history.channels = [Channel(id: "c1", playlistID: "p1", name: "Kanal", streamKey: "1")]
+        let viewModel = makeViewModel()
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.movieShelfTitle, "Son eklenen filmler")
+        XCTAssertEqual(viewModel.seriesShelfTitle, "Son eklenen diziler")
+        XCTAssertEqual(viewModel.channelShelfTitle, "Son izlenen kanallar")
+        XCTAssertTrue(vod.catalogRequests.isEmpty)
+        XCTAssertTrue(series.catalogRequests.isEmpty)
+        XCTAssertTrue(channels.pageRequests.isEmpty)
+    }
+
+    func test_actualEmptyCatalogRemainsEmpty() async {
+        let viewModel = makeViewModel()
+
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.isEmpty)
+        XCTAssertEqual(viewModel.state, .loaded(0))
+        XCTAssertNotNil(viewModel.account, "Boş raflar aktif kaynak yok anlamına gelmez")
+    }
+
+    func test_allAdultFallbackCatalogsStayHidden() async {
+        vod.movies = [Movie(id: "m1", playlistID: "p1", title: "Gizli film", streamKey: "1", isAdult: true)]
+        series.seriesList = [Series(id: "s1", playlistID: "p1", title: "Gizli dizi", streamKey: "1", isAdult: true)]
+        channels.items = [Channel(id: "c1", playlistID: "p1", name: "Gizli kanal", streamKey: "1", isAdult: true)]
+        let viewModel = makeViewModel(parental: LockedParentalControl())
+
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.isEmpty)
+        XCTAssertTrue(viewModel.displayedMovies.isEmpty)
+        XCTAssertTrue(viewModel.displayedSeries.isEmpty)
+        XCTAssertTrue(viewModel.displayedChannels.isEmpty)
+    }
+
+    func test_visibleChannelAfterHiddenFirstPageAppearsWithoutUnboundedRead() async {
+        channels.items = (1...48).map {
+            Channel(id: Channel.ID("adult\($0)"), playlistID: "p1", name: "Gizli", streamKey: "\($0)", isAdult: true)
+        }
+        channels.items.append(Channel(id: "visible", playlistID: "p1", name: "Açık kanal", streamKey: "49"))
+        let viewModel = makeViewModel(parental: LockedParentalControl())
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.displayedChannels.map(\.id), ["visible"])
+        XCTAssertEqual(channels.pageRequests.map(\.offset), [0, 48])
+        XCTAssertEqual(channels.pageRequests.map(\.limit), [48, 48])
+        XCTAssertEqual(channels.unboundedReads, 0)
+        XCTAssertFalse(viewModel.isEmpty)
+    }
+
+    func test_olderSourceLoadCannotReplaceCurrentCatalog() async {
+        let firstStarted = expectation(description: "İlk kaynak kataloğu bekliyor")
+        let delayed = DeferredMovies(firstStarted: firstStarted)
+        vod.onCatalogRead = { playlistID in await delayed.read(playlistID: playlistID) }
+        let viewModel = makeViewModel()
+        let first = Task { await viewModel.load() }
+        await fulfillment(of: [firstStarted], timeout: 2)
+        playlists.active = Playlist(id: "p2", name: "İkinci kaynak", kind: .sampleLibrary,
+                                    createdAt: Date(), isActive: true)
+
+        await viewModel.load()
+        delayed.finishFirst()
+        await first.value
+
+        XCTAssertEqual(viewModel.displayedMovies.map(\.id), ["new"])
+        XCTAssertEqual(viewModel.account?.sourceName, "İkinci kaynak")
+        XCTAssertEqual(viewModel.state, .loaded(1))
+    }
+
+    func test_sourceRemovalClearsPreviouslyLoadedFallbacks() async {
+        vod.movies = [makeMovie("m1")]
+        let viewModel = makeViewModel()
+        await viewModel.load()
+        XCTAssertFalse(viewModel.isEmpty)
+        playlists.active = nil
+
+        await viewModel.load()
+
+        XCTAssertTrue(viewModel.isEmpty)
+        XCTAssertTrue(viewModel.catalogMovies.isEmpty)
+        XCTAssertNil(viewModel.account)
+        XCTAssertEqual(viewModel.state, .loaded(0))
+    }
+
     // MARK: - Hızlı işlemler
 
     func test_refreshSyncsActivePlaylistAndShowsSuccess() async {
@@ -273,6 +401,8 @@ private final class StubVOD: VODRepository, @unchecked Sendable {
     var movies: [Movie] = []
     var recent: [Movie] = []
     var recentError: Error?
+    var catalogRequests: [(playlistID: Playlist.ID, limit: Int, offset: Int)] = []
+    var onCatalogRead: ((Playlist.ID) async -> [Movie])?
 
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
 
@@ -281,7 +411,11 @@ private final class StubVOD: VODRepository, @unchecked Sendable {
         categoryID: MediaCategory.ID?,
         limit: Int,
         offset: Int
-    ) async throws -> [Movie] { movies }
+    ) async throws -> [Movie] {
+        catalogRequests.append((playlistID, limit, offset))
+        if let onCatalogRead { return await onCatalogRead(playlistID) }
+        return Array(movies.filter { $0.playlistID == playlistID }.dropFirst(offset).prefix(limit))
+    }
 
     func movie(id: Movie.ID) async throws -> Movie? { movies.first { $0.id == id } }
     func loadDetails(id: Movie.ID) async throws -> Movie { throw AppError.notFound }
@@ -297,6 +431,8 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
 
     var seriesList: [Series] = []
     var episodeList: [Episode] = []
+    var recent: [Series] = []
+    var catalogRequests: [(playlistID: Playlist.ID, limit: Int, offset: Int)] = []
 
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
 
@@ -305,7 +441,10 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
         categoryID: MediaCategory.ID?,
         limit: Int,
         offset: Int
-    ) async throws -> [Series] { seriesList }
+    ) async throws -> [Series] {
+        catalogRequests.append((playlistID, limit, offset))
+        return Array(seriesList.filter { $0.playlistID == playlistID }.dropFirst(offset).prefix(limit))
+    }
 
     func series(id: Series.ID) async throws -> Series? { seriesList.first { $0.id == id } }
     func seasons(seriesID: Series.ID) async throws -> [Season] { [] }
@@ -314,7 +453,7 @@ private final class StubSeries: SeriesRepository, @unchecked Sendable {
     func loadDetails(id: Series.ID) async throws {}
     func invalidateDetails(id: Series.ID) async throws {}
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
-    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] { [] }
+    func recentlyAdded(playlistID: Playlist.ID, limit: Int) async throws -> [Series] { recent }
 }
 
 private final class StubProgress: PlaybackProgressRepository, @unchecked Sendable {
@@ -341,9 +480,19 @@ private final class StubHistory: WatchHistoryRepository, @unchecked Sendable {
     func clearAll() async throws {}
 }
 
-private struct StubChannels: ChannelRepository {
+private final class StubChannels: ChannelRepository, @unchecked Sendable {
+    var items: [Channel] = []
+    var pageRequests: [(playlistID: Playlist.ID, limit: Int, offset: Int)] = []
+    var unboundedReads = 0
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
-    func channels(playlistID: Playlist.ID, categoryID: MediaCategory.ID?) async throws -> [Channel] { [] }
+    func channels(playlistID: Playlist.ID, categoryID: MediaCategory.ID?) async throws -> [Channel] {
+        unboundedReads += 1
+        return items.filter { $0.playlistID == playlistID }
+    }
+    func channels(playlistID: Playlist.ID, categoryID: MediaCategory.ID?, limit: Int, offset: Int) async throws -> [Channel] {
+        pageRequests.append((playlistID, limit, offset))
+        return Array(items.filter { $0.playlistID == playlistID }.dropFirst(offset).prefix(limit))
+    }
     func channel(id: Channel.ID) async throws -> Channel? { nil }
     func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel? { nil }
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Channel] { [] }
@@ -352,6 +501,38 @@ private struct StubChannels: ChannelRepository {
         categoryID: MediaCategory.ID?
     ) -> AsyncStream<[Channel]> {
         AsyncStream { $0.finish() }
+    }
+}
+
+private struct LockedParentalControl: ParentalControlling {
+    func isEnabled() async -> Bool { true }
+    func isUnlocked() async -> Bool { false }
+    func setPIN(_ pin: String) async throws {}
+    func unlock(with pin: String) async -> Bool { false }
+    func lock() async {}
+    func disable(with pin: String) async throws {}
+}
+
+@MainActor
+private final class DeferredMovies {
+    private let firstStarted: XCTestExpectation
+    private var continuation: CheckedContinuation<[Movie], Never>?
+
+    init(firstStarted: XCTestExpectation) { self.firstStarted = firstStarted }
+
+    func read(playlistID: Playlist.ID) async -> [Movie] {
+        guard playlistID == "p1" else {
+            return [Movie(id: "new", playlistID: playlistID, title: "Yeni film", streamKey: "2")]
+        }
+        return await withCheckedContinuation { continuation in
+            self.continuation = continuation
+            firstStarted.fulfill()
+        }
+    }
+
+    func finishFirst() {
+        continuation?.resume(returning: [Movie(id: "old", playlistID: "p1", title: "Eski film", streamKey: "1")])
+        continuation = nil
     }
 }
 

@@ -141,9 +141,9 @@ public struct HomeScreen: View {
                     }
                 }
 
-                if !viewModel.recentChannels.isEmpty {
-                    ShelfView(title: "Son izlenen kanallar") {
-                        ForEach(viewModel.recentChannels) { channel in
+                if !viewModel.displayedChannels.isEmpty {
+                    ShelfView(title: viewModel.channelShelfTitle) {
+                        ForEach(viewModel.displayedChannels) { channel in
                             RecentChannelCard(channel: channel) {
                                 router.presentPlayer(.liveChannel(channel.id))
                             }
@@ -151,19 +151,20 @@ public struct HomeScreen: View {
                     }
                 }
 
-                if !viewModel.recentlyAdded.isEmpty {
-                    ShelfView(title: "Son eklenen filmler") {
-                        ForEach(viewModel.recentlyAdded) { movie in
+                if !viewModel.displayedMovies.isEmpty {
+                    ShelfView(title: viewModel.movieShelfTitle) {
+                        ForEach(viewModel.displayedMovies) { movie in
                             RecentMovieCard(movie: movie) {
                                 router.push(.movieDetail(movie.id))
                             }
+                            .accessibilityIdentifier("home.movie.\(movie.id.value)")
                         }
                     }
                 }
 
-                if !viewModel.recentSeries.isEmpty {
-                    ShelfView(title: "Son eklenen diziler") {
-                        ForEach(viewModel.recentSeries) { series in
+                if !viewModel.displayedSeries.isEmpty {
+                    ShelfView(title: viewModel.seriesShelfTitle) {
+                        ForEach(viewModel.displayedSeries) { series in
                             RecentSeriesCard(series: series) {
                                 router.push(.seriesDetail(series.id))
                             }

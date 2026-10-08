@@ -24,6 +24,11 @@ final class ReviewJourneyTests: XCTestCase {
 
         let movies = app.buttons["Movies"].firstMatch
         XCTAssertTrue(movies.waitForExistence(timeout: 45))
+        let homeFilm = app.buttons.matching(NSPredicate(
+            format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "home.movie.", "Big Buck Bunny"
+        )).firstMatch
+        XCTAssertTrue(homeFilm.waitForExistence(timeout: 20),
+                      "Örnek kitaplığın gerçek filmi ana sayfada görünmeli")
         capture("03-home")
         movies.tap()
         let movieCards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "movie.card."))

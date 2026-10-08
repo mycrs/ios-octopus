@@ -57,6 +57,15 @@ public protocol ChannelRepository: Sendable {
         categoryID: MediaCategory.ID?
     ) async throws -> [Channel]
 
+    /// Raf gibi küçük ekranlar bütün kaynak kataloğunu belleğe almamalı.
+    /// Negatif offset sıfır sayılır; limit sıfır veya negatifse sonuç boştur.
+    func channels(
+        playlistID: Playlist.ID,
+        categoryID: MediaCategory.ID?,
+        limit: Int,
+        offset: Int
+    ) async throws -> [Channel]
+
     func channel(id: Channel.ID) async throws -> Channel?
 
     /// Kanal numarasına göre bulur.
@@ -78,6 +87,20 @@ public protocol ChannelRepository: Sendable {
         playlistID: Playlist.ID,
         categoryID: MediaCategory.ID?
     ) -> AsyncStream<[Channel]>
+}
+
+extension ChannelRepository {
+    /// Eski sahteler için uyumluluk; kalıcı depo sınırı SQL'de uygular.
+    public func channels(
+        playlistID: Playlist.ID,
+        categoryID: MediaCategory.ID?,
+        limit: Int,
+        offset: Int
+    ) async throws -> [Channel] {
+        guard limit > 0 else { return [] }
+        let all = try await channels(playlistID: playlistID, categoryID: categoryID)
+        return Array(all.dropFirst(max(0, offset)).prefix(limit))
+    }
 }
 
 // MARK: - Filmler

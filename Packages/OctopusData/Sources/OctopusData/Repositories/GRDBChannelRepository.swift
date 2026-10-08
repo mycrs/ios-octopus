@@ -37,6 +37,21 @@ public actor GRDBChannelRepository: ChannelRepository {
         return records.map { $0.toDomain() }
     }
 
+    public func channels(
+        playlistID: Playlist.ID,
+        categoryID: MediaCategory.ID?,
+        limit: Int,
+        offset: Int
+    ) async throws -> [Channel] {
+        guard limit > 0 else { return [] }
+        let records = try await database.read { db in
+            try Self.channelRequest(playlistID: playlistID, categoryID: categoryID)
+                .limit(limit, offset: max(0, offset))
+                .fetchAll(db)
+        }
+        return records.map { $0.toDomain() }
+    }
+
     public func channel(id: Channel.ID) async throws -> Channel? {
         let record = try await database.read { db in
             try ChannelRecord.fetchOne(db, key: id.value)
@@ -140,6 +155,6 @@ public actor GRDBChannelRepository: ChannelRepository {
         }
         // Sıralama SABİT: sayfalı yükleme sırasında liste kaymasın.
         // (Referans projede "filmler sürekli değişiyor" şikâyetinin sebebi buydu.)
-        return request.order(Column("sortOrder"), Column("name"))
+        return request.order(Column("sortOrder"), Column("name"), Column("id"))
     }
 }

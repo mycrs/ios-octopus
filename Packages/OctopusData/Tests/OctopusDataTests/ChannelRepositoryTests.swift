@@ -52,6 +52,31 @@ final class ChannelRepositoryTests: XCTestCase {
         XCTAssertEqual(ours.map(\.name), ["Bizim"])
     }
 
+    func test_channelPagesPreserveSourceCategoryAndStableProviderOrder() async throws {
+        try await insertPlaylist(id: "p2")
+        try await insertChannel(id: "foreign", category: "spor", name: "A", sortOrder: 0, playlist: "p2")
+        try await insertChannel(id: "other-category", category: "haber", name: "A", sortOrder: 0)
+        // Aynı ad/sıra durumunda ID son bağlayıcıdır; ekleme sırası sayfayı kaydırmaz.
+        try await insertChannel(id: "c3", category: "spor", name: "A", sortOrder: 2)
+        try await insertChannel(id: "c2", category: "spor", name: "A", sortOrder: 2)
+        try await insertChannel(id: "c1", category: "spor", name: "Z", sortOrder: 1)
+        try await insertChannel(id: "c4", category: "spor", name: "B", sortOrder: 2)
+        let subject: any ChannelRepository = repository
+
+        let first = try await subject.channels(playlistID: "p1", categoryID: "spor", limit: 2, offset: 0)
+        let second = try await subject.channels(playlistID: "p1", categoryID: "spor", limit: 2, offset: 2)
+        let exhausted = try await subject.channels(playlistID: "p1", categoryID: "spor", limit: 2, offset: 4)
+        let empty = try await subject.channels(playlistID: "p1", categoryID: "spor", limit: 0, offset: 0)
+        let negativeOffset = try await subject.channels(playlistID: "p1", categoryID: "spor", limit: 1, offset: -1)
+
+        XCTAssertEqual(first.map(\.id.value), ["c1", "c2"])
+        XCTAssertEqual(second.map(\.id.value), ["c3", "c4"])
+        XCTAssertTrue(exhausted.isEmpty)
+        XCTAssertTrue(empty.isEmpty)
+        XCTAssertEqual(negativeOffset.map(\.id.value), ["c1"])
+        XCTAssertTrue((first + second).allSatisfy { $0.playlistID == "p1" && $0.categoryID == "spor" })
+    }
+
     // MARK: - Arama
 
     func test_search_matchesPrefix() async throws {

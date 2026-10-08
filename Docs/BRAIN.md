@@ -926,3 +926,20 @@ okunur; yalnız Booted ise kapatılır, beklenmeyen durum hâlâ hata verir.
 iPad ve yayın yüklemesi yeni turda doğrulanacak. Mağaza metnindeki ayrı
 liste PIN'i iddiası yalnız Code/Quick Setup kaynaklarıyla sınırlandırıldı;
 normal M3U/örnek kitaplık için kategori ebeveyn PIN'i anlatılır.
+
+`9111266` turunda tüm 685 Swift birim testi ile iPhone ve iPad'in iki
+Release kullanıcı akışı geçti; her iki cihazda gerçek AVPlayerLayer karesi
+doğrulandı. Yayın yüklemesi aşağıdaki ek üretim onarımını da kapsamak için
+bu tur bitince durduruldu; eski paketin gönderilmesi hedeflenmedi.
+
+Release ekran incelemesi Home'daki gerçek bir ilk kullanım hatasını buldu:
+dolu M3U kataloğu izleme geçmişi yokken, tarihsiz film/dizi katalogları ise
+"son eklenenler" sorgusundan dışlandığı için içerik yok mesajı alıyordu.
+Home şimdi mevcut raflar boşken izinli katalogdan Film/Dizi veya Canlı TV
+rafı sunar; tarihi olmayan öğeler son eklenen diye etiketlenmez. Okumalar
+kaynak bazlı ve sınırlı sayfalıdır, ek HTTP isteği oluşturmaz; ebeveyn
+filtresi ile geç kalan kaynak yüklemeleri korunur. GRDB kanal okumalarına
+SQL LIMIT/OFFSET ve kararlı kimlik bağlayıcısı eklendi. Sekiz Home ve bir
+kanal sayfalama regresyon testi eklendi. Release testi ana sayfadaki gerçek
+örnek film kartını ekran görüntüsünden önce bekler. Bu son değişiklikler
+için yeni Mac test sonucu, paket yükleme ve cihaz kurulum kanıtı beklenir.

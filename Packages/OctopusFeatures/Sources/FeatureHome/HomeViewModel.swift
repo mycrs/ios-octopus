@@ -32,6 +32,9 @@ public final class HomeViewModel: ObservableObject {
     /// durur, yalnızca **acil olduğunda** (abonelik bitmek üzere) renk alır.
     @Published public private(set) var account: HomeAccount?
     @Published public private(set) var recentChannels: [Channel] = []
+    @Published public private(set) var catalogMovies: [Movie] = []
+    @Published public private(set) var catalogSeries: [Series] = []
+    @Published public private(set) var catalogChannels: [Channel] = []
     @Published public private(set) var state: LoadableState<Int> = .idle
     @Published public private(set) var isRefreshing = false
     @Published public private(set) var quickActionMessage: String?
@@ -40,7 +43,15 @@ public final class HomeViewModel: ObservableObject {
     public var isEmpty: Bool {
         resumeItems.isEmpty && recentlyAdded.isEmpty
             && recentSeries.isEmpty && recentChannels.isEmpty
+            && catalogMovies.isEmpty && catalogSeries.isEmpty && catalogChannels.isEmpty
     }
+
+    public var displayedMovies: [Movie] { recentlyAdded.isEmpty ? catalogMovies : recentlyAdded }
+    public var displayedSeries: [Series] { recentSeries.isEmpty ? catalogSeries : recentSeries }
+    public var displayedChannels: [Channel] { recentChannels.isEmpty ? catalogChannels : recentChannels }
+    public var movieShelfTitle: String { recentlyAdded.isEmpty ? "Filmler" : "Son eklenen filmler" }
+    public var seriesShelfTitle: String { recentSeries.isEmpty ? "Diziler" : "Son eklenen diziler" }
+    public var channelShelfTitle: String { recentChannels.isEmpty ? "Canlı TV" : "Son izlenen kanallar" }
 
     public var canRefresh: Bool {
         account != nil && !isRefreshing
@@ -50,7 +61,7 @@ public final class HomeViewModel: ObservableObject {
     private let dependencies: HomeDependencies
     private let shelfLimit: Int
     private let now: () -> Date
-    private var parentalFilter = ParentalFilter.open
+    private var loadGeneration = 0
 
     public init(
         dependencies: HomeDependencies,
@@ -74,21 +85,25 @@ public final class HomeViewModel: ObservableObject {
 
 
     public func load() async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         if isEmpty { state = .loading }
 
         do {
-            guard let playlist = try await dependencies.playlists.activePlaylist() else {
+            let activePlaylist = try await dependencies.playlists.activePlaylist()
+            guard generation == loadGeneration, !Task.isCancelled else { return }
+            guard let playlist = activePlaylist else {
                 state = .loaded(0)
                 clear()
                 return
             }
 
             // Raflar süzülmeden önce kilit durumu bilinmeli.
-            parentalFilter = await .current(dependencies.parental)
-            account = HomeAccount(playlist: playlist, now: Date())
+            let filter = await ParentalFilter.current(dependencies.parental)
+            guard generation == loadGeneration, !Task.isCancelled else { return }
 
             // Raflar birbirinden bağımsız; paralel yüklenir.
-            async let resume = loadResumeItems(playlistID: playlist.id)
+            async let resume = loadResumeItems(playlistID: playlist.id, filter: filter)
             async let added = dependencies.vod.recentlyAdded(
                 playlistID: playlist.id,
                 limit: shelfLimit
@@ -102,20 +117,95 @@ public final class HomeViewModel: ObservableObject {
                 limit: shelfLimit
             )
 
-            resumeItems = await resume
-            recentlyAdded = parentalFilter.filter((try? await added) ?? [])
-            // ⚠️ Diziler de süzülür: kilit yalnızca filmlerde uygulansaydı
-            // yetişkin bir dizi ana sayfada afişiyle durmaya devam ederdi.
-            recentSeries = parentalFilter.filter((try? await series) ?? [])
-            recentChannels = parentalFilter.filter((try? await channels) ?? [])
+            let loadedResume = await resume
+            let loadedMovies = filter.filter((try? await added) ?? [])
+            let loadedSeries = filter.filter((try? await series) ?? [])
+            let loadedChannels = filter.filter((try? await channels) ?? [])
+            guard generation == loadGeneration, !Task.isCancelled else { return }
+
+            // Tarihi olmayan içerik "son eklenen" değildir, ama katalog yine doludur.
+            async let fallbackMovies = loadCatalogMovies(playlistID: playlist.id, filter: filter,
+                                                        needed: loadedMovies.isEmpty, generation: generation)
+            async let fallbackSeries = loadCatalogSeries(playlistID: playlist.id, filter: filter,
+                                                        needed: loadedSeries.isEmpty, generation: generation)
+            let movies = await fallbackMovies
+            let collections = await fallbackSeries
+            guard generation == loadGeneration, !Task.isCancelled else { return }
+
+            // Kanal kataloğunu yalnızca diğer raflar boşsa, sınırlı sayfalarla oku.
+            // İlk M3U açılışında geçmişin boş olması katalog yok demek değildir.
+            var liveCatalog: [Channel] = []
+            if loadedResume.isEmpty, loadedMovies.isEmpty, loadedSeries.isEmpty,
+               loadedChannels.isEmpty, movies.isEmpty, collections.isEmpty {
+                liveCatalog = await loadVisibleCatalog(generation: generation, allows: filter.allows(channel:)) {
+                    limit, offset in
+                    try await self.dependencies.channels.channels(
+                        playlistID: playlist.id, categoryID: nil, limit: limit, offset: offset
+                    )
+                }
+            }
+            let currentID = try await dependencies.playlists.activePlaylist()?.id
+            guard generation == loadGeneration, !Task.isCancelled, currentID == playlist.id else { return }
+
+            account = HomeAccount(playlist: playlist, now: now())
+            resumeItems = loadedResume
+            recentlyAdded = loadedMovies
+            recentSeries = loadedSeries
+            recentChannels = loadedChannels
+            catalogMovies = movies
+            catalogSeries = collections
+            catalogChannels = liveCatalog
 
             state = .loaded(
                 resumeItems.count + recentlyAdded.count
                     + recentSeries.count + recentChannels.count
+                    + catalogMovies.count + catalogSeries.count + catalogChannels.count
             )
+        } catch is CancellationError {
+            return
         } catch {
+            guard generation == loadGeneration, !Task.isCancelled else { return }
             state = .failed(AppError.wrap(error))
         }
+    }
+
+    private func loadCatalogMovies(playlistID: Playlist.ID, filter: ParentalFilter,
+                                  needed: Bool, generation: Int) async -> [Movie] {
+        guard needed, !Task.isCancelled else { return [] }
+        return await loadVisibleCatalog(generation: generation, allows: filter.allows(movie:)) { limit, offset in
+            try await self.dependencies.vod.movies(
+                playlistID: playlistID, categoryID: nil, limit: limit, offset: offset
+            )
+        }
+    }
+
+    private func loadCatalogSeries(playlistID: Playlist.ID, filter: ParentalFilter,
+                                  needed: Bool, generation: Int) async -> [Series] {
+        guard needed, !Task.isCancelled else { return [] }
+        return await loadVisibleCatalog(generation: generation, allows: filter.allows(series:)) { limit, offset in
+            try await self.dependencies.series.series(
+                playlistID: playlistID, categoryID: nil, limit: limit, offset: offset
+            )
+        }
+    }
+
+    private func loadVisibleCatalog<Item: Sendable>(
+        generation: Int,
+        allows: (Item) -> Bool,
+        read: (Int, Int) async throws -> [Item]
+    ) async -> [Item] {
+        guard shelfLimit > 0 else { return [] }
+        let pageSize = max(shelfLimit, 48)
+        var offset = 0
+        var visible: [Item] = []
+        while visible.count < shelfLimit {
+            guard generation == loadGeneration, !Task.isCancelled else { return [] }
+            guard let page = try? await read(pageSize, offset) else { break }
+            visible.append(contentsOf: page.filter(allows).prefix(shelfLimit - visible.count))
+            guard page.count == pageSize else { break }
+            offset += pageSize
+        }
+        return visible
     }
 
     /// Ana sayfadaki hızlı işlem: aktif listeyi yeniden eşitler ve rafları
@@ -151,7 +241,7 @@ public final class HomeViewModel: ObservableObject {
     /// Kayıtlar yalnızca anahtar taşır; başlık ve afiş için katalog
     /// depolarına sorulur. Silinmiş içeriğin kaydı sessizce atlanır —
     /// kullanıcı artık var olmayan bir filme tıklayamamalı.
-    private func loadResumeItems(playlistID: Playlist.ID) async -> [ResumeItem] {
+    private func loadResumeItems(playlistID: Playlist.ID, filter: ParentalFilter) async -> [ResumeItem] {
         guard let stored = try? await dependencies.progress.continueWatching(
             playlistID: playlistID,
             limit: shelfLimit
@@ -165,7 +255,7 @@ public final class HomeViewModel: ObservableObject {
             switch source {
             case .movie(let id):
                 guard let movie = try? await dependencies.vod.movie(id: id),
-                      parentalFilter.allows(movie: movie)
+                      filter.allows(movie: movie)
                 else { continue }
                 items.append(
                     ResumeItem(
@@ -207,5 +297,8 @@ public final class HomeViewModel: ObservableObject {
         recentlyAdded = []
         recentSeries = []
         recentChannels = []
+        catalogMovies = []
+        catalogSeries = []
+        catalogChannels = []
     }
 }
