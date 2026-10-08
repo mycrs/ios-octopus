@@ -43,6 +43,7 @@ REQUIRED_JOBS = ("Mimari kuralları", "Domain testleri (Linux)",
                  "OctopusData testleri", "OctopusPlayback testleri",
                  "OctopusFeatures testleri", "OctopusDesignSystem testleri")
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_EXIF_BYTES = 64 * 1024
 REPLACEABLE_GROUPS = {"IPAD_13_PROFILE", "IPHONE_FACE_ID_LARGE_PROFILE", "WATCH_ULTRA_PROFILE"}
 REVIEW_REFERENCE = r"octopus-review-[a-f0-9]{40}-(?:iphone|ipad)-[a-z0-9-]+-[a-f0-9]{64}"
 EDITABLE_STATES = {"REJECTED", "METADATA_REJECTED", "PREPARE_FOR_SUBMISSION"}
@@ -316,10 +317,59 @@ def validate_replacement(replacement):
         raise SafeError("Replacement must preserve the reviewed original order within each group")
 
 
-def png_dimensions(raw):
+def exif_orientation(data):
+    """Read bounded TIFF directories; never decode or rewrite image pixels."""
+    if len(data) < 8 or len(data) > MAX_EXIF_BYTES or data[:2] not in (b"II", b"MM"):
+        raise SafeError("Screenshot EXIF header is invalid")
+    order = "<" if data[:2] == b"II" else ">"
+    if struct.unpack_from(order + "H", data, 2)[0] != 42:
+        raise SafeError("Screenshot EXIF TIFF format is invalid")
+    pending = [struct.unpack_from(order + "I", data, 4)[0]]
+    primary_offset = pending[0]
+    seen, orientation, entry_total = set(), None, 0
+    sizes = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8, 13: 4}
+    while pending:
+        offset = pending.pop()
+        if offset in seen or len(seen) >= 16 or offset < 8 or offset % 2 or offset + 2 > len(data):
+            raise SafeError("Screenshot EXIF directory offset is invalid")
+        seen.add(offset)
+        count = struct.unpack_from(order + "H", data, offset)[0]
+        end = offset + 2 + count * 12 + 4
+        entry_total += count
+        if entry_total > 1024 or end > len(data):
+            raise SafeError("Screenshot EXIF directory is truncated or exceeds its bound")
+        tags = set()
+        for index in range(count):
+            entry = offset + 2 + index * 12
+            tag, kind, amount, value = struct.unpack_from(order + "HHII", data, entry)
+            if tag in tags or kind not in sizes or amount == 0:
+                raise SafeError("Screenshot EXIF entry is invalid or duplicated")
+            tags.add(tag)
+            length = sizes[kind] * amount
+            location = entry + 8 if length <= 4 else value
+            if length > MAX_EXIF_BYTES or location < 8 or location + length > len(data):
+                raise SafeError("Screenshot EXIF value offset or count is invalid")
+            if tag == 0x0112:
+                if offset != primary_offset or orientation is not None or kind != 3 or amount != 1:
+                    raise SafeError("Screenshot EXIF orientation is invalid or duplicated")
+                orientation = struct.unpack_from(order + "H", data, location)[0]
+                if not 1 <= orientation <= 8:
+                    raise SafeError("Screenshot EXIF orientation is outside the standard range")
+            if tag in (0x8769, 0x8825, 0xA005, 0x014A):
+                if kind not in (4, 13) or (tag != 0x014A and amount != 1) or amount > 16:
+                    raise SafeError("Screenshot EXIF child directory is invalid")
+                pending.extend(struct.unpack_from(order + "I" * amount, data, location))
+        following = struct.unpack_from(order + "I", data, end - 4)[0]
+        if following:
+            pending.append(following)
+    return orientation if orientation is not None else 1
+
+
+def png_metadata(raw):
     if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) > MAX_IMAGE_BYTES:
         raise SafeError("Screenshot must be an original PNG within the size limit")
     offset, dimensions, compressed, ended = 8, None, [], False
+    orientation, has_exif = 1, False
     while offset + 12 <= len(raw):
         size = struct.unpack(">I", raw[offset:offset + 4])[0]
         kind = raw[offset + 4:offset + 8]
@@ -339,6 +389,10 @@ def png_dimensions(raw):
             dimensions = (width, height)
         elif kind in (b"IHDR", b"tRNS"):
             raise SafeError("Invalid or transparent screenshot PNG")
+        if kind == b"eXIf":
+            if has_exif:
+                raise SafeError("Screenshot PNG contains duplicate EXIF metadata")
+            orientation, has_exif = exif_orientation(data), True
         if kind == b"IDAT":
             compressed.append(data)
         offset += size + 12
@@ -356,19 +410,31 @@ def png_dimensions(raw):
         raise SafeError("Screenshot PNG cannot be decoded") from None
     if len(decoded) != stride * height or not decoder.eof or decoder.unused_data or any(decoded[row * stride] > 4 for row in range(height)):
         raise SafeError("Screenshot PNG pixel data is invalid")
-    return dimensions
+    return {"raw_dimensions": dimensions,
+            "effective_dimensions": dimensions[::-1] if orientation in (5, 6, 7, 8) else dimensions,
+            "exif_orientation": orientation}
 
 
-def screenshot_dimensions(selection, raw):
+def png_dimensions(raw):
+    """Return the untouched IHDR dimensions, independent of display orientation."""
+    return png_metadata(raw)["raw_dimensions"]
+
+
+def screenshot_metadata(selection, raw):
     """Only the original player attachment may use its device's native landscape."""
     device, name = selection.get("device"), selection.get("name")
     if device not in DIMENSIONS or name not in SCREEN_NAMES:
         raise SafeError("Screenshot selection is outside the reviewed device and screen names")
-    dimensions = png_dimensions(raw)
+    metadata = png_metadata(raw)
+    dimensions = metadata["effective_dimensions"]
     allowed = NATIVE_DIMENSIONS[device] if name == LANDSCAPE_SCREEN_NAME else (DIMENSIONS[device],)
     if dimensions not in allowed:
         raise SafeError("Screenshot dimensions or orientation do not match its reviewed device and screen")
-    return dimensions
+    return metadata
+
+
+def screenshot_dimensions(selection, raw):
+    return screenshot_metadata(selection, raw)["effective_dimensions"]
 
 
 def image_specification(group, dimensions):
@@ -545,7 +611,8 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
         by_reference.setdefault(image["attributes"].get("referenceName"), []).append(image)
     for selection, raw in images:
         group = groups[selection["device"]]
-        dimensions = screenshot_dimensions(selection, raw)
+        metadata = screenshot_metadata(selection, raw)
+        dimensions = metadata["effective_dimensions"]
         specification = image_specification(group, dimensions)
         if len(raw) > specification["max_file_size"]:
             raise SafeError("Screenshot exceeds Apple's discovered specification size limit")
@@ -563,7 +630,7 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
         if image and image["attributes"].get("state") not in ("AWAITING_UPLOAD", "UPLOAD_COMPLETE", "PREPARE_FOR_SUBMISSION", "APPROVED"):
             raise SafeError("Existing referenced asset needs inspection before resuming")
         plans.append({"selection": selection, "raw": raw, "group": group, "reference": reference,
-                      "dimensions": dimensions, "specification": specification,
+                      "dimensions": dimensions, "metadata": metadata, "specification": specification,
                       "image": image, "placement": placed[0] if placed else None})
     originals = replacement_surface(target, replacement, plans, existing) if replacement is not None else []
     removing = {item["id"] for item in originals}
@@ -582,7 +649,7 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
                 "fileSize": len(plan["raw"]), "category": CATEGORY, "referenceName": plan["reference"]},
                 "relationships": {"assetLibrary": {"data": {"type": "appAssetLibraries", "id": target["library_id"]}}},
             }})["data"]
-            record({"action": "image_reserved", "image_id": image["id"], "reference_name": plan["reference"]})
+            record({"action": "image_reserved", "image_id": image["id"], "reference_name": plan["reference"], **plan["metadata"]})
         else:
             image = apple.request("GET", "/v1/appAssetLibraryImages/" + image["id"])["data"]
         if image["attributes"].get("state") not in ("AWAITING_UPLOAD", "UPLOAD_COMPLETE", "PREPARE_FOR_SUBMISSION", "APPROVED"):
@@ -605,10 +672,10 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
         if (attributes.get("specId") not in plan["specification"]["spec_ids"] or not isinstance(asset, dict) or
                 type(asset.get("width")) is not int or type(asset.get("height")) is not int or
                 (asset.get("width"), asset.get("height")) != plan["dimensions"]):
-            raise SafeError("Processed asset does not match the original screenshot dimensions and compatible specification")
+            raise SafeError("Processed asset does not match the original screenshot's effective dimensions and compatible specification")
         plan["image"] = image
         record({"action": "image_prepared", "image_id": image["id"], "reference_name": plan["reference"],
-                "state": attributes["state"]})
+                "state": attributes["state"], "spec_id": attributes["specId"], **plan["metadata"]})
     if replacement is not None:
         # ALL twelve uploads must be processed before the first old association is removed.
         # The synchronous report writer persists recovery metadata before any DELETE.
@@ -733,7 +800,8 @@ def main():
                 github.download(artifacts[0]["id"], archive)
                 images = artifact_images(archive, selections)
                 record({"action": "original_screenshots_verified", "count": len(images),
-                        "images": [{"device": selection["device"], "name": selection["name"], "sha256": selection["sha256"]} for selection, _ in images]})
+                        "images": [{"device": selection["device"], "name": selection["name"], "sha256": selection["sha256"],
+                                    **screenshot_metadata(selection, raw)} for selection, raw in images]})
                 # Re-read the surface after download; do not act on stale review state/placements.
                 target = discover(apple)
                 groups = {device: one(candidates(target["reference"], device),

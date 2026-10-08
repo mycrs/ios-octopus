@@ -49,6 +49,24 @@ def selected_bytes(raw, device, name):
     return raw.get((device, name), raw[device])
 
 
+def tiff_entry(tag, kind=3, count=1, value=1, byte_order="MM"):
+    order = ">" if byte_order == "MM" else "<"
+    payload = struct.pack(order + "H", value) + b"\x00\x00" if kind == 3 and count == 1 else struct.pack(order + "I", value)
+    return struct.pack(order + "HHI", tag, kind, count) + payload
+
+
+def exif(orientation=1, byte_order="MM", entries=None, following=0):
+    order = ">" if byte_order == "MM" else "<"
+    entries = [tiff_entry(0x0112, value=orientation, byte_order=byte_order)] if entries is None else entries
+    return byte_order.encode() + struct.pack(order + "HIH", 42, 8, len(entries)) + b"".join(entries) + struct.pack(order + "I", following)
+
+
+def with_exif(raw, *metadata):
+    chunks = b"".join(struct.pack(">I", len(data)) + b"eXIf" + data +
+                      struct.pack(">I", zlib.crc32(b"eXIf" + data) & 0xffffffff) for data in metadata)
+    return raw[:33] + chunks + raw[33:]
+
+
 def manifest(raw):
     return {"schema": 1, "source_run_id": RUN, "source_sha": SHA, "app_id": screens.APP_ID,
             "version": screens.VERSION, "locale": screens.LOCALE, "artifact": screens.ARTIFACT,
@@ -193,6 +211,8 @@ class ScreenshotAPITests(unittest.TestCase):
         cls.raw = {device: png(*dimensions) for device, dimensions in screens.DIMENSIONS.items()}
         cls.mixed_raw = {**cls.raw, **{(device, screens.LANDSCAPE_SCREEN_NAME): png(*dimensions[::-1])
                                      for device, dimensions in screens.DIMENSIONS.items()}}
+        cls.exif_raw = {**cls.raw, **{(device, screens.LANDSCAPE_SCREEN_NAME): with_exif(cls.raw[device], exif(6))
+                                    for device in screens.DIMENSIONS}}
 
     def test_manifest_rejects_other_source_extra_photos_and_changed_order(self):
         approved = manifest(self.raw)
@@ -218,6 +238,86 @@ class ScreenshotAPITests(unittest.TestCase):
         for raw in (self.raw["iphone"][:-12], self.raw["iphone"] + b"extra", png(100, 100), self.raw["iphone"][:-1] + b"x"):
             with self.assertRaises(screens.SafeError):
                 screens.png_dimensions(raw)
+
+    def test_exif_byte_orders_and_standard_orientations_preserve_raw_dimensions_and_hash(self):
+        for byte_order in ("II", "MM"):
+            for orientation in range(1, 9):
+                raw = with_exif(self.raw["iphone"], exif(orientation, byte_order))
+                digest = hashlib.sha256(raw).digest()
+                expected = screens.DIMENSIONS["iphone"][::-1] if orientation >= 5 else screens.DIMENSIONS["iphone"]
+                with self.subTest(byte_order=byte_order, orientation=orientation):
+                    self.assertEqual(screens.png_metadata(raw), {"raw_dimensions": screens.DIMENSIONS["iphone"],
+                        "effective_dimensions": expected, "exif_orientation": orientation})
+                    self.assertEqual(screens.png_dimensions(raw), screens.DIMENSIONS["iphone"])
+                    self.assertEqual(screens.screenshot_dimensions({"device": "iphone", "name": "06-player"}, raw), expected)
+                    self.assertEqual(hashlib.sha256(raw).digest(), digest)
+
+    def test_exif_missing_orientation_and_valid_child_directory_keep_primary_image_dimensions(self):
+        for byte_order in ("II", "MM"):
+            order = ">" if byte_order == "MM" else "<"
+            metadata = exif(byte_order=byte_order, entries=[tiff_entry(0x0100, kind=4, value=1206, byte_order=byte_order)])
+            self.assertEqual(screens.exif_orientation(metadata), 1)
+            metadata = exif(6, byte_order, entries=[tiff_entry(0x0112, value=6, byte_order=byte_order),
+                tiff_entry(0x8769, kind=4, value=38, byte_order=byte_order)])
+            metadata += struct.pack(order + "H", 1) + tiff_entry(0xA001, value=1, byte_order=byte_order) + struct.pack(order + "I", 0)
+            self.assertEqual(screens.exif_orientation(metadata), 6)
+
+    def test_exif_bad_header_offsets_directory_bounds_and_resource_limits_are_rejected(self):
+        invalid = [b"", b"Exif\x00\x00" + exif(6), b"ZZ" + exif(6)[2:], b"MM\x00\x2b" + exif(6)[4:],
+                   exif(6)[:-1], exif(6) + b"\x00" * screens.MAX_EXIF_BYTES]
+        for byte_order in ("II", "MM"):
+            order = ">" if byte_order == "MM" else "<"
+            for offset in (0, 4, 7, 9, 26, 0xffffffff):
+                invalid.append(byte_order.encode() + struct.pack(order + "HI", 42, offset) + exif(6, byte_order)[8:])
+            invalid.append(byte_order.encode() + struct.pack(order + "HIH", 42, 8, 65535))
+            invalid.append(exif(byte_order=byte_order, entries=[tiff_entry(tag, value=1, byte_order=byte_order)
+                                                               for tag in range(1025)]))
+            invalid.append(exif(byte_order=byte_order, following=8))
+            invalid.append(exif(byte_order=byte_order, following=0xffffffff))
+        for index, metadata in enumerate(invalid):
+            with self.subTest(index=index), self.assertRaises(screens.SafeError):
+                screens.png_metadata(with_exif(self.raw["iphone"], metadata))
+
+    def test_exif_orientation_type_count_value_and_duplicates_are_rejected(self):
+        for byte_order in ("II", "MM"):
+            invalid = [exif(value, byte_order) for value in (0, 9)]
+            for kind, count in ((1, 1), (4, 1), (3, 0), (3, 2), (3, 0xffffffff), (14, 1)):
+                invalid.append(exif(byte_order=byte_order, entries=[tiff_entry(0x0112, kind, count, 6, byte_order)]))
+            for duplicate in (6, 8):
+                invalid.append(exif(byte_order=byte_order, entries=[tiff_entry(0x0112, value=6, byte_order=byte_order),
+                    tiff_entry(0x0112, value=duplicate, byte_order=byte_order)]))
+            for index, metadata in enumerate(invalid):
+                with self.subTest(byte_order=byte_order, index=index), self.assertRaises(screens.SafeError):
+                    screens.png_metadata(with_exif(self.raw["iphone"], metadata))
+        for duplicate in (6, 8):
+            with self.subTest(duplicate_chunk=duplicate), self.assertRaises(screens.SafeError):
+                screens.png_metadata(with_exif(self.raw["iphone"], exif(6), exif(duplicate)))
+
+    def test_exif_out_of_line_counts_child_pointers_cycles_and_secondary_orientation_are_rejected(self):
+        invalid = [exif(entries=[tiff_entry(0x010e, kind=2, count=8, value=offset)]) for offset in (0, 4, 25, 0xffffffff)]
+        invalid += [exif(entries=[tiff_entry(0x010e, kind=kind, count=count, value=8)])
+                    for kind, count in ((0, 1), (2, 0), (2, 0xffffffff))]
+        invalid += [exif(entries=[tiff_entry(0x8769, kind=kind, count=count, value=offset)])
+                    for kind, count, offset in ((3, 1, 8), (4, 2, 8), (4, 1, 8), (4, 1, 0), (4, 1, 0xffffffff))]
+        for orientation in (6, 8):
+            metadata = exif(6, entries=[tiff_entry(0x0112, value=6), tiff_entry(0x8769, kind=4, value=38)])
+            invalid.append(metadata + struct.pack(">H", 1) + tiff_entry(0x0112, value=orientation) + struct.pack(">I", 0))
+        for index, metadata in enumerate(invalid):
+            with self.subTest(index=index), self.assertRaises(screens.SafeError):
+                screens.png_metadata(with_exif(self.raw["iphone"], metadata))
+
+    def test_exif_crc_and_effective_screen_policy_are_checked_before_any_write(self):
+        raw = bytearray(self.exif_raw[("iphone", "06-player")])
+        raw[43] ^= 1
+        with self.assertRaises(screens.SafeError):
+            screens.png_metadata(bytes(raw))
+        api = MixedOrientationApple()
+        target = screens.discover(api)
+        bad = {**self.exif_raw, ("iphone", "03-home"): self.exif_raw[("iphone", "06-player")]}
+        with patch.object(screens, "transfer_parts") as transferred, self.assertRaises(screens.SafeError):
+            screens.upload(api, target, self.selections(bad), self.groups(target), SHA, lambda event: None, api.snapshot())
+        transferred.assert_not_called()
+        self.assertTrue(all(call[0] == "GET" for call in api.calls))
 
     def write_archive(self, path, failure=False, raw=None):
         raw = self.raw if raw is None else raw
@@ -265,6 +365,34 @@ class ScreenshotAPITests(unittest.TestCase):
                 self.assertEqual(raw, selected_bytes(self.mixed_raw, device, name))
                 expected = screens.DIMENSIONS[device][::-1] if name == "06-player" else screens.DIMENSIONS[device]
                 self.assertEqual(screens.png_dimensions(raw), expected)
+
+    def test_exif_landscape_artifact_and_upload_use_original_bytes_and_exact_effective_spec(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "artifact.zip"
+            self.write_archive(path, raw=self.exif_raw)
+            selected = screens.validate_manifest(manifest(self.exif_raw), RUN, SHA)
+            images = screens.artifact_images(path, selected)
+        api, events = MixedOrientationApple(), []
+        snapshot, target = api.snapshot(), screens.discover(api)
+        with patch.object(screens, "transfer_parts") as transferred:
+            screens.upload(api, target, images, self.groups(target), SHA, events.append, snapshot)
+        self.assertEqual(transferred.call_count, 12)
+        for (selection, raw), call in zip(images, transferred.call_args_list):
+            self.assertEqual(call.args[0], raw)
+            self.assertEqual(hashlib.sha256(call.args[0]).hexdigest(), selection["sha256"])
+        for device in screens.DIMENSIONS:
+            prepared = next(event for event in events if event["action"] == "image_prepared" and
+                            "-" + device + "-06-player-" in event["reference_name"])
+            self.assertEqual(prepared["raw_dimensions"], screens.DIMENSIONS[device])
+            self.assertEqual(prepared["effective_dimensions"], screens.DIMENSIONS[device][::-1])
+            self.assertEqual(prepared["exif_orientation"], 6)
+            self.assertTrue(prepared["spec_id"].endswith("-landscape"))
+        writes = sum(call[0] in ("POST", "PATCH", "DELETE") for call in api.calls)
+        with patch.object(screens, "transfer_parts") as transferred:
+            target = screens.discover(api)
+            screens.upload(api, target, images, self.groups(target), SHA, events.append, snapshot)
+            transferred.assert_not_called()
+        self.assertEqual(sum(call[0] in ("POST", "PATCH", "DELETE") for call in api.calls), writes)
 
     def test_artifact_rejects_wrong_size_reversed_device_and_misplaced_landscape(self):
         cases = [("iphone", "06-player", png(2622, 1205)),
@@ -650,6 +778,26 @@ class ScreenshotAPITests(unittest.TestCase):
             with self.subTest(alteration=alteration), patch.object(api, "request", side_effect=mismatched), \
                     patch.object(screens, "transfer_parts"), self.assertRaises(screens.SafeError):
                 screens.upload(api, target, self.selections(self.mixed_raw), self.groups(target), SHA, events.append, api.snapshot())
+            self.assertEqual(len(api.placements), 21)
+            self.assertFalse(any(call[0] == "DELETE" or call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls))
+            self.assertFalse(any(event["action"] == "replacement_restore_snapshot" for event in events))
+
+    def test_exif_processed_asset_cannot_use_raw_portrait_dimensions_or_spec(self):
+        for alteration in ("raw-dimensions", "raw-spec"):
+            api, events = MixedOrientationApple(), []
+            target, request = screens.discover(api), api.request
+            def mismatch(method, path, body=None):
+                result = request(method, path, body)
+                attributes = result.get("data", {}).get("attributes", {})
+                if method == "GET" and path.startswith("/v1/appAssetLibraryImages/") and attributes.get("fileName") == "06-player.png":
+                    if alteration == "raw-dimensions":
+                        attributes["imageAsset"] = {"width": 1206, "height": 2622}
+                    else:
+                        attributes["specId"] = "phone-spec"
+                return result
+            with self.subTest(alteration=alteration), patch.object(api, "request", side_effect=mismatch), \
+                    patch.object(screens, "transfer_parts"), self.assertRaises(screens.SafeError):
+                screens.upload(api, target, self.selections(self.exif_raw), self.groups(target), SHA, events.append, api.snapshot())
             self.assertEqual(len(api.placements), 21)
             self.assertFalse(any(call[0] == "DELETE" or call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls))
             self.assertFalse(any(event["action"] == "replacement_restore_snapshot" for event in events))
