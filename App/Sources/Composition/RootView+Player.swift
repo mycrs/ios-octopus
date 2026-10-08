@@ -1,11 +1,12 @@
 import SwiftUI
 import OctopusDesignSystem
+import OctopusNavigation
 import FeaturePlayer
 
 extension RootView {
     /// A separately hosted UIKit root needs these SwiftUI environments explicitly.
     @MainActor
-    func playerPresenter(scenePhase: ScenePhase, revision: Int) -> PlayerFullscreenPresenter {
+    func playerPresenter(scenePhase: ScenePhase, revision: Int) -> some View {
         PlayerFullscreenPresenter(
             presentation: router.player,
             reconciliationRevision: revision,
@@ -27,6 +28,12 @@ extension RootView {
             },
             onDismiss: playerPresentationDidDismiss
         )
+        .onChange(of: router.selectedTab) { [oldTab = router.selectedTab] newTab in
+            PlayerDismissalDiagnostics.recordTabSelection(
+                from: AppTab.allCases.firstIndex(of: oldTab) ?? -1,
+                to: AppTab.allCases.firstIndex(of: newTab) ?? -1
+            )
+        }
     }
 
     /// UIKit may dismiss while SwiftUI still has the presentation registered.

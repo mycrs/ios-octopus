@@ -26,8 +26,22 @@ public orientation lock gerçek sunulan denetleyiciye aittir. Kapanış
 tamamlanmadan eski yön geri istenmez; eski kapanış yeni oynatıcıyı kapatamaz.
 Mağaza oynatıcı karesinde normal duraklat düğmesiyle denetimler görünür
 tutulur; video karesi ve PNG'nin özgün EXIF yön metaverisi korunur.
+Dördüncü tur `51d2321` / 37829073111, UIKit `.fullScreen` sunumunun
+arka plandaki view'ı pencereden çıkarmasının kapanış guard'ını engellediği
+bulununca imzalı iş başlamadan iptal edildi. Beşinci tur `f464d83` /
+37830236567'de **721 Swift testi ve mimari kapısı geçti**. iPhone filmde
+yatay kilidi, tam ekran video alanını ve aynı dikey detay sayfasına dönüşü
+doğruladı. Sonraki Canlı TV sekmesi seçilmedi; iPad akışı başlamadı.
+Özgün kayıt Movies sekmesinde cam/ripple tepkisi gösteriyor; gerçek dokunma
+koordinatı bilinmediği için neden hit-test, seçim veya animasyon hatası
+olarak kesinleştirilmedi. Testin bekleme süresi artırılmaz veya adım atlanmaz.
+Kapanış başlamadan görünür denetleyicinin public yön kilidi kaldırılır;
+scene lease son kapanışa kadar korunur. Arka plan bridge'i SwiftUI'da
+dokunma almaz. Gerçek kapanıştan iki saniye sonra yalnız sayısal UIKit
+durumu, sınıf/rect ve sınırlı animasyon sayımı kaydedilir; içerik/hesap
+bilgisi loglanmaz. Bu yeni kaynak henüz Mac'te doğrulanmadı.
 Yeni tam tur ve fiziksel cihaz kanıtı bekleniyor.
-Bu çalışmadan binary/görsel gönderilmez. App Store'daki kayıtlı build 9
+Başarısız çalışmalardan binary/görsel gönderilmez. App Store'daki kayıtlı build 9
 ilişkisi ve mağaza alanları korunur; son başvuru yeni doğrulanmış paketi bekler.
 
 Güncel doğrulanan kaynak `9c0e98a2b9f09140a062c90eaf7bd7c3010ae299`,

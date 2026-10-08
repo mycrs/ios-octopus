@@ -20,7 +20,18 @@ yön kilidi gerçek sunulan tam ekran UIKit hosting denetleyicisine taşındı;
 geçişler kimlik ve scene lease ile sıralanır. Kontrollerin mağaza karesinde
 görünmesi normal duraklat eylemiyle sağlanır; özgün EXIF metaverisiyle
 ham/görünür boyutlar ayrı doğrulanır. Başarılı yeni tam tur ve cihaz
-kanıtı henüz yok.
+kanıtı henüz yok. Dördüncü tur `51d2321` / 37829073111, fullscreen
+UIKit sunumunun presenting view'ı pencereden çıkarmasına bağlı kapanış
+guard'ı hatası bulununca imzalı iş başlamadan iptal edildi. Beşinci tur
+`f464d83` / 37830236567'de 721 Swift testi ve mimari geçti; iPhone filmde
+yatay kilit ve aynı dikey detay sayfasına dönüşü doğruladı. Sonraki Live TV
+sekmesi seçilmedi; iPad başlamadı. Özgün video Movies üzerinde cam/ripple
+tepkisi gösterir; gerçek dokunma koordinatı bilinmez, kök neden henüz
+kanıtlanmadı. Yeni kaynakta görünür denetleyici kapanış öncesi public kilit
+tercihini bırakır, lease gerçek kapanışa kadar kalır. Arka plan SwiftUI
+bridge'i dokunma almaz; kapanış sonrası içerik bilgisi içermeyen sınırlı
+UIKit/scene/hit-test/animasyon tanısı CI'a alınır. Bu kaynak henüz başarılı
+Mac turu veya cihaz kanıtı değildir.
 Build 9'daki başarı bu dört ek düzeltmenin kanıtı sayılmaz; son App Review
 başvurusu yeni pakete ve gizlilik eşleştirmesinin tamamlanmasına bağlıdır.
 

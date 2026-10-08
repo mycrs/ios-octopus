@@ -70,6 +70,7 @@ struct RootView: View {
         // arka plandaki bir SwiftUI alt denetleyicisinin tercihini kullanmaz.
         .background {
             playerPresenter(scenePhase: scenePhase, revision: playerPresentationRevision)
+                .allowsHitTesting(false)
         }
         .sheet(item: $router.sheet, onDismiss: { playerPresentationRevision &+= 1 }) { sheet in
             sheetContent(for: sheet)
