@@ -8,6 +8,23 @@ on:
         type: choice
         options: [testflight, device]
         default: testflight
+      screenshot_operation:
+        description: Apple ekran API işlemi (none normal paket akışını korur)
+        type: choice
+        options: [none, inspect, upload]
+        default: none
+      screenshot_source_run:
+        description: Release-review-journey kaynağının Actions run ID değeri
+        type: string
+        default: ''
+      screenshot_source_sha:
+        description: Kaynak çalışmanın tam 40 karakter commit SHA değeri
+        type: string
+        default: ''
+      screenshot_manifest:
+        description: Yalnız upload için gözle incelenmiş özgün PNG seçim manifesti (JSON)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -15,10 +32,12 @@ permissions:
 jobs:
   verify:
     name: Yayın öncesi derleme ve testler
+    if: inputs.screenshot_operation == '' || inputs.screenshot_operation == 'none'
     uses: ./.github/workflows/ci.yml
 
   upload:
     name: İmzalı test paketi
+    if: inputs.screenshot_operation == '' || inputs.screenshot_operation == 'none'
     runs-on: macos-latest
     environment: app-store
     needs: [verify]
@@ -153,3 +172,58 @@ jobs:
             ${{ runner.temp }}/Octopus-device.ipa.sealed.json
           retention-days: 1
           if-no-files-found: error
+
+  screenshots:
+    name: Apple ekran görüntüleri API
+    if: inputs.screenshot_operation == 'inspect' || inputs.screenshot_operation == 'upload'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: app-store
+    permissions:
+      contents: read
+      actions: read
+    concurrency:
+      group: octopus-app-store-screenshots-en-US
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: API aracını yerel sahte yanıtlarla doğrula
+        run: |
+          python3 -m venv "$RUNNER_TEMP/screenshot-api-tools"
+          "$RUNNER_TEMP/screenshot-api-tools/bin/python" -m pip install -r Scripts/device-build-requirements.txt
+          "$RUNNER_TEMP/screenshot-api-tools/bin/python" -m unittest discover -s Scripts -p test_upload_app_store_screenshots.py
+
+      - name: Kaynak ve Apple görsel kitaplığını incele veya doğrulanmış görselleri yükle
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SCREENSHOT_OPERATION: ${{ inputs.screenshot_operation }}
+          SCREENSHOT_SOURCE_RUN: ${{ inputs.screenshot_source_run }}
+          SCREENSHOT_SOURCE_SHA: ${{ inputs.screenshot_source_sha }}
+          SCREENSHOT_MANIFEST_JSON: ${{ inputs.screenshot_manifest }}
+        run: |
+          test -n "$API_KEY_ID" && test -n "$API_ISSUER_ID" && test -n "$API_PRIVATE_KEY"
+          test -n "$SCREENSHOT_SOURCE_RUN" && test -n "$SCREENSHOT_SOURCE_SHA"
+          task_key_path="$RUNNER_TEMP/screenshot-AuthKey.p8"
+          trap 'rm -f "$task_key_path"' EXIT
+          umask 077
+          printf '%s' "$API_PRIVATE_KEY" > "$task_key_path"
+          unset API_PRIVATE_KEY
+          "$RUNNER_TEMP/screenshot-api-tools/bin/python" Scripts/upload-app-store-screenshots.py \
+            --mode "$SCREENSHOT_OPERATION" \
+            --source-run "$SCREENSHOT_SOURCE_RUN" \
+            --source-sha "$SCREENSHOT_SOURCE_SHA" \
+            --key-path "$task_key_path" \
+            --report "$RUNNER_TEMP/screenshot-api-report.json"
+
+      - name: Gizli bilgi içermeyen API durum raporunu sakla
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: App-Store-screenshot-API-report
+          path: ${{ runner.temp }}/screenshot-api-report.json
+          retention-days: 7
+          if-no-files-found: warn

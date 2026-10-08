@@ -1,0 +1,545 @@
+"""Inspect/upload approved Release screenshots for Octopus 1.0, en-US only.
+
+Uses Apple's App Asset Library API (4.5.1), not deprecated screenshot sets:
+https://developer.apple.com/documentation/appstoreconnectapi/uploading-and-managing-image-assets
+https://developer.apple.com/documentation/appstoreconnectapi/placing-assets-on-your-app-store-surfaces
+https://developer.apple.com/documentation/appstoreconnectapi/discovering-asset-specifications
+
+No deletes, review submission, role changes, image transformations, or POST retries.
+Upload requires an explicitly reviewed manifest, a successful source CI run,
+and unmodified PNGs from its Release-review-journey artifact. Inspection is GET-only.
+"""
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import struct
+import tempfile
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import zipfile
+import zlib
+
+
+APP_ID = "6802840384"
+VERSION = "1.0"
+LOCALE = "en-US"
+REPOSITORY = "mycrs/ios-octopus"
+ARTIFACT = "Release-review-journey"
+CATEGORY = "APP_SCREENSHOTS_AND_PREVIEWS"
+SCREEN_NAMES = ("03-home", "10-source-check", "04-movies", "06-player", "08-episodes", "02-sample-credits")
+DIMENSIONS = {"iphone": (1206, 2622), "ipad": (2064, 2752)}
+REQUIRED_JOBS = ("Mimari kuralları", "Domain testleri (Linux)",
+                 "Release inceleme akışı (iPhone ve iPad)", "iOS derleme",
+                 "OctopusData testleri", "OctopusPlayback testleri",
+                 "OctopusFeatures testleri", "OctopusDesignSystem testleri")
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+
+class SafeError(RuntimeError):
+    """Only deliberately non-secret error text reaches CI logs."""
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
+class JsonAPI:
+    def __init__(self, origin, authorization):
+        self.origin = origin
+        self.authorization = authorization
+        # Do not forward authorization through redirects to another host.
+        self.opener = urllib.request.build_opener(NoRedirect())
+
+    def request(self, method, path, body=None):
+        url = urllib.parse.urljoin(self.origin + "/", path)
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.scheme != "https" or parsed.netloc != urllib.parse.urlsplit(self.origin).netloc:
+            raise SafeError("API pagination points outside its authorized host")
+        if method not in ("GET", "POST", "PATCH"):
+            raise SafeError("Unsupported API operation")
+        payload = json.dumps(body).encode() if body is not None else None
+        attempts = 3 if method == "GET" else 1
+        for attempt in range(attempts):
+            request = urllib.request.Request(url, data=payload, method=method, headers={
+                "Authorization": self.authorization(), "Content-Type": "application/json",
+                "Accept": "application/json", "User-Agent": "Octopus-review-screenshots",
+            })
+            try:
+                with self.opener.open(request, timeout=30) as response:
+                    raw = response.read()
+                    # Ordering/other successful mutations may return 204 No Content.
+                    # An empty success is never retried as though delivery failed.
+                    return json.loads(raw) if raw else {}
+            except urllib.error.HTTPError as error:
+                if method == "GET" and error.code in (429, 500, 502, 503, 504) and attempt < attempts - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+                suffix = "; inspect before retrying any mutation" if method != "GET" else ""
+                raise SafeError("API " + method + " returned HTTP " + str(error.code) + suffix) from None
+            except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+                if method == "GET" and attempt < attempts - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise SafeError("API " + method + " response unavailable; no mutation was retried") from None
+
+    def collection(self, path):
+        result, seen = [], set()
+        while path:
+            if path in seen or len(seen) >= 100:
+                raise SafeError("Unexpected API pagination")
+            seen.add(path)
+            page = self.request("GET", path)
+            if not isinstance(page.get("data"), list):
+                raise SafeError("Unexpected API collection schema")
+            result.extend(page["data"])
+            path = page.get("links", {}).get("next")
+        return result
+
+
+class AppleAPI(JsonAPI):
+    def __init__(self, key_path):
+        spec = importlib.util.spec_from_file_location("octopus_signing", Path(__file__).with_name("prepare-device-build.py"))
+        self.signing = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.signing)
+        self.key_path, self.token, self.token_time = key_path, None, 0
+        super().__init__("https://api.appstoreconnect.apple.com", self.bearer)
+
+    def bearer(self):
+        if self.token is None or time.monotonic() - self.token_time >= 240:
+            self.token = self.signing.make_token(self.key_path)
+            self.token_time = time.monotonic()
+        return "Bearer " + self.token
+
+
+class GitHubAPI(JsonAPI):
+    def __init__(self, token):
+        super().__init__("https://api.github.com", lambda: "Bearer " + token)
+
+    def pages(self, path, key):
+        result = []
+        for page_number in range(1, 101):
+            separator = "&" if "?" in path else "?"
+            page = self.request("GET", path + separator + "per_page=100&page=" + str(page_number))
+            items = page.get(key)
+            if not isinstance(items, list):
+                raise SafeError("Unexpected GitHub collection schema")
+            result.extend(items)
+            if len(items) < 100:
+                return result
+        raise SafeError("Unexpected GitHub pagination")
+
+    def source(self, run_id, sha, require_success):
+        base = "/repos/" + REPOSITORY + "/actions/runs/" + str(run_id)
+        run = self.request("GET", base)
+        if (run.get("id") != run_id or run.get("head_sha") != sha or
+                run.get("repository", {}).get("full_name") != REPOSITORY or
+                run.get("path") not in (".github/workflows/ci.yml", ".github/workflows/app-store-release.yml")):
+            raise SafeError("Source run, repository, workflow, or full commit SHA does not match")
+        jobs = self.pages(base + "/jobs?filter=latest", "jobs")
+        required = {name: [job for job in jobs if job.get("name") == name or
+                          job.get("name", "").endswith(" / " + name)] for name in REQUIRED_JOBS}
+        passed = (run.get("status") == "completed" and run.get("conclusion") == "success" and
+                  all(len(matches) == 1 and matches[0].get("conclusion") == "success" and
+                      matches[0].get("status") == "completed" for matches in required.values()))
+        if require_success and not passed:
+            raise SafeError("Upload requires a successful full CI run and every required Release/unit job")
+        artifacts = self.pages(base + "/artifacts", "artifacts")
+        selected = [item for item in artifacts if item.get("name") == ARTIFACT and not item.get("expired")]
+        if require_success and len(selected) != 1:
+            raise SafeError("Exactly one unexpired Release review artifact is required")
+        return {"run_id": run_id, "sha": sha, "workflow": run["path"],
+                "status": run.get("status"), "conclusion": run.get("conclusion"),
+                "required_jobs_passed": passed, "artifact_count": len(selected)}, selected
+
+    def download(self, artifact_id, destination):
+        url = self.origin + "/repos/" + REPOSITORY + "/actions/artifacts/" + str(artifact_id) + "/zip"
+        request = urllib.request.Request(url, headers={"Authorization": self.authorization()})
+        try:
+            response = self.opener.open(request, timeout=30)
+        except urllib.error.HTTPError as error:
+            if error.code != 302:
+                raise SafeError("Artifact download reservation returned HTTP " + str(error.code)) from None
+            location = error.headers.get("Location", "")
+            if urllib.parse.urlsplit(location).scheme != "https":
+                raise SafeError("Artifact download URL is not HTTPS")
+            # The GitHub token is NEVER sent to the signed artifact storage URL.
+            try:
+                response = urllib.request.urlopen(urllib.request.Request(location), timeout=60)
+            except (urllib.error.URLError, TimeoutError, OSError):
+                raise SafeError("Signed artifact transfer failed") from None
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise SafeError("Artifact download failed") from None
+        try:
+            with response, open(destination, "wb") as output:
+                shutil.copyfileobj(response, output)
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise SafeError("Artifact download was incomplete") from None
+
+
+def one(items, predicate, label):
+    matches = [item for item in items if predicate(item)]
+    if len(matches) != 1:
+        raise SafeError("Expected exactly one " + label)
+    return matches[0]
+
+
+def query(path, values):
+    return path + "?" + urllib.parse.urlencode(values)
+
+
+def discover(apple):
+    versions = apple.collection("/v1/apps/" + APP_ID + "/appStoreVersions")
+    version = one(versions, lambda value: value.get("attributes", {}).get("versionString") == VERSION and
+                  value.get("attributes", {}).get("platform") == "IOS", "iOS 1.0 version")
+    locales = apple.collection("/v1/appStoreVersions/" + version["id"] + "/appStoreVersionLocalizations")
+    locale = one(locales, lambda value: value.get("attributes", {}).get("locale") == LOCALE, "en-US localization")
+    library = apple.request("GET", "/v1/apps/" + APP_ID + "/assetLibrary")["data"]
+    if library.get("type") != "appAssetLibraries":
+        raise SafeError("Unexpected app asset library schema")
+    reference = one(apple.collection("/v1/appAssetLibraryRefData"), lambda _: True, "asset reference catalog")["attributes"]
+    placements = apple.collection(query("/v1/appStoreVersionLocalizations/" + locale["id"] + "/placements", {
+        "filter[placementType]": "APP_SCREENSHOT", "sort": "placementGroupPosition", "include": "image",
+    }))
+    images = apple.collection("/v1/appAssetLibraries/" + library["id"] + "/images")
+    return {"version_id": version["id"], "state": version["attributes"].get("appVersionState") or version["attributes"].get("appStoreState"),
+            "locale_id": locale["id"], "library_id": library["id"], "reference": reference,
+            "placements": placements, "images": images}
+
+
+def candidates(reference, device):
+    feature = one(reference["features"], lambda item: item["featureId"] == "APP_STORE_VERSIONS", "App Store version feature")
+    policy = one(feature["placementPolicies"], lambda item: item["placementType"] == "APP_SCREENSHOT", "screenshot policy")
+    placement = one(reference["placementTypes"], lambda item: item["placementTypeId"] == "APP_SCREENSHOT", "screenshot placement type")
+    if CATEGORY not in placement["acceptsAssetCategories"]:
+        raise SafeError("Screenshot placement does not accept screenshot assets")
+    displays = {item["displayClassId"] for item in reference["displayClasses"]
+                if item["deviceFamily"] == device.upper()}
+    width, height = DIMENSIONS[device]
+    specs = {item["specId"]: item for item in reference["imageSpecs"]
+             if item.get("dimensions") == {"minWidth": width, "maxWidth": width, "minHeight": height, "maxHeight": height}
+             and "APP_SCREENSHOT" in item.get("compatiblePlacementTypes", [])
+             and ".png" in item.get("fileExtensions", []) and "image/png" in item.get("mimeTypes", [])}
+    result = []
+    for group in reference["placementProfileGroups"]:
+        # Placement platforms are storefronts, not AppStoreVersion's IOS platform.
+        # AppAssetLibraryPlacementPlatform: IPHONE_APP_STORE / IPAD_APP_STORE / ANY.
+        if group.get("platform") not in (device.upper() + "_APP_STORE", "ANY") or group.get("displayClassId") not in displays:
+            continue
+        group_id = group["placementProfileGroupId"]
+        mappings = [item for item in placement["specMappings"] if item["placementGroupId"] == group_id]
+        limits = [item["maxCount"] for item in policy["groupLimits"] if group_id in item["groupIds"]]
+        accepted = sorted({identifier for item in mappings for identifier in item["specs"] if identifier in specs})
+        if accepted and len(limits) == 1:
+            result.append({"group": group_id, "max_count": limits[0], "spec_ids": accepted,
+                           "platform": group["platform"], "display_class": group["displayClassId"],
+                           "width": width, "height": height,
+                           "max_file_size": min(specs[identifier]["maxFileSize"] for identifier in accepted)})
+    return result
+
+
+def validate_manifest(manifest, run_id, sha):
+    if (manifest.get("schema") != 1 or manifest.get("source_run_id") != run_id or manifest.get("source_sha") != sha or
+            manifest.get("app_id") != APP_ID or manifest.get("version") != VERSION or
+            manifest.get("locale") != LOCALE or manifest.get("artifact") != ARTIFACT):
+        raise SafeError("Reviewed screenshot manifest does not match the exact source and target")
+    groups = manifest.get("placement_groups", {})
+    if set(groups) != set(DIMENSIONS) or not all(isinstance(value, str) and value for value in groups.values()):
+        raise SafeError("Manifest must select one discovered placement group for each device")
+    images = manifest.get("images", [])
+    expected = [(device, name) for device in DIMENSIONS for name in SCREEN_NAMES]
+    if [(item.get("device"), item.get("name")) for item in images] != expected:
+        raise SafeError("Manifest must contain exactly the approved six screenshots per device in order")
+    paths = set()
+    for item in images:
+        path = item.get("path", "")
+        parsed = PurePosixPath(path)
+        if (not re.fullmatch(r"[a-f0-9]{64}", item.get("sha256", "")) or "\\" in path or
+                parsed.is_absolute() or ".." in parsed.parts or len(parsed.parts) != 2 or
+                parsed.parts[0] != item["device"] + "-screens" or parsed.suffix != ".png" or path in paths):
+            raise SafeError("Manifest contains an invalid hash or artifact-relative PNG path")
+        paths.add(path)
+    return images
+
+
+def png_dimensions(raw):
+    if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) > MAX_IMAGE_BYTES:
+        raise SafeError("Screenshot must be an original PNG within the size limit")
+    offset, dimensions, compressed, ended = 8, None, [], False
+    while offset + 12 <= len(raw):
+        size = struct.unpack(">I", raw[offset:offset + 4])[0]
+        kind = raw[offset + 4:offset + 8]
+        data = raw[offset + 8:offset + 8 + size]
+        if len(data) != size or offset + 12 + size > len(raw):
+            raise SafeError("Truncated screenshot PNG")
+        crc = struct.unpack(">I", raw[offset + 8 + size:offset + 12 + size])[0]
+        if zlib.crc32(kind + data) & 0xffffffff != crc:
+            raise SafeError("Screenshot PNG integrity check failed")
+        if dimensions is None:
+            if kind != b"IHDR" or size != 13:
+                raise SafeError("Invalid screenshot PNG header")
+            width, height, depth, color, compression, filtering, interlace = struct.unpack(">IIBBBBB", data)
+            if (width, height) not in DIMENSIONS.values() or (depth, color, compression, filtering, interlace) != (8, 2, 0, 0, 0):
+                raise SafeError("Screenshot must retain its native RGB dimensions without alpha or resizing")
+            dimensions = (width, height)
+        elif kind in (b"IHDR", b"tRNS"):
+            raise SafeError("Invalid or transparent screenshot PNG")
+        if kind == b"IDAT":
+            compressed.append(data)
+        offset += size + 12
+        if kind == b"IEND":
+            ended = size == 0 and offset == len(raw)
+            break
+    if not ended or not compressed:
+        raise SafeError("Incomplete screenshot PNG")
+    width, height = dimensions
+    stride = width * 3 + 1
+    decoder = zlib.decompressobj()
+    try:
+        decoded = decoder.decompress(b"".join(compressed), stride * height + 1)
+    except zlib.error:
+        raise SafeError("Screenshot PNG cannot be decoded") from None
+    if len(decoded) != stride * height or not decoder.eof or decoder.unused_data or any(decoded[row * stride] > 4 for row in range(height)):
+        raise SafeError("Screenshot PNG pixel data is invalid")
+    return dimensions
+
+
+def artifact_images(archive_path, selections):
+    result = []
+    with zipfile.ZipFile(archive_path) as archive:
+        if len(archive.namelist()) != len(set(archive.namelist())):
+            raise SafeError("Artifact contains duplicate file paths")
+        exported = {}
+        for device in DIMENSIONS:
+            path = device + "-screens/manifest.json"
+            if archive.getinfo(path).file_size > 1024 * 1024:
+                raise SafeError("Unexpected screenshot export manifest size")
+            manifest = json.loads(archive.read(path))
+            attachments = [item for test in manifest for item in test.get("attachments", [])
+                           if item.get("exportedFileName", "").endswith(".png")]
+            if len(attachments) != 10 or any(item.get("isAssociatedWithFailure") is not False or
+                                           not item.get("deviceName", "").lower().startswith(device) for item in attachments):
+                raise SafeError("Artifact must contain ten successful Release screenshots for each device")
+            exported[device] = attachments
+        for selection in selections:
+            device = selection["device"]
+            one(exported[device], lambda item: item.get("exportedFileName") == PurePosixPath(selection["path"]).name and
+                item.get("suggestedHumanReadableName", "").startswith(selection["name"] + "_"), "matching successful screenshot attachment")
+            info = archive.getinfo(selection["path"])
+            if info.file_size > MAX_IMAGE_BYTES:
+                raise SafeError("Screenshot exceeds the size limit")
+            raw = archive.read(info)
+            if hashlib.sha256(raw).hexdigest() != selection["sha256"]:
+                raise SafeError("Screenshot bytes differ from the reviewed manifest")
+            if png_dimensions(raw) != DIMENSIONS[device]:
+                raise SafeError("Screenshot dimensions do not match its device")
+            result.append((selection, raw))
+    return result
+
+
+def placement_image(placement):
+    return placement.get("relationships", {}).get("image", {}).get("data", {}).get("id")
+
+
+def transfer_parts(raw, operations):
+    ranges = sorted((operation.get("offset"), operation.get("length")) for operation in operations)
+    end = 0
+    for offset, length in ranges:
+        if not isinstance(offset, int) or not isinstance(length, int) or offset != end or length <= 0:
+            raise SafeError("Upload operations do not cover the image exactly")
+        end += length
+    if end != len(raw):
+        raise SafeError("Upload operations do not cover the image exactly")
+    opener = urllib.request.build_opener(NoRedirect())
+    for operation in operations:
+        if operation["method"] != "PUT" or urllib.parse.urlsplit(operation["url"]).scheme != "https":
+            raise SafeError("Unexpected signed image upload operation")
+        headers = {item["name"]: item["value"] for item in operation["requestHeaders"]}
+        if any(name.lower() in ("authorization", "cookie", "proxy-authorization") for name in headers):
+            raise SafeError("Signed image transfer must not carry account authorization")
+        part = raw[operation["offset"]:operation["offset"] + operation["length"]]
+        # No Apple JWT is sent to these signed, time-limited storage URLs.
+        request = urllib.request.Request(operation["url"], data=part, method="PUT", headers=headers)
+        try:
+            with opener.open(request, timeout=60) as response:
+                if not 200 <= response.status < 300:
+                    raise SafeError("Signed image transfer did not succeed")
+        except (urllib.error.URLError, TimeoutError, OSError):
+            raise SafeError("Signed image transfer failed; reservation retained for inspection") from None
+
+
+def processed_image(apple, image_id):
+    deadline = time.monotonic() + 120
+    while True:
+        image = apple.request("GET", "/v1/appAssetLibraryImages/" + image_id)["data"]
+        state = image["attributes"].get("state")
+        if state in ("PREPARE_FOR_SUBMISSION", "APPROVED"):
+            return image
+        if state != "UPLOAD_COMPLETE":
+            raise SafeError("Image " + image_id + " is not ready: " + str(state))
+        if time.monotonic() >= deadline:
+            raise SafeError("Image processing pending; inspect and resume using existing asset IDs")
+        time.sleep(3)
+
+
+def upload(apple, target, images, groups, sha, record):
+    if target["state"] not in ("REJECTED", "METADATA_REJECTED"):
+        raise SafeError("Upload is restricted to the current rejected iOS 1.0 version")
+    existing = target["placements"]
+    by_reference = {}
+    plans = []
+    for image in target["images"]:
+        by_reference.setdefault(image["attributes"].get("referenceName"), []).append(image)
+    for selection, raw in images:
+        group = groups[selection["device"]]
+        if len(raw) > group["max_file_size"]:
+            raise SafeError("Screenshot exceeds Apple's discovered specification size limit")
+        reference = "octopus-review-" + sha + "-" + selection["device"] + "-" + selection["name"] + "-" + selection["sha256"]
+        matches = by_reference.get(reference, [])
+        if len(matches) > 1:
+            raise SafeError("Duplicate matching image reservations; inspect before resuming")
+        image = matches[0] if matches else None
+        placed = [value for value in existing if image and placement_image(value) == image["id"] and
+                  value["attributes"].get("placementGroup") == group["group"]]
+        if len(placed) > 1:
+            raise SafeError("Duplicate selected screenshot placements; inspect before resuming")
+        if image and (image["attributes"].get("fileSize") != len(raw) or image["attributes"].get("category") != CATEGORY):
+            raise SafeError("Existing referenced asset does not match the reviewed image")
+        if image and image["attributes"].get("state") not in ("AWAITING_UPLOAD", "UPLOAD_COMPLETE", "PREPARE_FOR_SUBMISSION", "APPROVED"):
+            raise SafeError("Existing referenced asset needs inspection before resuming")
+        plans.append({"selection": selection, "raw": raw, "group": group, "reference": reference,
+                      "image": image, "placement": placed[0] if placed else None})
+    # Check capacity for BOTH devices before the first mutation. Existing images/placements stay intact.
+    for device, group in groups.items():
+        current = [item for item in existing if item["attributes"].get("placementGroup") == group["group"]]
+        additions = sum(plan["selection"]["device"] == device and plan["placement"] is None for plan in plans)
+        if len(current) + additions > group["max_count"]:
+            raise SafeError("Existing placements leave insufficient capacity; no assets were changed")
+    for plan in plans:
+        image = plan["image"]
+        if image is None:
+            record({"action": "reserve_image_attempt", "reference_name": plan["reference"]})
+            image = apple.request("POST", "/v1/appAssetLibraryImages", {"data": {
+                "type": "appAssetLibraryImages", "attributes": {"fileName": plan["selection"]["name"] + ".png",
+                "fileSize": len(plan["raw"]), "category": CATEGORY, "referenceName": plan["reference"]},
+                "relationships": {"assetLibrary": {"data": {"type": "appAssetLibraries", "id": target["library_id"]}}},
+            }})["data"]
+            record({"action": "image_reserved", "image_id": image["id"], "reference_name": plan["reference"]})
+        else:
+            image = apple.request("GET", "/v1/appAssetLibraryImages/" + image["id"])["data"]
+        if image["attributes"].get("state") == "AWAITING_UPLOAD":
+            transfer_parts(plan["raw"], image["attributes"]["uploadOperations"])
+            record({"action": "commit_image_attempt", "image_id": image["id"]})
+            apple.request("PATCH", "/v1/appAssetLibraryImages/" + image["id"], {"data": {
+                "type": "appAssetLibraryImages", "id": image["id"], "attributes": {"uploaded": True},
+            }})
+        image = processed_image(apple, image["id"])
+        attributes = image["attributes"]
+        asset = attributes.get("imageAsset", {})
+        if attributes.get("specId") not in plan["group"]["spec_ids"] or (asset.get("width"), asset.get("height")) != DIMENSIONS[plan["selection"]["device"]]:
+            raise SafeError("Processed asset does not match the selected device specification")
+        plan["image"] = image
+        if plan["placement"] is None:
+            record({"action": "place_image_attempt", "image_id": image["id"], "group": plan["group"]["group"]})
+            plan["placement"] = apple.request("POST", "/v1/appAssetLibraryPlacements", {"data": {
+                "type": "appAssetLibraryPlacements", "attributes": {"placementType": "APP_SCREENSHOT", "placementGroup": plan["group"]["group"]},
+                "relationships": {"image": {"data": {"type": "appAssetLibraryImages", "id": image["id"]}},
+                "appStoreVersionLocalization": {"data": {"type": "appStoreVersionLocalizations", "id": target["locale_id"]}}},
+            }})["data"]
+            record({"action": "image_placed", "image_id": image["id"], "placement_id": plan["placement"]["id"]})
+    for device, group in groups.items():
+        desired = [plan["placement"]["id"] for plan in plans if plan["selection"]["device"] == device]
+        prior = [item["id"] for item in existing if item["attributes"].get("placementGroup") == group["group"] and item["id"] not in desired]
+        ordered = desired + prior
+        path = query("/v1/appStoreVersionLocalizations/" + target["locale_id"] + "/placements", {
+            "filter[placementType]": "APP_SCREENSHOT", "filter[placementGroup]": group["group"], "sort": "placementGroupPosition",
+        })
+        current = apple.collection(path)
+        if set(item["id"] for item in current) != set(ordered):
+            raise SafeError("Placements changed concurrently; inspect before ordering")
+        if [item["id"] for item in current] != ordered:
+            record({"action": "order_placements_attempt", "group": group["group"], "placement_ids": ordered})
+            apple.request("POST", "/v1/appAssetLibraryPlacementOrderingRequests", {"data": {
+                "type": "appAssetLibraryPlacementOrderingRequests", "attributes": {"placementGroup": group["group"]},
+                "relationships": {"orderedPlacements": {"data": [{"type": "appAssetLibraryPlacements", "id": value} for value in ordered]},
+                "appStoreVersionLocalization": {"data": {"type": "appStoreVersionLocalizations", "id": target["locale_id"]}}},
+            }})
+        verified = apple.collection(path)
+        if [item["id"] for item in verified] != ordered:
+            raise SafeError("Placement order verification failed")
+        record({"action": "placements_verified", "device": device, "group": group["group"],
+                "placement_ids": ordered, "states": [item["attributes"].get("state") for item in verified]})
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mode", choices=("inspect", "upload"), default="inspect")
+    parser.add_argument("--source-run", type=int, required=True)
+    parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--key-path", required=True)
+    parser.add_argument("--manifest", help="Reviewed JSON manifest; alternatively SCREENSHOT_MANIFEST_JSON")
+    parser.add_argument("--report", default="screenshot-api-report.json")
+    args = parser.parse_args()
+    report = {"schema": 1, "mode": args.mode, "target": {"app_id": APP_ID, "version": VERSION, "locale": LOCALE}, "events": []}
+    def record(event):
+        report["events"].append(event)
+        Path(args.report).write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(json.dumps(event))
+    try:
+        if args.source_run <= 0 or not re.fullmatch(r"[a-f0-9]{40}", args.source_sha) or os.environ.get("GITHUB_REPOSITORY") != REPOSITORY:
+            raise SafeError("Expected source run, full SHA, and repository are required")
+        github = GitHubAPI(os.environ["GITHUB_TOKEN"])
+        source, artifacts = github.source(args.source_run, args.source_sha, args.mode == "upload")
+        report["source"] = source
+        record({"action": "source_verified", **source})
+        selections, manifest = None, None
+        if args.mode == "upload":
+            text = Path(args.manifest).read_text(encoding="utf-8") if args.manifest else os.environ.get("SCREENSHOT_MANIFEST_JSON", "")
+            manifest = json.loads(text)
+            selections = validate_manifest(manifest, args.source_run, args.source_sha)
+        apple = AppleAPI(args.key_path)
+        target = discover(apple)
+        options = {device: candidates(target["reference"], device) for device in DIMENSIONS}
+        record({"action": "target_inspected", "version_id": target["version_id"], "state": target["state"],
+                "locale_id": target["locale_id"], "library_id": target["library_id"], "placement_groups": options,
+                "placements": [{"id": item["id"], "group": item["attributes"].get("placementGroup"),
+                                "state": item["attributes"].get("state"), "image_id": placement_image(item)} for item in target["placements"]],
+                "images": [{"id": item["id"], "state": item["attributes"].get("state"),
+                            "reference_name": item["attributes"].get("referenceName")
+                            if re.fullmatch(r"octopus-review-[a-f0-9]{40}-(?:iphone|ipad)-[a-z0-9-]+-[a-f0-9]{64}",
+                                            item["attributes"].get("referenceName") or "") else None}
+                           for item in target["images"]]})
+        if args.mode == "upload":
+            groups = {device: one(options[device], lambda item: item["group"] == manifest["placement_groups"][device],
+                                 "selected discovered " + device + " placement group") for device in DIMENSIONS}
+            with tempfile.TemporaryDirectory() as directory:
+                archive = Path(directory) / "release-review.zip"
+                github.download(artifacts[0]["id"], archive)
+                images = artifact_images(archive, selections)
+                record({"action": "original_screenshots_verified", "count": len(images),
+                        "images": [{"device": selection["device"], "name": selection["name"], "sha256": selection["sha256"]} for selection, _ in images]})
+                # Re-read the surface after download; do not act on stale review state/placements.
+                target = discover(apple)
+                groups = {device: one(candidates(target["reference"], device),
+                                     lambda item: item["group"] == manifest["placement_groups"][device],
+                                     "refreshed selected " + device + " placement group") for device in DIMENSIONS}
+                upload(apple, target, images, groups, args.source_sha, record)
+        record({"action": "completed", "review_submitted": False})
+        return 0
+    except SafeError as error:
+        record({"action": "stopped", "error": str(error)})
+    except (KeyError, TypeError, ValueError, OSError, zipfile.BadZipFile, RuntimeError):
+        # Do not dump API payloads, request URLs, tokens, key IDs, or signing material.
+        record({"action": "stopped", "error": "Configuration, API schema, or artifact validation failed; inspect the metadata report"})
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
