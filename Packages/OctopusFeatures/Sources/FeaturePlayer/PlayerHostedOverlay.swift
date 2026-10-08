@@ -1,22 +1,24 @@
 import SwiftUI
+import Foundation
 
 @MainActor
 final class PlayerHostedOverlayStore<Content: View>: ObservableObject {
     struct Snapshot {
         let content: Content
         let brandColor: Color
+        let locale: Locale
     }
 
     @Published private(set) var snapshot: Snapshot
     private var pendingSnapshot: Snapshot?
     private var updateTask: Task<Void, Never>?
 
-    init(content: Content, brandColor: Color) {
-        snapshot = Snapshot(content: content, brandColor: brandColor)
+    init(content: Content, brandColor: Color, locale: Locale = .current) {
+        snapshot = Snapshot(content: content, brandColor: brandColor, locale: locale)
     }
 
-    func update(content: Content, brandColor: Color) {
-        pendingSnapshot = Snapshot(content: content, brandColor: brandColor)
+    func update(content: Content, brandColor: Color, locale: Locale = .current) {
+        pendingSnapshot = Snapshot(content: content, brandColor: brandColor, locale: locale)
         guard updateTask == nil else { return }
         // updateUIViewController içinden senkron @Published yazmak,
         // sürmekte olan SwiftUI çizimini tekrar tetikler.
@@ -44,6 +46,7 @@ struct PlayerHostedOverlay<Content: View>: View {
     var body: some View {
         store.snapshot.content
             .environment(\.brandColor, store.snapshot.brandColor)
+            .environment(\.locale, store.snapshot.locale)
             .preferredColorScheme(.dark)
     }
 }

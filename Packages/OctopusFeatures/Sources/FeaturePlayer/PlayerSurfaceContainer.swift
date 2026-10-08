@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Foundation
 import OctopusDesignSystem
 
 /// Video yüzeyi ile SwiftUI denetimlerini aynı UIKit hiyerarşisinde tutar.
@@ -15,15 +16,17 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
     private let surfaceGeneration: Int
     private let overlay: Overlay
     @Environment(\.brandColor) private var brandColor
+    @Environment(\.locale) private var locale
 
     @MainActor
     final class Coordinator {
         let store: PlayerHostedOverlayStore<Overlay>
 
-        init(content: Overlay, brandColor: Color) {
+        init(content: Overlay, brandColor: Color, locale: Locale) {
             store = PlayerHostedOverlayStore(
                 content: content,
-                brandColor: brandColor
+                brandColor: brandColor,
+                locale: locale
             )
         }
     }
@@ -39,7 +42,7 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(content: overlay, brandColor: brandColor)
+        Coordinator(content: overlay, brandColor: brandColor, locale: locale)
     }
 
     func makeUIViewController(
@@ -58,7 +61,8 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
     ) {
         context.coordinator.store.update(
             content: overlay,
-            brandColor: brandColor
+            brandColor: brandColor,
+            locale: locale
         )
         controller.update(
             surfaceGeneration: surfaceGeneration,
