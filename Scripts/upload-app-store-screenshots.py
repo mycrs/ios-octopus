@@ -42,6 +42,7 @@ REQUIRED_JOBS = ("Mimari kuralları", "Domain testleri (Linux)",
                  "OctopusFeatures testleri", "OctopusDesignSystem testleri")
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 REPLACEABLE_GROUPS = {"IPAD_13_PROFILE", "IPHONE_FACE_ID_LARGE_PROFILE", "WATCH_ULTRA_PROFILE"}
+REVIEW_REFERENCE = r"octopus-review-[a-f0-9]{40}-(?:iphone|ipad)-[a-z0-9-]+-[a-f0-9]{64}"
 
 
 class SafeError(RuntimeError):
@@ -378,6 +379,36 @@ def placement_image(placement):
     return placement.get("relationships", {}).get("image", {}).get("data", {}).get("id")
 
 
+def image_status(image):
+    """Report processing metadata without delivery URLs or free-form errors."""
+    attributes = image.get("attributes", {})
+    reference = attributes.get("referenceName") or ""
+    reviewed = isinstance(reference, str) and re.fullmatch(REVIEW_REFERENCE, reference)
+    result = {"id": image["id"], "state": attributes.get("state"), "reference_name": reference if reviewed else None}
+    if reviewed:
+        spec = attributes.get("specId")
+        asset = attributes.get("imageAsset") or {}
+        details = attributes.get("stateDetails") or []
+        result.update({"spec_id": spec if isinstance(spec, str) and re.fullmatch(r"[A-Za-z0-9-]{1,80}", spec) else None,
+                       "width": asset.get("width") if isinstance(asset, dict) and type(asset.get("width")) is int and 0 < asset["width"] <= 100000 else None,
+                       "height": asset.get("height") if isinstance(asset, dict) and type(asset.get("height")) is int and 0 < asset["height"] <= 100000 else None,
+                       # StateDetail.code is documented; descriptions may contain private data.
+                       "processing_error_codes": sorted({detail["code"] for detail in details if isinstance(detail, dict) and
+                           isinstance(detail.get("code"), str) and re.fullmatch(r"[A-Z][A-Z0-9_.-]{0,95}", detail["code"])})
+                           if isinstance(details, list) else []})
+    return result
+
+
+def inspection_images(apple, images, sha):
+    result = []
+    for image in images:
+        reference = image.get("attributes", {}).get("referenceName") or ""
+        if isinstance(reference, str) and re.fullmatch(REVIEW_REFERENCE, reference) and reference.startswith("octopus-review-" + sha + "-"):
+            image = apple.request("GET", "/v1/appAssetLibraryImages/" + image["id"])["data"]
+        result.append(image_status(image))
+    return result
+
+
 def transfer_parts(raw, operations):
     ranges = sorted((operation.get("offset"), operation.get("length")) for operation in operations)
     end = 0
@@ -525,8 +556,11 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
     if replacement is not None:
         # ALL twelve uploads must be processed before the first old association is removed.
         # The synchronous report writer persists recovery metadata before any DELETE.
-        current = apple.collection(surface_path(target))
-        originals = replacement_surface(target, replacement, plans, current)
+        refreshed = discover(apple)
+        if refreshed["state"] not in ("REJECTED", "METADATA_REJECTED") or refreshed["library_id"] != target["library_id"]:
+            raise SafeError("Version editability or target library changed during preparation; replacement stopped")
+        target = refreshed
+        originals = replacement_surface(target, replacement, plans, target["placements"])
         record({"action": "replacement_restore_snapshot", "version_id": target["version_id"],
                 "locale_id": target["locale_id"], "library_id": target["library_id"],
                 "placement_type": "APP_SCREENSHOT", "placements": replacement["placements"],
@@ -634,11 +668,7 @@ def main():
                 "locale_id": target["locale_id"], "library_id": target["library_id"], "placement_groups": options,
                 "placements": [{"id": item["id"], "group": item["attributes"].get("placementGroup"),
                                 "state": item["attributes"].get("state"), "image_id": placement_image(item)} for item in target["placements"]],
-                "images": [{"id": item["id"], "state": item["attributes"].get("state"),
-                            "reference_name": item["attributes"].get("referenceName")
-                            if re.fullmatch(r"octopus-review-[a-f0-9]{40}-(?:iphone|ipad)-[a-z0-9-]+-[a-f0-9]{64}",
-                                            item["attributes"].get("referenceName") or "") else None}
-                           for item in target["images"]]})
+                "images": inspection_images(apple, target["images"], args.source_sha)})
         if args.mode == "upload":
             groups = {device: one(options[device], lambda item: item["group"] == manifest["placement_groups"][device],
                                  "selected discovered " + device + " placement group") for device in DIMENSIONS}

@@ -288,6 +288,43 @@ class ScreenshotAPITests(unittest.TestCase):
             self.assertNotIn("private.example", report.read_text())
             self.assertNotIn("private-test-token", output.getvalue())
 
+    def test_processing_report_includes_only_safe_metadata_for_review_reference(self):
+        reference = "octopus-review-" + SHA + "-iphone-03-home-" + "b" * 64
+        image = {"id": "uploaded-image", "attributes": {"state": "FAILED", "referenceName": reference,
+            "specId": "5a7a65df-8822-5e32-bd47-cfbc4ef99663", "imageAsset": {"width": 1206, "height": 2622,
+            "templateUrl": "https://private.example/image-token"}, "uploadOperations": [{"url": "https://private.example/signed-token"}],
+            "stateDetails": [{"code": "VALIDATION_ERROR.INVALID_IMAGE", "description": "private description token"},
+                             {"code": "https://private.example/code-token"}, {"code": "Bearer_private-token"}]}}
+        status = screens.image_status(image)
+        self.assertEqual(status["spec_id"], image["attributes"]["specId"])
+        self.assertEqual((status["width"], status["height"]), screens.DIMENSIONS["iphone"])
+        self.assertEqual(status["processing_error_codes"], ["VALIDATION_ERROR.INVALID_IMAGE"])
+        self.assertNotIn("private", json.dumps(status))
+        image["attributes"]["referenceName"] = "https://private.example/reference-token"
+        self.assertEqual(screens.image_status(image), {"id": "uploaded-image", "state": "FAILED", "reference_name": None})
+
+    def test_inspection_refreshes_current_source_image_with_get_only_and_handles_pending_null_metadata(self):
+        reference = "octopus-review-" + SHA + "-iphone-03-home-" + "b" * 64
+        reserved = {"id": "uploaded-image", "attributes": {"state": "AWAITING_UPLOAD", "referenceName": reference}}
+        pending = {"id": "uploaded-image", "attributes": {"state": "UPLOAD_COMPLETE", "referenceName": reference,
+                                                          "specId": None, "imageAsset": None, "stateDetails": None}}
+        older = {"id": "older-image", "attributes": {"state": "APPROVED", "referenceName": reference.replace(SHA, "c" * 40)}}
+        api = unittest.mock.MagicMock()
+        api.request.return_value = {"data": pending}
+        statuses = screens.inspection_images(api, [reserved, older], SHA)
+        api.request.assert_called_once_with("GET", "/v1/appAssetLibraryImages/uploaded-image")
+        self.assertEqual(statuses[0], {"id": "uploaded-image", "state": "UPLOAD_COMPLETE", "reference_name": reference,
+                                     "spec_id": None, "width": None, "height": None, "processing_error_codes": []})
+
+    def test_pending_processing_polls_get_until_documented_ready_state_without_upload_mutation(self):
+        api = unittest.mock.MagicMock()
+        api.request.side_effect = [{"data": {"id": "image", "attributes": {"state": state}}}
+                                   for state in ("UPLOAD_COMPLETE", "UPLOAD_COMPLETE", "PREPARE_FOR_SUBMISSION")]
+        with patch.object(screens.time, "sleep") as slept:
+            self.assertEqual(screens.processed_image(api, "image")["attributes"]["state"], "PREPARE_FOR_SUBMISSION")
+        self.assertEqual(slept.call_count, 2)
+        self.assertTrue(all(call.args == ("GET", "/v1/appAssetLibraryImages/image") for call in api.request.call_args_list))
+
     def test_signed_byte_upload_uses_exact_parts_without_account_jwt(self):
         operation = lambda offset, length: {"method": "PUT", "url": "https://store.blobstore.apple.com/signed-secret",
             "offset": offset, "length": length, "requestHeaders": [{"name": "Content-Type", "value": "image/png"}]}
@@ -477,6 +514,24 @@ class ScreenshotAPITests(unittest.TestCase):
         with patch.object(api, "collection", side_effect=concurrent), self.assertRaises(screens.SafeError):
             self.replacement_upload(api, snapshot, events)
         self.assertFalse(any(call[0] == "DELETE" for call in api.calls))
+
+    def test_predelete_refresh_stops_if_version_or_original_library_image_changed_during_preparation(self):
+        for alteration in ("state", "image"):
+            api, events = ReplacementApple(), []
+            snapshot, collection = api.snapshot(), api.collection
+            def changed(path):
+                result = collection(path)
+                if len(api.images) == 19:
+                    if alteration == "state" and path.endswith("/appStoreVersions"):
+                        result[0]["attributes"]["appVersionState"] = "WAITING_FOR_REVIEW"
+                    elif alteration == "image" and path.endswith("/images"):
+                        result = [item for item in result if item["id"] != "legacy-image-0"]
+                return result
+            with self.subTest(alteration=alteration), patch.object(api, "collection", side_effect=changed):
+                with self.assertRaises(screens.SafeError):
+                    self.replacement_upload(api, snapshot, events)
+            self.assertFalse(any(call[0] == "DELETE" for call in api.calls))
+            self.assertFalse(any(event["action"] == "replacement_restore_snapshot" for event in events))
 
     def test_partial_new_placement_resume_does_not_recreate_uploaded_images_or_placed_pictures(self):
         api, events = ReplacementApple(), []
