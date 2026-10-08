@@ -39,7 +39,23 @@ Kapanış başlamadan görünür denetleyicinin public yön kilidi kaldırılır
 scene lease son kapanışa kadar korunur. Arka plan bridge'i SwiftUI'da
 dokunma almaz. Gerçek kapanıştan iki saniye sonra yalnız sayısal UIKit
 durumu, sınıf/rect ve sınırlı animasyon sayımı kaydedilir; içerik/hesap
-bilgisi loglanmaz. Bu yeni kaynak henüz Mac'te doğrulanmadı.
+bilgisi loglanmaz. Altıncı tur `aa73918` / 37835250387'de **721 Swift
+testi ve mimari geçti**; iPhone aynı film detayına döndü, Canlı TV'ye geçti,
+kanalın mini yüzeyinde ve yatay tam ekranda gerçek native kareyi gösterdi.
+Kanal düğmesinde XCTest `.tap()` görünür/hittable kontrolden sonra scroll
+ve yeniden sorgu yaparken düğme normal otomatik gizlenme süresine girdi.
+Özgün video denetimlerin kaybolup görüntünün ilerlemeye devam ettiğini
+doğruladı; çökme veya yeni yön hatası görülmedi. Düğmenin gözlenen pencere
+içi merkezine normal dokunma kullanılır; sonraki panel, seçili kanal,
+kanal değişimi ve dönüş doğrulamaları korunur. Önce videonun boş alanında
+normal tek dokunuşla denetimler gizlenip yeniden açılır; iki ayrı dokunma
+bölgesi ve gerçek gizlenme doğrulaması çift dokunmayla seek'i önler.
+Canlı tam ekranın video/pencere ölçü eşitliği de kontrol edilir.
+Ürün süreleri değiştirilmez.
+Bu turda XCTest sonrası seçili simülatör kapalıydı; `simctl spawn` log
+alamadı. Sayısal UIKit kayıtları bu yüzden runtime kanıtı sayılmaz.
+Collector completed xcresult diagnostics arşivinden yalnız aynı güvenli
+prefixleri çıkaracak şekilde düzeltilir; ham diagnostics yayımlanmaz.
 Yeni tam tur ve fiziksel cihaz kanıtı bekleniyor.
 Başarısız çalışmalardan binary/görsel gönderilmez. App Store'daki kayıtlı build 9
 ilişkisi ve mağaza alanları korunur; son başvuru yeni doğrulanmış paketi bekler.

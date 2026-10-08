@@ -31,7 +31,19 @@ kanıtlanmadı. Yeni kaynakta görünür denetleyici kapanış öncesi public ki
 tercihini bırakır, lease gerçek kapanışa kadar kalır. Arka plan SwiftUI
 bridge'i dokunma almaz; kapanış sonrası içerik bilgisi içermeyen sınırlı
 UIKit/scene/hit-test/animasyon tanısı CI'a alınır. Bu kaynak henüz başarılı
-Mac turu veya cihaz kanıtı değildir.
+Mac turu veya cihaz kanıtı değildir. Altıncı `aa73918` / 37835250387 turunda
+721 Swift testi ve mimari geçti; iPhone filmden dönüş, Canlı TV seçimi ve
+mini→yatay tam ekran native kareyi doğruladı. Normal gizlenen kanal düğmesi
+XCTest `.tap()` içindeki scroll/yeniden sorguyla yarıştı; özgün video
+görüntünün ilerlediğini, denetimlerin gizlendiğini gösterir. Test gözlenen
+pencere içi düğme merkezine dokunur; ürün süreleri ve sonraki doğrulamalar
+korunur. Normal tek dokunuşla görünürlük yenilenir; farklı boş video
+bölgeleri ve gerçek gizlenme doğrulaması çift dokunma seek'ini önler.
+Canlı tam ekranda video/pencere ölçü eşitliği de sınanır.
+Test sonrası simülatör kapalı olduğundan bu turdaki log collector
+runtime tanısı alamadı; completed xcresult'tan güvenli prefixleri kurtarma
+yolu eklenir. Altıncı tur da başarısız Release kapısıdır; iPad ve yeni
+imzalı paket henüz doğrulanmadı.
 Build 9'daki başarı bu dört ek düzeltmenin kanıtı sayılmaz; son App Review
 başvurusu yeni pakete ve gizlilik eşleştirmesinin tamamlanmasına bağlıdır.
 

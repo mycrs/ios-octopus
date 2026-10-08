@@ -24,6 +24,8 @@ jobs:
         run: bash Scripts/check-architecture.sh
       - name: Cihaz log aracı gizlilik testleri
         run: python3 -m unittest discover -s Scripts -p test_capture_ios_logs.py
+      - name: Simülatör tanı aracı gizlilik testleri
+        run: python3 -m unittest discover -s Scripts -p test_capture_player_presentation_diagnostics.py
 
   # ── 2) Mantık testleri — Linux'ta, simülatörsüz, hızlı ─────────────
   #
@@ -72,7 +74,7 @@ jobs:
             -parallel-testing-enabled NO \
             -skipMacroValidation CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
           bash Scripts/capture-player-presentation-diagnostics.sh \
-            "$REVIEW_PHONE" review-results/iphone-player-ui.log
+            "$REVIEW_PHONE" review-results/iphone-player-ui.log review-results/iphone.xcresult
           python3 - <<'PY'
           import json, os, subprocess
           inventory = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', '-j']))
@@ -95,11 +97,11 @@ jobs:
           mkdir -p review-results
           if [ -n "${REVIEW_PHONE:-}" ]; then
             bash Scripts/capture-player-presentation-diagnostics.sh \
-              "$REVIEW_PHONE" review-results/iphone-player-ui.log
+              "$REVIEW_PHONE" review-results/iphone-player-ui.log review-results/iphone.xcresult
           fi
           if [ -n "${REVIEW_PAD:-}" ]; then
             bash Scripts/capture-player-presentation-diagnostics.sh \
-              "$REVIEW_PAD" review-results/ipad-player-ui.log
+              "$REVIEW_PAD" review-results/ipad-player-ui.log review-results/ipad.xcresult
           fi
       - name: İnceleme ekranlarını dışa aktar
         if: always()

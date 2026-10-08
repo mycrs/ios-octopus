@@ -166,6 +166,8 @@ final class ReviewJourneyTests: XCTestCase {
         mini.tap()
         assertWindowOrientation(isLandscape: true)
         waitForNativeFrame()
+        assertVideoFillsWindow(app.descendants(matching: .any)
+            .matching(identifier: "player.native-video").firstMatch)
 
         revealAndTapPlayerButton("player.channels.open")
         let currentRow = app.buttons.matching(NSPredicate(
@@ -216,12 +218,14 @@ final class ReviewJourneyTests: XCTestCase {
         let button = app.buttons[identifier]
         let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
         for _ in 0..<3 {
-            if !button.exists || !button.isHittable { surface.tap() }
+            let window = app.windows.firstMatch
+            let windowFrame = window.frame
+            guard refreshPlayerControls(button, surface: surface) else { continue }
             let visible = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button
             )
-            if XCTWaiter.wait(for: [visible], timeout: 2) == .completed {
-                button.tap()
+            if XCTWaiter.wait(for: [visible], timeout: 2) == .completed,
+               tapObservedPlayerButton(button, window: window, windowFrame: windowFrame) {
                 return
             }
         }
@@ -234,12 +238,14 @@ final class ReviewJourneyTests: XCTestCase {
         for _ in 0..<3 {
             if !nativeVideo.exists { return }
             let close = app.buttons["player.close"]
-            if !close.isHittable { nativeVideo.tap() }
+            let window = app.windows.firstMatch
+            let windowFrame = window.frame
+            guard refreshPlayerControls(close, surface: nativeVideo) else { continue }
             let visible = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: close
             )
             if XCTWaiter.wait(for: [visible], timeout: 2) == .completed {
-                close.tap()
+                _ = tapObservedPlayerButton(close, window: window, windowFrame: windowFrame)
             }
             let dismissed = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == false"), object: nativeVideo
@@ -248,6 +254,35 @@ final class ReviewJourneyTests: XCTestCase {
         }
         capture("player-close-failed")
         XCTFail("Sekme değiştirilmeden önce tam ekran oynatıcı kapanmalı")
+    }
+
+    /// Refresh with real single taps in clear video regions before checking a
+    /// transient button. Opposite tap zones and an absence check avoid seeking.
+    private func refreshPlayerControls(_ button: XCUIElement, surface: XCUIElement) -> Bool {
+        if button.exists && button.isHittable {
+            surface.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.24)).tap()
+            let hidden = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == false"), object: button
+            )
+            guard XCTWaiter.wait(for: [hidden], timeout: 2) == .completed else { return false }
+        }
+        surface.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
+        return true
+    }
+
+    /// Element.tap re-resolves and scrolls the transient control after its
+    /// visible/hittable check. Tap the observed in-window center instead;
+    /// panel, selection and dismissal assertions still verify the outcome.
+    private func tapObservedPlayerButton(
+        _ button: XCUIElement, window: XCUIElement, windowFrame: CGRect
+    ) -> Bool {
+        let frame = button.frame
+        let center = CGPoint(x: frame.midX, y: frame.midY)
+        guard frame.width > 0, frame.height > 0, windowFrame.contains(center) else { return false }
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+            .withOffset(CGVector(dx: center.x - windowFrame.minX, dy: center.y - windowFrame.minY))
+            .tap()
+        return true
     }
 
     private func scrollTo(_ element: XCUIElement) {
