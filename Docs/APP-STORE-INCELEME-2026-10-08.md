@@ -20,9 +20,10 @@ yeni mağaza metni tek başına 4.3 kabulünü garanti etmez. Apple'ın
 [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/#spam)
 kuralları ve gözlenen Release davranışı birlikte değerlendirilmelidir.
 
-Bu oturumdaki kod değişiklikleri yereldir; **Apple'ın incelediği build 7'nin
-içinde oldukları varsayılmamalıdır**. App Store Connect'e mesaj, metadata,
-build veya yeniden inceleme gönderilmedi.
+Bu oturumdaki değişiklikleri içeren **1.0.0 (8)**, GitHub macOS runner'ında
+derlenip test edildi ve bağlı iPhone'a USB üzerinden kuruldu. **Apple'ın
+incelediği build 7'nin içinde oldukları varsayılmamalıdır**. App Store
+Connect'e mesaj, metadata, build veya yeniden inceleme gönderilmedi.
 
 ## Doğrudan bulunan eksikler
 
@@ -32,7 +33,7 @@ build veya yeniden inceleme gönderilmedi.
 | İnceleme notundaki `https://octopusplayer.com/google-review/test.m3u` 8 Ekim'de HTTP 200 döndü; 11 MP4 kaydı ve `Google Play Review` grup adı içeriyor. | Adresin erişilebilir olması oynatmanın geçtiği anlamına gelmez. Bu M3U, mevcut parser'da canlı kanal listesine gider. |
 | M3U provider film ve dizi listelerini boş döndürüyor; bu test listesi EPG sunmuyor. | Bu kaynak film/dizi/bölüm/EPG deneyimini doğrulayamaz. Geçerli, kullanım izni olan ayrı Xtream test hesabıyla bu akışlar gösterilmeli; kimlik bilgileri repoya yazılmamalı. |
 | Bağlı iPhone'daki build 2'de UHD sesli/görüntüsüz; native dört kez denenmiş, VLC yükleme olayı yok. | Otomatik VLC korunur. Eski binary'deki fallback sorunu gözlendi; gerçek manifest/codec/container henüz alınmadı. |
-| Windows'ta USB log/DVT erişimi doğrulandı; cihazdaki sürüm 1.0.0 (2), Xcode yok. | Eski binary'nin cihaz testi yapıldı; yeni yerel kodun iOS derlemesi ve cihaz doğrulaması hâlâ gerekiyor. |
+| Windows'ta USB log/DVT erişimi doğrulandı; başlangıçta sürüm 1.0.0 (2) idi. | Güncel kod macOS CI'da derlendi/test edildi; USB sorgusu build 8 kurulumunu doğruladı. Yeni UHD/normal kanal denemesi ayrıca değerlendirilmeli. |
 
 İnceleme için farklı davranan gizli bir mod eklenmedi. Kısa aktivasyon kodunu
 Release'e yeniden açmak bu çalışmanın parçası değil. Yeni kaynak kontrolü
@@ -59,7 +60,9 @@ olarak sunulmamalıdır.
   gösterir; destek raporu `fallbackAvailable` alanını içerir.
 - **Yayın doğrulaması:** imzalı TestFlight yükleme işi mevcut CI derleme ve
   paket testlerinin başarılı olmasına bağlandı. Windows log aracının
-  gizlilik testleri de CI'a eklendi. Bu iş akışı henüz çalıştırılmadı.
+  gizlilik testleri de CI'a eklendi. Ayrı `device` hedefi CI kontrollerinden
+  sonra şifreli, cihaz profiliyle imzalı IPA üretir; bu hedef başarıyla
+  çalıştırıldı. TestFlight/App Store yükleme adımları çalıştırılmadı.
 - **Windows cihaz teşhisi:** yalnızca Octopus işlemine ait logları ve
   Octopus adına uyan crash raporlarını yerel olarak toplama aracı hazırlandı.
   Cihazdaki crash kopyaları silinmez; otomatik yükleme/paylaşım yoktur.
@@ -165,7 +168,8 @@ test edilmiş olarak sunulmamalı. Bu notlar kabul garantisi değildir.
   escaped JSON ve Authorization token'ı, başka uygulama/metadata filtresi,
   çoklu cihaz seçimi, timeout'ta cihaz kimliği ve erken biten kısmi yakalama.
 - CI/release YAML ayrıştırması ve `upload -> verify -> ci.yml` bağı geçti.
-  GitHub runner'ında henüz çalıştırılmadı.
+  Sonrasında [37776653115 numaralı GitHub işi](https://github.com/mycrs/ios-octopus/actions/runs/37776653115)
+  bütün doğrulama ve cihaz paketi adımlarını başarıyla tamamladı.
 - `git diff --check` temiz. Ayarlar'ın değişen görünüm dosyaları 200 satırın
   altında olacak şekilde ayrıldı; taşınan ebeveyn kontrolü davranışı korundu.
 - İlk hazırlık kontrolünde cihaz bağlı değildi. Kullanıcı cihazı
@@ -181,9 +185,19 @@ test edilmiş olarak sunulmamalı. Bu notlar kabul garantisi değildir.
 
 Kaynak raporu için **7 yeni XCTest** (Data 3, Playback 1, Settings 3),
 cihazda görülen ses/çizim yolları için **5 yeni XCTest** (ses 3, overlay 2)
-eklendi. Windows'ta Swift/Xcode bulunmadığından bunlar **çalıştırılmadı**. macOS
-CI/XCTest ve gerçek cihaz denemeleri tamamlanana kadar yeni binary yayın
-doğrulaması açık kalır. Yerel koddan başarıyla derlenmiş IPA üretildiği veya
-Apple'ın yeni değişiklikleri incelediği iddia edilmemelidir.
+eklendi. Windows'ta Swift/Xcode bulunmadığından ilk yerel kontrolde bunlar
+çalıştırılamadı. macOS runner'ında sonradan çalıştırıldı ve geçti:
+Playback 57, Data 264, Features
+194 XCTest; Domain, DesignSystem ve iOS uygulama işleri de başarılı.
+İlk CI'da bulunan açık `self` derleme hatası ve M3U'nun somut nesne üzerinde
+async varsayılan metodu seçmesi düzeltildi. Kaynak commit'i `88fc529` olan
+imzalı build 8 üretildi; USB sorgusu `1.0.0 (8)` kurulumunu doğruladı.
+Gerçek UHD görüntüsü ve normal kanal denemesi ayrıca doğrulanmalıdır.
+Apple'ın bu yeni değişiklikleri incelediği iddia edilmemelidir.
+
+Build 8'in açılış denemesinde 240 saniyede 2.915 süreç kaydı alındı;
+AppContainer logu VLC yedek motorunu doğruladı. Oynatma olayı yok; bu
+örnek UHD başarısı veya ses/çizim uyarılarının giderildiği şeklinde
+sunulamaz. Octopus adına crash sayısı tekrar 0 (Jetsam hariç).
 
 Cihaz aracı komutları ve sınırlamalar: [IOS-CIHAZ-LOG.md](IOS-CIHAZ-LOG.md).

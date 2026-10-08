@@ -9,6 +9,45 @@ içeren ayrı bir iOS build kurulduğunda cihazda denenebilir.
 Bu ilk hazırlık kontrolünden sonra kullanıcı cihazı bağladı; gerçek
 bağlantı ve ölçüm sonuçları aşağıdadır.
 
+## Güncel durum — build 8 kuruldu
+
+8 Ekim 2026'da `88fc529112e52eb6174d3a0de007c20ecad73f31` kaynak commit'i
+GitHub macOS runner'ında derlendi. [37776653115 numaralı iş akışı](https://github.com/mycrs/ios-octopus/actions/runs/37776653115)
+başarılı: mimari, Domain, DesignSystem, Data, Features, Playback ve iOS
+uygulama derleme/test işleri geçti. Playback **57**, Data **264**, Features
+**194** XCTest geçti; ses/overlay ve M3U cache regresyonları bunlara dahil.
+Yerel cihaz araçlarının **20 Python testi** de geçti.
+
+Release arşivi, kayıtlı hedef cihazı içeren `release-testing` profiliyle
+imzalandı. Şifreli artifact yerelde açılıp IPA'nın SHA-256 değeri, kaynak
+commit'i, bundle ID'si ve build numarası doğrulandı. TestFlight/App Store'a
+yükleme yapılmadı. Cihazın kayıt durumu zaten `ENABLED` idi; yeni cihaz
+kaydı veya güvenlik ayarı değişikliği gerekmedi.
+
+İlk kurulum komutu zaman aşımına uğradı. Alternatif streaming aktarımı
+tamamlandı, ancak iOS önceki installation-proxy işleminin coordinator'ını
+tuttuğundan kurulumu reddetti. Aynı bundle ID'ye güncelleme tekrar denendi;
+çalışan Octopus süreci DVT ile kapatıldı. İlerleme callback'inde yerel araç
+hatası oluşmasına rağmen **bağımsız USB uygulama sorgusu `1.0.0 (8)`
+kurulumunu doğruladı**. Başarı, installer'ın çıkış koduna dayanmaz.
+Uygulama kaldırılmadı veya verileri silinmedi.
+
+Build 8 açıldı ve 16:01 İstanbul'da başlayan 240 saniyelik yeni kayıt
+tamamlandı: **2.915 olay**, uygulamaya özel 3 açılış olayı. `AppContainer`
+logu yedek motorun **VLC** olduğunu doğruladı. Bu örnekte **0 oynatma
+olayı**, 0 SQL trace, 0 ses hang uyarısı ve 0 SwiftUI yayın uyarısı var.
+Kanal açılmadığından son üç sıfır değer, eski UHD denemesindeki uyarıların
+giderildiğini kanıtlamaz. Tekrar Octopus adına crash kontrolü: **0 dosya**
+(Jetsam hariç). UHD ve normal kanalın görüntü/ses sonucu kullanıcı
+denemesiyle ayrıca doğrulanmalı; aşağıdaki build 2 bulguları yeni sürümün
+sonucu değildir. Aktif kayıt kalmadı; kanal denemesinden önce yeni kayıt
+başlatılmalı.
+
+Yeni kayıt ve özeti `.artifacts/device-logs/20261008T130116109955Z/`
+altında; crash kontrolü `20261008T130432075797Z/crashes/` altında.
+Kurulu sürüm/kaynak eşleşmesi `.artifacts/device-builds/build8/installed-context.json`
+dosyasında yereldir.
+
 ## 8 Ekim gerçek bağlantı doğrulaması
 
 - USB ve eşleştirme erişimi başarılı: tek cihaz, ürün tipi `iPhone18,2`,
@@ -95,10 +134,10 @@ altında: `octopus.ndjson`, `summary.json`,
 `followup-process-samples.ndjson`, `followup-process-summary.json`.
 Yakalama tamamlandı; devam eden log kaydı yok.
 
-Bu düzeltmeler **telefondaki build 2'ye uygulanmış değildir**. macOS/Xcode
-ile bunları içeren binary derlenip kurulduktan sonra aynı UHD ve normal
-kanal, motor seçimi ve ilk görüntü tekrar doğrulanmalı. Windows'ta mimari
-ve sözdizimi kontrolleri geçti; yeni Swift regresyon testleri çalıştırılamadı.
+Bu eski kayıt alındığında düzeltmeler **telefondaki build 2'de yoktu**.
+Sonrasında build 8 macOS/Xcode ile derlenip kuruldu; XCTest sonuçları
+yukarıdadır. Aynı UHD ve normal kanaldaki gerçek görüntü/ses ve motor
+seçimi yeni kayıt üzerinden ayrıca doğrulanmalıdır.
 
 ## Bağlantı
 

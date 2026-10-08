@@ -811,3 +811,25 @@ Reusable CI'da elle başlatılan turlar aynı concurrency kilidine takıldı:
 yeni tur, eski turda tamamlanmış mimari işi için bekliyor görünüyordu.
 Elle başlatılan turların grup adına run ID eklendi; otomatik push/PR
 turlarında önceki işi iptal etme davranışı korundu.
+
+8 Ekim build 8 doğrulaması: kaynak commit'i `88fc529`, GitHub Actions
+`37776653115` tamamlandı ve başarılı. Mimari/Domain/DesignSystem/Data/
+Features/Playback/iOS uygulama işleri geçti. Mac XCTest sayıları Playback
+57, Data 264, Features 194; ses/overlay ve M3U regresyonları geçti.
+Hedef cihaz Apple'da zaten ENABLED idi. `release-testing` imzalı IPA
+şifreli artifact olarak üretildi; TestFlight/App Store'a yükleme yapılmadı.
+Yerelde SHA-256/commit/bundle/build kontrolü sonrası USB kurulumu yapıldı.
+İlk installer timeout'u ve streaming coordinator çakışması sonrası aynı
+bundle ID'ye güncelleme tekrar denendi, çalışan Octopus kapatıldı.
+İlerleme callback'i hata verse de bağımsız USB sorgusu **1.0.0 (8)**
+kurulumunu doğruladı; uygulama/veriler silinmedi. Yeni binary açıldı,
+16:01 İstanbul'da 240 saniyelik app log kaydı başlatıldı; UHD/normal
+görüntü-ses sonucu ayrıca kullanıcı denemesiyle doğrulanacak.
+
+Build 8 açılış kaydı tamamlandı: 2.915 olay, 0 oynatma olayı; AppContainer
+logu VLC yedeğinin bağlı olduğunu doğruladı. SQL trace/ses hang/SwiftUI
+yayın uyarısı bu örnekte yok, ancak kanal açılmadığı için UHD düzeltmesi
+başarı sayılmaz. Octopus adına crash kontrolü tekrar 0 (Jetsam hariç).
+Aktif kayıt yok; kullanıcının UHD/normal kanal denemesinden önce yeniden
+kayıt başlatılmalı. Binary kaynak commit'i `88fc529`; sonraki belge
+commit'leri bu kurulu binary'nin parçası değildir.
