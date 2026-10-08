@@ -201,6 +201,85 @@ class DiagnosticTests(unittest.TestCase):
         self.assertFalse(any(path.exists() for path in self.exported))
         self.assertEqual(list(self.output.parent.iterdir()), [self.output])
 
+    def test_modern_orientation_state_retains_default_policy_and_transition_fields(self):
+        messages = [
+            "Player orientation request state requested=24 orientation=1 locked=0 defaultAppMask=30 policyMask=24 rootMask=30 presentedMask=24 beingPresented=0 coordinator=0 width=1032.000000 height=1376.000000",
+            "Player orientation request state requested=0 orientation=0 locked=-1 defaultAppMask=0 policyMask=0 rootMask=0 presentedMask=0 beingPresented=1 coordinator=1 width=0 height=0",
+            "Player orientation request state requested=30 orientation=4 locked=1 defaultAppMask=30 policyMask=24 rootMask=30 presentedMask=24 beingPresented=0 coordinator=1 width=1.032e3 height=1.376e+3",
+        ]
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in messages)),
+                         ["2026-10-08 14:10:20.123 " + value for value in messages])
+
+    def test_modern_orientation_state_rejects_nonfinite_masks_and_transition_flags(self):
+        valid = "Player orientation request state requested=24 orientation=1 locked=0 defaultAppMask=30 policyMask=24 rootMask=30 presentedMask=24 beingPresented=0 coordinator=0 width=1032 height=1376"
+        changes = [("defaultAppMask=30", "defaultAppMask=-30"), ("policyMask=24", "policyMask=-24"),
+                   ("rootMask=30", "rootMask=-30"), ("presentedMask=24", "presentedMask=-24"),
+                   ("orientation=1", "orientation=5"), ("locked=0", "locked=-2"),
+                   ("beingPresented=0", "beingPresented=2"), ("beingPresented=0", "beingPresented=true"),
+                   ("coordinator=0", "coordinator=-1"), ("coordinator=0", "coordinator=false"),
+                   ("policyMask=24", "policyMask=٢٤")]
+        for field in ("width=1032", "height=1376"):
+            name = field.partition("=")[0]
+            changes.extend((field, name + "=" + value) for value in
+                           ("NaN", "inf", "-inf", "1e309", "-0.1", "١٠٣٢"))
+        for before, after in changes:
+            with self.subTest(rejected_value=after):
+                self.assertEqual(collector.filtered_lines(event(valid.replace(before, after))), [])
+
+    def test_modern_orientation_state_rejects_hybrid_schema_order_and_private_suffixes(self):
+        valid = "Player orientation request state requested=24 orientation=1 locked=0 defaultAppMask=30 policyMask=24 rootMask=30 presentedMask=24 beingPresented=0 coordinator=0 width=1032 height=1376"
+        invalid = [valid + " url=https://provider/user/password/stream.ts",
+                   valid + " title=Private channel", valid + " token=secret", valid + " ",
+                   valid.replace("defaultAppMask=30 policyMask=24", "policyMask=24 defaultAppMask=30"),
+                   valid.replace("beingPresented=0 coordinator=0", "coordinator=0 beingPresented=0"),
+                   valid.replace(" policyMask=24", ""), valid.replace(" coordinator=0", ""),
+                   valid.replace("defaultAppMask=30", "appMask=30"),
+                   valid.replace("width=1032", "width=\"1032\""),
+                   valid.replace(" beingPresented=0", " beingPresented=0 beingPresented=1")]
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in invalid)), [])
+        self.assertEqual(collector.filtered_lines(event(valid, process="OtherApp")
+                                                  + event(valid, category="network")), [])
+
+    def test_rejection_state_retains_signed_codes_and_only_bounded_public_masks(self):
+        messages = ["Player orientation rejection state code=101 reportedSupported=2",
+                    "Player orientation rejection state code=-101 reportedSupported=-1",
+                    "Player orientation rejection state code=0 reportedSupported=0",
+                    "Player orientation rejection state code=101 reportedSupported=24",
+                    "Player orientation rejection state code=101 reportedSupported=30"]
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in messages)),
+                         ["2026-10-08 14:10:20.123 " + value for value in messages])
+
+    def test_rejection_state_rejects_raw_description_suffixes_and_invalid_fields(self):
+        valid = "Player orientation rejection state code=101 reportedSupported=2"
+        invalid = [valid + " description=Private channel", valid + " https://provider/user/password",
+                   valid + " token=secret", valid + " ",
+                   "Player orientation rejection state reportedSupported=2 code=101",
+                   "Player orientation rejection state code=١٠١ reportedSupported=2",
+                   "Player orientation rejection state code=101.0 reportedSupported=2"]
+        invalid.extend(valid.replace("reportedSupported=2", "reportedSupported=" + value)
+                       for value in ("31", "99999999999999999999", "-2", "2.0", "NaN", "portrait", "٢"))
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in invalid)), [])
+        self.assertEqual(collector.filtered_lines(event(valid, process="OtherApp")
+                                                  + event(valid, category="network")), [])
+
+    def test_archive_recovery_retains_legacy_modern_and_rejection_without_raw_description(self):
+        messages = [
+            "Player orientation request state requested=24 orientation=1 locked=0 appMask=30 rootMask=30 presentedMask=24 width=1032 height=1376",
+            "Player orientation request state requested=24 orientation=1 locked=0 defaultAppMask=30 policyMask=24 rootMask=30 presentedMask=24 beingPresented=0 coordinator=0 width=1032 height=1376",
+            "Player orientation rejection state code=101 reportedSupported=2",
+        ]
+        self.log = "".join(event(value) + event(value + " description=https://provider/user/password")
+                           for value in messages)
+        self.collect()
+        expected = sorted("2026-10-08 14:10:20.123 " + value for value in messages)
+        self.assertEqual(self.output.read_text(encoding="utf-8"), "\n".join(expected) + "\n")
+        calls = [call for call in self.calls if "--archive" in call]
+        self.assertEqual(len(calls), 1)
+        self.assertIn('eventMessage BEGINSWITH "Player orientation rejection state"',
+                      calls[0][calls[0].index("--predicate") + 1])
+        self.assertFalse(any(path.exists() for path in self.exported))
+        self.assertEqual(list(self.output.parent.iterdir()), [self.output])
+
     def test_existing_file_is_not_overwritten(self):
         self.output.parent.mkdir()
         self.output.write_text("existing approved diagnostic\n", encoding="utf-8")

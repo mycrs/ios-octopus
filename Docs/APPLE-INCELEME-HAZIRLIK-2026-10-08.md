@@ -6,7 +6,31 @@ olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tut
 Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
 build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
-Son build 10 adayı `4983c0b08aee0b5f08e857785ba018b760749244`,
+Son Mac'te denenen build 10 kaynağı `4dcba17d74baa6094eda6e0faceb4997a187eaa3`,
+[dokuzuncu tur 37847499591](https://github.com/mycrs/ios-octopus/actions/runs/37847499591):
+**726 Swift testi / 0 hata ve mimari geçti**. iPhone tam Release akışı
+**228,167 saniyede geçti**; iPad ilk filmde gerçek native videoya rağmen
+portrede kaldı ve ilk yatay pencere kontrolünde başarısız oldu.
+17 özgün tanı eki SHA/CRC doğrulandı. İstek durumu `requested=24`,
+`orientation=1`, `locked=0`, `appMask=30`, `rootMask=30`, `presentedMask=24`,
+1032×1376; ardından **101** hatası geldi. Erken kilit tek başına sorunu
+açıklamaz. `appMask` UIApplication'ın varsayılan Info.plist getter'ıdır;
+özel delegate/policy dönüşünü ölçmez, lease başarısızlığı çıkarılamaz.
+
+Sıradaki aday ilk geometry isteğini UIKit sunum completion'ına taşır;
+current host, istenen kimlik, invalidation ve kapanış durumu korunur.
+Bekleyen/kilitli/kapanan durumları ve beş regresyon testi kalır. Zamanlayıcı,
+retry veya zayıflatılmış UI assertion eklenmez; sonraki Mac testi beklenir.
+`UIRequiresFullScreen` eklenmedi. Public deprecated optout araştırılmış
+yedek seçenektir; iPad çoklu görevini sınırlar, SDK 27+ migration ister ve
+çözüm garantisi değildir. [Apple TN3192](https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key)
+İmzalı iş skipped; build 10 Apple'a yüklenmedi veya telefona kurulmadı.
+Başarılı yeni iPhone/iPad görsel takımı yok. Build 9 kayıtları ve kaynak
+pinleri korunur; gizlilik, M3U/Xtream inceleme kapsamı ve gerçek başvuru
+ayrı bekleyen adımlardır. Kanıt `.artifacts/release10-attempt9-failure-qa.json`
+ve `build10-attempt9-small` altında tutulur.
+
+Sekizinci build 10 adayı `4983c0b08aee0b5f08e857785ba018b760749244`,
 [37842943490 numaralı sekizinci Mac turu](https://github.com/mycrs/ios-octopus/actions/runs/37842943490):
 **721 Swift testi / 0 hata ve mimari geçti**. iPhone Release akışının
 tamamı **281,438 saniyede başarılı**: film detayına geri dönüş, gerçek
@@ -20,11 +44,11 @@ isteği hatası **101**, isteğin reddedildiğini gösterir; erken portrait
 kilidinin neden olduğu yorumu henüz gerçek sonraki Mac testiyle
 doğrulanmış bir kök neden değildir.
 
-Yeni yerel aday kilidi bekleyen/kilitli/kapanan durumlarıyla yönetir:
+Sekizinci turdan sonraki aday kilidi bekleyen/kilitli/kapanan durumlarıyla yönetir:
 yatay yön isteği kilitten önce yapılır; kilit ancak kendi scene yönü ile
 view/window geometrisi gerçekten yatay gözlendikten sonra açılır.
 Kapanış mühürlendiğinden geç gelen callback yeniden kilitlemez.
-Bu aday henüz doğrulanmadı. Sekizinci turda imzalı iş **skipped**;
+Sonraki Mac sonucu yukarıdaki dokuzuncu turdadır. Sekizinci turda imzalı iş **skipped**;
 imzalı build 10, Apple yüklemesi ve USB kurulumu yok. Başarısız kaynak
 turunun eksik iPhone/iPad görselleri mağazaya gönderilmez. App Store'daki
 build 9 ve kaynak pinleri korunur; mevcut M3U/Xtream inceleme kapsamı,

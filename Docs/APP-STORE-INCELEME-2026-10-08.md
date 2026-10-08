@@ -5,7 +5,33 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
-Son build 10 adayı `4983c0b08aee0b5f08e857785ba018b760749244`,
+Son Mac'te denenen build 10 kaynağı `4dcba17d74baa6094eda6e0faceb4997a187eaa3`,
+[dokuzuncu tur 37847499591](https://github.com/mycrs/ios-octopus/actions/runs/37847499591):
+**726 Swift testi / 0 hata ve mimari geçti**. iPhone Release akışının
+tamamı **228,167 saniyede geçti**. iPad ilk filmde native video üretmesine
+rağmen portrede kaldı; ilk yatay pencere kontrolü başarısız oldu.
+17 özgün tanı eki SHA/CRC ile doğrulandı. Yön isteğinde `requested=24`,
+`orientation=1`, `locked=0`, `appMask=30`, `rootMask=30`, `presentedMask=24`,
+pencere 1032×1376; hemen ardından **101** hatası kaydedildi. Video ilerlerken
+etkin kilit kapalıdır; erken portrait kilidi tek başına bu arızayı açıklamaz.
+`appMask=30`, UIApplication'ın varsayılan Info.plist maskesi getter'ıdır;
+özel AppDelegate/policy lease dönüşü değildir ve lease arızasını kanıtlamaz.
+
+Sıradaki yerel aday ilk geometry isteğini `viewDidAppear` yerine gerçek
+UIKit sunumunun completion sınırına taşır. Yalnız hâlâ kendi host'u,
+istenen kimliği ve geçerli sunum durumu eşleşiyorsa istek yapılır; kapanan
+veya invalidated sunum istek göndermez. Bekleyen/kilitli/kapanan durumları,
+geç callback koruması ve beş yön regresyon testi korunur. Bu aday henüz
+Mac'te denenmedi; zamanlayıcı/retry eklenmez, UI doğrulamaları zayıflatılmaz.
+`UIRequiresFullScreen` eklenmedi. Deprecated public uyumluluk optout'u
+yalnız araştırılmış yedek seçenektir: iPad çoklu görevini kısıtlar ve SDK 27+
+için migration gerektirir; başarı garantisi değildir. [Apple TN3192](https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key)
+Dokuzuncu turun imzalı işi skipped; imzalı build 10, Apple yüklemesi ve
+USB kurulumu yok. Başarı görsel klasörü oluşturulmadı. Mevcut build 9,
+kaynak pinleri ve bekleyen gizlilik/inceleme kapsamı korunur. Yerel kanıt:
+`.artifacts/release10-attempt9-failure-qa.json` ve `build10-attempt9-small`.
+
+Sekizinci build 10 adayı `4983c0b08aee0b5f08e857785ba018b760749244`,
 [sekizinci Mac turu 37842943490](https://github.com/mycrs/ios-octopus/actions/runs/37842943490):
 **721 Swift testi / 0 hata ve mimari kapısı geçti**. iPhone Release
 kullanıcı akışının tamamı **281,438 saniyede geçti**: gerçek native kare,
@@ -20,11 +46,11 @@ Bu, reddedilen yön isteğinin kanıtıdır; çözümleme arızası veya testin
 ekranı yanlış kırpması değildir. Kilidin portrede erken uygulanması
 olasılığı, henüz sonraki gerçek Mac testiyle doğrulanmamış bir çıkarımdır.
 
-Şimdiki yerel düzeltme adayı kilit durumunu **bekleyen → kilitli → kapanan**
+Sekizinci turdan sonraki düzeltme kilit durumunu **bekleyen → kilitli → kapanan**
 olarak ayırır. Önce yatay geometry isteği yapılır; public lock tercihi
 yalnız kendi scene yönü, view ve window ölçüleri gerçekten yatay
 gözlendikten sonra açılır. Kapanış durumu mühürlenir; geç kalan dönüş/layout
-callback'i kilidi yeniden açamaz. Bu değişiklik henüz Mac'te doğrulanmadı.
+callback'i kilidi yeniden açamaz. Sonraki Mac sonucu yukarıdaki dokuzuncu turdadır.
 Sekizinci turda imzalı iş **skipped**; imzalı build 10 üretilmedi,
 Apple'a yüklenmedi veya telefona kurulmadı. Tamamlanmış yeni iPhone/iPad
 görsel takımı yok; başarısız turdan görsel gönderilmez. Mevcut build 9,

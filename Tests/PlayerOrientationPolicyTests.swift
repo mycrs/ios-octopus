@@ -4,6 +4,21 @@ import UIKit
 
 @MainActor
 final class PlayerOrientationPolicyTests: XCTestCase {
+    func test_orientationDenialKeepsOnlyKnownSupportedMask() {
+        let prefix = "None of the requested orientations are supported by the view controller. Requested: landscapeLeft, landscapeRight; Supported: "
+        XCTAssertEqual(PlayerOrientationRequestDiagnostics.deniedMask(in: prefix + "portrait"), .portrait)
+        XCTAssertEqual(PlayerOrientationRequestDiagnostics.deniedMask(in: prefix + "landscapeLeft, landscapeRight."), .landscape)
+    }
+
+    func test_orientationDenialRejectsArbitrarySuffixAndUnknownDescriptions() {
+        let prefix = "None of the requested orientations are supported by the view controller. Requested: landscapeLeft; Supported: "
+        for suffix in ["", "portrait portrait", "portrait, portrait", "portrait https://example.invalid/channel",
+                       "portrait; title=Private", "portrait, unknown"] {
+            XCTAssertNil(PlayerOrientationRequestDiagnostics.deniedMask(in: prefix + suffix))
+        }
+        XCTAssertNil(PlayerOrientationRequestDiagnostics.deniedMask(in: "Private controller failed: portrait"))
+    }
+
     func test_initialLayoutCannotLockBeforeLandscapeRequestIsIssued() {
         var state = PlayerFullscreenOrientationLockState()
         let landscape = CGSize(width: 1376, height: 1032)

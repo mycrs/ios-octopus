@@ -144,7 +144,10 @@ final class PlayerFullscreenPresenterController: UIViewController, UIAdaptivePre
             self.state.didPresent(id)
             controller.presentationController?.delegate = self
             if self.invalidated { self.dismissOwned(controller, animated: false) }
-            else { self.reconcile() }
+            else {
+                if self.state.desiredID == id { controller.presentationDidComplete() }
+                self.reconcile()
+            }
         }
     }
     private func dismissOwned(_ controller: LandscapePlayerHostingController, animated: Bool) {

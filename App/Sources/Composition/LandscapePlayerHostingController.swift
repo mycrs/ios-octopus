@@ -36,9 +36,11 @@ final class LandscapePlayerHostingController: UIHostingController<AnyView> {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        guard let scene = playerScene, lease != nil, !orientationLock.isClosing else { return }
+    /// UIKit calls viewDidAppear before its presentation completion. Request
+    /// geometry only once the owned presentation has actually committed.
+    func presentationDidComplete() {
+        guard let scene = playerScene, lease != nil, !orientationLock.isClosing,
+              presentingViewController != nil, !isBeingDismissed else { return }
         setNeedsUpdateOfSupportedInterfaceOrientations()
         Self.request(.landscape, scene: scene, window: playerWindow)
         orientationLock.didRequestLandscape()
@@ -104,14 +106,25 @@ final class LandscapePlayerHostingController: UIHostingController<AnyView> {
         } else {
             locked = -1
         }
-        let appMask = UIApplication.shared.supportedInterfaceOrientations(for: window).rawValue
+        // UIApplication's getter describes the Info.plist default, not the
+        // app delegate's scene-scoped override. Record those separately.
+        let defaultAppMask = UIApplication.shared.supportedInterfaceOrientations(for: window).rawValue
+        let policyMask = PlayerOrientationPolicy.shared.supportedOrientations(
+            sceneID: ObjectIdentifier(scene), isPad: scene.traitCollection.userInterfaceIdiom == .pad
+        ).rawValue
         let rootMask = window?.rootViewController?.supportedInterfaceOrientations.rawValue ?? 0
-        let presentedMask = window?.rootViewController?.presentedViewController?.supportedInterfaceOrientations.rawValue ?? 0
+        let presented = window?.rootViewController?.presentedViewController
+        let presentedMask = presented?.supportedInterfaceOrientations.rawValue ?? 0
+        let beingPresented = presented?.isBeingPresented == true ? 1 : 0
+        let coordinator = presented?.transitionCoordinator == nil ? 0 : 1
         let width = Double(window?.bounds.width ?? 0)
         let height = Double(window?.bounds.height ?? 0)
-        Log.ui.info("Player orientation request state requested=\(mask.rawValue, privacy: .public) orientation=\(scene.interfaceOrientation.rawValue, privacy: .public) locked=\(locked, privacy: .public) appMask=\(appMask, privacy: .public) rootMask=\(rootMask, privacy: .public) presentedMask=\(presentedMask, privacy: .public) width=\(width, privacy: .public) height=\(height, privacy: .public)")
+        Log.ui.info("Player orientation request state requested=\(mask.rawValue, privacy: .public) orientation=\(scene.interfaceOrientation.rawValue, privacy: .public) locked=\(locked, privacy: .public) defaultAppMask=\(defaultAppMask, privacy: .public) policyMask=\(policyMask, privacy: .public) rootMask=\(rootMask, privacy: .public) presentedMask=\(presentedMask, privacy: .public) beingPresented=\(beingPresented, privacy: .public) coordinator=\(coordinator, privacy: .public) width=\(width, privacy: .public) height=\(height, privacy: .public)")
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { error in
             Log.ui.error("Player orientation request failed; code=\((error as NSError).code, privacy: .public)")
+            let supported = PlayerOrientationRequestDiagnostics.deniedMask(in: error.localizedDescription)
+                .map { Int($0.rawValue) } ?? -1
+            Log.ui.error("Player orientation rejection state code=\((error as NSError).code, privacy: .public) reportedSupported=\(supported, privacy: .public)")
         }
     }
 

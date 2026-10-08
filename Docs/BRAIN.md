@@ -1050,12 +1050,12 @@ UIKit kaydı `Player orientation request failed; code=101` içerir;
 isteğin reddi kanıtlanmıştır, erken portrait kilidinin buna neden olduğu
 yorumu ise henüz sonraki Mac testiyle doğrulanmamış bir çıkarımdır.
 
-Şimdiki yerel onarım adayı `PlayerFullscreenOrientationLockState` ile
+Sekizinci turdan sonraki onarım adayı `PlayerFullscreenOrientationLockState` ile
 bekleyen → kilitli → kapanan durumlarını ayırır. Yatay geometry isteği
 kilit tercihi etkinleşmeden yapılır. Public lock yalnız kendi scene yönü ile view ve
 window geometrisi gerçekten yatay gözlendiğinde açılır; kapanış durumu
-mühürlenir ve geç callback yeniden kilitleyemez. Henüz gerçek Mac
-doğrulaması yok. Sekizinci turda imzalı iş **skipped**; imzalı build 10
+mühürlenir ve geç callback yeniden kilitleyemez. Sonraki Mac sonucu
+aşağıdaki dokuzuncu turdadır. Sekizinci turda imzalı iş **skipped**; imzalı build 10
 üretilmedi, Apple'a yüklenmedi veya telefona kurulmadı. Bu başarısız turdan
 eksik görsel takımı gönderilmez. Son doğrulanmış imzalı/kurulu kaynak
 build 9'dur; mağaza kayıtları, kaynak pinleri, M3U/Xtream inceleme kapsamı
@@ -1063,3 +1063,29 @@ ve bekleyen canlı backend gizlilik eşleştirmesi korunur. Son tur kanıtı
 `.artifacts/build10-attempt8-small/extraction-report.json`, filtreli
 `ipad-player-ui.log` ve `video-inspection/frame-report.json` altında
 aynı kaynak/run, özgün SHA/CRC ve native video zamanlarıyla tutulur.
+
+Build 10 dokuzuncu kaynak adayı `4dcba17d74baa6094eda6e0faceb4997a187eaa3` /
+[37847499591](https://github.com/mycrs/ios-octopus/actions/runs/37847499591):
+**726 Swift testi / 0 hata ve mimari geçti**. iPhone Release akışının
+tamamı **228,167 saniyede geçti**. iPad ilk filmde native video üretir
+ama portrede kalır; ilk yatay pencere kontrolü başarısızdır. 17 özgün
+tanı eki SHA/CRC ile doğrulandı. İstek sırasında `requested=24`,
+`orientation=1`, `locked=0`, `appMask=30`, `rootMask=30`, `presentedMask=24`,
+pencere 1032×1376; hemen ardından code **101** gelir. Etkin kilit kapalıyken
+de istek reddedilmiştir; erken portrait kilidi tek başına açıklama değildir.
+`appMask` UIApplication'ın varsayılan Info.plist getter'ıdır; özel
+AppDelegate/policy lease sonucunu ölçmez ve lease arızasını kanıtlamaz.
+
+Sıradaki aday ilk geometry isteğini gerçek UIKit sunum completion'ına
+taşır; current host/desired ID eşleşmesi ve invalidation/kapanış guard'ı
+korunur. Bekleyen → kilitli → kapanan durumları ile beş regresyon testi
+kalır; geç callback kapanışı yeniden kilitleyemez. Timer/retry eklenmez,
+UI assertion zayıflatılmaz. Henüz yeni Mac sonucu yok.
+`UIRequiresFullScreen` eklenmedi; deprecated public uyumluluk optout'u
+araştırılmış fallback'tir, iPad çoklu görevini kısıtlar ve SDK 27+ için
+migration gerektirir. Çözüm garantisi değildir. [Apple TN3192](https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key)
+Dokuzuncu turun imzalı işi skipped; imzalı build 10/Apple yüklemesi/USB
+kurulumu ve başarılı yeni görsel takımı yok. Build 9 mağaza kayıtları,
+kaynak pinleri, M3U/Xtream kapsamı ve bekleyen gizlilik eşleştirmesi korunur.
+Kanıt `.artifacts/release10-attempt9-failure-qa.json` ve `build10-attempt9-small`
+altında tutulur; başarısız kaynak görselleri mağazaya gönderilmez.

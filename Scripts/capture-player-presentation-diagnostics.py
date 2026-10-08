@@ -10,7 +10,8 @@ import tempfile
 import time
 
 PREFIXES = ("Player dismissal +2s", "Player dismissal tabSelection",
-            "Player orientation request failed", "Player orientation request state")
+            "Player orientation request failed", "Player orientation request state",
+            "Player orientation rejection state")
 PREDICATE = ('process == "Octopus" AND subsystem == "com.octopus.iptv" '
              'AND category == "ui" AND (' + ' OR '.join(
                  f'eventMessage BEGINSWITH "{prefix}"' for prefix in PREFIXES) + ')')
@@ -38,6 +39,14 @@ REQUEST_STATE = re.compile(
     r"Player orientation request state requested=[0-9]+ orientation=[0-4] locked=(?:-1|0|1)"
     r" appMask=[0-9]+ rootMask=[0-9]+ presentedMask=[0-9]+"
     + r" width=(?P<width>" + NUMBER + r") height=(?P<height>" + NUMBER + r")", re.ASCII)
+MODERN_REQUEST_STATE = re.compile(
+    r"Player orientation request state requested=[0-9]+ orientation=[0-4] locked=(?:-1|0|1)"
+    r" defaultAppMask=[0-9]+ policyMask=[0-9]+ rootMask=[0-9]+ presentedMask=[0-9]+"
+    r" beingPresented=[01] coordinator=[01]"
+    + r" width=(?P<width>" + NUMBER + r") height=(?P<height>" + NUMBER + r")", re.ASCII)
+REJECTION_STATE = re.compile(
+    r"Player orientation rejection state code=-?[0-9]+ reportedSupported=(?P<supported>-1|[0-9]+)",
+    re.ASCII)
 TIMESTAMP = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{4})?)\s")
 PROCESS = re.compile(r"\bOctopus(?:\[\d+:[0-9a-fA-Fx]+\]|:)\s")
 
@@ -65,13 +74,14 @@ def filtered_lines(text):
         before, found, message = line.partition(marker)
         timestamp = TIMESTAMP.match(before)
         if found and timestamp and PROCESS.search(before) and len(message) <= 2048:
-            if any(pattern.fullmatch(message) for pattern in MESSAGES) or orientation_state(message):
+            if (any(pattern.fullmatch(message) for pattern in MESSAGES)
+                    or orientation_state(message) or rejection_state(message)):
                 lines.append(timestamp.group(1) + " " + message)
     return lines
 
 
 def orientation_state(message):
-    fields = REQUEST_STATE.fullmatch(message)
+    fields = REQUEST_STATE.fullmatch(message) or MODERN_REQUEST_STATE.fullmatch(message)
     if fields is None:
         return False
     try:
@@ -79,6 +89,11 @@ def orientation_state(message):
         return all(math.isfinite(value) and value >= 0 for value in dimensions)
     except (OverflowError, ValueError):
         return False
+
+
+def rejection_state(message):
+    fields = REJECTION_STATE.fullmatch(message)
+    return fields is not None and -1 <= int(fields["supported"]) <= 30
 
 
 def original_booted(device, deadline):
