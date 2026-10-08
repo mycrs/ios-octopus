@@ -943,3 +943,82 @@ SQL LIMIT/OFFSET ve kararlı kimlik bağlayıcısı eklendi. Sekiz Home ve bir
 kanal sayfalama regresyon testi eklendi. Release testi ana sayfadaki gerçek
 örnek film kartını ekran görüntüsünden önce bekler. Bu son değişiklikler
 için yeni Mac test sonucu, paket yükleme ve cihaz kurulum kanıtı beklenir.
+
+### 08.10.2026 — build 9 son kaynak, USB UHD sonucu ve Apple'da kalan adımlar
+
+Sonraki kullanıcı talebi son gönderimi yeni oynatıcı düzeltmelerine bağladı:
+tam ekranda yatay yön, Android'deki kanal paneli, kontrol blur'unun temizliği,
+tam ekrandan geri dönüşte görünür yüzey/ses ömrü. Build 9 henüz App Review'a
+gönderilmedi; mevcut metadata korunup yeni binary ve gerçek cihaz akışı test edilir.
+
+Doğrulanan binary kaynağı `9c0e98a2b9f09140a062c90eaf7bd7c3010ae299`;
+[37808603564 numaralı yayın çalışması](https://github.com/mycrs/ios-octopus/actions/runs/37808603564)
+başarılı. Mimari/iOS derleme kapıları ile **694 Swift testi** geçti:
+Domain 84, Features 219, Data 295, Playback 71, DesignSystem 11, App 14.
+Hem iPhone hem iPad Release inceleme akışı gerçek örnek kitaplık kurulumu,
+ana sayfa, film, gerçek `AVPlayerLayer` video karesi, bölüm, Ayarlar ve
+kaynak kontrolüyle tamamlandı. Önceki `b861665` turundaki iPad tam ekran
+kapatma/test dokunuşu yarışı bu kaynakta giderildi. Native örnek video
+kanıtı gerçek kullanıcı UHD kanalının native uyumluluğu anlamına gelmez.
+
+İmzalı Apple yükleme işi geçti. Aynı kaynak/build numaralı USB güncellemesi
+%100'e ulaştı; bağımsız InstallationProxy `get_apps` sorgusu telefonda
+**1.0.0 (9)** olduğunu doğruladı. `.artifacts/device-builds/build9/installed-context.json`
+bu sürüm/build/kaynak commit'ini kaydeder; doğrulama scripti build 9
+koşulunu geçmeden kayıt yazmaz. Kişisel uygulama verileri silinmedi.
+
+Kullanıcı build 9'da önceki sorunlu UHD kanalda **görüntü ve sesin geldiğini**,
+ardından **normal kanalın çalıştığını** doğruladı. Çalışan UHD motoru **VLC**;
+native UHD düzeldi veya bütün UHD formatları çalışıyor diye yazılmaz.
+300 saniyelik log yakalama isteği için
+`.artifacts/device-logs/20261008T165908300786Z` altında **41.897 olay** var;
+ilk/son zaman damgalarının aralığı yaklaşık 259 saniye. Yerel saatle
+20:01:14.896'da VLC yükleme nesli 1 / 8 saniyelik tanı: 2 video izi,
+seçili iz 0, videoOut true, 3840×2160, drawable ve pencere bağlı.
+20:02:02.712'de nesil 2 / 8 saniyelik tanı 1920×1080 ve aynı geçerli
+iz/çıktı/yüzey durumunu verdi. Bunlar sayısal metaveridir; VLC'de
+görünür ilk kare olayı üretilmez. Görüntü/ses sonucu kullanıcı gözlemidir;
+codec/container kök nedeni ve genel native HEVC uyumluluğu bilinmiyor.
+
+App Store İngilizce mağaza alanları, yaş cevapları ve **3.492 karakterlik
+Review Notes** kaydedildi. Not alanını kaydetmek App Review mesajı veya
+başvuru gönderimi değildir. Gerçek CI PNG'lerinden iPhone 6 + iPad 6
+olarak **12 ekran görüntüsü** seçildi. İlk image asset aktarıldı;
+`UPLOAD_COMPLETE` processing için ilk 120 saniyelik bekleme sınırı doldu;
+sonraki kontrolde hatasız `PREPARE_FOR_SUBMISSION` ve doğru 1206×2622
+spec doğrulandı. Diğer 11 görsel/yerleşim henüz tamamlanmadı.
+Bu aşamada **eski 21 placement ilişkisi korunuyor**. Tüm yeni image
+asset'ler hazır olup güncel sürüm/yüzey/restore kayıtları doğrulanmadan
+ilişki kaldırılmaz; image asset silinmez.
+
+Gizlilik denetimi yalnız iOS gövdesine bakarak «Data Not Collected»
+sonucuna varmaz. iOS aktivasyonu yalnız `code` gönderiyor, config/DNS'te
+kalıcı cihaz kimliği yok; bayi kodu kullanıcı girdisi olarak yolda gidiyor.
+Android referansının işaret ettiği yerel owned-backend, rate-limit IP/sayacını
+SQLite'a ve yavaş config/DNS/bayi isteklerini IP/teşhis bilgileriyle diske
+yazıyor. Rate-limit 60 saniye pencere reset'i silme süresi değildir;
+temizleme/rotasyon bulunmadı. Yerel backend'in canlı sürümle eşitliği ve
+altyapı saklama süresi doğrulanmadı; public cache başlıkları bunu ispatlamaz.
+Bilinen dört PHP dosyasının canlı hash karşılaştırması için güvenilir
+FTP/SSH erişimi ve doğrulanmış uzak document root eşlemesi bulunamadı;
+uzaktan bağlantı veya DB/log okuması yapılmadı.
+Kullanıcı yanıtı/dağıtım kanıtı bekleniyor. Canlı kod eşitse mevcut boş
+collected-data manifest'i ve ASC `Data Not Collected` cevabı gerçek
+tür/amaç/bağlantı durumuna göre düzeltilmelidir. IP kendiliğinden konum
+veya Device ID sayılmaz; ham IP'nin kullanıcıyla bağlantısızlığı da yalnız
+IDFV yokluğundan çıkarılmaz. [Apple — App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/)
+
+Build 9 mevcut App Store sürümüne seçilip UI'da Save ile kaydedildi;
+sonrasında **Prepare for Submission** görüldü. Save öncesindeki API
+Rejected sonucu bu yeni durumu doğrulamaz; güncel API ilişkisi ayrıca okunur.
+Kalan dış adımlar: build ilişkisinin son kontrolü, 12 yeni görselin işlenip yerleştirilmesi,
+gizlilik eşleştirmesi ve **gerçek Submit for Review / Waiting for Review**
+kanıtı. Mevcut ASC **onay sonrası otomatik yayın** tercihi korunur;
+manuel yayına çevrilmez. İmzalı yükleme/TestFlight processing, App Review
+başvurusu veya Apple onayı değildir. Kabul garantisi verilmez.
+
+Son iletişim kaydı: **8 Ekim 20:15 (GMT+3)** 1.187 karakterlik App Review
+yanıtı gönderildi; ana ajan 8 mesajlı konuşmayı doğruladı. Yerel kanıt
+`.artifacts/apple-review-reply-sent.jpg`. Bu mesaj, 3.492 karakterlik
+Review Notes alanı ve gerçek Submit for Review ayrı adımlardır; yanıtın
+gönderilmesi Waiting for Review veya Apple onayı anlamına gelmez.

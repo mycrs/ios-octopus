@@ -1,29 +1,30 @@
 # Octopus — Apple incelemesine hazırlık araştırması
 
-Araştırma tarihi: **8 Ekim 2026**. Apple'ın resmî belgeleri ve bu depodaki
-kaynak kod incelendi. App Store Connect'e bu araştırma sırasında yazı,
-metadata, build veya yeniden inceleme gönderilmedi. Aşağıdaki başlangıç
-bulguları, sonraki kod değişikliklerinden önceki durumu anlatır; gönderilen
-Release sürümü için kontrol tablosu ayrıca doldurulmalıdır.
+Araştırma ve son durum güncellemesi: **8 Ekim 2026**. Apple'ın resmî
+belgeleri ve kaynak kod incelendi. Başlangıç bulguları tarihsel kayıt
+olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tutar.
+Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
+build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
 Sonraki hazırlık kararı: kullanıcı yalnızca M3U sağladı, Xtream inceleme
-hesabı yok. Hedef build 9'a karşılama ve Ayarlar'dan tüm kullanıcılara
-sunulan isteğe bağlı örnek kitaplığı ekleniyor. İki açık lisanslı kısa film,
+hesabı yok. Build 9'da karşılama ve Ayarlar'dan tüm kullanıcılara
+sunulan isteğe bağlı örnek kitaplığı var. İki açık lisanslı kısa film,
 açıkça örnek diye etiketlenen kanal/rehber ve film seçkisiyle bölüm akışı
 uygulama kontrollerini incelemeyi kolaylaştırır. Bu, gerçek Xtream servisi,
-operatör EPG'si veya UHD uyumluluğu testinin yerine geçmez. Son build'in
-uygulama/oynatma testi tamamlandı iddiası bu araştırmadan çıkarılmaz.
+operatör EPG'si veya UHD uyumluluğu testinin yerine geçmez. Son Release
+örnek akışları ve ayrı fiziksel cihaz UHD denemesi aşağıda belgelenir.
 
-Son durum güncellemesi: build 9 CI `3f633b3` kaynağıyla
-[37797698561](https://github.com/mycrs/ios-octopus/actions/runs/37797698561)
-çalışmasında sürüyor; build 9 upload ve App Review
-submission henüz doğrulanmadı. Canlı App Store Connect'te İngilizce
-**Your playlists, organized** alt başlığı ve aşağıdaki yaş anketi kaydedildi.
-İngilizce açıklama/tanıtım/anahtar kelimeler son denetimden önceki haliyle
-kaydedildi. Ayrı playlist PIN'i kapsamını Quick Setup ile sınırlayan
-son açıklama düzeltmesi mağazaya ayrıca kaydedilmelidir.
-Araştırma ajanı hesapta değişiklik yapmadı; kaydedilen işlemleri ana
-ajanın gözlemi ve yaş sonucu görüntüsü üzerinden belgeler.
+Son doğrulanan kaynak `9c0e98a2b9f09140a062c90eaf7bd7c3010ae299`,
+[37808603564 yayın çalışması](https://github.com/mycrs/ios-octopus/actions/runs/37808603564)
+başarılı: 694 Swift testi, iPhone/iPad Release akışları ve imzalı Apple
+yüklemesi geçti. USB güncellemesi ve bağımsız InstallationProxy sorgusu
+telefonda **1.0.0 (9)** olduğunu doğruladı. Kullanıcı sorunlu UHD'de
+görüntü+ses, ardından normal kanal başarısını bildirdi; çalışan UHD motoru
+VLC. App Store Connect'te İngilizce **Your playlists, organized** alt
+başlığı, açıklama/tanıtım/anahtar kelimeler, yaş anketi ve 3.492 karakterlik
+Review Notes kaydedildi. Build 9 mevcut sürüme seçilip UI'da kaydedildi;
+Save sonrası Prepare for Submission görüldü. Yeni 12 görselin tamamlanması,
+build ilişkisinin son kontrolü ve gerçek App Review başvurusu ayrı adımlardır.
 
 ## Ret hakkında bildiğimiz
 
@@ -41,7 +42,10 @@ build 8'i incelediği de söylenemez.
 Son CI'da gerçek video karesi ekran görüntüsünde görülmelidir; yalnız
 `playing` olayı, motor seçimi veya boş oynatıcı kutusu kanıt sayılmaz.
 Bu örnek video doğrulaması, önceki UHD kanalının fiziksel cihazda
-düzeldiği anlamına gelmez.
+düzeldiği anlamına gelmez. Son 37808603564 turunda her iki Release
+akışında gerçek native örnek video karesi görüldü; build 9'un ayrı fiziksel
+UHD denemesinde kullanıcı görüntü/sesi doğruladı. Bu son UHD sonucu
+native uyumluluk veya bütün UHD kaynaklarının geçtiği iddiası değildir.
 
 Güncel 4.3(a), aynı uygulamanın birden çok bundle ID ile dağıtılmasını;
 4.3(b), yaygın uygulamalardan ayırt edilemeyen deneyimleri ele alır.
@@ -191,9 +195,40 @@ Koddan görülen veri yolları: kullanıcının sağlayıcısı için Xtream/M3U
 EPG ve görseller; Octopus panelinin app config/reseller/aktivasyon/DNS
 servisleri; kullanıcı başlatırsa iOS paylaşım ekranıyla destek JSON'u.
 Yerel geçmiş/favori/ilerleme ve parolanın cihazda saklanması ayrı
-anlatılır. Panel/CDN erişim loglarının saklama süresi koddan bilinemez.
-Bu nedenle sunucu davranışı doğrulanmadan App Privacy için «No Data
-Collected» sonucuna otomatik olarak varılmamalıdır.
+anlatılır. iOS aktivasyon isteğinin JSON gövdesi yalnız `code` içerir;
+config/DNS isteğinde kalıcı cihaz kimliği yok, bayi isteğinin yolunda
+kullanıcının girdiği bayi kodu bulunur. IDFV/IDFA gönderimi bulunmadı.
+
+Android referansının işaret ettiği `C:/qruze_player/dist/octopusdocumentary-admin`
+yerel backend'i salt okunur incelendi: `api/_db.php:661` IP, rate-limit
+anahtarı/sayacı/pencere sonunu SQLite'a yazar. 60 saniyelik pencere
+sayacı sıfırlar; satır silme süresi değildir. `api/_cache_lib.php:57`
+en az bir saniyelik config/DNS/bayi isteklerini IP, endpoint, zaman,
+süre ve durumla `slow-requests.log` dosyasına ekler. Temizleme/rotasyon
+bulunmadı. Aktivasyon `used_count`, `attempts`, `consumed_at`, `updated_at`
+alanlarını saklar; tükenen kodun kaynak parolalarını temizler. Süresi
+geçen kodlar başka kod oluşturulurken silinir; kesin saklama süresi yok.
+`created_ip` kod oluşturma isteğinin IP'sidir; iOS redeem isteğinin IP'si
+olduğu varsayılmaz.
+
+Bu yerel backend'in **canlı sürümle eşitliği doğrulanmadı**. Dağıtım işareti
+dosya hash'i/Git SHA sağlamıyor; public site dağıtımı backend'i kapsamıyor.
+Public app-config HTTP 200 ve cache başlıkları aynı kod/saklama davranışı
+kanıtı değildir. Kullanıcı yanıtı veya güvenilir dağıtım kanıtı bekleniyor;
+mevcut `Data Not Collected` ve boş collected-data manifest'i bu denetimde
+değiştirilmedi. Yerel kod canlıysa bu beyanla çelişir.
+Bilinen dört PHP dosyası için salt okunur canlı hash karşılaştırması
+güvenilir FTP/SSH erişimi ve doğrulanmış uzak document root eşlemesi
+bulunamadığından yapılamadı; uzaktan bağlantı veya DB/log okuması denenmedi.
+
+Kodun gösterdiği amaçlara ilişkin sınıflandırma yorumu: rate-limit IP'si
+güvenlik/App Functionality için `Other Data Types`; istek süresi Performance
+Data, IP/endpoint/durum teşhis bağlamı Other Diagnostic Data olabilir.
+IP otomatik konum veya Device ID sayılmaz; reklam/takip amacı bulunmadı.
+Ham IP anonimleştirilmez ve bayi endpoint'i kod/slug taşır. Kullanıcıyla
+bağlantısız cevabı yalnız cihaz kimliği yokluğuna dayanamaz; son kullanıcı
+hesabıyla doğrudan join de bu handler'larda bulunmadı. Canlı kullanım ve
+saklama doğrulanıp Apple cevapları uygun tür/amaç/bağlantıyla eşleştirilmeli.
 
 Build 8 IPA'sında görülen manifestler:
 
@@ -276,26 +311,44 @@ Uygulanacak sıra:
    compliance ve review bilgilerini kontrol et; **Add for Review** sonrası
    gerçek **Submit for Review** adımını tamamla. Yalnızca TestFlight'a
    yükleme yapmak App Review başvurusu değildir. [Apple — submit an app](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app/)
-6. Kullanıcının talebi onay almak olduğu için mağaza release seçimini
-   **Manually release this version** olarak tutmak uygundur. Onay sonrası
-   `Pending Developer Release` görünmesi incelemenin tamamlandığını,
-   mağazaya yayınlamanın ayrı adım olduğunu gösterir. [Apple — release options](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/select-an-app-store-version-release-option/)
+6. App Store Connect'teki mevcut **onay sonrası otomatik yayın** tercihi
+   korunur; bu hazırlıkta manuel yayına çevrilmedi. Otomatik yayın seçimi
+   Apple'ın onayladığı veya incelemeye gönderimin tamamlandığı anlamına
+   gelmez. [Apple — release options](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/select-an-app-store-version-release-option/)
 
 Gönderim sonunda kaydedilecek kanıt: son kod commit'i, sürüm/build,
 CI linki, cihaz test sonuçları, kullanılan demo kapsamı, metadata son
 metni ve App Store Connect'in `Waiting for Review` durumunu gösteren
 gönderim kaydı. Apple'ın kabul kararı henüz yoksa «onaylandı» denmez.
 
-## Son gönderim için doldurulacak durum
+## Son build 9 doğrulaması ve kalan gönderim adımları
 
-| Kontrol | Başlangıç durumu |
+| Kontrol | Son doğrulanan durum |
 |---|---|
-| Güncel Release kurulu cihaz | Build 8 kurulu; sonraki değişiklikler ayrı build gerektirir. |
-| UHD görüntü ve ses | Yeni build için doğrulanmadı. |
-| iPad gerçek akış ve yeni görüntüler | Bu araştırmada doğrulanmadı. |
-| Sürekli erişilir privacy/support | Başlangıç kodunda eksik; düzeltme gerekiyor. |
-| Reviewer kaynak kapsamı | Xtream hesabı yok. M3U canlı listesini kapsıyor; build 9 normal kullanıcıya açık örnek kitaplığı/rehber/bölüm arayüzü test kanıtı bekleniyor. |
-| Kaydedilen metadata / yaş | İngilizce alt başlık ve yaş anketi kaydedildi; hesaplanan 13+/bölgesel sonuçlar yukarıda. Diğer taslak alanlar son canlı kontrol bekler. |
-| Review Notes ve 4.3 mesajı | Son build doğrulaması sonrası için taslak hazır; gönderilmedi. |
-| Sunucu veri saklama ve privacy beyanı | Kaynak koddan teyit edilemiyor. |
-| Yeni App Store dağıtım build'i ve inceleme gönderimi | Build 9 `3f633b3`, CI 37797698561 sürüyor; upload/submission henüz doğrulanmadı. |
+| Son kaynak / CI | `9c0e98a2b9f09140a062c90eaf7bd7c3010ae299`, 37808603564 başarılı; Domain 84 + Features 219 + Data 295 + Playback 71 + DesignSystem 11 + App 14 = 694 Swift testi. |
+| Güncel Release kurulu cihaz | USB Upgrade %100 ve bağımsız InstallationProxy sorgusu: 1.0.0 (9). Aynı kaynak commit'i yerel installed-context kaydında. |
+| UHD görüntü ve ses | Kullanıcı önceki sorunlu UHD'de görüntü+ses ve normal kanal başarısını doğruladı. UHD VLC; native UHD başarısı iddiası yok. |
+| UHD sayısal kayıt | 300 sn yakalama isteği, 41.897 olay; zaman damgaları yaklaşık 259 sn aralığında. 20:01:14.896 VLC gen1/8sn: 2 video izi, seçili 0, videoOut true, 3840×2160, drawable/window true. Normal denemede 20:02:02.712 gen2: 1920×1080. Bunlar görünür kare ölçümü değildir. |
+| iPhone/iPad Release akışları | İki akış da geçti; gerçek AVPlayerLayer örnek video karesi, film/bölüm/Ayarlar/kaynak kontrolü doğrulandı. |
+| Sürekli erişilir privacy/support | Karşılama ve Ayarlar'da uygulama bağlantıları eklendi; Release akışı gönderilen kodda normal kullanıcı yolunu kullanır. |
+| Reviewer kaynak kapsamı | Xtream hesabı yok. M3U canlı listesi ayrı; isteğe bağlı örnek kitaplık lisanslı film, örnek bölüm seçkisi ve yerel örnek rehberi gösterir. Gerçek Xtream/operatör rehberi testi sayılmaz. |
+| Kaydedilen metadata / yaş | İngilizce mağaza alanları ve yaş cevapları kaydedildi; genel 13+/bölgesel sonuçlar yukarıda. |
+| Review Notes | Son akışları anlatan 3.492 karakterlik not kaydedildi; mesaj/başvuru gönderimi sayılmaz. |
+| Apple'a 4.3 yanıtı | 8 Ekim 20:15 (GMT+3) 1.187 karakterlik yanıt gönderildi; 8 mesajlı konuşma doğrulandı. Ayrı Submit for Review sonucu henüz yok. |
+| Yeni ekran görüntüleri | Gerçek CI PNG'lerinden iPhone 6 + iPad 6 seçildi. İlk asset 120 sn sınırından sonra hatasız `PREPARE_FOR_SUBMISSION` ve doğru 1206×2622 spec verdi; diğer 11 asset/yerleşim henüz tamamlanmadı. Eski 21 placement korunuyor. Bütün yeni görseller işlenip doğrulanmadan değiştirme yapılmaz. |
+| Sunucu veri saklama ve privacy beyanı | Yerel owned-backend IP saklıyor; canlı eşitliği ve gerçek saklama süresi henüz doğrulanmadı. Mevcut `Data Not Collected` kesinleşmiş sonuç sayılmaz. |
+| Apple build / sürüme seçim | İmzalı yükleme başarılı; mevcut App Store sürümüne build 9 seçilip UI'da kaydedildi. Save sonrası Prepare for Submission görüldü; Save öncesi API Rejected sonucu yeni durumu doğrulamaz, güncel API ilişkisi ayrıca okunur. |
+| Yayın tercihi | Mevcut onay sonrası otomatik yayın tercihi korunuyor. |
+| App Review gönderimi | Gerçek Submit for Review / Waiting for Review sonucu henüz yok. TestFlight yüklemesi incelemeye gönderim değildir; onay sözü verilmez. |
+
+Fiziksel kanıt klasörü `.artifacts/device-logs/20261008T165908300786Z`,
+kurulum kaydı `.artifacts/device-builds/build9/installed-context.json`.
+Özel yayın adresleri, hesap bilgileri ve cihaz kimliği bu belgeye alınmaz.
+Görsel processing, privacy eşleştirmesi, build ilişkisinin son kontrolü ve gerçek
+gönderim tamamlandıkça yalnız gözlenen sonuçlar bu tabloya işlenir.
+
+Son iletişim güncellemesi: **8 Ekim 20:15 (GMT+3)**, 1.187 karakterlik
+App Review yanıtı gönderildi. Ana ajan konuşmadaki 8 mesajı ve yerel
+`.artifacts/apple-review-reply-sent.jpg` kanıtını doğruladı. Review Notes
+alanının kaydı, App Review mesajı ve gerçek incelemeye başvuru ayrı
+işlemlerdir; mesaj gönderimi onay veya Waiting for Review kanıtı değildir.

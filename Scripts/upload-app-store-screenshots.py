@@ -43,6 +43,8 @@ REQUIRED_JOBS = ("Mimari kuralları", "Domain testleri (Linux)",
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 REPLACEABLE_GROUPS = {"IPAD_13_PROFILE", "IPHONE_FACE_ID_LARGE_PROFILE", "WATCH_ULTRA_PROFILE"}
 REVIEW_REFERENCE = r"octopus-review-[a-f0-9]{40}-(?:iphone|ipad)-[a-z0-9-]+-[a-f0-9]{64}"
+EDITABLE_STATES = {"REJECTED", "METADATA_REJECTED", "PREPARE_FOR_SUBMISSION"}
+PROCESSING_TIMEOUT_SECONDS = 600
 
 
 class SafeError(RuntimeError):
@@ -436,18 +438,22 @@ def transfer_parts(raw, operations):
             raise SafeError("Signed image transfer failed; reservation retained for inspection") from None
 
 
-def processed_image(apple, image_id):
-    deadline = time.monotonic() + 120
+def processed_image(apple, image_id, deadline=None):
+    if deadline is None:
+        deadline = time.monotonic() + PROCESSING_TIMEOUT_SECONDS
     while True:
+        if time.monotonic() >= deadline:
+            raise SafeError("Image processing pending; inspect and resume using existing asset IDs")
         image = apple.request("GET", "/v1/appAssetLibraryImages/" + image_id)["data"]
         state = image["attributes"].get("state")
         if state in ("PREPARE_FOR_SUBMISSION", "APPROVED"):
             return image
         if state != "UPLOAD_COMPLETE":
             raise SafeError("Image " + image_id + " is not ready: " + str(state))
-        if time.monotonic() >= deadline:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
             raise SafeError("Image processing pending; inspect and resume using existing asset IDs")
-        time.sleep(3)
+        time.sleep(min(3, remaining))
 
 
 def surface_path(target):
@@ -493,8 +499,8 @@ def replacement_surface(target, replacement, plans, placements):
 
 
 def upload(apple, target, images, groups, sha, record, replacement=None):
-    if target["state"] not in ("REJECTED", "METADATA_REJECTED"):
-        raise SafeError("Upload is restricted to the current rejected iOS 1.0 version")
+    if target["state"] not in EDITABLE_STATES:
+        raise SafeError("Upload is restricted to editable states of the current iOS 1.0 version")
     existing = target["placements"]
     by_reference = {}
     plans = []
@@ -539,13 +545,21 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
             record({"action": "image_reserved", "image_id": image["id"], "reference_name": plan["reference"]})
         else:
             image = apple.request("GET", "/v1/appAssetLibraryImages/" + image["id"])["data"]
+        if image["attributes"].get("state") not in ("AWAITING_UPLOAD", "UPLOAD_COMPLETE", "PREPARE_FOR_SUBMISSION", "APPROVED"):
+            raise SafeError("Referenced asset changed state; inspect before resuming")
         if image["attributes"].get("state") == "AWAITING_UPLOAD":
             transfer_parts(plan["raw"], image["attributes"]["uploadOperations"])
             record({"action": "commit_image_attempt", "image_id": image["id"]})
             apple.request("PATCH", "/v1/appAssetLibraryImages/" + image["id"], {"data": {
                 "type": "appAssetLibraryImages", "id": image["id"], "attributes": {"uploaded": True},
             }})
-        image = processed_image(apple, image["id"])
+        plan["image"] = image
+    # Let Apple process all uploads together, reusing already committed/ready assets.
+    # Every ID is persisted before waiting; no old association has changed yet.
+    record({"action": "image_upload_phase_finished", "image_ids": [plan["image"]["id"] for plan in plans]})
+    deadline = time.monotonic() + PROCESSING_TIMEOUT_SECONDS
+    for plan in plans:
+        image = processed_image(apple, plan["image"]["id"], deadline)
         attributes = image["attributes"]
         asset = attributes.get("imageAsset", {})
         if attributes.get("specId") not in plan["group"]["spec_ids"] or (asset.get("width"), asset.get("height")) != DIMENSIONS[plan["selection"]["device"]]:
@@ -557,7 +571,7 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
         # ALL twelve uploads must be processed before the first old association is removed.
         # The synchronous report writer persists recovery metadata before any DELETE.
         refreshed = discover(apple)
-        if refreshed["state"] not in ("REJECTED", "METADATA_REJECTED") or refreshed["library_id"] != target["library_id"]:
+        if refreshed["state"] not in EDITABLE_STATES or refreshed["library_id"] != target["library_id"]:
             raise SafeError("Version editability or target library changed during preparation; replacement stopped")
         target = refreshed
         originals = replacement_surface(target, replacement, plans, target["placements"])

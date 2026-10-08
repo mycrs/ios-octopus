@@ -325,6 +325,93 @@ class ScreenshotAPITests(unittest.TestCase):
         self.assertEqual(slept.call_count, 2)
         self.assertTrue(all(call.args == ("GET", "/v1/appAssetLibraryImages/image") for call in api.request.call_args_list))
 
+    def test_all_twelve_commits_and_reported_ids_precede_first_processing_wait(self):
+        api, events = ReplacementApple(), []
+        snapshot, request = api.snapshot(), api.request
+        first_pending = True
+        def delayed_first_read(method, path, body=None):
+            nonlocal first_pending
+            if method == "GET" and path.startswith("/v1/appAssetLibraryImages/"):
+                self.assertEqual(sum(call[0] == "PATCH" for call in api.calls), 12)
+                if first_pending:
+                    first_pending = False
+                    api.calls.append((method, path, body))
+                    return {"data": copy.deepcopy(api.images[path.rsplit("/", 1)[1]])}
+            return request(method, path, body)
+        def waiting(seconds):
+            self.assertEqual(len(api.placements), 21)
+            phase = next(event for event in events if event["action"] == "image_upload_phase_finished")
+            self.assertEqual(len(phase["image_ids"]), 12)
+            self.assertEqual(sum(call[0] == "PATCH" for call in api.calls), 12)
+        with patch.object(api, "request", side_effect=delayed_first_read), patch.object(screens.time, "sleep", side_effect=waiting) as slept:
+            self.replacement_upload(api, snapshot, events)
+        slept.assert_called_once_with(3)
+        self.assertEqual(len(api.placements), 12)
+
+    def test_processing_timeout_keeps_all_old_associations_and_resume_reuses_all_committed_images(self):
+        api, events, clock = ReplacementApple(), [], {"now": 1000}
+        snapshot, request = api.snapshot(), api.request
+        def pending(method, path, body=None):
+            if method == "GET" and path.startswith("/v1/appAssetLibraryImages/"):
+                api.calls.append((method, path, body))
+                return {"data": copy.deepcopy(api.images[path.rsplit("/", 1)[1]])}
+            return request(method, path, body)
+        def advance(seconds):
+            clock["now"] += seconds
+        with patch.object(api, "request", side_effect=pending), patch.object(screens.time, "monotonic", side_effect=lambda: clock["now"]), \
+                patch.object(screens.time, "sleep", side_effect=advance), self.assertRaises(screens.SafeError):
+            self.replacement_upload(api, snapshot, events)
+        self.assertEqual(clock["now"], 1600)
+        self.assertEqual(len(api.placements), 21)
+        self.assertEqual(sum(call[0] == "PATCH" for call in api.calls), 12)
+        self.assertEqual(len([image for image in api.images.values() if image["attributes"].get("referenceName")]), 12)
+        self.assertFalse(any(call[0] == "DELETE" for call in api.calls))
+        self.assertFalse(any(event["action"] == "replacement_restore_snapshot" for event in events))
+        writes_before = sum(call[0] in ("POST", "PATCH") and "appAssetLibraryImages" in call[1] for call in api.calls)
+        target = screens.discover(api)
+        with patch.object(screens, "transfer_parts") as transferred:
+            screens.upload(api, target, self.selections(), self.groups(target), SHA, events.append, snapshot)
+            transferred.assert_not_called()
+        self.assertEqual(sum(call[0] in ("POST", "PATCH") and "appAssetLibraryImages" in call[1] for call in api.calls), writes_before)
+        self.assertEqual(len(api.placements), 12)
+
+    def test_processing_deadline_is_shared_across_images_and_not_restarted_for_each(self):
+        api, events, clock = ReplacementApple(), [], {"now": 0}
+        snapshot, request = api.snapshot(), api.request
+        def delayed(method, path, body=None):
+            if method == "GET" and path.startswith("/v1/appAssetLibraryImages/"):
+                image = api.images[path.rsplit("/", 1)[1]]
+                reference = image["attributes"].get("referenceName", "")
+                ready_at = 300 if "-03-home-" in reference else 650
+                if clock["now"] < ready_at:
+                    api.calls.append((method, path, body))
+                    return {"data": copy.deepcopy(image)}
+            return request(method, path, body)
+        def advance(seconds):
+            clock["now"] += seconds
+        with patch.object(api, "request", side_effect=delayed), patch.object(screens.time, "monotonic", side_effect=lambda: clock["now"]), \
+                patch.object(screens.time, "sleep", side_effect=advance), self.assertRaises(screens.SafeError):
+            self.replacement_upload(api, snapshot, events)
+        self.assertEqual(clock["now"], 600)
+        self.assertEqual(len([event for event in events if event["action"] == "image_prepared"]), 1)
+        self.assertEqual(len(api.placements), 21)
+        self.assertFalse(any(call[0] == "DELETE" for call in api.calls))
+
+    def test_unknown_commit_outcome_stops_upload_phase_without_processing_or_old_deletion(self):
+        api, events = ReplacementApple(), []
+        snapshot, request = api.snapshot(), api.request
+        def interrupted(method, path, body=None):
+            result = request(method, path, body)
+            if method == "PATCH":
+                raise screens.SafeError("PATCH response unavailable; no mutation was retried")
+            return result
+        with patch.object(api, "request", side_effect=interrupted), self.assertRaises(screens.SafeError):
+            self.replacement_upload(api, snapshot, events)
+        self.assertEqual(api.calls[-1][0], "PATCH")
+        self.assertEqual(len(api.placements), 21)
+        self.assertEqual(sum(call[0] == "PATCH" for call in api.calls), 1)
+        self.assertFalse(any(event["action"] == "image_upload_phase_finished" for event in events))
+
     def test_signed_byte_upload_uses_exact_parts_without_account_jwt(self):
         operation = lambda offset, length: {"method": "PUT", "url": "https://store.blobstore.apple.com/signed-secret",
             "offset": offset, "length": length, "requestHeaders": [{"name": "Content-Type", "value": "image/png"}]}
@@ -434,6 +521,36 @@ class ScreenshotAPITests(unittest.TestCase):
         deletes = [call for call in api.calls if call[0] == "DELETE"]
         self.assertEqual({call[1] for call in deletes}, {"/v1/appAssetLibraryPlacements/" + item["id"] for item in snapshot["placements"]})
         self.assertEqual(events[-1]["action"], "replacement_verified")
+
+    def test_prepare_for_submission_same_reviewed_target_can_replace_without_relaxing_target_snapshot(self):
+        for matching_target in (True, False):
+            api, events = ReplacementApple(), []
+            snapshot, collection = api.snapshot(), api.collection
+            if not matching_target:
+                snapshot["version_id"] = "unreviewed-version"
+            def preparing(path):
+                result = collection(path)
+                if path.endswith("/appStoreVersions"):
+                    result[0]["attributes"]["appVersionState"] = "PREPARE_FOR_SUBMISSION"
+                return result
+            with self.subTest(matching_target=matching_target), patch.object(api, "collection", side_effect=preparing):
+                if matching_target:
+                    self.replacement_upload(api, snapshot, events)
+                    self.assertEqual(len(api.placements), 12)
+                    self.assertEqual(events[-1]["action"], "replacement_verified")
+                else:
+                    with self.assertRaises(screens.SafeError):
+                        self.replacement_upload(api, snapshot, events)
+                    self.assertTrue(all(call[0] == "GET" for call in api.calls))
+
+    def test_review_and_pending_states_block_before_any_mutation(self):
+        for state in ("READY_FOR_REVIEW", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_APPLE_RELEASE", "PENDING_DEVELOPER_RELEASE"):
+            api = ReplacementApple()
+            target = screens.discover(api)
+            target["state"] = state
+            with self.subTest(state=state), self.assertRaises(screens.SafeError):
+                screens.upload(api, target, self.selections(), self.groups(target), SHA, lambda event: None, api.snapshot())
+            self.assertTrue(all(call[0] == "GET" for call in api.calls))
 
     def test_changed_original_image_group_order_target_or_new_picture_blocks_before_first_write(self):
         for alteration in ("image", "group", "order", "target", "new"):
