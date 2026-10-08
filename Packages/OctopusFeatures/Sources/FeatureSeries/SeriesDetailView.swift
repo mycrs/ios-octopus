@@ -10,6 +10,7 @@ public struct SeriesDetailView: View {
 
     @StateObject private var viewModel: SeriesDetailViewModel
     @EnvironmentObject private var router: AppRouter
+    @Environment(\.locale) private var locale
 
     /// Uzun özetler ekranı doldurmasın; kullanıcı isterse açar.
     @State private var isPlotExpanded = false
@@ -117,7 +118,10 @@ public struct SeriesDetailView: View {
                     router.presentPlayer(.episode(episode.id))
                 }
             } label: {
-                Label(viewModel.playButtonTitle, systemImage: "play.fill")
+                Label(
+                    AppLocalization.localized(viewModel.playButtonTitle, locale: locale),
+                    systemImage: "play.fill"
+                )
                     .font(Theme.Typography.rowTitle)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Theme.Spacing.sm)

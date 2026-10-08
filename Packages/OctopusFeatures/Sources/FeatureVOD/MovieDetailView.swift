@@ -88,7 +88,10 @@ public struct MovieDetailView: View {
             Button {
                 router.presentPlayer(.movie(movie.id))
             } label: {
-                Label(viewModel.playButtonTitle, systemImage: "play.fill")
+                Label(
+                    AppLocalization.localized(viewModel.playButtonTitle, locale: locale),
+                    systemImage: "play.fill"
+                )
                     .font(Theme.Typography.rowTitle)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Theme.Spacing.sm)
