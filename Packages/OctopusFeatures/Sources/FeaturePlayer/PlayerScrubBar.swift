@@ -27,6 +27,7 @@ struct PlayerScrubBar: View {
             track
             labels
         }
+        .modifier(PlayerControlsPressTracker(isPressed: draggingFraction != nil))
     }
 
     private var displayedFraction: Double {

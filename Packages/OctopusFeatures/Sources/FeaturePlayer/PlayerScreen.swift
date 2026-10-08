@@ -18,7 +18,7 @@ public struct PlayerScreen: View {
 
     @StateObject var viewModel: PlayerViewModel
     @ObservedObject var controller: PlayerController
-    @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.locale) var locale
 
@@ -26,6 +26,7 @@ public struct PlayerScreen: View {
     // paylaşır; bu nedenle dosya-özel değil modül içi görünürlüktedir.
     @State var showsControls = true
     @State var hideControlsTask: Task<Void, Never>?
+    @State var controlsPressState = PlayerControlsPressState()
     /// Açık iz seçicinin odağı; `nil` ise kapalı.
     @State var trackPickerFocus: PlayerTrackPicker.Focus?
     @State var isShowingLivePanel = false
@@ -34,8 +35,8 @@ public struct PlayerScreen: View {
     @State var isShowingNextEpisodePrompt = false
     @State var gestureNotice: PlayerGestureNotice?
     @State var gestureNoticeTask: Task<Void, Never>?
-    @State private var ownedSession: PlayerController.Session?
-    private let presentation: PlayerPresentation
+    @State var ownedSession: PlayerController.Session?
+    let presentation: PlayerPresentation
 
     let autoHideDelay: Duration
     let keepsControlsVisible: Bool
@@ -166,61 +167,4 @@ public struct PlayerScreen: View {
         }
     }
 
-    // MARK: - Hatalar
-
-    /// Adres üretilemedi — sorun oynatıcıdan **önce**.
-    private func resolveFailure(_ message: String) -> some View {
-        EmptyStateView(
-            icon: "exclamationmark.triangle",
-            title: "Yayın adresi alınamadı",
-            message: message,
-            actionTitle: "Kapat",
-            action: close
-        )
-    }
-
-    /// Adres üretildi ama açılamadı — sorun akışta ya da motorda.
-    /// İçeriği `PlaybackErrorView` çiziyor.
-    private func playbackFailure(_ error: AppError, item: PlaybackItem) -> some View {
-        PlaybackErrorView(
-            error: error,
-            item: item,
-            failureKind: controller.failureKind,
-            onRetry: {
-                Task {
-                    guard router.player?.id == presentation.id else { return }
-                    await controller.start(item) { ownedSession = $0 }
-                }
-            },
-            onClose: close,
-            onPreviousChannel: hasChannelContext(item) && viewModel.canZap
-                ? { Task { await viewModel.zap(by: -1) } }
-                : nil,
-            onNextChannel: hasChannelContext(item) && viewModel.canZap
-                ? { Task { await viewModel.zap(by: 1) } }
-                : nil
-        )
-    }
-
-    func close() {
-        hideControlsTask?.cancel()
-        guard router.player?.id == presentation.id else { return }
-        ownedSession = controller.session
-        releasePlaybackIfNeeded()
-        router.dismissPlayer(ifPresented: presentation.id)
-    }
-
-    func hasChannelContext(_ item: PlaybackItem) -> Bool {
-        if case .liveChannel = item.source { return true }
-        return false
-    }
-
-    private func releasePlaybackIfNeeded() {
-        guard let session = ownedSession, controller.session == session else { return }
-        if case .liveChannel = session.source,
-           router.canReturnToLivePreview(from: presentation) {
-            return
-        }
-        controller.stop(ifCurrent: session)
-    }
 }

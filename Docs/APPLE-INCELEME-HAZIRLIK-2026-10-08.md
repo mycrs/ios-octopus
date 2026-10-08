@@ -6,7 +6,54 @@ olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tut
 Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
 build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
-Son Mac'te denenen build 10 kaynağı `a0d6bbb737e9443186a3a052c366bfb2e993944c`,
+Son Mac'te denenen build 10 kaynağı `53eb01efda3807d82095f1eb094a1dd60ce6c7be`,
+[on ikinci tur 37858059958](https://github.com/mycrs/ios-octopus/actions/runs/37858059958):
+**728 Swift testi / 0 hata**, mimari, işlem modu ve uygulama derlemesi geçti.
+iPhone Release akışı **161,416 saniyede başarısız**; ilk film kapanışı,
+Canlı TV kanal paneli/Sintel seçimi, ilk canlı kapanışta dikey Sintel
+mini oynatıcı ve native kare doğrulandı. İkinci genişletmede yatay/native
+kare geçti; ikinci canlı kapanış `ReviewJourneyTests.swift:236` içinde
+başarısız oldu. Kapat AX alanı (78,16,44,44), dokunulan merkez (100,38)
+ile eşleşir. Reveal 148,22s, synth 151,07s; ikinci dismissal kaydı yok.
+Kapatma olayının gönderilmemesi ile yanlış navigasyon sonucu ayrı tutulur.
+20 özgün ek SHA/ZIP CRC ile doğrulandı; 255.507.047 baytlık native kayıt
+ve gerçek dokunma eki incelendi. Kapat simgesi 149,8–152,165 video
+saniyelerinde basılma tepkisi göstermedi; bütün denetimler 152,213'te
+solup 152,353'te kayboldu ve 153,002'de tekrar belirdi. Gerçek event
+merkezi yatay kapat düğmesiyle eşleşir; ekin zamanı 152,397'ye denk gelir.
+Geç dokunuşun alttaki videoya ulaşması bu kanıtla tutarlıdır; gerçek down
+anı veya down-sonrası gizleme kanıtlanmadı. Kapat handler'ının bozuk
+olduğu sonucu çıkarılmaz. Özgün video SHA-256
+`bf543653d40f83ab19999da1b34b76a6df7215e82d86cc20b098e9fd55e7b480`;
+kesin pin, zamanlar ve sınırlar özel failure QA raporunda tutulur.
+
+iPhone ilk çalıştığı ve başarısız olduğu için iPad testi **başlamadı**.
+Public Settings preflight kaydı veya iPad sonucu yok; bu tur iPad
+ayar yaklaşımını doğrulamaz veya çürütmez. İmzalı iş **skipped**;
+build 10 paketi, Apple yüklemesi, telefon kurulumu ve yeni mağaza
+görselleri yok. Mağazadaki build 9 ve eski görsel ilişkileri korunur.
+728 test kanıtı `.artifacts/release10-attempt12-unit-evidence` içindedir.
+
+Kodda ayrıca somut risk vardır: 3,5s gizleme görevi, kontrol basılıyken
+veya scrub sürüklenirken görünümü kaldırabilir. Şimdiki yerel aday public
+`ButtonStyleConfiguration.isPressed` ve ayrı kontrol kimlikleriyle
+bu sırada gizlemeyi iptal eder; son gerçek release normal, hâlâ kendi
+oynatıcı katmanında ise süreyi yeniden başlatır. Örtüşen/birden fazla
+dokunuş, tekrarlı/geç release ve görünümden ayrılma korunur. Hız seçimi
+açıkken de katman tutulur; yeni gesture veya artırılmış süre kullanılmaz.
+Beş yeni mantık regresyon testi ve ikinci canlı kapanışta **4s gerçek
+basılı tutma** UI kontrolü eklendi. Diğer yön/kare/liste/kapanış assertion'ları
+aynıdır. Windows syntax/mimari geçti; bu aday henüz Mac'te denenmedi.
+Basılı tutma testine ek olarak UI yardımcısı, hazır/görünür/hittable
+kontrolü hemen kullanır; 2s waiter yalnız kontrol hazır değilse çalışır.
+Pencere ölçüsü reveal öncesi okunur. Böylece ilk predicate'ın gecikmesi
+atılır; gerçek süre, dokunuş, hedef sınırı ve sonuç assertion'ları korunur.
+PlayerScreen yaşam döngüsü ayrı uzantıya taşındı; ana View 170 satırdır.
+[Apple düğme durumu](https://developer.apple.com/documentation/swiftui/buttonstyleconfiguration),
+[public XCTest basılı tutma](https://developer.apple.com/documentation/xcuiautomation/xcuicoordinate/press%28forduration%3A%29).
+Canlı backend gizlilik eşleştirmesi ve gerçek App Review gönderimi bekliyor.
+
+Önceki on birinci build 10 kaynağı `a0d6bbb737e9443186a3a052c366bfb2e993944c`,
 [on birinci tur 37854715123](https://github.com/mycrs/ios-octopus/actions/runs/37854715123):
 **728 Swift testi / 0 hata**; mimari ve iOS uygulama derlemesi geçti.
 PIN testinin tam tuz/özet sözleşmesi de gerçek Mac testinde geçti.

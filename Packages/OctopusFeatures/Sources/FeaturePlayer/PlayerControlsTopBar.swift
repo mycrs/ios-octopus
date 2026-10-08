@@ -104,7 +104,7 @@ struct PlayerControlsTopBar: View {
                     Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
                 }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PlayerControlsPlainButtonStyle())
         .accessibilityLabel(AppLocalization.localized(label, locale: locale))
     }
 }

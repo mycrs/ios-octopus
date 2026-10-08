@@ -49,6 +49,7 @@ private extension PlayerEdgeGlyph {
 private struct PlayerEdgeButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
+            .modifier(PlayerControlsPressTracker(isPressed: configuration.isPressed))
             .opacity(configuration.isPressed ? 0.58 : 1)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)

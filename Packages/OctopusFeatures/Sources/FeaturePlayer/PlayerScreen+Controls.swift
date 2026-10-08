@@ -98,6 +98,7 @@ extension PlayerScreen {
                         scheduleControlsHide()
                     }
                 )
+                .environment(\.playerControlsPressChanged, handleControlsPress)
                 .transition(.opacity)
             }
 
@@ -121,6 +122,17 @@ extension PlayerScreen {
 
     // MARK: - Denetim görünürlüğü
 
+    func handleControlsPress(_ id: UUID, _ isPressed: Bool) {
+        if isPressed {
+            controlsPressState.begin(id)
+            hideControlsTask?.cancel()
+        } else if controlsPressState.end(id), showsControls,
+                  isCurrentPlayerPresentation, !isControlsLocked,
+                  !isShowingLivePanel, trackPickerFocus == nil {
+            scheduleControlsHide()
+        }
+    }
+
     func toggleControls() {
         guard !isControlsLocked else { return }
         showsControls.toggle()
@@ -141,12 +153,12 @@ extension PlayerScreen {
 
         // Ekran görüntüsü testi gerçek video yüklendikten sonra çalışır.
         // Süreye güvenmek yerine DEBUG kapısında görünürlüğü kesinleştir.
-        guard !keepsControlsVisible else { return }
+        guard !keepsControlsVisible, !controlsPressState.isPressed else { return }
 
         hideControlsTask = Task {
             try? await Task.sleep(for: autoHideDelay)
             guard !Task.isCancelled, controller.state == .playing,
-                  !isShowingNextEpisodePrompt else { return }
+                  !isShowingNextEpisodePrompt, !controlsPressState.isPressed else { return }
             showsControls = false
         }
     }

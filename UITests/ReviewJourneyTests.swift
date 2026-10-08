@@ -204,7 +204,9 @@ final class ReviewJourneyTests: XCTestCase {
         mini.tap()
         assertWindowOrientation(isLandscape: true)
         waitForNativeFrame()
-        revealAndTapPlayerButton("player.close")
+        // Holding a real control beyond the 3.5s inactivity timeout must keep
+        // it alive until release, then return to the same live preview.
+        revealAndTapPlayerButton("player.close", pressDuration: 4)
         assertWindowOrientation(isLandscape: false)
     }
 
@@ -215,18 +217,17 @@ final class ReviewJourneyTests: XCTestCase {
                        "Gerçek AVPlayerLayer ilk kareyi göstermeli")
     }
 
-    private func revealAndTapPlayerButton(_ identifier: String) {
+    private func revealAndTapPlayerButton(_ identifier: String, pressDuration: TimeInterval = 0) {
         let button = app.buttons[identifier]
         let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
         for _ in 0..<3 {
             if playerActionCompleted(identifier) { return }
-            refreshPlayerControls(button, surface: surface)
-            let visible = XCTNSPredicateExpectation(
-                predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button
-            )
             let window = app.windows.firstMatch
-            if XCTWaiter.wait(for: [visible], timeout: 2) == .completed,
-               tapObservedPlayerButton(button, window: window, windowFrame: window.frame) {
+            let windowFrame = window.frame
+            refreshPlayerControls(button, surface: surface)
+            if playerButtonIsReady(button),
+               tapObservedPlayerButton(button, window: window, windowFrame: windowFrame,
+                                       pressDuration: pressDuration) {
                 let completed = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
                     self.playerActionCompleted(identifier)
                 }, object: app)
@@ -260,13 +261,11 @@ final class ReviewJourneyTests: XCTestCase {
         for _ in 0..<3 {
             if !nativeVideo.exists { return }
             let close = app.buttons["player.close"]
+            let window = app.windows.firstMatch
+            let windowFrame = window.frame
             refreshPlayerControls(close, surface: nativeVideo)
-            let visible = XCTNSPredicateExpectation(
-                predicate: NSPredicate(format: "exists == true AND hittable == true"), object: close
-            )
-            if XCTWaiter.wait(for: [visible], timeout: 2) == .completed {
-                let window = app.windows.firstMatch
-                _ = tapObservedPlayerButton(close, window: window, windowFrame: window.frame)
+            if playerButtonIsReady(close) {
+                _ = tapObservedPlayerButton(close, window: window, windowFrame: windowFrame)
             }
             let dismissed = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == false"), object: nativeVideo
@@ -285,18 +284,33 @@ final class ReviewJourneyTests: XCTestCase {
         }
     }
 
+    /// A waiter schedules its first predicate check later even when the control
+    /// is already ready. Preserve that observation before its inactivity timeout.
+    private func playerButtonIsReady(_ button: XCUIElement) -> Bool {
+        if button.exists && button.isHittable { return true }
+        let visible = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button
+        )
+        return XCTWaiter.wait(for: [visible], timeout: 2) == .completed
+    }
+
     /// Element.tap re-resolves and scrolls the transient control after its
     /// visible/hittable check. Tap the observed in-window center instead;
     /// panel, selection and dismissal assertions still verify the outcome.
     private func tapObservedPlayerButton(
-        _ button: XCUIElement, window: XCUIElement, windowFrame: CGRect
+        _ button: XCUIElement, window: XCUIElement, windowFrame: CGRect,
+        pressDuration: TimeInterval = 0
     ) -> Bool {
         let frame = button.frame
         let center = CGPoint(x: frame.midX, y: frame.midY)
         guard frame.width > 0, frame.height > 0, windowFrame.contains(center) else { return false }
-        window.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+        let target = window.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
             .withOffset(CGVector(dx: center.x - windowFrame.minX, dy: center.y - windowFrame.minY))
-            .tap()
+        if pressDuration > 0 {
+            target.press(forDuration: pressDuration)
+        } else {
+            target.tap()
+        }
         return true
     }
 

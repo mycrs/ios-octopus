@@ -150,6 +150,7 @@ struct PlayerActionBar: View {
             }
             Button("Vazgeç", role: .cancel) {}
         }
+        .modifier(PlayerControlsPressTracker(isPressed: showsRates))
     }
 
     private func rateTitle(_ value: Float) -> String {
@@ -192,7 +193,7 @@ struct PlayerActionBar: View {
                 Capsule().stroke(.white.opacity(0.14), lineWidth: 0.5)
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PlayerControlsPlainButtonStyle())
         .accessibilityLabel(AppLocalization.localized(accessibilityLabel, locale: locale))
     }
 }

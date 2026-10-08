@@ -68,6 +68,7 @@ struct PlayerControlsOverlay: View {
                 .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
         }
         .padding(Theme.Spacing.md)
+        .buttonStyle(PlayerControlsPlainButtonStyle())
     }
 
     // MARK: - Alt
