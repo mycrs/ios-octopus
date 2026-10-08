@@ -798,3 +798,11 @@ cihazı içeren profil ile imzalar. Cihaz profili bulunan IPA, yerel alıcının
 açık anahtarıyla şifrelenmeden artifact olarak yüklenmez; özel anahtar
 Windows'ta `.artifacts` içinde kalır. Bu hedef TestFlight/App Store'a yükleme
 yapmaz. Aynı bundle ID ile güncelleme kurulur; eski uygulama/veri silinmez.
+
+Mac CI ilk doğrulaması (37774933006): Domain/mimari/DesignSystem geçti;
+Playback log interpolasyonunda açık `self` gerektiği için derleme durdu.
+Bu hata düzeltildi. Data'da 264 testten yalnızca M3U somut nesne üzerinde
+`invalidateCache` testi başarısızdı: async protokolün extension varsayılanı
+sync aktör metodu yerine seçilebiliyordu. M3U metodu açıkça async yapıldı.
+Device export araçlarının 8 testi ve mevcut log aracının 12 testi yerelde
+geçti. Güncel kaynak için yeniden macOS CI/imzalama gerekiyor.

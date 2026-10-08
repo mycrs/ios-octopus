@@ -154,7 +154,7 @@ public actor M3UContentProvider: ContentProvider {
     }
 
     /// Senkronizasyon yeniden çalıştığında taze liste istenir.
-    public func invalidateCache() {
+    public func invalidateCache() async {
         loadGeneration &+= 1
         cachedResult = nil
         loadTask?.cancel()
