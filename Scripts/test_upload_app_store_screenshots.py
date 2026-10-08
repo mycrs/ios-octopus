@@ -57,6 +57,7 @@ def manifest(raw):
 class FakeApple:
     def __init__(self):
         self.calls, self.images, self.placements = [], {}, []
+        self.placement_sequence = 0
         for device in ("phone", "pad"):
             self.placements.append({"id": device + "-old", "attributes": {"placementType": "APP_SCREENSHOT",
                 "placementGroup": device + "-from-server", "state": "PARENT_PREPARE_FOR_SUBMISSION"},
@@ -86,7 +87,8 @@ class FakeApple:
             return {"data": copy.deepcopy(image)}
         if method == "POST" and path == "/v1/appAssetLibraryPlacements":
             placement = copy.deepcopy(body["data"])
-            placement["id"] = "placement-" + str(len(self.placements) + 1)
+            self.placement_sequence += 1
+            placement["id"] = "placement-" + str(self.placement_sequence)
             placement["attributes"]["state"] = "PARENT_PREPARE_FOR_SUBMISSION"
             self.placements.append(placement)
             return {"data": copy.deepcopy(placement)}
@@ -95,6 +97,10 @@ class FakeApple:
             selected = {item["id"]: item for item in self.placements}
             self.placements = [selected[identifier] for identifier in identifiers] + [item for item in self.placements if item["id"] not in identifiers]
             return {"data": {"id": "ordering"}}
+        if method == "DELETE" and path.startswith("/v1/appAssetLibraryPlacements/"):
+            identifier = path.rsplit("/", 1)[1]
+            self.placements = [item for item in self.placements if item["id"] != identifier]
+            return {}
         raise AssertionError("Unexpected fake API operation")
 
     def collection(self, path):
@@ -113,6 +119,38 @@ class FakeApple:
         if route.path.endswith("/images"):
             return copy.deepcopy(list(self.images.values()))
         raise AssertionError("Unexpected fake collection")
+
+
+class ReplacementApple(FakeApple):
+    """Seven reusable old images on each of the three reviewed old surfaces."""
+    def __init__(self):
+        super().__init__()
+        self.placements = []
+        for position in range(7):
+            identifier = "legacy-image-" + str(position)
+            self.images[identifier] = {"id": identifier, "type": "appAssetLibraryImages",
+                                      "attributes": {"state": "APPROVED"}}
+        for group in sorted(screens.REPLACEABLE_GROUPS):
+            for position in range(7):
+                self.placements.append({"id": "legacy-" + group.lower().replace("_", "-") + "-" + str(position),
+                    "attributes": {"placementType": "APP_SCREENSHOT", "placementGroup": group, "state": "ACTIVE"},
+                    "relationships": {"image": {"data": {"type": "appAssetLibraryImages", "id": "legacy-image-" + str(position)}}}})
+
+    def collection(self, path):
+        result = super().collection(path)
+        if path == "/v1/appAssetLibraryRefData":
+            updated = json.dumps(result).replace("phone-from-server", "IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE").replace("pad-from-server", "IPAD_13_PROFILE")
+            return json.loads(updated)
+        return result
+
+    def snapshot(self):
+        positions, result = {}, []
+        for item in self.placements:
+            group = item["attributes"]["placementGroup"]
+            position = positions.get(group, 0)
+            positions[group] = position + 1
+            result.append({"id": item["id"], "group": group, "image_id": screens.placement_image(item), "position": position})
+        return {"version_id": "version", "locale_id": "english", "placements": result}
 
 
 class ScreenshotAPITests(unittest.TestCase):
@@ -180,10 +218,12 @@ class ScreenshotAPITests(unittest.TestCase):
 
     def test_post_and_patch_unknown_outcomes_are_never_automatically_retried(self):
         api = screens.JsonAPI("https://api.appstoreconnect.apple.com", lambda: "Bearer private-test-token")
-        for method in ("POST", "PATCH"):
+        for method in ("POST", "PATCH", "DELETE"):
+            path = "/v1/appAssetLibraryPlacements/placement-id" if method == "DELETE" else "/v1/appAssetLibraryImages"
+            body = None if method == "DELETE" else {"data": {}}
             with patch.object(api.opener, "open", side_effect=TimeoutError()) as opened:
                 with self.assertRaises(screens.SafeError) as result:
-                    api.request(method, "/v1/appAssetLibraryImages", {"data": {}})
+                    api.request(method, path, body)
                 self.assertEqual(opened.call_count, 1)
                 self.assertNotIn("private-test-token", str(result.exception))
 
@@ -193,7 +233,22 @@ class ScreenshotAPITests(unittest.TestCase):
         response.__enter__.return_value.read.return_value = b""
         with patch.object(api.opener, "open", return_value=response) as opened:
             self.assertEqual(api.request("POST", "/v1/appAssetLibraryPlacementOrderingRequests", {"data": {}}), {})
-            self.assertEqual(opened.call_count, 1)
+            self.assertEqual(api.request("DELETE", "/v1/appAssetLibraryPlacements/placement-id"), {})
+            self.assertEqual(opened.call_count, 2)
+
+    def test_delete_cannot_target_library_assets_other_routes_or_hosts(self):
+        api = screens.JsonAPI("https://api.appstoreconnect.apple.com", lambda: "Bearer private-test-token")
+        paths = ("/v1/appAssetLibraryImages/image-id", "/v1/appAssetLibraries/library",
+                 "/v1/appAssetLibraryPlacements", "/v1/appAssetLibraryPlacements/id/images",
+                 "/v1/appAssetLibraryPlacements/id?locale=other", "/v1/appAssetLibraryPlacements/id#other",
+                 "https://foreign.example/v1/appAssetLibraryPlacements/id")
+        with patch.object(api.opener, "open") as opened:
+            for path in paths:
+                with self.assertRaises(screens.SafeError):
+                    api.request("DELETE", path)
+            with self.assertRaises(screens.SafeError):
+                api.request("DELETE", "/v1/appAssetLibraryPlacements/id", {"data": {}})
+            opened.assert_not_called()
 
     def test_authorization_never_follows_foreign_pagination(self):
         api = screens.JsonAPI("https://api.appstoreconnect.apple.com", lambda: "Bearer private-test-token")
@@ -294,6 +349,179 @@ class ScreenshotAPITests(unittest.TestCase):
             with self.assertRaises(screens.SafeError):
                 screens.upload(api, target, self.selections(), groups, SHA, lambda event: None)
         self.assertFalse(any(call[0] == "POST" and call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls))
+
+    def replacement_upload(self, api, snapshot, events):
+        target = screens.discover(api)
+        with patch.object(screens, "transfer_parts"):
+            screens.upload(api, target, self.selections(), self.groups(target), SHA, events.append, snapshot)
+
+    def test_replacement_manifest_requires_exact_bounded_original_snapshot(self):
+        approved = manifest(self.raw)
+        approved["replacement"] = ReplacementApple().snapshot()
+        screens.validate_manifest(approved, RUN, SHA)
+        for key, value in (("group", "OTHER_PROFILE"), ("position", 9), ("image_id", "bad/image")):
+            altered = copy.deepcopy(approved)
+            altered["replacement"]["placements"][0][key] = value
+            with self.assertRaises(screens.SafeError):
+                screens.validate_manifest(altered, RUN, SHA)
+        altered = copy.deepcopy(approved)
+        altered["replacement"]["placements"].append(copy.deepcopy(altered["replacement"]["placements"][0]))
+        with self.assertRaises(screens.SafeError):
+            screens.validate_manifest(altered, RUN, SHA)
+
+    def test_full_old_groups_are_replaced_only_after_all_images_ready_and_restore_persisted(self):
+        api, events = ReplacementApple(), []
+        snapshot, original_images = api.snapshot(), set(api.images)
+        request = api.request
+        def checked_request(method, path, body=None):
+            if method == "DELETE":
+                ready = [item for item in api.images.values() if item["attributes"].get("referenceName")]
+                self.assertEqual(len(ready), 12)
+                self.assertTrue(all(item["attributes"]["state"] == "PREPARE_FOR_SUBMISSION" for item in ready))
+                backup = next(event for event in events if event["action"] == "replacement_restore_snapshot")
+                self.assertEqual(backup["placements"], snapshot["placements"])
+                self.assertEqual(len(backup["prepared_image_ids"]), 12)
+                self.assertEqual(backup["locale_id"], "english")
+            return request(method, path, body)
+        with patch.object(api, "request", side_effect=checked_request):
+            self.replacement_upload(api, snapshot, events)
+        self.assertEqual(len(api.placements), 12)
+        self.assertTrue(original_images <= set(api.images))
+        self.assertEqual(len(api.images), 19)
+        self.assertFalse({item["id"] for item in snapshot["placements"]} & {item["id"] for item in api.placements})
+        for device, group in self.groups(screens.discover(api)).items():
+            placed = [item for item in api.placements if item["attributes"]["placementGroup"] == group["group"]]
+            self.assertEqual(len(placed), 6)
+            names = [api.images[screens.placement_image(item)]["attributes"]["fileName"] for item in placed]
+            self.assertEqual(names, [name + ".png" for name in screens.SCREEN_NAMES])
+        deletes = [call for call in api.calls if call[0] == "DELETE"]
+        self.assertEqual({call[1] for call in deletes}, {"/v1/appAssetLibraryPlacements/" + item["id"] for item in snapshot["placements"]})
+        self.assertEqual(events[-1]["action"], "replacement_verified")
+
+    def test_changed_original_image_group_order_target_or_new_picture_blocks_before_first_write(self):
+        for alteration in ("image", "group", "order", "target", "new"):
+            api = ReplacementApple()
+            snapshot = api.snapshot()
+            if alteration == "image":
+                api.placements[0]["relationships"]["image"]["data"]["id"] = "legacy-image-1"
+            elif alteration == "group":
+                api.placements[0]["attributes"]["placementGroup"] = "WATCH_ULTRA_PROFILE"
+            elif alteration == "order":
+                api.placements[0], api.placements[1] = api.placements[1], api.placements[0]
+            elif alteration == "target":
+                snapshot["locale_id"] = "turkish"
+            else:
+                extra = copy.deepcopy(api.placements[0])
+                extra["id"] = "unreviewed-concurrent"
+                api.placements.append(extra)
+            with self.subTest(alteration=alteration), self.assertRaises(screens.SafeError):
+                self.replacement_upload(api, snapshot, [])
+            self.assertTrue(all(call[0] == "GET" for call in api.calls))
+
+    def test_processing_failure_and_restore_persistence_failure_preserve_old_associations(self):
+        for failure in ("processing", "restore"):
+            api, events = ReplacementApple(), []
+            snapshot = api.snapshot()
+            target = screens.discover(api)
+            groups = self.groups(target)
+            if failure == "processing":
+                groups["ipad"]["spec_ids"] = ["wrong-spec"]
+            def record(event):
+                if failure == "restore" and event["action"] == "replacement_restore_snapshot":
+                    raise OSError("report storage unavailable")
+                events.append(event)
+            with self.subTest(failure=failure), patch.object(screens, "transfer_parts"):
+                with self.assertRaises((screens.SafeError, OSError)):
+                    screens.upload(api, target, self.selections(), groups, SHA, record, snapshot)
+            self.assertEqual(len(api.placements), 21)
+            self.assertFalse(any(call[0] == "DELETE" or call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls))
+
+    def test_delete_unknown_outcome_stops_then_partial_resume_reuses_images_and_remaining_snapshot(self):
+        api, events = ReplacementApple(), []
+        snapshot, request = api.snapshot(), api.request
+        deletion_count = 0
+        def interrupted(method, path, body=None):
+            nonlocal deletion_count
+            result = request(method, path, body)
+            if method == "DELETE":
+                deletion_count += 1
+                if deletion_count == 3:
+                    raise screens.SafeError("DELETE response unavailable; no mutation was retried")
+            return result
+        with patch.object(api, "request", side_effect=interrupted), self.assertRaises(screens.SafeError):
+            self.replacement_upload(api, snapshot, events)
+        self.assertEqual(api.calls[-1][0], "DELETE")
+        self.assertEqual(len(api.placements), 18)
+        self.assertFalse(any(call[0] == "POST" and call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls))
+        image_reservations = sum(call[0] == "POST" and call[1] == "/v1/appAssetLibraryImages" for call in api.calls)
+        self.assertEqual(image_reservations, 12)
+        self.replacement_upload(api, snapshot, events)
+        self.assertEqual(sum(call[0] == "POST" and call[1] == "/v1/appAssetLibraryImages" for call in api.calls), image_reservations)
+        self.assertEqual(len(api.placements), 12)
+        deletions = [call[1] for call in api.calls if call[0] == "DELETE"]
+        self.assertEqual(len(deletions), len(set(deletions)))
+        posts = sum(call[0] == "POST" for call in api.calls)
+        self.replacement_upload(api, snapshot, events)
+        self.assertEqual(sum(call[0] == "POST" for call in api.calls), posts)
+        self.assertEqual(len([call for call in api.calls if call[0] == "DELETE"]), 21)
+
+    def test_new_concurrent_picture_after_processing_stops_before_any_delete(self):
+        api, events = ReplacementApple(), []
+        snapshot, collection = api.snapshot(), api.collection
+        def concurrent(path):
+            if path.endswith("include=image") and len(api.images) == 19:
+                extra = copy.deepcopy(api.placements[0])
+                extra["id"] = "unreviewed-after-processing"
+                api.placements.append(extra)
+            return collection(path)
+        with patch.object(api, "collection", side_effect=concurrent), self.assertRaises(screens.SafeError):
+            self.replacement_upload(api, snapshot, events)
+        self.assertFalse(any(call[0] == "DELETE" for call in api.calls))
+
+    def test_partial_new_placement_resume_does_not_recreate_uploaded_images_or_placed_pictures(self):
+        api, events = ReplacementApple(), []
+        snapshot, request = api.snapshot(), api.request
+        placement_count = 0
+        def interrupted(method, path, body=None):
+            nonlocal placement_count
+            result = request(method, path, body)
+            if method == "POST" and path == "/v1/appAssetLibraryPlacements":
+                placement_count += 1
+                if placement_count == 3:
+                    raise screens.SafeError("POST response unavailable; no mutation was retried")
+            return result
+        with patch.object(api, "request", side_effect=interrupted), self.assertRaises(screens.SafeError):
+            self.replacement_upload(api, snapshot, events)
+        self.assertEqual(len(api.placements), 3)
+        placed_ids = {item["id"] for item in api.placements}
+        self.replacement_upload(api, snapshot, events)
+        self.assertEqual(len(api.placements), 12)
+        self.assertTrue(placed_ids <= {item["id"] for item in api.placements})
+        self.assertEqual(sum(call[0] == "POST" and call[1] == "/v1/appAssetLibraryImages" for call in api.calls), 12)
+        self.assertEqual(sum(call[0] == "POST" and call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls), 12)
+        self.assertEqual(sum(call[0] == "DELETE" for call in api.calls), 21)
+
+    def test_final_verification_detects_missing_original_library_image(self):
+        api, events = ReplacementApple(), []
+        snapshot, collection = api.snapshot(), api.collection
+        def missing_library_image(path):
+            if path.endswith("/images") and len(api.placements) == 12:
+                del api.images["legacy-image-0"]
+            return collection(path)
+        with patch.object(api, "collection", side_effect=missing_library_image), self.assertRaises(screens.SafeError):
+            self.replacement_upload(api, snapshot, events)
+        self.assertFalse(any(event["action"] == "replacement_verified" for event in events))
+        self.assertTrue(all(call[1].startswith("/v1/appAssetLibraryPlacements/") for call in api.calls if call[0] == "DELETE"))
+
+    def test_report_write_failure_keeps_last_complete_restore_snapshot(self):
+        backup = {"events": [{"action": "replacement_restore_snapshot", **ReplacementApple().snapshot()}]}
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "report.json"
+            screens.save_report(backup, destination)
+            with patch.object(screens.os, "replace", side_effect=OSError("storage failure")), self.assertRaises(OSError):
+                screens.save_report({"events": []}, destination)
+            self.assertEqual(json.loads(destination.read_text()), backup)
+            self.assertEqual(list(Path(directory).iterdir()), [destination])
 
     def test_source_requires_full_success_and_exact_sha_but_not_metadata_workflow_head(self):
         github = screens.GitHubAPI("test-token")

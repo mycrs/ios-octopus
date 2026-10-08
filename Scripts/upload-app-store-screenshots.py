@@ -5,7 +5,8 @@ https://developer.apple.com/documentation/appstoreconnectapi/uploading-and-manag
 https://developer.apple.com/documentation/appstoreconnectapi/placing-assets-on-your-app-store-surfaces
 https://developer.apple.com/documentation/appstoreconnectapi/discovering-asset-specifications
 
-No deletes, review submission, role changes, image transformations, or POST retries.
+No library asset deletes, review submission, role changes, image transformations,
+or mutation retries. Reviewed replacement may remove only surface associations.
 Upload requires an explicitly reviewed manifest, a successful source CI run,
 and unmodified PNGs from its Release-review-journey artifact. Inspection is GET-only.
 """
@@ -40,6 +41,7 @@ REQUIRED_JOBS = ("Mimari kuralları", "Domain testleri (Linux)",
                  "OctopusData testleri", "OctopusPlayback testleri",
                  "OctopusFeatures testleri", "OctopusDesignSystem testleri")
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
+REPLACEABLE_GROUPS = {"IPAD_13_PROFILE", "IPHONE_FACE_ID_LARGE_PROFILE", "WATCH_ULTRA_PROFILE"}
 
 
 class SafeError(RuntimeError):
@@ -63,8 +65,12 @@ class JsonAPI:
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme != "https" or parsed.netloc != urllib.parse.urlsplit(self.origin).netloc:
             raise SafeError("API pagination points outside its authorized host")
-        if method not in ("GET", "POST", "PATCH"):
+        if method not in ("GET", "POST", "PATCH", "DELETE"):
             raise SafeError("Unsupported API operation")
+        if method == "DELETE" and (self.origin != "https://api.appstoreconnect.apple.com" or
+                not re.fullmatch(r"/v1/appAssetLibraryPlacements/[A-Za-z0-9-]+", parsed.path) or
+                parsed.query or parsed.fragment or body is not None):
+            raise SafeError("Only a reviewed surface placement association may be deleted")
         payload = json.dumps(body).encode() if body is not None else None
         attempts = 3 if method == "GET" else 1
         for attempt in range(attempts):
@@ -266,7 +272,31 @@ def validate_manifest(manifest, run_id, sha):
                 parsed.parts[0] != item["device"] + "-screens" or parsed.suffix != ".png" or path in paths):
             raise SafeError("Manifest contains an invalid hash or artifact-relative PNG path")
         paths.add(path)
+    if "replacement" in manifest:
+        validate_replacement(manifest["replacement"])
     return images
+
+
+def validate_replacement(replacement):
+    if (not isinstance(replacement, dict) or set(replacement) != {"version_id", "locale_id", "placements"} or
+            any(not isinstance(replacement.get(key), str) or not re.fullmatch(r"[A-Za-z0-9-]+", replacement[key])
+                for key in ("version_id", "locale_id"))):
+        raise SafeError("Replacement requires the exact reviewed version and localization snapshot")
+    placements = replacement["placements"]
+    if not isinstance(placements, list) or not placements or len(placements) > 30:
+        raise SafeError("Replacement requires a bounded original placement snapshot")
+    identifiers, positions = set(), {}
+    for item in placements:
+        if (not isinstance(item, dict) or set(item) != {"id", "group", "image_id", "position"} or
+                not isinstance(item["group"], str) or item["group"] not in REPLACEABLE_GROUPS or
+                type(item["position"]) is not int or item["position"] < 0 or
+                any(not isinstance(item[key], str) or not re.fullmatch(r"[A-Za-z0-9-]+", item[key])
+                    for key in ("id", "image_id")) or item["id"] in identifiers):
+            raise SafeError("Replacement contains an unapproved original placement")
+        identifiers.add(item["id"])
+        positions.setdefault(item["group"], []).append(item["position"])
+    if any(values != list(range(len(values))) or len(values) > 10 for values in positions.values()):
+        raise SafeError("Replacement must preserve the reviewed original order within each group")
 
 
 def png_dimensions(raw):
@@ -389,7 +419,49 @@ def processed_image(apple, image_id):
         time.sleep(3)
 
 
-def upload(apple, target, images, groups, sha, record):
+def surface_path(target):
+    return query("/v1/appStoreVersionLocalizations/" + target["locale_id"] + "/placements", {
+        "filter[placementType]": "APP_SCREENSHOT", "sort": "placementGroupPosition", "include": "image",
+    })
+
+
+def replacement_surface(target, replacement, plans, placements):
+    """Accept only reviewed originals and this source's exact resumed placements."""
+    validate_replacement(replacement)
+    if target["version_id"] != replacement["version_id"] or target["locale_id"] != replacement["locale_id"]:
+        raise SafeError("Replacement snapshot targets a different version or localization")
+    originals = {item["id"]: item for item in replacement["placements"]}
+    if not {item["image_id"] for item in originals.values()} <= {item["id"] for item in target["images"]}:
+        raise SafeError("An original library image is missing; replacement stopped")
+    seen, resumed = set(), {}
+    for item in placements:
+        identifier, attributes = item["id"], item["attributes"]
+        if identifier in seen or attributes.get("placementType") != "APP_SCREENSHOT":
+            raise SafeError("Unexpected or duplicate target surface association")
+        seen.add(identifier)
+        if identifier in originals:
+            reviewed = originals[identifier]
+            if attributes.get("placementGroup") != reviewed["group"] or placement_image(item) != reviewed["image_id"]:
+                raise SafeError("An original association changed since review; no replacement is authorized")
+        else:
+            matches = [index for index, plan in enumerate(plans) if plan["image"] and
+                       placement_image(item) == plan["image"]["id"] and
+                       attributes.get("placementGroup") == plan["group"]["group"]]
+            if len(matches) != 1 or matches[0] in resumed:
+                raise SafeError("Target surface has unreviewed concurrent pictures; inspect before replacement")
+            resumed[matches[0]] = item
+    for group in REPLACEABLE_GROUPS:
+        current = [item["id"] for item in placements if item["id"] in originals and
+                   item["attributes"].get("placementGroup") == group]
+        expected = [item["id"] for item in replacement["placements"] if item["group"] == group and item["id"] in seen]
+        if current != expected:
+            raise SafeError("Original placement order changed since review; inspect before replacement")
+    for index, plan in enumerate(plans):
+        plan["placement"] = resumed.get(index)
+    return [item for item in replacement["placements"] if item["id"] in seen]
+
+
+def upload(apple, target, images, groups, sha, record, replacement=None):
     if target["state"] not in ("REJECTED", "METADATA_REJECTED"):
         raise SafeError("Upload is restricted to the current rejected iOS 1.0 version")
     existing = target["placements"]
@@ -416,9 +488,11 @@ def upload(apple, target, images, groups, sha, record):
             raise SafeError("Existing referenced asset needs inspection before resuming")
         plans.append({"selection": selection, "raw": raw, "group": group, "reference": reference,
                       "image": image, "placement": placed[0] if placed else None})
-    # Check capacity for BOTH devices before the first mutation. Existing images/placements stay intact.
+    originals = replacement_surface(target, replacement, plans, existing) if replacement is not None else []
+    removing = {item["id"] for item in originals}
+    # Check BOTH devices before the first mutation, excluding only reviewed replacement associations.
     for device, group in groups.items():
-        current = [item for item in existing if item["attributes"].get("placementGroup") == group["group"]]
+        current = [item for item in existing if item["attributes"].get("placementGroup") == group["group"] and item["id"] not in removing]
         additions = sum(plan["selection"]["device"] == device and plan["placement"] is None for plan in plans)
         if len(current) + additions > group["max_count"]:
             raise SafeError("Existing placements leave insufficient capacity; no assets were changed")
@@ -446,6 +520,26 @@ def upload(apple, target, images, groups, sha, record):
         if attributes.get("specId") not in plan["group"]["spec_ids"] or (asset.get("width"), asset.get("height")) != DIMENSIONS[plan["selection"]["device"]]:
             raise SafeError("Processed asset does not match the selected device specification")
         plan["image"] = image
+        record({"action": "image_prepared", "image_id": image["id"], "reference_name": plan["reference"],
+                "state": attributes["state"]})
+    if replacement is not None:
+        # ALL twelve uploads must be processed before the first old association is removed.
+        # The synchronous report writer persists recovery metadata before any DELETE.
+        current = apple.collection(surface_path(target))
+        originals = replacement_surface(target, replacement, plans, current)
+        record({"action": "replacement_restore_snapshot", "version_id": target["version_id"],
+                "locale_id": target["locale_id"], "library_id": target["library_id"],
+                "placement_type": "APP_SCREENSHOT", "placements": replacement["placements"],
+                "prepared_image_ids": [plan["image"]["id"] for plan in plans]})
+        for item in originals:
+            record({"action": "remove_placement_attempt", "placement_id": item["id"], "image_id": item["image_id"]})
+            apple.request("DELETE", "/v1/appAssetLibraryPlacements/" + item["id"])
+            record({"action": "placement_removed", "placement_id": item["id"]})
+        current = apple.collection(surface_path(target))
+        if replacement_surface(target, replacement, plans, current):
+            raise SafeError("Original surface associations remain; inspect before creating replacements")
+    for plan in plans:
+        image = plan["image"]
         if plan["placement"] is None:
             record({"action": "place_image_attempt", "image_id": image["id"], "group": plan["group"]["group"]})
             plan["placement"] = apple.request("POST", "/v1/appAssetLibraryPlacements", {"data": {
@@ -456,7 +550,8 @@ def upload(apple, target, images, groups, sha, record):
             record({"action": "image_placed", "image_id": image["id"], "placement_id": plan["placement"]["id"]})
     for device, group in groups.items():
         desired = [plan["placement"]["id"] for plan in plans if plan["selection"]["device"] == device]
-        prior = [item["id"] for item in existing if item["attributes"].get("placementGroup") == group["group"] and item["id"] not in desired]
+        prior = [] if replacement is not None else [item["id"] for item in existing
+            if item["attributes"].get("placementGroup") == group["group"] and item["id"] not in desired]
         ordered = desired + prior
         path = query("/v1/appStoreVersionLocalizations/" + target["locale_id"] + "/placements", {
             "filter[placementType]": "APP_SCREENSHOT", "filter[placementGroup]": group["group"], "sort": "placementGroupPosition",
@@ -476,6 +571,34 @@ def upload(apple, target, images, groups, sha, record):
             raise SafeError("Placement order verification failed")
         record({"action": "placements_verified", "device": device, "group": group["group"],
                 "placement_ids": ordered, "states": [item["attributes"].get("state") for item in verified]})
+    if replacement is not None:
+        retained = apple.collection("/v1/appAssetLibraries/" + target["library_id"] + "/images")
+        target = {**target, "images": retained}
+        current = apple.collection(surface_path(target))
+        if replacement_surface(target, replacement, plans, current):
+            raise SafeError("An original surface association remains after replacement")
+        if len(current) != len(plans) or any(plan["placement"] is None for plan in plans):
+            raise SafeError("Final replacement surface differs from the twelve approved screenshots")
+        record({"action": "replacement_verified", "original_library_image_ids_retained":
+                sorted({item["image_id"] for item in replacement["placements"]}),
+                "original_placement_ids_absent": [item["id"] for item in replacement["placements"]]})
+
+
+def save_report(report, destination):
+    """Keep the last complete recovery snapshot even if a later write fails."""
+    destination = Path(destination)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=destination.parent,
+                                         prefix=destination.name + ".", suffix=".tmp", delete=False) as output:
+            temporary = Path(output.name)
+            json.dump(report, output, indent=2)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, destination)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
 
 
 def main():
@@ -490,7 +613,7 @@ def main():
     report = {"schema": 1, "mode": args.mode, "target": {"app_id": APP_ID, "version": VERSION, "locale": LOCALE}, "events": []}
     def record(event):
         report["events"].append(event)
-        Path(args.report).write_text(json.dumps(report, indent=2), encoding="utf-8")
+        save_report(report, args.report)
         print(json.dumps(event))
     try:
         if args.source_run <= 0 or not re.fullmatch(r"[a-f0-9]{40}", args.source_sha) or os.environ.get("GITHUB_REPOSITORY") != REPOSITORY:
@@ -530,7 +653,7 @@ def main():
                 groups = {device: one(candidates(target["reference"], device),
                                      lambda item: item["group"] == manifest["placement_groups"][device],
                                      "refreshed selected " + device + " placement group") for device in DIMENSIONS}
-                upload(apple, target, images, groups, args.source_sha, record)
+                upload(apple, target, images, groups, args.source_sha, record, manifest.get("replacement"))
         record({"action": "completed", "review_submitted": False})
         return 0
     except SafeError as error:
