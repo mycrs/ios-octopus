@@ -14,6 +14,13 @@ uygulama kontrollerini incelemeyi kolaylaştırır. Bu, gerçek Xtream servisi,
 operatör EPG'si veya UHD uyumluluğu testinin yerine geçmez. Son build'in
 uygulama/oynatma testi tamamlandı iddiası bu araştırmadan çıkarılmaz.
 
+Son durum güncellemesi: build 9 CI, derleme hataları düzeltildikten sonra
+`dd3eae2` kaynağıyla yeniden başlatıldı; build 9 upload ve App Review
+submission henüz doğrulanmadı. Canlı App Store Connect'te İngilizce
+**Your playlists, organized** alt başlığı ve aşağıdaki yaş anketi kaydedildi.
+Araştırma ajanı hesapta değişiklik yapmadı; kaydedilen işlemleri ana
+ajanın gözlemi ve yaş sonucu görüntüsü üzerinden belgeler.
+
 ## Ret hakkında bildiğimiz
 
 `APP-STORE-INCELEME-2026-10-08.md` kayıtlarına göre son mesaj 7 Ekim'de
@@ -208,17 +215,19 @@ tek başına sosyal paylaşım veya halka yayılan kullanıcı içeriği anlamı
 gelmez. Anket tüm gerçek özelliklere göre doldurulur; «daha düşük yaş
 çıksın» veya «IPTV olduğundan otomatik yüksek yaş» şeklinde değiştirilmez.
 
-Canlı ASC'de 4+ ve içerik sıklıklarının None olduğu gözlendi. BBB/Sintel
-örnekleri eklendiğinde fantezi şiddeti, korku ve silah betimleri final
-dosyalar izlenerek cevaplanır; tüm None cevapları otomatik taşınmaz.
-Apple'ın genel tablosunda infrequent fantezi şiddeti/korku/silah 9+;
-frequent fantezi şiddeti/korku iOS 26+ için 13+, eski sistemlerde 12+
-değeri üretir. Diğer cevaplar/bölgeler sonucu değiştirebilir. HTTP
-başlıkları içerik sıklığını doğrulamaz; sırf IPTV diye 13+/18+ override
-gerektiği sonucu çıkarılmaz.
+Başlangıçta canlı ASC'de 4+ ve içerik sıklıklarının None olduğu gözlendi.
+8 Ekim'de anket **Parental Controls Present**, **Age Assurance No**,
+**Horror/Fear Infrequent**, **Cartoon/Fantasy Violence Frequent** ve
+**Guns/Weapons Infrequent** olarak kaydedildi; diğer cevaplar değişmedi.
+Apple **172 ülke/bölgede 13+**, Vietnam/Kore **12+**, Brezilya **A12**,
+iOS 26 öncesi genel **12+** (bölgesel istisnalarla) hesapladı.
+[Kaydedilmiş sonuç](../.artifacts/review-proof/age-rating-updated.jpg)
+araştırmada görüntü olarak kontrol edildi. Bu kayıt bütün filmlerin
+izlendiğini göstermez; HTTP başlıkları da içerik sıklığı kanıtı değildir.
+Sırf IPTV diye 13+/18+ override gerektiği sonucu çıkarılmaz.
 
 ASC'de Standard Apple License Agreement seçili. Uygulama içindeki
-Terms bağlantısı [Apple standart EULA](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/)
+Terms bağlantısı ASC'nin kullandığı [Apple standart EULA](https://www.apple.com/legal/itunes/appstore/dev/stdeula)
 olabilir. Web sitesi sözleşmesinin 10 Temmuz 2026 platform listesinde
 iOS ve yeni örnek kitaplığı yok; site sözleşmesi bu çalışmada değiştirilmedi.
 Özel EULA tanımlanmadığında standart lisansın uygulanması Apple'ın
@@ -272,6 +281,7 @@ gönderim kaydı. Apple'ın kabul kararı henüz yoksa «onaylandı» denmez.
 | iPad gerçek akış ve yeni görüntüler | Bu araştırmada doğrulanmadı. |
 | Sürekli erişilir privacy/support | Başlangıç kodunda eksik; düzeltme gerekiyor. |
 | Reviewer kaynak kapsamı | Xtream hesabı yok. M3U canlı listesini kapsıyor; build 9 normal kullanıcıya açık örnek kitaplığı/rehber/bölüm arayüzü test kanıtı bekleniyor. |
-| Metadata ve review notu güncellemesi | Yeni taslak dosyası hazır; son Release davranışı/testleriyle eşleştirilmeden gönderilmiş sayılmaz. |
+| Kaydedilen metadata / yaş | İngilizce alt başlık ve yaş anketi kaydedildi; hesaplanan 13+/bölgesel sonuçlar yukarıda. Diğer taslak alanlar son canlı kontrol bekler. |
+| Review Notes ve 4.3 mesajı | Son build doğrulaması sonrası için taslak hazır; gönderilmedi. |
 | Sunucu veri saklama ve privacy beyanı | Kaynak koddan teyit edilemiyor. |
-| Yeni App Store dağıtım build'i ve inceleme gönderimi | Bu araştırmada yapılmadı. |
+| Yeni App Store dağıtım build'i ve inceleme gönderimi | Build 9 `dd3eae2` CI tekrar denemesi başlatıldı; upload/submission henüz doğrulanmadı. |

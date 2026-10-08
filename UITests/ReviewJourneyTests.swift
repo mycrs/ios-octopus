@@ -26,8 +26,19 @@ final class ReviewJourneyTests: XCTestCase {
         XCTAssertTrue(movies.waitForExistence(timeout: 45))
         capture("03-home")
         movies.tap()
-        let movie = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "movie.card.")).firstMatch
+        let movieCards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "movie.card."))
+        let movie = movieCards.firstMatch
         XCTAssertTrue(movie.waitForExistence(timeout: 20))
+        let cardFrame = movie.frame
+        let windowFrame = app.windows.firstMatch.frame
+        XCTAssertGreaterThanOrEqual(cardFrame.minX, windowFrame.minX - 1,
+                                    "Dolgulu afiş kartın erişilebilirlik alanını ekran dışına taşırmamalı")
+        XCTAssertLessThanOrEqual(cardFrame.maxX, windowFrame.maxX + 1)
+        let neighbour = movieCards.element(boundBy: 1)
+        if neighbour.exists {
+            XCTAssertFalse(cardFrame.intersects(neighbour.frame),
+                           "Yan yana film kartlarının dokunma alanları çakışmamalı")
+        }
         capture("04-movies")
         movie.tap()
         let play = app.buttons["movie.play"]

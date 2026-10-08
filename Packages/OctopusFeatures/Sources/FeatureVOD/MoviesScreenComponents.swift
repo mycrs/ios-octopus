@@ -38,6 +38,7 @@ struct MoviePosterCell: View {
                     // başlıkları afişten dar bırakıyordu.
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("movie.card.\(movie.id.value)")

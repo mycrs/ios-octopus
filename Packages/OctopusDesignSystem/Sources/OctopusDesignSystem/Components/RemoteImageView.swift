@@ -150,9 +150,14 @@ public struct GridPosterView: View {
                 ) {
                     MediaArtworkPlaceholder(title: fallbackTitle, symbol: "film.fill")
                 }
+                // Dolgu görseli hücre dışına taşsa da komşu kartın
+                // dokunmasını veya erişilebilir çerçevesini sahiplenmesin.
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
             )
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 

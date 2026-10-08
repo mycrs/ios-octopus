@@ -15,7 +15,10 @@ IPTV oynatıcı amacı korunur; Apple'ın kabul sonucu henüz bilinmez.
 | Mac CI | [37776653115](https://github.com/mycrs/ios-octopus/actions/runs/37776653115) başarılı; Playback 57, Data 264, Features 194 XCTest ve Domain/DesignSystem/iOS işleri geçti. |
 | Cihaz | Build 8 kurulu ve açılıyor; VLC yedeği bağlı. Açılış kaydı oynatma olayı içermedi; yeni UHD görüntüsü doğrulanmadı. |
 | Demo / hedef build 9 | Xtream inceleme hesabı yok; kullanıcı yalnız M3U sağladı. Eski M3U canlı liste import/oynatma içindir. Normal kullanıcıya açık isteğe bağlı örnek kitaplığı film, örnek bölüm ve örnek rehber akışlarını kapsayacak; build 9 uygulama/cihaz testleri henüz kanıtlanmadı. |
-| Lisans ve yaş | ASC'de Standard Apple License Agreement ve 4+ gözlendi. BBB/Sintel örnekleri eklenirse gerçek şiddet/korku/silah içeriğine göre yaş anketi yeniden değerlendirilir; 4+ otomatik taşınmaz. |
+| Build 9 CI | Derleme hataları düzeltildikten sonra `dd3eae2` kaynağıyla tekrar başlatıldı; başarı/dağıtım upload/submission bu kayıtla doğrulanmış sayılmaz. |
+| Kaydedilen metadata | İngilizce alt başlık `Your playlists, organized` kaydedildi. Diğer taslak alanlar canlı son kontrolde doğrulanır. |
+| Kaydedilen yaş | Parental Controls Present; Age Assurance No; Horror/Fear Infrequent; Cartoon/Fantasy Violence Frequent; Guns/Weapons Infrequent; diğer cevaplar değişmedi. Apple 172 ülke/bölge için 13+, Vietnam/Kore 12+, Brezilya A12, iOS 26 öncesi genel 12+ hesapladı. [Kanıt](../.artifacts/review-proof/age-rating-updated.jpg). |
+| Lisans | ASC'de Standard Apple License Agreement seçili; bağlantı `https://www.apple.com/legal/itunes/appstore/dev/stdeula`. |
 | Yeni App Review | Bu belgeden gönderilmiş sonucu çıkarılmaz; son canlı durum ayrıca kaydedilir. |
 
 ## Son Release kontrolü
@@ -42,7 +45,7 @@ Hata varsa saat, beklenen/gerçek sonuç ve güvenli log klasörü kaydedilir.
 | Reviewer erişimi | Çalışan ve yeterli kapsamda test kaynağı inceleme boyunca geçerli; ilk kurulumdan tam adımlar var. | [ ] |
 | Örnek kitaplığı | Karşılama ve Ayarlar'da tüm kullanıcılara isteğe bağlı; oynatma/favori/ilerleme/örnek bölüm/örnek rehber/kategori koruması aynı Release'te doğrulandı. Gerçek Xtream hesabı veya operatör EPG'si diye sunulmuyor. | [ ] |
 | Hak/atıf | Dosya/görsel/screenshots izinleri doğrulandı; açık lisansın jenerik/atıf şartları uygulandı. | [ ] |
-| Yaş / lisans | Örnek dosyalar gerçek içerikleriyle değerlendirildi; doğru sıklık cevapları kaydedildi; PIN araçları Present, yaş doğrulaması yoksa None; uygulama lisansı seçili Standard Apple EULA ile aynı. | [ ] |
+| Yaş / lisans | Yukarıdaki anket ve Apple sonuçları kaydedildi; bu bütün filmlerin izlendiği kanıtı değildir. Final içerik ve uygulama lisansı seçili Standard Apple EULA ile son kontrolde eşleşiyor. | [ ] |
 | Metadata | Gerçek Release'e uygun; rakip benzetmesi, ölçülmemiş hız/uyumluluk garantisi veya unsupported özellik yok. | [ ] |
 
 Motorun `playing` olayı görüntü kanıtı değildir. Bu tablo bütün sağlayıcıların

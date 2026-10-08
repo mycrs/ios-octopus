@@ -7,8 +7,32 @@ bağlı örnek kitaplığı uygulama/test çalışması sürüyor; aşağıdaki 
 örnek kitaplığı metni, özellik aynı Release'te uygulanıp doğrulanmadan
 gönderilmiş veya çalışmış sayılmaz. İnceleme için Xtream test hesabı yok;
 eski M3U ve normal kullanıcıya açık örnek kitaplığı farklı kapsamlar sunar.
+Son build 9 CI denemesi, derleme hataları düzeltildikten sonra `dd3eae2`
+kaynağıyla yeniden başlatıldı. Bu kayıt başarılı CI, build 9 upload veya
+App Review submission kanıtı değildir.
 [İnceleme kaydı](APP-STORE-INCELEME-2026-10-08.md) ve
 [Apple araştırması](APPLE-INCELEME-HAZIRLIK-2026-10-08.md).
+
+## App Store Connect'te kaydedilen değişiklikler
+
+8 Ekim'de İngilizce alt başlık **Your playlists, organized** kaydedildi.
+Aşağıdaki yaş cevapları kaydedildi; diğer cevaplar değiştirilmedi:
+
+| Anket alanı | Kaydedilen cevap |
+|---|---|
+| Parental Controls | Present |
+| Age Assurance | No |
+| Horror/Fear Themes | Infrequent |
+| Cartoon or Fantasy Violence | Frequent |
+| Guns or Other Weapons | Infrequent |
+
+Apple'ın hesapladığı sonuç: **172 ülke/bölgede 13+**, Vietnam **12+**,
+Kore **12+**, Brezilya **A12**; iOS 26 öncesi genel değer **12+**
+(bölgesel istisnalarla).
+[Kaydedilmiş yaş sonucu](../.artifacts/review-proof/age-rating-updated.jpg).
+Bu anket kaydı, bütün filmlerin izlenmiş olduğu veya build 9'un
+gönderildiği anlamına gelmez. Diğer taslak alanların kaydedilme durumu
+son canlı App Store Connect kontrolüyle belirlenir.
 
 ## Açıklama — Türkçe
 
@@ -80,7 +104,7 @@ For a fresh installation, select Explore Sample Library on the welcome screen, r
 
 To check M3U import separately, select Start setup > M3U, enter https://octopusplayer.com/google-review/test.m3u in M3U link, give the source a name, and select Save and load content. No account credentials or activation code are needed for this M3U. Its 11 MP4 entries appear in the live-channel list; it does not supply a movie/series catalog or an external program guide.
 
-Please also review the source-management and viewing-control flows: switching playlists, optional playlist PIN protection, favorites, saved viewing progress, and Parental Controls. In Settings, Source check shows local catalog counts and missing or duplicate catalog fields. The user can share a support report through the iOS share sheet; the report omits source URLs, credentials, content titles, PINs, and device identifiers.
+Please also review the source-management and viewing-control flows: switching playlists, optional playlist PIN protection, favorites, saved viewing progress, and Parental Controls. In Settings, Source check shows local catalog counts, missing fields, and duplicate stream keys. The user can share a support report through the iOS share sheet; the report omits source URLs, credentials, content titles, PINs, and device identifiers.
 
 Parental Controls are in Settings > Parental Controls. This section contains temporary unlocking, Change PIN, and Manage protected categories. The initial PIN is 0000 unless the user has already changed it. Unlock with the PIN, select a category in Manage protected categories, and relock to verify that protected content is hidden. The app does not perform age assurance or age verification.
 
@@ -125,17 +149,19 @@ IPTV hesabı gibi sunulmaz. Erişilebilir dosya tek başına hak kanıtı değil
 ## 4.3(a) açıklama mesajı
 
 Yeni build değişiklikleri reddedilen build 7'de varmış gibi anlatılmaz.
-Aşağıdaki gelecek zaman taslağı ancak yapılacak çalışmalar için uygundur;
-gönderimde biten/test edilen değişiklikler somut yollarıyla yazılır.
+Aşağıdaki mesaj **build 9'un son CI/Release doğrulaması tamamlanıp doğru
+build ve Review Notes App Store Connect'te hazır olduğunda** kullanılacak
+taslaktır; şu anda gönderilmiş sayılmaz. Son testin doğrulamadığı cümle
+mesajda tutulmaz.
 
 ```text
 Hello App Review Team,
 
-We are addressing the concern in Guideline 4.3(a). Octopus is intended to remain an IPTV playlist player. Our submission will describe the actual source-management, viewing-control, and local source-check flows and provide direct steps to review them in the updated Release build.
+We have updated Octopus, our IPTV playlist player, to make its source-management and viewing controls easier to review. Source switching keeps catalogs, favorites, history, and viewing progress associated with the selected playlist. Source check examines duplicate stream keys and missing guide/image fields in the local catalog, and offers a support report that omits source URLs and credentials. Playlist PINs and Parental Controls let users restrict access to their sources and selected categories.
 
-Your message refers to similarities in binary, metadata and/or concept. Could you clarify which observed aspect of this submission needs to change, and provide actionable details that you are able to share? We are asking about our submission so we can address the specific concern.
+An optional Sample Library is available to every user from the welcome screen and Settings, without an account. It includes openly licensed films with attribution, and clearly labelled sample guide and episode flows. The review notes provide direct steps and distinguish these samples from user-supplied IPTV services.
 
-We are revising the metadata and review access information to match the implemented behavior. The updated review notes will distinguish the test sources and the features each one covers.
+We understand the concern under Guideline 4.3(a). Could you clarify the specific observed aspect of our binary, metadata, or concept that needs to change, and share actionable details about our submission? This would help us address the concern directly.
 
 Thank you.
 ```
@@ -146,7 +172,7 @@ Thank you.
 |---|---|
 | Gizlilik | `https://octopusplayer.com/privacy-policy/` |
 | Destek | `https://octopusplayer.com/support/` |
-| Uygulama lisansı / kullanım şartları | `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` — App Store Connect'te seçili Standard Apple License Agreement |
+| Uygulama lisansı / kullanım şartları | `https://www.apple.com/legal/itunes/appstore/dev/stdeula` — App Store Connect'te seçili Standard Apple License Agreement'ın bağlantısı |
 | Web sitesi kullanım şartları | `https://octopusplayer.com/terms-of-service/` — uygulama lisansının yerine geçirilmez |
 | İsteğe bağlı pazarlama | `https://octopusplayer.com/` |
 
@@ -171,13 +197,11 @@ Parental Controls, PIN/kategori araçları son Release'te bulunabiliyor ve
 çalışıyorsa **Present**; yaş doğrulama mekanizması yoksa Age Assurance
 **None** kalır. Diğer cevaplar gerçek işlev/içeriğe göre doldurulur; sırf
 IPTV olduğu için otomatik yüksek yaş veya düşük yaş üretmek için yanlış
-cevap verilmez. BBB/Sintel örnekleriyle tüm içerik sorularını **None**
-bırakmak uygun değildir: fantezi/çizgi film şiddeti, korku ve silah
-betimleri final dosyalar izlenerek değerlendirilir. **Infrequent**
-şiddet/korku/silah cevapları genel 9+; **Frequent** fantezi şiddeti/korku
-iOS 26+ genel 13+, eski sistemlerde 12+ üretir. Bu sonuçlar diğer cevaplara
-ve bölgeye bağlıdır; HEAD veya süre metadata'sı içerik frekansını
-doğrulamaz. [Apple age definitions](https://developer.apple.com/help/app-store-connect/reference/app-information/age-ratings-values-and-definitions/)
+cevap verilmez. BBB/Sintel örnekleri için kaydedilmiş **Frequent**
+fantezi şiddeti, **Infrequent** korku/silah cevapları ve Apple'ın hesapladığı
+13+/bölgesel sonuçlar üstte kaydedildi. HTTP HEAD veya süre metadata'sı
+tek başına içerik frekansını doğrulamaz; bütün filmlerin izlendiği
+iddia edilmez. [Apple age definitions](https://developer.apple.com/help/app-store-connect/reference/app-information/age-ratings-values-and-definitions/)
 
 ## Görseller ve son kayıt
 

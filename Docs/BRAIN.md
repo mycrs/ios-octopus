@@ -891,3 +891,27 @@ TestFlight yükleme veya App Review gönderimi henüz tamamlanmadı. Sonuçlar
 CI ve canlı App Store Connect durumuyla ayrıca kaydedilecek. Araştırma ve
 karşılaştırma `APPLE-INCELEME-HAZIRLIK-2026-10-08.md` ve
 `ANDROID-IOS-UYARLAMA-2026-10-08.md` dosyalarında.
+
+### Build 9 — gerçek Mac doğrulamasında bulunanlar (8 Ekim)
+
+`dd3eae2` turunda Domain 84, Playback 71, Features 211, DesignSystem 11
+ve uygulama kabuğu 14 XCTest geçti. Data 294 testten birinde eski HTTP
+testinin ortak yanıt kuyruğu/sayacı geç kalan iptal isteğinden etkilenebildi;
+oturum başına URL ve durum ayrıldı, tam iki tekrar isteği beklentisi korunur.
+Üretim HTTP istemcisi bu test düzeltmesi için değiştirilmedi.
+
+Release akışı gerçek örnek kitaplığı kurup film listesine ulaştı. Kartların
+2:3 kutusu görsel olarak doğru olsa da dolgu görüntüsünün erişilebilir ve
+dokunma alanı yanındaki hücreye taşıyordu. GridPoster'ın dekoratif görüntüsü
+bu alanlara katılmaz; film/dizi kartlarının dokunma şekli kendi kutusudur.
+Release UI testi ekran dışına taşan veya birbirine binen film kartlarını
+da denetler. Üst kapsayıcı erişilebilirlik kimlikleri düğme kimliklerini
+ezdiği için kaldırıldı. CI Release simülatörü gerçek Keychain davranışını
+korumak için yerel ad-hoc imzalıdır; üretimdeki hata halinde kilitleme
+politikası gevşetilmedi.
+
+App Store İngilizce alt başlığı ve açıklama/tanıtım/anahtar kelimeleri
+kaydedildi. Örnek filmlere göre kaydedilen yaş cevapları genel 13+, eski
+sistemlerde 12+ sonucunu verdi; bölgesel sonuçlar inceleme belgesindedir.
+Build 9 yüklemesi, iPad Release akışı ve fiziksel cihaz UHD görüntüsü hâlâ
+doğrulanmadı; başarısız test kapısı Apple'a paket yüklemesini durdurdu.
