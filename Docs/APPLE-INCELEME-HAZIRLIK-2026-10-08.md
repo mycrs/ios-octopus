@@ -9,7 +9,12 @@ build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 Son kullanıcı talebiyle build 10'a yatay tam ekran, Android tarzı yerel
 kanal paneli, blur temizliği ve mini oynatıcıya güvenli dönüş eklendi.
 İlk Mac turu `bc5ee4b` / 37818493598: yeni Playback testi derleme hatası
-yerelde onarıldı; başarılı yeni tam tur ve cihaz kanıtı henüz yok.
+onarıldı. İkinci tur `64c1849` / 37819697146'da 715 Swift testi ve mimari
+kapısı geçti. Release testi denetimlerin otomatik gizlenmesiyle çakıştı;
+dokunma zamanlaması onarıldı. Yatay kilit doğrulanırken uygulama elemanı
+ekran kaydı kırpılabildiği için kilit testi korunur, görsel yataya hizalı
+cihazın gerçek tam ekranından alınır. Başarılı yeni tam tur ve cihaz kanıtı
+henüz yok.
 Build 9'daki başarı bu dört ek düzeltmenin kanıtı sayılmaz; son App Review
 başvurusu yeni pakete ve gizlilik eşleştirmesinin tamamlanmasına bağlıdır.
 

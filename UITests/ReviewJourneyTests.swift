@@ -64,7 +64,15 @@ final class ReviewJourneyTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         assertWindowOrientation(isLandscape: true)
         assertFullscreenIgnoresPortraitPosture()
-        capture("06-player")
+        // Element screenshots can crop incorrectly when device posture and
+        // the locked scene disagree. Capture the physical screen after alignment.
+        XCUIDevice.shared.orientation = .landscapeRight
+        assertWindowOrientation(isLandscape: true)
+        assertVideoFillsWindow(nativeVideo)
+        if !close.isHittable { nativeVideo.tap() }
+        capture("06-player", fullScreen: true)
+        XCUIDevice.shared.orientation = .portrait
+        assertFullscreenIgnoresPortraitPosture()
         closePlayer(nativeVideo: nativeVideo)
         assertWindowOrientation(isLandscape: false)
         XCTAssertTrue(play.waitForExistence(timeout: 10), "Kapatınca filmi açtığımız detay ekranı korunmalı")
@@ -98,11 +106,23 @@ final class ReviewJourneyTests: XCTestCase {
         capture("10-source-check")
     }
 
-    private func capture(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+    private func capture(_ name: String, fullScreen: Bool = false) {
+        let screenshot = fullScreen ? XCUIScreen.main.screenshot() : app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func assertVideoFillsWindow(_ surface: XCUIElement) {
+        let fillsWindow = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
+            guard let window = app?.windows.firstMatch.frame, window.width > window.height else { return false }
+            let video = surface.frame
+            return abs(video.minX - window.minX) <= 1 && abs(video.minY - window.minY) <= 1
+                && abs(video.width - window.width) <= 1 && abs(video.height - window.height) <= 1
+        }, object: surface)
+        XCTAssertEqual(XCTWaiter.wait(for: [fillsWindow], timeout: 10), .completed,
+                       "Video yüzeyi yatay pencerenin tamamını kaplamalı")
     }
 
     private func assertWindowOrientation(isLandscape: Bool) {
@@ -188,10 +208,17 @@ final class ReviewJourneyTests: XCTestCase {
     private func revealAndTapPlayerButton(_ identifier: String) {
         let button = app.buttons[identifier]
         let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
-        if !button.isHittable { surface.tap() }
-        let visible = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button)
-        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 3), .completed)
-        button.tap()
+        for _ in 0..<3 {
+            if !button.isHittable { surface.tap() }
+            let visible = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button
+            )
+            if XCTWaiter.wait(for: [visible], timeout: 2) == .completed {
+                button.tap()
+                return
+            }
+        }
+        XCTFail("Oynatıcı denetimi görünür olmalı: \(identifier)")
     }
 
     private func closePlayer(nativeVideo: XCUIElement) {

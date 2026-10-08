@@ -9,8 +9,14 @@ Build 10 düzeltmeleri `bc5ee4b2cb522075f17c4dc65709bdde7fe3f69c` kaynağında
 uygulandı. [İlk Mac çalışması 37818493598](https://github.com/mycrs/ios-octopus/actions/runs/37818493598)
 henüz son başarılı doğrulama değildir: Playback'te yeni bir testin escaping
 closure kullanımı derlenmedi, test yerel sabit yakalayacak şekilde düzeltildi.
-Özellik testleri ve mimari/veri/tasarım sistemi kapıları geçti; kalan App ve
-Release sonuçları, yenilenecek tam test turu ve fiziksel cihaz testi bekleniyor.
+İkinci Mac turu `64c1849` / 37819697146'da **715 Swift testi ve mimari kapısı
+geçti**. Release akışı kanal düğmesine ulaşırken 3,5 saniyelik otomatik
+gizlenme süresiyle çakıştı; dokunma yardımcısı sınırlı yeniden görünür kılma
+ile onarıldı. AX kanıtında pencere/video 874×402 ve ilk kare hazırdı.
+Dikey cihaz duruşuyla yatay kilitli pencere ayrıştığında `app.screenshot()`
+kırpıldığı için dikey kilit testi korunup tam ekran kaydı cihaz yataya
+hizalandıktan sonra `XCUIScreen.main.screenshot()` ile alınır. Yeni tam tur
+ve fiziksel cihaz kanıtı bekleniyor.
 Bu çalışmadan binary/görsel gönderilmez. App Store'daki kayıtlı build 9
 ilişkisi ve mağaza alanları korunur; son başvuru yeni doğrulanmış paketi bekler.
 
