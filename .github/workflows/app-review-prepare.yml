@@ -1,0 +1,100 @@
+name: App Review Preparation
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        description: inspect GET-only veya prepare; incelemeyi göndermez
+        type: string
+        required: true
+      source_run:
+        type: string
+        required: true
+      source_sha:
+        type: string
+        required: true
+      expected_notes_sha256:
+        type: string
+        required: true
+    secrets:
+      APP_STORE_CONNECT_KEY_ID:
+        required: true
+      APP_STORE_CONNECT_ISSUER_ID:
+        required: true
+      APP_STORE_CONNECT_PRIVATE_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Yalnız incele veya derleme ve mevcut inceleme notlarını hazırla; göndermez
+        type: choice
+        options: [inspect, prepare]
+        default: inspect
+      source_run:
+        description: Tamamlanmış başarılı imzalı kaynak Actions run ID
+        type: string
+        required: true
+      source_sha:
+        description: İmzalı kaynak çalışmanın tam 40 karakter commit SHA değeri
+        type: string
+        required: true
+      expected_notes_sha256:
+        description: Önceden incelenmiş mevcut notların SHA-256 değeri; metin veya kimlik bilgisi girmeyin
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    name: Apple inceleme hazırlığı API (gönderim yapmaz)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: app-store
+    concurrency:
+      group: octopus-app-review-preparation
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Hazırlık aracının veri gizliliği ve işlem sınırlarını doğrula
+        run: |
+          python3 -m venv "$RUNNER_TEMP/app-review-api-tools"
+          "$RUNNER_TEMP/app-review-api-tools/bin/python" -m pip install -r Scripts/device-build-requirements.txt
+          "$RUNNER_TEMP/app-review-api-tools/bin/python" -m unittest discover -s Scripts -p test_prepare_app_review.py
+
+      - name: Kaynak ve Apple durumunu incele veya yalnız derleme ve notları hazırla
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_OPERATION: ${{ inputs.operation }}
+          REVIEW_SOURCE_RUN: ${{ inputs.source_run }}
+          REVIEW_SOURCE_SHA: ${{ inputs.source_sha }}
+          REVIEW_EXPECTED_NOTES_SHA256: ${{ inputs.expected_notes_sha256 }}
+        run: |
+          test -n "$API_KEY_ID" && test -n "$API_ISSUER_ID" && test -n "$API_PRIVATE_KEY"
+          task_key_path="$RUNNER_TEMP/app-review-AuthKey.p8"
+          trap 'rm -f "$task_key_path"' EXIT
+          umask 077
+          printf '%s' "$API_PRIVATE_KEY" > "$task_key_path"
+          unset API_PRIVATE_KEY
+          "$RUNNER_TEMP/app-review-api-tools/bin/python" Scripts/prepare-app-review.py \
+            --operation "$REVIEW_OPERATION" \
+            --source-run "$REVIEW_SOURCE_RUN" \
+            --source-sha "$REVIEW_SOURCE_SHA" \
+            --expected-notes-sha256 "$REVIEW_EXPECTED_NOTES_SHA256" \
+            --key-path "$task_key_path" \
+            --report "$RUNNER_TEMP/app-review-preparation-report.json"
+
+      - name: Metin veya kimlik bilgisi içermeyen hazırlık raporunu sakla
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: App-Review-preparation-report
+          path: ${{ runner.temp }}/app-review-preparation-report.json
+          retention-days: 7
+          if-no-files-found: warn

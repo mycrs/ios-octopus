@@ -1128,3 +1128,19 @@ kurulmadı. Mağazadaki build 9 ve eski görsel yerleşimleri korunur.
 Kanıt `.artifacts/release10-attempt10-unit-evidence` ve
 `.artifacts/build10-attempt10-small/ipad-player-ui.log` altında tutulur.
 Bekleyen canlı backend gizlilik eşleştirmesi ve gerçek başvuru ayrı adımlardır.
+
+İnceleme hazırlığı API aracı ayrı workflow üzerinden yalnız Build 10
+ilişkisini ve mevcut Review Notes sonuna 337 karakter oynatıcı adımını
+güncelleyebilir. API yanıtındaki not/iletişim/demo metni rapora veya
+işlem günlüğüne yazılmaz; yalnız ID, durum, uzunluk ve SHA raporlanır. Mevcut not
+fingerprintı, sekiz CI kapısı, imzalı TestFlight adımı, geçerli build ve
+taze sürüm/inceleme ilişkileri zorunludur. Belirsiz PATCH otomatik
+tekrarlanmaz; GET kanıtı kaydedilip durulur. Review item çözme veya
+gönderim endpointi yoktur. 18 yerel API testi ve 70 workflow mod senaryosu
+geçti; canlı Apple metadata yetkisi/şeması henüz denenmedi. Mağaza sürümü
+1.0 ile gerçek IPA marketing/prerelease 1.0.0 ayrı doğrulanır. Bu API
+aracı değişikliği, halen çalışan binary kaynak
+`a0d6bbb737e9443186a3a052c366bfb2e993944c` /
+[37854715123](https://github.com/mycrs/ios-octopus/actions/runs/37854715123)
+pinini değiştirmez; yeni binary/görsel/telefon ve gizlilik doğrulanmadan
+hazırlık veya inceleme gönderimi tamamlandı denmez.

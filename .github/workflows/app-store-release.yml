@@ -6,7 +6,7 @@ on:
       distribution:
         description: Paket hedefi
         type: choice
-        options: [testflight, device]
+        options: [testflight, device, none]
         default: testflight
       screenshot_operation:
         description: Apple ekran API işlemi (none normal paket akışını korur)
@@ -25,19 +25,67 @@ on:
         description: Yalnız upload için gözle incelenmiş özgün PNG seçim manifesti (JSON)
         type: string
         default: ''
+      review_operation:
+        description: Apple inceleme hazırlığı; inspect ve prepare için paket hedefi none olmalı; göndermez
+        type: choice
+        options: [none, inspect, prepare]
+        default: none
+      review_source_run:
+        description: Yalnız inceleme hazırlığı için başarılı imzalı kaynak Actions run ID
+        type: string
+        default: ''
+      review_source_sha:
+        description: Yalnız inceleme hazırlığı için kaynak çalışmanın tam 40 karakter commit SHA değeri
+        type: string
+        default: ''
+      review_expected_notes_sha256:
+        description: Yalnız inceleme hazırlığı için incelenmiş mevcut notların SHA-256 değeri; metin girmeyin
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
+  validate-modes:
+    name: İşlem modlarını doğrula
+    runs-on: ubuntu-latest
+    steps:
+      - name: Çakışan işlemleri anahtar erişiminden önce durdur
+        env:
+          DISTRIBUTION: ${{ inputs.distribution }}
+          SCREENSHOT_OPERATION: ${{ inputs.screenshot_operation }}
+          REVIEW_OPERATION: ${{ inputs.review_operation }}
+          REVIEW_SOURCE_RUN: ${{ inputs.review_source_run }}
+          REVIEW_SOURCE_SHA: ${{ inputs.review_source_sha }}
+          REVIEW_EXPECTED_NOTES_SHA256: ${{ inputs.review_expected_notes_sha256 }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          distribution = os.environ.get('DISTRIBUTION') or 'testflight'
+          screenshots = os.environ.get('SCREENSHOT_OPERATION') or 'none'
+          review = os.environ.get('REVIEW_OPERATION') or 'none'
+          if distribution not in ('testflight', 'device', 'none') or screenshots not in ('none', 'inspect', 'upload') or review not in ('none', 'inspect', 'prepare'):
+              raise SystemExit('Unsupported operation mode')
+          if review != 'none':
+              if distribution != 'none' or screenshots != 'none':
+                  raise SystemExit('Review preparation requires distribution=none and screenshot_operation=none')
+              if not re.fullmatch(r'[1-9][0-9]{0,19}', os.environ.get('REVIEW_SOURCE_RUN', '')) or not re.fullmatch(r'[a-f0-9]{40}', os.environ.get('REVIEW_SOURCE_SHA', '')) or not re.fullmatch(r'[a-f0-9]{64}', os.environ.get('REVIEW_EXPECTED_NOTES_SHA256', '')):
+                  raise SystemExit('Review preparation requires the source run, full SHA and reviewed notes hash')
+          elif distribution == 'none' and screenshots == 'none':
+              raise SystemExit('No package or API operation selected')
+          print('Operation modes validated; no credentials accessed')
+          PY
+
   verify:
     name: Yayın öncesi derleme ve testler
-    if: inputs.screenshot_operation == '' || inputs.screenshot_operation == 'none'
+    if: (inputs.screenshot_operation == '' || inputs.screenshot_operation == 'none') && (inputs.review_operation == '' || inputs.review_operation == 'none')
+    needs: [validate-modes]
     uses: ./.github/workflows/ci.yml
 
   upload:
     name: İmzalı test paketi
-    if: inputs.screenshot_operation == '' || inputs.screenshot_operation == 'none'
+    if: (inputs.screenshot_operation == '' || inputs.screenshot_operation == 'none') && (inputs.review_operation == '' || inputs.review_operation == 'none')
     runs-on: macos-latest
     environment: app-store
     needs: [verify]
@@ -176,6 +224,7 @@ jobs:
   screenshots:
     name: Apple ekran görüntüleri API
     if: inputs.screenshot_operation == 'inspect' || inputs.screenshot_operation == 'upload'
+    needs: [validate-modes]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: app-store
@@ -227,3 +276,21 @@ jobs:
           path: ${{ runner.temp }}/screenshot-api-report.json
           retention-days: 7
           if-no-files-found: warn
+
+  review-preparation:
+    name: İnceleme hazırlığı (gönderim yapmaz)
+    if: inputs.review_operation == 'inspect' || inputs.review_operation == 'prepare'
+    needs: [validate-modes]
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/app-review-prepare.yml
+    with:
+      operation: ${{ inputs.review_operation }}
+      source_run: ${{ inputs.review_source_run }}
+      source_sha: ${{ inputs.review_source_sha }}
+      expected_notes_sha256: ${{ inputs.review_expected_notes_sha256 }}
+    secrets:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
