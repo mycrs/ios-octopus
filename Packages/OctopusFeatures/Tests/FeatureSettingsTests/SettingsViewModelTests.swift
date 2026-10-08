@@ -53,6 +53,53 @@ final class SettingsViewModelTests: XCTestCase {
 
     // MARK: - Kaynak bilgisi
 
+    func test_sourceReportDoesNotIncludeSourceNameOrCredentials() async throws {
+        var source = makePlaylist(id: "p1", name: "private-source-name", isActive: true)
+        source.kind = .m3u(url: URL(string: "https://private-host/list?username=secret-user&password=secret-pass")!)
+        playlists.storage = [source]
+        let reader = HealthReaderStub()
+        let model = SourceHealthViewModel(dependencies: SettingsDependencies(
+            playlists: playlists, sync: sync, progress: progress, history: history, sourceHealth: reader
+        ))
+
+        await model.load()
+        let report = try XCTUnwrap(model.shareText)
+        XCTAssertNotNil(model.snapshot)
+        for secret in ["private-source-name", "private-host", "secret-user", "secret-pass", "https://"] {
+            XCTAssertFalse(report.contains(secret), "Destek raporuna kaynak bilgisi sızdı")
+        }
+        let object = try JSONSerialization.jsonObject(with: Data(report.utf8)) as? [String: Any]
+        XCTAssertEqual(object?["schemaVersion"] as? Int, 1)
+    }
+
+    func test_sourceReportWithoutActiveSourceDoesNotReadCatalog() async {
+        let reader = HealthReaderStub()
+        let model = SourceHealthViewModel(dependencies: SettingsDependencies(
+            playlists: playlists, sync: sync, progress: progress, history: history, sourceHealth: reader
+        ))
+        await model.load()
+        let requests = await reader.requests
+
+        XCTAssertEqual(requests, 0)
+        XCTAssertNil(model.snapshot)
+        XCTAssertNil(model.shareText)
+        XCTAssertFalse(model.isLoading)
+    }
+
+    func test_cancelledSourceReportDoesNotPublish() async {
+        playlists.storage = [makePlaylist(id: "p1", name: "Source", isActive: true)]
+        let model = SourceHealthViewModel(dependencies: SettingsDependencies(
+            playlists: playlists, sync: sync, progress: progress, history: history, sourceHealth: HealthReaderStub()
+        ))
+        let request = Task { await model.load() }
+        request.cancel()
+        await request.value
+
+        XCTAssertNil(model.shareText)
+        XCTAssertNil(model.error)
+        XCTAssertFalse(model.isLoading)
+    }
+
     func test_loadShowsActivePlaylistAndCount() async {
         playlists.storage = [
             makePlaylist(id: "p1", name: "Ev", isActive: true, syncedAt: now.addingTimeInterval(-7_200)),
@@ -248,6 +295,19 @@ final class SettingsViewModelTests: XCTestCase {
         ].map { SettingsViewModel.parentalMessage(for: $0) }
 
         XCTAssertEqual(Set(messages).count, 4, "Her hata ayrı mesaj vermeli")
+    }
+}
+
+private actor HealthReaderStub: SourceHealthReading {
+    private(set) var requests = 0
+
+    func snapshot(playlistID: Playlist.ID, at date: Date) async throws -> SourceHealthSnapshot {
+        requests += 1
+        return SourceHealthSnapshot(
+            sourceKind: .m3u, checkedAt: date, lastSyncedAt: nil, accountExpired: false,
+            channels: 11, movies: 0, series: 0, categories: 1, duplicateChannels: 0,
+            channelsWithoutGuide: 11, channelsWithoutArtwork: 0
+        )
     }
 }
 

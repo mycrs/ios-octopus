@@ -47,6 +47,7 @@ final class AppContainer: ObservableObject {
     private let streams: StreamResolving
     private let sync: ContentSyncing
     private let validator: PlaylistValidating
+    private let sourceHealth: SourceHealthReading?
     private let activation: ActivationRedeeming
     private let remoteConfig: RemoteConfigProviding
     /// Bayi kodu karşılığı markalama ve sunucu listesi.
@@ -164,6 +165,7 @@ final class AppContainer: ObservableObject {
             )
 
             playlists = playlistRepository
+            sourceHealth = GRDBSourceHealthReader(database: database)
             channels = GRDBChannelRepository(database: database)
             vod = GRDBVODRepository(
                 database: database,
@@ -207,6 +209,7 @@ final class AppContainer: ObservableObject {
             // Çökmek yerine bellek içi depolarla açılır; kullanıcı uyarılır.
             Log.app.error("Depolama kurulamadı — oturumluk belleğe düşülüyor")
             playlists = InMemoryPlaylistRepository()
+            sourceHealth = nil
             channels = InMemoryChannelRepository()
             vod = InMemoryVODRepository()
             series = InMemorySeriesRepository()
@@ -246,9 +249,12 @@ final class AppContainer: ObservableObject {
         // gidiyor; AVPlayer'ı ana motor tutmak yalnızca HLS ve `.mp4`
         // içerikte fark yaratıyor ve orada sistem entegrasyonunu geri
         // veriyor. Filmler için PiP/AirPlay kaybı özellikle ağırdı.
+        let audioWorker = AudioSessionWorker()
         engineResolver = PlaybackEngineResolver(
-            native: { AVPlayerEngine(preferences: preferences) },
-            fallback: Self.makeFallbackEngineFactory(preferences: preferences)
+            native: {
+                AVPlayerEngine(audioSession: AudioSessionController(worker: audioWorker), preferences: preferences)
+            },
+            fallback: Self.makeFallbackEngineFactory(preferences: preferences, audioWorker: audioWorker)
         )
 
         // ⚠️ Oynatma denetleyicisi **tek örnek**: mini oynatıcı (Canlı TV)
@@ -287,10 +293,16 @@ final class AppContainer: ObservableObject {
     /// ⚠️ VLC bağlı değilse (modül çıkarılmışsa) AVPlayer'a düşülür —
     /// uygulama motorsuz kalmaz.
     private static func makeFallbackEngineFactory(
-        preferences: PlaybackPreferences
+        preferences: PlaybackPreferences,
+        audioWorker: AudioSessionWorker
     ) -> PlaybackEngineResolver.EngineFactory? {
         guard VLCEngineFactory.isAvailable else { return nil }
-        return { VLCEngineFactory.makeEngine(preferences: preferences) }
+        return {
+            VLCEngineFactory.makeEngine(
+                preferences: preferences,
+                audioSession: AudioSessionController(worker: audioWorker)
+            )
+        }
     }
 
     private static var fallbackEngineName: String {
@@ -562,6 +574,8 @@ final class AppContainer: ObservableObject {
             vod: vod,
             series: series,
             playlistAccess: playlistAccess,
+            sourceHealth: sourceHealth,
+            playerDiagnostics: { [weak self] in self?.playbackController.diagnosticSnapshot },
             activatePlaylist: { [weak self] id, pin in
                 guard let self else { return false }
                 return try await self.activatePlaylist(id, enteredPIN: pin)

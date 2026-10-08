@@ -17,11 +17,6 @@ struct OnboardingHeroHeader: View {
             .frame(width: 52, height: 52)
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text("GÜVENLİ KURULUM")
-                    .font(Theme.Typography.badge)
-                    .tracking(1.1)
-                    .foregroundColor(brandColor)
-
                 Text("Kaynak ekle")
                     .font(Theme.Typography.screenTitle)
                     .foregroundColor(Theme.Palette.textPrimary)
@@ -36,9 +31,13 @@ struct OnboardingSourcePicker: View {
     @Binding var selection: AddPlaylistViewModel.SourceKind
     @Environment(\.brandColor) private var brandColor
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.xs) {
+        let layout = dynamicTypeSize >= .xxLarge
+            ? AnyLayout(VStackLayout(spacing: Theme.Spacing.xs))
+            : AnyLayout(HStackLayout(spacing: Theme.Spacing.xs))
+        return layout {
             ForEach(kinds) { kind in
                 let isSelected = selection == kind
 
@@ -56,17 +55,17 @@ struct OnboardingSourcePicker: View {
                             .font(Theme.Typography.caption.weight(.semibold))
                     }
                     .foregroundColor(isSelected ? Theme.Palette.textPrimary : Theme.Palette.textSecondary)
-                    .frame(maxWidth: .infinity, minHeight: 42)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .background(isSelected ? brandColor.opacity(0.16) : .clear)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
-                    .shadow(color: isSelected ? Color.black.opacity(0.24) : .clear, radius: 8, y: 3)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
         .padding(Theme.Spacing.xs)
-        .background(.ultraThinMaterial)
+        .background(Theme.Palette.surface)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
@@ -148,22 +147,13 @@ struct OnboardingSubmitButton: View {
                 Image(systemName: "arrow.right")
                     .font(.system(size: 14, weight: .bold))
             }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
             .frame(maxWidth: .infinity)
             .frame(minHeight: 54)
-            .foregroundColor(.white)
-            .background(
-                LinearGradient(
-                    colors: [brandColor, brandColor.opacity(0.72)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .foregroundColor(Theme.contentColor(on: brandColor))
+            .background(brandColor)
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
-            .shadow(
-                color: isEnabled ? brandColor.opacity(0.28) : .clear,
-                radius: 16,
-                y: 8
-            )
         }
         .buttonStyle(.plain)
         .opacity(isEnabled ? 1 : 0.42)

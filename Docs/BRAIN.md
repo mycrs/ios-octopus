@@ -25,7 +25,7 @@ yedek sunucu listesi ve bakım/güncelleme kapısı panelden gelir.
 |---|---|---|
 | İçerik kaynağı | Xtream **+** M3U/M3U8 **+** aktivasyon kodu | Üçü de tek `ContentProvider` protokolü arkasında. Yeni kaynak = yeni dosya, sıfır refactor |
 | Bayi altyapısı | Panel API (`/api/app-config`, `/api/activation/redeem`, `/api/dns-list`) | Marka, duyuru, failover uzaktan yönetilir |
-| Görsel dil | Android sürümüyle aynı kimlik, iOS'a özgü cila | Marka `#00B0FF`, koyu tema; SF Symbols + iOS tipografisi + haptik |
+| Görsel dil | Android sürümüyle aynı kimlik, iOS'a özgü cila | Marka `#00B0FF`; PC/Android/iOS ortak lacivert palet (`#091525`, `#11263B`, `#19374F`); kullanıcının 03.10.2026 talebiyle şeffaf mavi/turkuaz ahtapot logosu, yalnızca mavi ailesinden vurgu seçenekleri. Panel renkleri ve logoları ürün kimliğini değiştirmez, okunaklı metin; SF Symbols + iOS tipografisi + haptik. Büyük yazılar sınırlandırılmaz; düzen dikeyleşir. |
 | Dil | Türkçe + İngilizce | Varsayılan cihaz dili; Ayarlar'da Sistem/Türkçe/English seçimi anında ve kalıcı uygulanır |
 | Oynatma | AVPlayer **+** VLCKit | HLS → AVPlayer (canlı/film/bölümde yalnızca düğmeyle PiP, AirPlay, arka plan). MPEG-TS/RTSP → VLCKit fallback |
 | Min. platform | **iOS 16.0**, iPhone + iPad | Kapsam geniş |
@@ -311,8 +311,10 @@ Test yazmak için simülatör gerekiyorsa, muhtemelen mantığı yanlış katman
 > kalıyordu. AVPlayer çözemediği video izini **sessizce atlıyor**: durum
 > `readyToPlay`, hata yok, ses akıyor, ekran siyah. Hata düşmediği için
 > yedek motor hiç denenmiyordu. Çözüm: `AVPlayerEngine` içinde gözcü —
-> oynatma başladıktan 5 sn sonra hâlâ `presentationSize == .zero` ise
-> bu bir başarısızlıktır ve `unrecoverableFailure` yayınlanır.
+> görünür yüzeyde 8 sn kesintisiz oynatmaya rağmen
+> `AVPlayerLayer.isReadyForDisplay == false` ise başarısızlık olayı
+> yayınlanır. `presentationSize` yalnızca boyut metadata'sıdır; ilk
+> karenin çözüldüğünü kanıtlamaz. AirPlay'de yerel kare beklenmez.
 > **Ders:** "açıldı" ile "görüntü var" aynı şey değil; motor sözleşmesi
 > yalnızca hata sinyaline dayanırsa sessiz başarısızlıklar yakalanmaz.
 >
@@ -640,7 +642,7 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 | 2 | **`DNSFailoverService.reset()` çağrılmıyor** | Üretimde call-site yok (yalnızca testi var). Sonucu küçük: ölü sunucu için bulunan yedek, asıl sunucu geri gelse de oturum boyunca kullanılmaya devam eder. Sağlayıcı önbelleğinin bayatlaması **çözüldü** — anahtar artık `id + kind`, kaynak tanımı değişince önbellek kendiliğinden ıskalıyor (bkz. `DefaultContentProviderFactory.CacheKey`) |
 | 3 | Mevcut M3U kaynakları dönüşmüyor | Dönüşüm yalnızca **yeni** eklemede. Eski kayıtlar silinip yeniden eklenmeli — ya da senkronizasyonda göç yazılmalı |
 | 4 | `PanelEndpoint.defaultBaseURL` force unwrap | CLAUDE.md yasaklıyor, `check-architecture.sh` yakalamıyor |
-| 5 | HEVC gerçek cihazda doğrulanmadı | Simülatörde HEVC çözülemiyor ve her UHD kanal yedeğe düşüyor. **Gerçek iPhone'da AVPlayer HEVC'yi donanımda çözer** — orada yedeğe hiç düşmemesi beklenir. Ölçülmeden optimize edilmemeli |
+| 5 | UHD yayının native uyumluluğu doğrulanmalı | Kullanıcı UHD kanalların AVPlayer'da çalışmadığını ve otomatik VLC'nin bilinçli tercih olduğunu bildirdi. HEVC donanım desteği tek başına yeterli değil: HLS'te fMP4 paketleme gerekir. Gerçek yayın manifesti/segmenti, iPhone modeli ve iOS sürümüyle ölçülmeli; doğrulanana kadar otomatik VLC korunur |
 
 ### Doğrulanmış gerçekler (tahmin değil)
 
@@ -654,3 +656,136 @@ Burada üç mekanizma bunu fiziksel olarak imkânsız kılar:
 
 - `Açılış: N ms · motor X` — her yayın açılışında (kalıcı log)
 - `Aktivasyon cevabı: HTTP N · <hata> · alanlar=[…]` — alan adları, **değerler asla**
+
+### 03.10.2026 — gelecek güncelleme için oynatıcı ve istek incelemesi
+
+- Motor kurulumu artık biçimi yeniden değerlendirip kararı kaybetmez:
+  UHD ipucu ve hatırlanan fallback tercihi gerçek motor fabrikasına iletilir.
+- Kapanış önce ilerleme anlık görüntüsünü alır, motoru ve ekran durumunu
+  bırakır, sonra depoya yazar. Bekleyen eski kapanış yeni oturumu durduramaz.
+- AVPlayer gözlem ve bitiş olayları içerik nesliyle doğrulanır; eski iz
+  keşfi durdurmada da iptal edilir ve her asenkron aşamada güncel asset kontrol edilir.
+- Kanal/bölüm adres çözümünde yalnızca son seçim uygulanır; geç gelen
+  sonuç veya hata güncel yayını ve rehberini ezmez.
+- Canlı yayın zaman olayları ve kayıt aralığı dolmamış VOD olayları için
+  ilerleme yazma görevi oluşturulmaz. Yazılacak konum olay anında yakalanır.
+- Film/dizi detay çağrıları kimlik başına devam eden tek isteği paylaşır.
+  Film künyesi güncel katalog kimliğini, sırasını, kategorisini ve yetişkin
+  işaretini koruyarak birleştirilir; eksik künye alanları liste verisini silmez.
+- `ContentProvider.invalidateCache()` senkronizasyon öncesinde çağrılır.
+  M3U yenilemesi taze listeyi bir kez indirir; geçersiz kılınan eski indirme
+  yeni önbelleği dolduramaz.
+
+Bu davranışlar için 19 regresyon testi eklendi. Windows'ta mimari denetimi
+ve değişen Swift dosyalarının sözdizimi ayrıştırması geçti; Swift/Xcode
+bulunmadığı için XCTest ve iOS derlemesi bu ortamda **çalıştırılmadı**.
+Yayın doğrulaması mevcut CI'daki `OctopusData`, `OctopusPlayback` ve
+`OctopusFeatures` paket testlerini, ardından gerçek iPhone'da hızlı zaplama,
+mini/tam ekran geçişi, UHD yayın, arka plan, PiP ve AirPlay denemesini gerektirir.
+
+### 03.10.2026 — UHD / AVPlayer incelemesi
+
+- UHD için otomatik VLC bilinçli ürün kararıdır; kaldırılmadı. Kanal adı
+  yalnızca koruyucu ipucudur, codec veya container kanıtı değildir.
+- Apple'ın [HLS authoring specification](https://developer.apple.com/documentation/http-live-streaming/hls-authoring-specification-for-apple-devices/)
+  §1.5'i HEVC için fMP4 ister. `.m3u8` adresi tek başına uyumluluk
+  göstermez; HEVC'nin MPEG-TS parçalarında gönderilmesi olası açıklamadır.
+  Kullanıcının gerçek yayını alınmadığı için kök neden henüz doğrulanmadı.
+- Boyut metadata'sının ilk kare sayılması düzeltildi: görüntü gözcüsünü
+  artık `AVPlayerLayer.isReadyForDisplay` kapatır. Ses akışı ayrı işaretlenir.
+  Katmanın gözlemi içerik nesline bağlıdır; eski kanalın sinyali yeniye taşınmaz.
+- Gözcü yalnızca görünür yüzey/PiP ve kesintisiz oynatma sırasında çalışır;
+  duraklama/tamponlamada iptal edilir ve AirPlay'e yanlış fallback üretmez.
+  Mevcut zaman gözlemi, sonradan ekrana takılan yüzeyi de kontrol eder.
+- Aynı native arıza bir kez bildirilir. Teşhis kaydı video izi sayısı,
+  boyut, ilk kare, AirPlay durumu ve sistem hata domain/kodunu içerir;
+  yayın URL'si, sunucu hata metni veya kimlik bilgisi eklenmez.
+- İki ilk kare regresyon testi ve ağ gerektirmeyen 3.9 KB yerel H.264 örneği
+  eklendi. Windows'ta mimari/sözdizimi denetlenebilir; Xcode testleri ve
+  gerçek cihaz oynatma denemesi burada çalıştırılamadı.
+
+### 08.10.2026 — App Store 4.3(a), kaynak kontrolü ve cihaz teşhisi
+
+Apple 07.10.2026 tarihinde 1.0 (7) sürümünü iPad Air 11-inch (M3) üzerinde
+4.3(a) benzer/yeniden paketlenmiş uygulama gerekçesiyle reddetti. Önceki
+5.6 konusu 03.09 mesajında giderilmiş olarak bildirilmiş; son ret özgünlük
+üzerine. Performans düzeltmeleri tek başına bu gerekçenin giderildiğini
+kanıtlamaz. Yeniden gönderimden önce gerçek işlevler, doğru mağaza metni
+ve aynı Release sürümünden alınan iPhone/iPad kanıtları gerekir.
+
+Kaynak kontrolü Ayarlar'dan herkes için erişilebilir olacak. Domain'deki
+`SourceHealthReading` sözleşmesi üzerinden yerel katalog özetini alır;
+GRDB sorguları Data'da, görünüm ve destek raporu FeatureSettings'tedir.
+Kanal listesi bütünüyle belleğe alınmaz; hiçbir yayın topluca yoklanmaz.
+Sayılar, tekrar eden yayın anahtarları ve eksik EPG/görsel bilgisi gösterilir.
+Bu kontrol canlı bağlantı testi veya codec doğrulaması olarak sunulmaz.
+
+Paylaşılabilir rapor yalnızca açıkça seçilmiş özet alanları ve oynatıcı
+durumunu içerir: kaynak adı/adresi, kullanıcı adı, parola, içerik adı,
+PIN, cihaz kimliği veya ham hata metni eklenmez. Paylaşımı kullanıcı
+sistem paylaşım ekranında başlatır. SQL bağlama değerlerini açık loglayan
+DEBUG trace kaldırılır. Cihazdan log toplama ayrıca yerel Windows aracıyla
+yapılır; bağlanmamış cihaz veya çalıştırılmamış test başarı sayılmaz.
+
+8 Ekim yerel doğrulaması: mimari denetimi ve `git diff --check` temiz;
+42 değişen/yeni Swift dosyası sözdizimi ayrıştırmasını geçti. Kaynak
+okuyucusunun SQL'i kaynak ayrımı, boş katalog ve 50 bin sentetik kanalda
+doğrulandı. Log aracının 9 Python testi geçti; USB cihaz sayısı 0.
+Data/Playback/Settings için 7 yeni XCTest eklendi, Windows'ta **koşulmadı**.
+İmzalı yükleme işi mevcut CI'a bağlandı; CI/release YAML doğrulandı,
+GitHub derleme/yükleme tetiklenmedi. Ayarlar bölümleri ve bağımlılıkları
+200 satır altında ayrı dosyalara ayrıldı. Ayrıntılı bulgular, gönderilmemiş
+Apple yanıtı ve metadata taslağı `APP-STORE-INCELEME-2026-10-08.md` içinde;
+Windows cihaz komutları `IOS-CIHAZ-LOG.md` içinde.
+
+8 Ekim cihaz bağlantısı sonrası: `usbmux --simple` çıktısının JSON dizi
+olduğu görüldü; satır ayrıştırması bağlı cihazı yanlışlıkla 0 sayıyordu.
+Keşif düzeltildi, araç testleri 12 oldu. Tek iPhone'a USB/lockdown,
+os_trace ve DVT erişimi doğrulandı. Kurulu Octopus **1.0.0 (2)**;
+yerel değişiklikleri veya Apple'ın build 7'sini cihazda doğrulamış değiliz.
+Octopus açıldıktan sonra 180 saniyede 93 süreç logu alındı; UHD/oynatıcı
+teşhis olayı yok. App adına uyan crash sayısı 0 (Jetsam hariç). Tek
+CPU/bellek örneği alındı; oynatma yükü veya sızıntı sonucu değildir.
+Gerçek cihaz ayrıntıları `IOS-CIHAZ-LOG.md` içinde; bütün ham kayıtlar
+git dışındaki `.artifacts/device-logs/` altında tutulur.
+
+8 Ekim UHD denemesi (cihazdaki build 2): kullanıcı görüntü olmadığını
+bildirdi. Native motor dört kez yüklendi, her seferinde video izi yok
+uyarısı geldi; üç yeniden bağlantı sonrası başarısız oldu. Bu kayıtta
+VLC yükleme olayı yok. Sonraki normal kanal native ile 2868 ms'de açıldı.
+Codec/container bu logla belirlenemedi; HEVC/TS teşhisi kesinleşmedi.
+17 bine yakın SQL debug kaydı, `AVAudioSession Hang Risk` ve SwiftUI
+`Publishing changes from within view updates` uyarıları görüldü.
+Yerel kaynakta SQL trace zaten kaldırılmıştır. Ses oturumunun bloklayan
+işlemleri ortak bir seri iş kuyruğuna alınacak; motor yüklemeleri bu
+aktivasyonu beklerken nesil/iptal kontrolüyle korunacak. Hosted overlay
+güncellemesi çizim turundan sonraya taşınıp son değerle birleştirilecek.
+
+8 Ekim UHD son kullanıcı doğrulaması: UHD'de ses var, görüntü yok;
+normal kanalda görüntü var. Ayrı 180 saniyelik kayıt 31.152 olay içeriyor:
+16.989 SQL logu, 12 AVAudioSession ve 10 SwiftUI uyarısı. UHD sonrasında
+app adına crash sayısı tekrar 0 (Jetsam hariç). Codec/container hâlâ
+bilinmiyor; eski build'de VLC yükleme olayı görülmediği, yedeğin neden
+devreye girmediğini tek başına açıklamaz.
+
+Yerel ses/overlay düzeltmeleri tamamlandı: iki motor AppContainer'da
+ortak AudioSessionWorker kullanır. Aktivasyon kuyruğa MainActor yaşam
+döngüsü sırasıyla eklenir; bloklayan AVAudioSession işlemleri seri arka
+plan kuyruğundadır. Aynı kategori tekrar kurulmaz. Her iki motor await
+sonrası iptal/nesil kontrolü yapar. Overlay yayını çizim turundan sonraya
+taşınır, son güncelleme birleştirilir, dismantle bekleyen işi iptal eder.
+Motor seçim logu ve güvenli rapor `fallbackAvailable` alanı eklendi.
+
+Ses için 3, overlay için 2 regresyon XCTest'i eklendi; Windows'ta
+**çalıştırılmadı**. Son yerel kontrol: 50 Swift dosyasında sözdizimi hatası
+yok, mimari temiz, kaynak SQL'i 50 bin sentetik kanalda doğru, 42 yeni
+ekran metni/dil dosyası anahtarları kontrol edildi. Telefondaki build 2
+değişmedi; bu düzeltmelerin gerçek cihaz başarısı macOS derlemesi sonrası
+aynı UHD/normal kanal ve geçiş denemeleriyle doğrulanmalı. Ham loglar git
+dışında, ayrıntılı sonuç `IOS-CIHAZ-LOG.md` içindedir.
+
+8 Ekim güncel uygulamayı kurma talebi: kullanıcı yeni kodu içeren binary'nin
+telefona kurulup aynı UHD kanalda denenmesini istedi. Bu test için yapı
+numarası 8'e yükseltildi. Mevcut GitHub/Apple imzalama yoluyla gerçek
+macOS derlemesi ve XCTest çalıştırılacak; başarılı derleme ve cihazdaki
+build numarası doğrulanmadan düzeltmeler çalışmış sayılmayacak.

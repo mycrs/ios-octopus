@@ -7,10 +7,15 @@ permissions:
   contents: read
 
 jobs:
+  verify:
+    name: Yayın öncesi derleme ve testler
+    uses: ./.github/workflows/ci.yml
+
   upload:
     name: İmzala ve TestFlight'a yükle
     runs-on: macos-latest
     environment: app-store
+    needs: [verify]
     steps:
       - uses: actions/checkout@v5
 

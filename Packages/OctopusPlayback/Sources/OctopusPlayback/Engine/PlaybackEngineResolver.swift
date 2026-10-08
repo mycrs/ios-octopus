@@ -12,7 +12,7 @@ public struct PlaybackEngineResolver {
     public typealias EngineFactory = () -> PlaybackEngine
 
     /// Seçim sonucu — saf ve test edilebilir olsun diye motordan ayrı tutuldu.
-    public enum Decision: String, Equatable, Sendable {
+    public enum Decision: String, Codable, Equatable, Sendable {
         /// AVPlayer: sistem entegrasyonu tam (PiP, AirPlay, arka plan sesi).
         case native
         /// VLC: geniş format desteği.
@@ -52,7 +52,12 @@ public struct PlaybackEngineResolver {
         for format: StreamFormat,
         allowingFallback: Bool = true
     ) -> PlaybackEngine {
-        switch decide(for: format, allowingFallback: allowingFallback) {
+        makeEngine(for: decide(for: format, allowingFallback: allowingFallback))
+    }
+
+    /// Biçim, kullanıcı tercihi ve önceki başarısızlıklarla verilen kararı uygular.
+    public func makeEngine(for decision: Decision) -> PlaybackEngine {
+        switch decision {
         case .native:
             return makeNative()
         case .fallback:

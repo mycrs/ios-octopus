@@ -32,6 +32,8 @@ Secrets.xcconfig
 # Araçlar
 fastlane/report.xml
 fastlane/screenshots
+__pycache__/
+*.pyc
 
 # CI'dan indirilen ekran görüntüleri ve ajan ekleri — yerel inceleme içindir,
 # repoya girmez (yüzlerce PNG).

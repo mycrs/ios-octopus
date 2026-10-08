@@ -38,6 +38,7 @@ public final class PlayerViewModel: ObservableObject {
     /// Şu an oynayan kaynak — zaplama bunu değiştirir.
     var source: PlaybackItem.Source
     private var didApplyExplicitStartPosition = false
+    private(set) var selectionGeneration = 0
 
     /// Zaplama sırası. **Ebeveyn kilidiyle süzülmüş** hâli tutulur.
     var zapList: [Channel] = []
@@ -54,16 +55,33 @@ public final class PlayerViewModel: ObservableObject {
 
     public func resolve() async {
         phase = .resolving
+        await resolveSelection(updateZapping: true, applyStartPosition: true)
+    }
+
+    /// Hızlı seçimlerde yalnızca en son isteğin sonucu oynatıcıya ulaşır.
+    func resolveSelection(updateZapping: Bool = false, applyStartPosition: Bool = false) async {
+        selectionGeneration &+= 1
+        let generation = selectionGeneration
+        let requestedSource = source
         do {
-            let resolved = try await resolveItem()
-            phase = .ready(applyingStartPosition(to: resolved))
-            didApplyExplicitStartPosition = true
-            await prepareZapping()
+            let resolved = try await resolveItem(for: requestedSource)
+            guard isCurrentSelection(generation, source: requestedSource) else { return }
+            phase = .ready(applyStartPosition ? applyingStartPosition(to: resolved) : resolved)
+            if applyStartPosition { didApplyExplicitStartPosition = true }
+            if updateZapping { await prepareZapping() }
+            guard isCurrentSelection(generation, source: requestedSource) else { return }
             await prepareEpisodeContext()
+            guard isCurrentSelection(generation, source: requestedSource) else { return }
             await prepareLiveGuide()
         } catch {
+            guard isCurrentSelection(generation, source: requestedSource) else { return }
+            if error is CancellationError { return }
             phase = .failed(AppError.wrap(error).userMessage)
         }
+    }
+
+    func isCurrentSelection(_ generation: Int, source: PlaybackItem.Source) -> Bool {
+        !Task.isCancelled && generation == selectionGeneration && self.source == source
     }
 
     private func applyingStartPosition(to item: PlaybackItem) -> PlaybackItem {
@@ -86,6 +104,8 @@ public final class PlayerViewModel: ObservableObject {
     /// yetişkin bir kanala düşebilir ve kilit bu yoldan atlatılmış olur
     /// (bkz. BRAIN.md — kilit tek yerde tutulur, **yedi** yerde uygulanır).
     func prepareZapping() async {
+        let generation = selectionGeneration
+        let requestedSource = source
         guard case .liveChannel(let id) = source else {
             zapList = []
             liveChannels = []
@@ -101,6 +121,7 @@ public final class PlayerViewModel: ObservableObject {
             categoryID: nil
         )) ?? []
 
+        guard isCurrentSelection(generation, source: requestedSource) else { return }
         zapList = filter.filter(all)
         liveChannels = zapList
         canZap = zapList.count > 1
@@ -124,17 +145,14 @@ public final class PlayerViewModel: ObservableObject {
 
         source = .liveChannel(zapList[target].id)
 
-        do {
-            phase = .ready(try await resolveItem())
-            await prepareLiveGuide()
-        } catch {
-            phase = .failed(AppError.wrap(error).userMessage)
-        }
+        await resolveSelection()
     }
 
     /// Kaynağa göre doğru depodan içeriği bulup akış adresini çözer.
-    func resolveItem() async throws -> PlaybackItem {
+    func resolveItem(for source: PlaybackItem.Source) async throws -> PlaybackItem {
+        try Task.checkCancellation()
         let filter = await ParentalFilter.current(dependencies.parental)
+        try Task.checkCancellation()
 
         switch source {
         case .liveChannel(let id):
@@ -142,6 +160,7 @@ public final class PlayerViewModel: ObservableObject {
                 throw AppError.notFound
             }
             guard filter.allows(channel: channel) else { throw AppError.notFound }
+            try Task.checkCancellation()
             return try await dependencies.streams.playbackItem(for: channel)
 
         case .movie(let id):
@@ -149,6 +168,7 @@ public final class PlayerViewModel: ObservableObject {
                 throw AppError.notFound
             }
             guard filter.allows(movie: movie) else { throw AppError.notFound }
+            try Task.checkCancellation()
             return try await dependencies.streams.playbackItem(for: movie)
 
         case .episode(let id):
@@ -159,6 +179,7 @@ public final class PlayerViewModel: ObservableObject {
                 throw AppError.notFound
             }
             guard filter.allows(series: series) else { throw AppError.notFound }
+            try Task.checkCancellation()
             return try await dependencies.streams.playbackItem(for: episode, in: series)
         }
     }

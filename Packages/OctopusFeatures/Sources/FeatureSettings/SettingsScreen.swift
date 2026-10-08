@@ -4,67 +4,6 @@ import OctopusDesignSystem
 import OctopusNavigation
 import OctopusPlayback
 
-public struct SettingsDependencies {
-    public let playlists: PlaylistRepository
-    public let sync: ContentSyncing
-    public let progress: PlaybackProgressRepository
-    public let history: WatchHistoryRepository
-    /// Bayinin destek kanalları (panelden gelir).
-    public let contact: ContactChannels
-    public let parental: ParentalControlling
-    /// Kategori görünürlük yönetimi için katalog depoları.
-    public let channels: ChannelRepository?
-    public let vod: VODRepository?
-    public let series: SeriesRepository?
-    public let playlistAccess: PlaylistAccessControlling
-    public let activatePlaylist: @MainActor (Playlist.ID, String?) async throws -> Bool
-    public let removePlaylistLock: @MainActor (Playlist.ID) async -> Void
-    public let notifyPlaylistChanged: @MainActor () async -> Void
-    /// Kilit durumu değişince açık katalog ekranlarını güvenle yeniler.
-    public let notifyProtectionChanged: @MainActor () -> Void
-
-    public init(
-        playlists: PlaylistRepository,
-        sync: ContentSyncing,
-        progress: PlaybackProgressRepository,
-        history: WatchHistoryRepository,
-        contact: ContactChannels = .empty,
-        parental: ParentalControlling = OpenParentalControl(),
-        channels: ChannelRepository? = nil,
-        vod: VODRepository? = nil,
-        series: SeriesRepository? = nil,
-        playlistAccess: PlaylistAccessControlling = OpenPlaylistAccessControl(),
-        activatePlaylist: (@MainActor (Playlist.ID, String?) async throws -> Bool)? = nil,
-        removePlaylistLock: @escaping @MainActor (Playlist.ID) async -> Void = { _ in },
-        notifyPlaylistChanged: @escaping @MainActor () async -> Void = {},
-        notifyProtectionChanged: @escaping @MainActor () -> Void = {}
-    ) {
-        self.playlists = playlists
-        self.sync = sync
-        self.progress = progress
-        self.history = history
-        self.contact = contact
-        self.parental = parental
-        self.channels = channels
-        self.vod = vod
-        self.series = series
-        self.playlistAccess = playlistAccess
-        self.activatePlaylist = activatePlaylist ?? { id, pin in
-            if await playlistAccess.isProtected(id),
-               !(await playlistAccess.isUnlocked(id)) {
-                guard let pin, await playlistAccess.unlock(id, with: pin) else {
-                    return false
-                }
-            }
-            try await playlists.setActive(id: id)
-            return true
-        }
-        self.removePlaylistLock = removePlaylistLock
-        self.notifyPlaylistChanged = notifyPlaylistChanged
-        self.notifyProtectionChanged = notifyProtectionChanged
-    }
-}
-
 /// Ayarlar: kaynak, görünüm, veri ve künye.
 ///
 /// Bölümler (`sourceSection`, `appearanceSection`, …) `SettingsSections.swift`
@@ -83,6 +22,7 @@ public struct SettingsScreen: View {
     @EnvironmentObject var playback: PlaybackPreferences
 
     let contact: ContactChannels
+    let dependencies: SettingsDependencies
     @State var confirmingAction: DataAction?
     @State var isEnteringPIN = false
     @State var pinInput = ""
@@ -117,6 +57,7 @@ public struct SettingsScreen: View {
     public init(dependencies: SettingsDependencies) {
         _viewModel = StateObject(wrappedValue: SettingsViewModel(dependencies: dependencies))
         self.contact = dependencies.contact
+        self.dependencies = dependencies
     }
 
     public var body: some View {

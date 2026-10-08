@@ -56,9 +56,11 @@ public final class AVPlayerEngine: PlaybackEngine {
     private let preferences: PlaybackPreferences?
 
     private var observations: [NSKeyValueObservation] = []
+    private var firstFrameObservation: NSKeyValueObservation?
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
     private var trackDiscovery: Task<Void, Never>?
+    private var itemGeneration = 0
 
     private var isLiveContent = false
     private var didReachEnd = false
@@ -69,7 +71,8 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// AVPlayer sesi çözer, videoyu çözemez ve `status` yine `readyToPlay`
     /// kalır — hata hiç düşmez. Bu bayrak olmadan kullanıcı siyah ekranda
     /// ses dinler, yedek motor da hiç devreye girmez.
-    private var didRenderVideo = false
+    private(set) var didRenderVideo = false
+    private var isAudioOnlyContent = false
 
     /// Görüntüsüz oynatmayı yakalayan gözcü.
     private var videoWatchdog: Task<Void, Never>?
@@ -81,7 +84,7 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// AVFoundation tek katmana çizer, diğeri siyah kalır. Mini oynatıcı
     /// ile tam ekran arasında geçerken yüzey **taşınıyor** (bkz.
     /// `VLCPlaybackEngine.surface` üzerindeki ayrıntılı not).
-    /// Ömrü `releaseCurrentItem()`/`teardown()` ile biter.
+    /// İçerik değişirken korunur, `teardown()` ile bırakılır.
     private var layerView: PlayerLayerView?
     /// AVKit'e bağımlı tek parça — `AVPlayerEngine+PictureInPicture.swift`.
     var pictureInPictureController: AVPictureInPictureController?
@@ -124,13 +127,9 @@ public final class AVPlayerEngine: PlaybackEngine {
     public func load(_ item: PlaybackItem) async {
         releaseCurrentItem()
 
-        // ⚠️ Önceki içeriğin iz keşfi **iptal edilmeli**. Edilmezse kanal
-        // değiştikten sonra tamamlanıp eski yayının ses/altyazı izlerini
-        // yayınlıyor; iz seçici yanlış listeyi gösteriyordu.
-        trackDiscovery?.cancel()
-
         didReachEnd = false
         didRenderVideo = false
+        isAudioOnlyContent = false
         isLiveContent = item.isLive
         audioTracks = []
         subtitleTracks = []
@@ -158,7 +157,9 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         player.replaceCurrentItem(with: playerItem)
 
-        audioSession.activate()
+        let generation = itemGeneration
+        await audioSession.activate()
+        guard !Task.isCancelled, itemGeneration == generation, player.currentItem === playerItem else { return }
         observe(playerItem)
 
         // ⚠️ İz keşfi **beklenmez**: asset'in medya seçim gruplarını
@@ -216,12 +217,13 @@ public final class AVPlayerEngine: PlaybackEngine {
 
     public func seek(to seconds: TimeInterval) async {
         // Canlı yayında konum kavramı yok; istek sessizce yok sayılır.
-        guard !isLiveContent, player.currentItem != nil else { return }
+        guard !isLiveContent, let playerItem = player.currentItem else { return }
 
         let target = CMTime(seconds: max(0, seconds), preferredTimescale: 600)
         // Tolerans sıfır: kullanıcı çubuğu bıraktığı yere gitmeli, en
         // yakın anahtar kareye değil. Maliyeti biraz daha uzun arama.
         _ = await player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        guard !Task.isCancelled, player.currentItem === playerItem else { return }
 
         // Sonuna kadar sarılıp geri gelindiğinde "bitti" durumu kalkmalı.
         didReachEnd = false
@@ -253,6 +255,7 @@ public final class AVPlayerEngine: PlaybackEngine {
         view.player = player
         view.videoGravity = Self.gravity(for: videoFit)
         layerView = view
+        observeVideoReadiness()
         // PiP bir **katmana** bağlıdır; katman her yenilendiğinde kontrolör
         // de yenilenmeli, yoksa ölü bir katmanı işaret eder.
         attachPictureInPicture(to: view)
@@ -290,39 +293,61 @@ public final class AVPlayerEngine: PlaybackEngine {
     // MARK: - Gözlem
 
     private func observe(_ playerItem: AVPlayerItem) {
+        let generation = itemGeneration
         // ⚠️ Gözlem gövdelerinde **hiçbir değer taşınmıyor**: yalnızca
         // "bir şey değişti" sinyali ana aktöre atlıyor, güncel değeri
         // metodun kendisi okuyor. Değer taşımak Sendable ihlali üretirdi.
         observations = [
             playerItem.observe(\.status, options: [.new, .initial]) { [weak self] _, _ in
-                Task { @MainActor in self?.syncItemStatus() }
+                Task { @MainActor in
+                    guard let self, self.itemGeneration == generation else { return }
+                    self.syncItemStatus()
+                }
             },
             playerItem.observe(\.isPlaybackBufferEmpty, options: [.new]) { [weak self] _, _ in
-                Task { @MainActor in self?.syncPlaybackState() }
+                Task { @MainActor in
+                    guard let self, self.itemGeneration == generation else { return }
+                    self.syncPlaybackState()
+                }
             },
             playerItem.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] _, _ in
-                Task { @MainActor in self?.syncPlaybackState() }
+                Task { @MainActor in
+                    guard let self, self.itemGeneration == generation else { return }
+                    self.syncPlaybackState()
+                }
             },
             playerItem.observe(\.presentationSize, options: [.new, .initial]) { [weak self] _, _ in
-                Task { @MainActor in self?.reportNaturalSize() }
+                Task { @MainActor in
+                    guard let self, self.itemGeneration == generation else { return }
+                    self.reportNaturalSize()
+                }
             },
-            // İz listesi dolunca "video çözülebiliyor mu" sorusu **kesin**
-            // olarak cevaplanabiliyor; gözcünün saniyelerce beklemesine
-            // gerek kalmıyor (bkz. `failIfVideoTrackMissing`).
+            // Hazır içerikte video izi yoksa hızlı yedek denenir.
+            // Bu sinyal codec/container türünü tek başına kanıtlamaz.
             playerItem.observe(\.tracks, options: [.new, .initial]) { [weak self] _, _ in
-                Task { @MainActor in self?.failIfVideoTrackMissing() }
+                Task { @MainActor in
+                    guard let self, self.itemGeneration == generation else { return }
+                    self.failIfVideoTrackMissing()
+                }
             },
             player.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] _, _ in
-                Task { @MainActor in self?.syncPlaybackState() }
+                Task { @MainActor in
+                    guard let self, self.itemGeneration == generation else { return }
+                    self.syncPlaybackState()
+                }
             }
         ]
+        observeVideoReadiness()
 
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.handleReachedEnd() }
+            Task { @MainActor in
+                guard let self, self.itemGeneration == generation else { return }
+                self.handleReachedEnd()
+            }
         }
 
         // Yarım saniye: ilerleme çubuğu akıcı görünsün ama gereksiz
@@ -331,16 +356,26 @@ public final class AVPlayerEngine: PlaybackEngine {
             forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.reportTime() }
+            Task { @MainActor in
+                guard let self, self.itemGeneration == generation else { return }
+                self.reportTime()
+            }
         }
     }
 
     private func releaseCurrentItem() {
+        // Kaldırılan gözlem daha önce bir MainActor işi kuyruğa koymuş olabilir.
+        // O işin yeni içeriği değiştirmesini nesil kontrolü engeller.
+        itemGeneration &+= 1
+        trackDiscovery?.cancel()
+        trackDiscovery = nil
         videoWatchdog?.cancel()
         videoWatchdog = nil
 
         observations.forEach { $0.invalidate() }
         observations = []
+        firstFrameObservation?.invalidate()
+        firstFrameObservation = nil
 
         if let timeObserver {
             player.removeTimeObserver(timeObserver)
@@ -377,10 +412,10 @@ public final class AVPlayerEngine: PlaybackEngine {
         case .failed:
             fail(with: Self.classify(playerItem))
         case .readyToPlay:
+            reportVideoReadiness()
             // ⚠️ İz kontrolü **burada da** yapılmalı: `tracks` gözlemi
             // çoğu zaman `readyToPlay`'den **önce** düşüyor ve o an karar
-            // verilemediği için bir daha tetiklenmiyordu. Ölçümde kesin
-            // kontrol hiç çalışmamış, karar 5 saniyelik gözcüye kalmıştı.
+            // verilemediği için bir daha tetiklenmiyordu.
             failIfVideoTrackMissing()
             syncPlaybackState()
         case .unknown:
@@ -471,6 +506,10 @@ public final class AVPlayerEngine: PlaybackEngine {
     }
 
     private func fail(with error: AppError) {
+        // Aynı içerik için durum, iz listesi ve gözcü peş peşe hata verebilir.
+        // Tek başarısızlık olayı, tek yedek motor denemesi üretmeli.
+        if case .failed = currentState { return }
+        logPlaybackDiagnostics()
         transition(to: .failed(error))
         // Koordinatör bunu görünce yedek motoru (VLC) dener.
         continuation.yield(.unrecoverableFailure(error))
@@ -481,7 +520,12 @@ public final class AVPlayerEngine: PlaybackEngine {
         currentState = state
         continuation.yield(.stateChanged(state))
 
-        if state == .playing { startVideoWatchdogIfNeeded() }
+        if state == .playing {
+            startVideoWatchdogIfNeeded()
+        } else {
+            videoWatchdog?.cancel()
+            videoWatchdog = nil
+        }
     }
 
     // MARK: - Görüntüsüz oynatma gözcüsü
@@ -496,49 +540,40 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// ekranda ses dinler — bildirilen hata tam olarak buydu.
     ///
     /// ⚠️ Yalnızca **oynatma gerçekten başladıktan** sonra sayılır:
-    /// tamponlama sırasında görüntü boyutu zaten `.zero`'dur ve erken
+    /// tamponlama sırasında ilk kare henüz hazır olmayabilir ve erken
     /// karar açılmakta olan yayınları boşuna yedeğe yollardı.
     private func startVideoWatchdogIfNeeded() {
-        guard !didRenderVideo, videoWatchdog == nil else { return }
+        guard !didRenderVideo, !isAudioOnlyContent, videoWatchdog == nil,
+              hasActiveVideoSurface, !player.isExternalPlaybackActive
+        else { return }
 
+        let generation = itemGeneration
         videoWatchdog = Task { [weak self] in
-            // ⚠️ Bu artık **son çare**, birincil karar mekanizması değil.
-            //
-            // "Çözülemiyor" kararını asıl `failIfVideoTrackMissing` veriyor
-            // ve bunu iz listesine bakarak **kesin** olarak yapıyor. Buradaki
-            // süre yalnızca iz listesi hiç gelmezse devreye giriyor.
-            //
-            // Süre 3 sn'den 8 sn'ye çıkarıldı: gerçek cihazda ölçüldü,
-            // sağlam bir 1080p kanal ilk kareyi 2928 ms'de verebiliyor.
-            // 3 saniyelik sınır bu tür yavaş açılan **çalışan** yayınları
-            // gereksiz yere yedeğe yolluyordu. Kesin kontrol devreye
-            // girdiği için uzun süre artık kimseyi bekletmiyor.
+            // Boyut bilgisi ya da video izinin bulunması çözülmüş kare
+            // demek değildir. Katman 8 saniyelik kesintisiz oynatma boyunca
+            // ilk kareyi hazırlayamazsa yedek motor denenir.
             try? await Task.sleep(for: .seconds(8))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, let self, self.itemGeneration == generation else { return }
             // `Task` ana aktör bağlamını miras alır — `await` gerekmiyor.
-            self?.failIfStillBlind()
+            self.failIfStillBlind()
         }
     }
 
     /// AVPlayer bu akış için **hiç video izi kurmadıysa** hemen yedeğe geçer.
     ///
-    /// ## Neden gözcüden daha iyi?
-    /// Gözcü "3 saniyedir kare yok" diye **tahmin** ediyor; bu ise kesin
-    /// bilgi. Gerçek cihazda ölçüldü: çözülemeyen HEVC kanallarda
-    /// `AVPlayerItem.tracks` yalnızca `soun` (ses) içeriyor, video izi hiç
-    /// oluşturulmuyor — AVPlayer codec'i tanımayınca izi komple atıyor.
-    /// Kullanıcı bu yüzden 4–5 saniye siyah ekranda bekliyordu; artık
-    /// karar iz listesi dolar dolmaz veriliyor.
+    /// Önceki cihaz ölçümlerinde açılamayan UHD yayınlar yalnızca ses
+    /// izi oluşturuyordu. Böyle bir içerikte gözcünün 8 saniyesini
+    /// beklemeden VLC denenir. Bu liste, yayının gerçek codec/container
+    /// bilgisini göstermez; kök neden manifest/segment ile doğrulanır.
     ///
     /// ⚠️ `readyToPlay` şartı önemli: iz listesi hazırlık sırasında geçici
     /// olarak boş ya da eksik olabilir, erken karar sağlam yayınları
     /// boşuna yedeğe yollardı.
     ///
-    /// ⚠️ Gerçek ses akışları (radyo) da buraya düşer ve yedek motora
-    /// gider. Zararsız: VLC onları sorunsuz açıyor ve HLS'te "video izi
-    /// var mıydı" sorusunu AVFoundation zaten cevaplamıyor.
+    /// Ses akışı olduğu keşifte doğrulanmış içerik bu kontrolü atlar.
+    /// Henüz doğrulanmamış radyo akışları da VLC'ye yönlenebilir.
     private func failIfVideoTrackMissing() {
-        guard !didRenderVideo,
+        guard !didRenderVideo, !isAudioOnlyContent, !player.isExternalPlaybackActive,
               let playerItem = player.currentItem,
               playerItem.status == .readyToPlay
         else { return }
@@ -560,13 +595,14 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// Gözcünün kararı. Ayrı metot: `Task` gövdesinden izole çağrı gerekiyor.
     private func failIfStillBlind() {
         videoWatchdog = nil
+        reportVideoReadiness()
 
-        guard !didRenderVideo, case .playing = currentState else { return }
+        guard !didRenderVideo, !isAudioOnlyContent, case .playing = currentState,
+              hasActiveVideoSurface, !player.isExternalPlaybackActive
+        else { return }
 
-        // ⚠️ Sesli yayınlar (radyo kanalları) da boyutsuzdur ve buraya
-        // düşer. Yedek motor onları sorunsuz açtığı için zarar yok;
-        // "video izi var mı" sorusunu HLS'te AVFoundation zaten
-        // cevaplamıyor, o yüzden ayrım yapılamıyor.
+        // Ses akışı olduğu doğrulanamayan yayınlar da buraya düşebilir;
+        // görüntü gelmemesi tek başına HEVC arızasının kanıtı değildir.
         Log.playback.notice("Ses var, görüntü yok — yedek motora yönlendiriliyor")
 
         fail(with: .playbackFailed(reason:
@@ -576,15 +612,64 @@ public final class AVPlayerEngine: PlaybackEngine {
 
     /// Asset'te video izi yoksa siyah ekran hata değildir; bu bir ses/radyo akışıdır.
     func markAudioOnlyPlayback() {
+        isAudioOnlyContent = true
+        videoWatchdog?.cancel()
+        videoWatchdog = nil
+    }
+
+    /// AirPlay görüntüyü başka cihaza taşır; yerel katmandan kare beklenmez.
+    /// Henüz ekrana takılmamış yüzey de decoder hatası sayılmaz.
+    private var hasActiveVideoSurface: Bool {
+        layerView?.window != nil || pictureInPictureController?.isPictureInPictureActive == true
+    }
+
+    private func observeVideoReadiness() {
+        firstFrameObservation?.invalidate()
+        firstFrameObservation = nil
+        guard player.currentItem != nil, let layer = layerView?.playerLayer else { return }
+
+        let generation = itemGeneration
+        firstFrameObservation = layer.observe(\.isReadyForDisplay, options: [.new, .initial]) { [weak self] _, _ in
+            Task { @MainActor in
+                guard let self, self.itemGeneration == generation else { return }
+                self.reportVideoReadiness()
+            }
+        }
+    }
+
+    private func reportVideoReadiness() {
+        guard !didRenderVideo, player.currentItem?.status == .readyToPlay,
+              layerView?.playerLayer?.isReadyForDisplay == true
+        else { return }
+
         didRenderVideo = true
         videoWatchdog?.cancel()
         videoWatchdog = nil
+        Log.playback.info("AVPlayer ilk görüntü karesi hazır")
+    }
+
+    /// Codec/ağ arızasını ayırt etmek için yerel durum; yayın URL'si ve
+    /// sunucudan gelen hata metinleri kimlik bilgisi içerebildiği için yazılmaz.
+    private func logPlaybackDiagnostics() {
+        guard let item = player.currentItem else { return }
+        let videoCount = item.tracks.filter { $0.assetTrack?.mediaType == .video }.count
+        let nativeError = item.error as NSError?
+        let errorDomain = nativeError?.domain ?? "none"
+        let errorCode = nativeError?.code ?? 0
+        let httpStatus = item.errorLog()?.events.last?.errorStatusCode ?? 0
+        let size = item.presentationSize
+        let ready = layerView?.playerLayer?.isReadyForDisplay ?? false
+        Log.playback.notice("AVPlayer teşhis: videoTracks=\(videoCount), size=\(Double(size.width))x\(Double(size.height)), firstFrame=\(ready), external=\(self.player.isExternalPlaybackActive), domain=\(errorDomain, privacy: .public), code=\(errorCode), status=\(httpStatus)")
     }
 
     // MARK: - Zaman ve boyut
 
     private func reportTime() {
         guard let playerItem = player.currentItem else { return }
+
+        // Yüzey oynatma başladıktan sonra ekrana takılmış veya AirPlay'den
+        // dönülmüş olabilir. Mevcut zaman gözlemi ek istek/timer gerektirmez.
+        if currentState == .playing { startVideoWatchdogIfNeeded() }
 
         let current = playerItem.currentTime().seconds
         guard current.isFinite else { return }
@@ -610,11 +695,8 @@ public final class AVPlayerEngine: PlaybackEngine {
               size.width > 0, size.height > 0
         else { return }
 
-        // Görüntü geldi: gözcünün işi bitti.
-        didRenderVideo = true
-        videoWatchdog?.cancel()
-        videoWatchdog = nil
-
+        // Metadata boyutu, çözülmüş ilk karenin kanıtı değildir.
+        // Gözcü yalnızca AVPlayerLayer.isReadyForDisplay ile kapanır.
         continuation.yield(.naturalSizeChanged(
             width: Double(size.width),
             height: Double(size.height)

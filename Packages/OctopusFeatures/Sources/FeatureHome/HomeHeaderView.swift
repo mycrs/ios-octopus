@@ -17,8 +17,7 @@ struct HomeHeaderView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            premiumBackground
-            ambientLight
+            Theme.Palette.surface
 
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 brandRow
@@ -29,20 +28,18 @@ struct HomeHeaderView: View {
             .padding(Theme.Spacing.xl)
         }
         .frame(maxWidth: .infinity, minHeight: 304, alignment: .topLeading)
-        .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-        .overlay { premiumBorder }
-        .shadow(color: Color.black.opacity(0.30), radius: 24, y: 16)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
+                .stroke(Theme.Palette.separator, lineWidth: 1)
+        }
         .padding(.horizontal, Theme.Spacing.md)
         .padding(.top, Theme.Spacing.sm)
-        // Hero çok sayıda bilgiyi tek yüzeyde taşıyor. Sistem erişilebilirlik
-        // boyutunun tamamını burada uygulamak kartı birkaç ekran yüksekliğine
-        // çıkarıp asıl içeriği erişilemez yapıyor; okunabilir üst sınır korunur.
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     @ViewBuilder
     private var brandRow: some View {
-        if dynamicTypeSize.isAccessibilitySize {
+        if dynamicTypeSize >= .xxLarge {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 brandIdentity
                 clock
@@ -59,26 +56,14 @@ struct HomeHeaderView: View {
     private var brandIdentity: some View {
         HStack(spacing: Theme.Spacing.md) {
             HomeBrandLogo(logoURL: brandLogoURL, size: 48)
-                .padding(Theme.Spacing.xs)
-                .background(Color.white.opacity(0.055), in: RoundedRectangle(
-                    cornerRadius: Theme.Radius.lg,
-                    style: .continuous
-                ))
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Text(brandName)
                     .font(Theme.Typography.rowTitle.weight(.semibold))
                     .foregroundColor(Theme.Palette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                Text(AppLocalization.localized("SANA ÖZEL", locale: locale))
-                    .font(Theme.Typography.badge)
-                    .tracking(0.8)
-                    .foregroundColor(brandColor)
-                    .padding(.horizontal, Theme.Spacing.sm)
-                    .padding(.vertical, Theme.Spacing.xs)
-                    .background(brandColor.opacity(0.12), in: Capsule())
             }
         }
     }
@@ -97,7 +82,7 @@ struct HomeHeaderView: View {
                     Capsule().stroke(Color.white.opacity(0.07), lineWidth: 1)
                 }
         }
-        .accessibilityLabel("Saat")
+        .accessibilityLabel(AppLocalization.localized("Saat", locale: locale))
     }
 
     private var greetingBlock: some View {
@@ -105,8 +90,8 @@ struct HomeHeaderView: View {
             Text(AppLocalization.localized(greeting, locale: locale))
                 .font(.system(.largeTitle, design: .rounded).weight(.bold))
                 .foregroundColor(Theme.Palette.textPrimary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.76)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(AppLocalization.localized("Bugün ne izlemek istersin?", locale: locale))
                 .font(Theme.Typography.rowSubtitle)
@@ -116,7 +101,7 @@ struct HomeHeaderView: View {
 
     @ViewBuilder
     private var actions: some View {
-        if dynamicTypeSize.isAccessibilitySize {
+        if dynamicTypeSize >= .xxLarge {
             VStack(spacing: Theme.Spacing.sm) { actionButtons }
         } else {
             HStack(spacing: Theme.Spacing.sm) { actionButtons }
@@ -159,8 +144,8 @@ struct HomeHeaderView: View {
                     )
 
                 Text(AppLocalization.localized(title, locale: locale))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 0)
 
@@ -169,8 +154,9 @@ struct HomeHeaderView: View {
                     .opacity(0.72)
             }
             .font(Theme.Typography.caption.weight(.semibold))
-            .foregroundColor(isPrimary ? .white : Theme.Palette.textPrimary)
+            .foregroundColor(isPrimary ? Theme.contentColor(on: brandColor) : Theme.Palette.textPrimary)
             .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
             .frame(maxWidth: .infinity, minHeight: 48)
             .background(
                 isPrimary ? brandColor : Color.white.opacity(0.055),
@@ -187,50 +173,4 @@ struct HomeHeaderView: View {
         .buttonStyle(.plain)
     }
 
-    private var premiumBackground: some View {
-        LinearGradient(
-            colors: [
-                Theme.Palette.surfaceElevated,
-                Theme.Palette.surface.opacity(0.98),
-                Theme.Palette.background.opacity(0.96)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
-    private var ambientLight: some View {
-        ZStack {
-            RadialGradient(
-                colors: [brandColor.opacity(0.24), .clear],
-                center: .topLeading,
-                startRadius: 0,
-                endRadius: 260
-            )
-
-            RadialGradient(
-                colors: [Color.white.opacity(0.055), .clear],
-                center: .bottomTrailing,
-                startRadius: 0,
-                endRadius: 210
-            )
-        }
-        .allowsHitTesting(false)
-    }
-
-    private var premiumBorder: some View {
-        RoundedRectangle(cornerRadius: 30, style: .continuous)
-            .stroke(
-                LinearGradient(
-                    colors: [
-                        brandColor.opacity(0.34),
-                        Color.white.opacity(0.09),
-                        Color.white.opacity(0.035)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 1
-            )
-    }
 }

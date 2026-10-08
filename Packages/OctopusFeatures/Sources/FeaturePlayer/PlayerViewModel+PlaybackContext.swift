@@ -7,10 +7,13 @@ extension PlayerViewModel {
     /// Bölüm sırasını yalnızca gerektiğinde hazırlar. Sonraki sezon varsa ilk
     /// bölümüne geçer; son bölümde kart gösterilmez.
     func prepareEpisodeContext() async {
+        let generation = selectionGeneration
+        let requestedSource = source
         guard
             case .episode(let id) = source,
             let current = try? await dependencies.series.episode(id: id)
         else {
+            guard isCurrentSelection(generation, source: requestedSource) else { return }
             nextEpisode = nil
             return
         }
@@ -25,6 +28,7 @@ extension PlayerViewModel {
                 seasonNumber: seasonNumber
             )) ?? []
         }
+        guard isCurrentSelection(generation, source: requestedSource) else { return }
         nextEpisode = Self.followingEpisode(after: current, in: candidates)
     }
 
@@ -32,13 +36,7 @@ extension PlayerViewModel {
         guard let nextEpisode else { return }
         source = .episode(nextEpisode.id)
 
-        do {
-            phase = .ready(try await resolveItem())
-            await prepareZapping()
-            await prepareEpisodeContext()
-        } catch {
-            phase = .failed(AppError.wrap(error).userMessage)
-        }
+        await resolveSelection(updateZapping: true)
     }
 
     /// Canlı panelden doğrudan kanal seçimi. Liste ebeveyn filtresinden geçmiş
@@ -47,21 +45,19 @@ extension PlayerViewModel {
         guard zapList.contains(where: { $0.id == channel.id }) else { return }
         source = .liveChannel(channel.id)
 
-        do {
-            phase = .ready(try await resolveItem())
-            await prepareLiveGuide()
-        } catch {
-            phase = .failed(AppError.wrap(error).userMessage)
-        }
+        await resolveSelection()
     }
 
     func prepareLiveGuide(now: Date = Date()) async {
+        let generation = selectionGeneration
+        let requestedSource = source
         guard
             case .liveChannel(let id) = source,
             let epg = dependencies.epg,
             let channel = try? await dependencies.channels.channel(id: id),
             let epgID = channel.epgChannelID
         else {
+            guard isCurrentSelection(generation, source: requestedSource) else { return }
             currentProgram = nil
             followingProgram = nil
             return
@@ -73,6 +69,7 @@ extension PlayerViewModel {
             to: now.addingTimeInterval(12 * 3_600)
         )) ?? []
 
+        guard isCurrentSelection(generation, source: requestedSource) else { return }
         let guide = Self.guidePrograms(at: now, programs: programs)
         currentProgram = guide.current
         followingProgram = guide.following

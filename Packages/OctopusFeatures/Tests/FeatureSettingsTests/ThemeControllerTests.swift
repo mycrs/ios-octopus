@@ -5,7 +5,7 @@ import OctopusDomain
 // paketten geliyor. Testler onu uygulamanın gördüğü yüzeyden kullanmalı.
 import OctopusDesignSystem
 
-/// Marka rengi öncelik sırası: kullanıcı seçimi > bayi paneli > varsayılan.
+/// Marka rengi öncelik sırası: mavi ürün kimliği ve kalıcı kullanıcı tonu.
 @MainActor
 final class ThemeControllerTests: XCTestCase {
 
@@ -33,6 +33,16 @@ final class ThemeControllerTests: XCTestCase {
 
     // MARK: - Öncelik sırası
 
+    func test_brightAccentsUseDarkButtonText() {
+        for selection in Theme.BrandColor.allCases {
+            XCTAssertEqual(Theme.contentColor(on: selection.color), Color.black)
+        }
+    }
+
+    func test_darkResellerAccentUsesLightButtonText() {
+        XCTAssertEqual(Theme.contentColor(on: Theme.Palette.surface), Color.white)
+    }
+
     func test_defaultsToAppColorWhenNothingConfigured() {
         let controller = ThemeController(store: store)
         XCTAssertEqual(controller.selection, .default)
@@ -40,12 +50,12 @@ final class ThemeControllerTests: XCTestCase {
         XCTAssertEqual(controller.accent, Theme.Palette.accent)
     }
 
-    func test_panelColorAppliesWhenUserHasNotChosen() {
+    func test_panelColorCannotReplaceProductBlue() {
         let controller = ThemeController(store: store)
         controller.apply(branding: brand("#00E676"))
 
         XCTAssertNotNil(controller.remoteColor)
-        XCTAssertEqual(controller.accent, controller.remoteColor)
+        XCTAssertEqual(controller.accent, Theme.Palette.accent)
     }
 
     func test_userSelectionOverridesPanel() {
@@ -59,13 +69,13 @@ final class ThemeControllerTests: XCTestCase {
         XCTAssertNotNil(controller.remoteColor, "Panel rengi unutulmamalı")
     }
 
-    func test_returningToDefaultRestoresPanelColor() {
+    func test_returningToDefaultRestoresProductBlue() {
         let controller = ThemeController(store: store)
         controller.apply(branding: brand("#00E676"))
         controller.select(.orange)
         controller.select(.default)
 
-        XCTAssertEqual(controller.accent, controller.remoteColor)
+        XCTAssertEqual(controller.accent, Theme.Palette.accent)
     }
 
     // MARK: - Kalıcılık
@@ -90,12 +100,12 @@ final class ThemeControllerTests: XCTestCase {
         XCTAssertEqual(controller.accent, Theme.Palette.accent)
     }
 
-    func test_adminSelectedRedIsApplied() {
+    func test_adminSelectedRedCannotReplaceProductBlue() {
         let controller = ThemeController(store: store)
         controller.apply(branding: brand("#FF3B30"))
 
         XCTAssertNotNil(controller.remoteColor)
-        XCTAssertEqual(controller.accent, controller.remoteColor)
+        XCTAssertEqual(controller.accent, Theme.Palette.accent)
     }
 
     func test_invalidHexIsIgnored() {
@@ -124,12 +134,12 @@ final class ThemeControllerTests: XCTestCase {
         XCTAssertNil(controller.resellerName)
     }
 
-    func test_logoURLIsExposedAndClearedWithBranding() {
+    func test_remoteLogoCannotReplaceProductEmblem() {
         let controller = ThemeController(store: store)
         let logo = URL(string: "https://example.com/logo.png")
 
         controller.apply(branding: brand(nil, logoURL: logo))
-        XCTAssertEqual(controller.logoURL, logo)
+        XCTAssertNil(controller.logoURL)
 
         controller.apply(branding: nil)
         XCTAssertNil(controller.logoURL)

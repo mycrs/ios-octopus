@@ -143,10 +143,14 @@ kaydırma konumunu göstermediği için sekme çubuğunun son satırı örtüp
 
 ### PiP ve HEVC
 
-`BRAIN.md`'de zaten yazılı: PiP simülatörde kurulmaz, HEVC simülatörde
-çözülmez. İkisi de **gerçek iPhone** ister.
+PiP ve UHD oynatmayı **gerçek iPhone** üzerinde doğrula. HEVC donanım
+desteği tek başına yeterli değildir: Apple, HLS'teki HEVC için fMP4
+paketleme ister. Kullanıcıdaki UHD yayınlar için otomatik VLC bilinçli
+tercihtir; gerçek yayın uyumluluğu doğrulanana kadar korunur.
 
-- [ ] Gerçek cihazda bir UHD kanal aç — yedek motora düşmemeli
+- [ ] Gerçek cihazda UHD kanal aç — otomatik VLC ile görüntü/ses ve zap çalışmalı
+- [ ] Native teşhis denemesinde manifest/segment biçimini ve ilk kareyi ölç;
+      HEVC + MPEG-TS'yi native destek varsayımıyla başarılı sayma
 - [ ] PiP düğmesi çıkıyor mu ve çalışıyor mu
 
 ---
@@ -160,7 +164,7 @@ kaydırma konumunu göstermediği için sekme çubuğunun son satırı örtüp
 | 1 | Bayi kodu ucu bağlı değil | DNS yedek listesi ve bayi logosu çekilmiyor |
 | 2 | `DNSFailoverService.reset()` çağrılmıyor | Yedeğe geçildiyse asıl sunucu dönse de oturum boyunca yedekte kalınır |
 | 3 | Eski M3U kaynakları Xtream'e dönüşmüyor | Yalnızca yeni eklemede dönüşüyor |
-| 5 | HEVC gerçek cihazda ölçülmedi | Simülatörde her UHD kanal yedeğe düşüyor; cihazda düşmemesi beklenir |
+| 5 | UHD native uyumluluğu doğrulanmadı | Gerçek yayın codec/container bilgisi ölçülmeli; otomatik VLC korunur. HEVC + MPEG-TS, Apple HLS şartnamesine uymaz |
 
 ---
 

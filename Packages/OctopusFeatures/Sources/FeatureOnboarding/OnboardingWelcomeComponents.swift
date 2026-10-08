@@ -45,7 +45,6 @@ struct OnboardingWelcomeBrand: View {
     @ViewBuilder
     private var brandMark: some View {
         OnboardingBrandLogo(logoURL: logoURL, size: 92)
-        .shadow(color: brandColor.opacity(0.18), radius: 24, y: 10)
     }
 }
 
@@ -54,20 +53,7 @@ struct OnboardingBrandLogo: View {
     let logoURL: URL?
     let size: CGFloat
 
-    @ViewBuilder
     var body: some View {
-        if let logoURL {
-            RemoteImageView(url: logoURL, contentMode: .fit, targetWidth: size * 2) {
-                fallback
-            }
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: size * 0.26, style: .continuous))
-        } else {
-            fallback
-        }
-    }
-
-    private var fallback: some View {
         DefaultBrandLogoView()
             .frame(width: size, height: size)
     }
@@ -82,13 +68,13 @@ struct OnboardingCapabilities: View {
             capability("tv", "Canlı TV", "Kategoriler, favoriler ve yayın akışı")
             capability("film", "Film ve dizi", "Kaldığın yerden devam et")
             capability(
-                "bolt.horizontal.circle",
-                "Kesintisiz oynatma",
-                "Yayın koparsa kendiliğinden geri döner"
+                "slider.horizontal.3",
+                "Oynatıcı ayarları",
+                "Ses, altyazı ve ekran seçenekleri"
             )
         }
         .padding(Theme.Spacing.lg)
-        .background(Theme.Palette.surface.opacity(0.54))
+        .background(Theme.Palette.surface)
         .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)

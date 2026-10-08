@@ -44,6 +44,59 @@ final class PlayerZappingTests: XCTestCase {
         XCTAssertEqual(title(of: viewModel), "Üçüncü", "Baştan geriye gidince sona sarmalı")
     }
 
+    func test_lateZapResult_doesNotReplaceLatestChannel() async {
+        await assertLateZapDoesNotReplaceLatestChannel(shouldFail: false)
+    }
+
+    func test_lateZapError_doesNotReplaceLatestChannel() async {
+        await assertLateZapDoesNotReplaceLatestChannel(shouldFail: true)
+    }
+
+    private func assertLateZapDoesNotReplaceLatestChannel(shouldFail: Bool) async {
+        let started = expectation(description: "İkinci kanal çözülüyor")
+        let gate = ChannelResolutionGate(started: started, shouldFail: shouldFail)
+        let viewModel = makeViewModel(streams: GatedChannelStreams(gate: gate))
+        await viewModel.resolve()
+
+        let firstZap = Task { await viewModel.zap(by: 1) }
+        await fulfillment(of: [started], timeout: 2)
+        await viewModel.zap(by: 1)
+        XCTAssertEqual(title(of: viewModel), "Üçüncü")
+
+        await gate.open()
+        await firstZap.value
+        XCTAssertEqual(title(of: viewModel), "Üçüncü", "Geciken seçim son kanalı ezmemeli")
+    }
+
+    func test_channelPanelSelection_winsOverPendingZap() async {
+        let started = expectation(description: "İkinci kanal çözülüyor")
+        let gate = ChannelResolutionGate(started: started)
+        let viewModel = makeViewModel(streams: GatedChannelStreams(gate: gate))
+        await viewModel.resolve()
+        let firstZap = Task { await viewModel.zap(by: 1) }
+        await fulfillment(of: [started], timeout: 2)
+
+        let third = viewModel.liveChannels[2]
+        await viewModel.play(channel: third)
+        await gate.open()
+        await firstZap.value
+
+        XCTAssertEqual(title(of: viewModel), "Üçüncü")
+    }
+
+    func test_cancelledResolution_doesNotPublishResult() async {
+        let started = expectation(description: "İkinci kanal çözülüyor")
+        let gate = ChannelResolutionGate(started: started)
+        let viewModel = makeViewModel(startingAt: "c2", streams: GatedChannelStreams(gate: gate))
+        let resolving = Task { await viewModel.resolve() }
+        await fulfillment(of: [started], timeout: 2)
+        resolving.cancel()
+        await gate.open()
+        await resolving.value
+
+        XCTAssertEqual(viewModel.phase, .resolving, "İptal edilen ekran oynatma başlatmamalı")
+    }
+
     // MARK: - Ebeveyn kilidi
 
     /// Kilit açıkken yetişkin kanal **listede olmamalı**.
@@ -146,13 +199,14 @@ final class PlayerZappingTests: XCTestCase {
         channelCount: Int = 3,
         parental: ParentalControlling = OpenParentalControl(),
         movie: Bool = false,
-        startAt: TimeInterval? = nil
+        startAt: TimeInterval? = nil,
+        streams: StreamResolving = StubStreams()
     ) -> PlayerViewModel {
         let channels = StubChannels(channels: makeChannels(count: channelCount))
 
         let dependencies = PlayerDependencies(
             resolver: PlaybackEngineResolver(native: { NullPlaybackEngine() }),
-            streams: StubStreams(),
+            streams: streams,
             progress: StubProgress(),
             history: StubHistory(),
             channels: channels,
@@ -185,6 +239,47 @@ final class PlayerZappingTests: XCTestCase {
                 isAdult: index == 1
             )
         }
+    }
+}
+
+private actor ChannelResolutionGate {
+    private let started: XCTestExpectation
+    private let shouldFail: Bool
+    private var isOpen = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    init(started: XCTestExpectation, shouldFail: Bool = false) {
+        self.started = started
+        self.shouldFail = shouldFail
+    }
+
+    func wait() async throws {
+        started.fulfill()
+        if !isOpen { await withCheckedContinuation { continuation = $0 } }
+        if shouldFail { throw AppError.network(reason: "Geciken hata") }
+    }
+
+    func open() {
+        isOpen = true
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private struct GatedChannelStreams: StreamResolving {
+    let gate: ChannelResolutionGate
+
+    func playbackItem(for channel: Channel) async throws -> PlaybackItem {
+        if channel.id == "c2" { try await gate.wait() }
+        return try await StubStreams().playbackItem(for: channel)
+    }
+
+    func playbackItem(for movie: Movie) async throws -> PlaybackItem {
+        try await StubStreams().playbackItem(for: movie)
+    }
+
+    func playbackItem(for episode: Episode, in series: Series) async throws -> PlaybackItem {
+        try await StubStreams().playbackItem(for: episode, in: series)
     }
 }
 

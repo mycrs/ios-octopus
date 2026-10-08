@@ -15,6 +15,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "OctopusPlayback", dependencies: ["OctopusCore", "OctopusDomain"]),
-        .testTarget(name: "OctopusPlaybackTests", dependencies: ["OctopusPlayback"])
+        .testTarget(
+            name: "OctopusPlaybackTests",
+            dependencies: ["OctopusPlayback"],
+            resources: [.copy("Fixtures")]
+        )
     ]
 )

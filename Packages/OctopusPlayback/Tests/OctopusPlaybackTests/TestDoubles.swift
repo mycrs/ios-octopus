@@ -105,14 +105,16 @@ final class TestProgressRepository: PlaybackProgressRepository, @unchecked Senda
 
     var stored: [String: PlaybackProgress] = [:]
     private(set) var saveCount = 0
+    var beforeSave: (@Sendable () async -> Void)?
 
     func progress(for source: PlaybackItem.Source) async throws -> PlaybackProgress? {
         stored[source.storageKey]
     }
 
     func save(_ progress: PlaybackProgress, for source: PlaybackItem.Source) async throws {
-        stored[source.storageKey] = progress
         saveCount += 1
+        await beforeSave?()
+        stored[source.storageKey] = progress
     }
 
     func continueWatching(playlistID: Playlist.ID, limit: Int) async throws -> [PlaybackProgress] {

@@ -115,6 +115,99 @@ final class AVPlayerEngineTests: XCTestCase {
         XCTAssertEqual(engine.currentState, .idle)
     }
 
+    func test_queuedEndNotification_doesNotEndReplacementItem() async throws {
+        let engine = AVPlayerEngine()
+        defer { engine.teardown() }
+        let reachedEnd = Task {
+            for await event in engine.events {
+                if case .stateChanged(.ended) = event { return true }
+            }
+            return false
+        }
+        await engine.load(makeItem(url: missingFileURL()))
+        let oldItem = try XCTUnwrap(engine.player.currentItem)
+
+        // Bildirim ana aktöre iş kuyruğa koyar; yeni içerik o işten önce yüklenir.
+        NotificationCenter.default.post(name: .AVPlayerItemDidPlayToEndTime, object: oldItem)
+        await engine.load(makeItem(url: missingFileURL()))
+        _ = await waitUntil(timeout: 0.25) { engine.currentState == .ended }
+        XCTAssertFalse(engine.player.currentItem === oldItem)
+        engine.teardown()
+        let incorrectlyEnded = await reachedEnd.value
+
+        XCTAssertFalse(incorrectlyEnded, "Önceki yayının bitişi yeni yayını bitiremez")
+    }
+
+    func test_queuedObservations_afterStop_keepEngineIdle() async {
+        let engine = AVPlayerEngine()
+        defer { engine.teardown() }
+        await engine.load(makeItem(url: missingFileURL()))
+        engine.stop()
+
+        let changed = await waitUntil(timeout: 0.25) { engine.currentState != .idle }
+
+        XCTAssertFalse(changed, "Bırakılan içeriğin kuyruktaki olayları motoru diriltemez")
+        XCTAssertNil(engine.player.currentItem)
+    }
+
+    // MARK: - İlk görüntü karesi
+
+    /// Boyut metadata'sı video yüzeyi olmadan da gelir. Bu, ilk karenin
+    /// çizime hazır olduğunu kanıtlamaz; siyah ekran gözcüsü açık kalmalı.
+    func test_presentationSize_withoutVideoSurface_doesNotCountAsRenderedFrame() async throws {
+        let engine = AVPlayerEngine()
+        let sizePublished = expectation(description: "Video boyutu olayı yayınlandı")
+        let sizeEvents = Task {
+            for await event in engine.events {
+                if case .naturalSizeChanged(let width, let height) = event, width > 0, height > 0 {
+                    sizePublished.fulfill()
+                    return
+                }
+            }
+        }
+        defer {
+            sizeEvents.cancel()
+            engine.teardown()
+        }
+        await engine.load(makeItem(url: try videoFixtureURL()))
+        engine.play()
+
+        await fulfillment(of: [sizePublished], timeout: 5)
+        XCTAssertFalse(engine.didRenderVideo, "Boyut bilgisi ilk kare sinyali yerine kullanılamaz")
+    }
+
+    func test_firstFrameReadiness_isResetWhenReusingSurfaceForAnotherItem() async throws {
+        let engine = AVPlayerEngine()
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 180))
+        let host = UIViewController()
+        window.rootViewController = host
+        window.isHidden = false
+        defer {
+            engine.teardown()
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+        await engine.load(makeItem(url: try videoFixtureURL()))
+        let surface = engine.makeVideoView()
+        surface.frame = host.view.bounds
+        host.view.addSubview(surface)
+        host.view.layoutIfNeeded()
+        engine.play()
+
+        let rendered = await waitUntil { engine.didRenderVideo }
+        XCTAssertTrue(rendered, "AVPlayerLayer'ın ilk kare sinyali izlenmeli")
+
+        await engine.load(makeItem(url: missingFileURL()))
+        let failed = await waitUntil {
+            if case .failed = engine.currentState { return true }
+            return false
+        }
+
+        XCTAssertTrue(failed)
+        XCTAssertTrue(engine.makeVideoView() === surface, "Zap sırasında yüzey korunmalı")
+        XCTAssertFalse(engine.didRenderVideo, "Eski katmanın kare sinyali yeni yayına taşınamaz")
+    }
+
     // MARK: - Canlı yayın davranışı
 
     func test_seek_isIgnoredForLiveContent() async {
@@ -141,6 +234,12 @@ final class AVPlayerEngineTests: XCTestCase {
     }
 
     // MARK: - Yardımcılar
+
+    private func videoFixtureURL() throws -> URL {
+        try XCTUnwrap(Bundle.module.url(
+            forResource: "video-sample", withExtension: "mp4", subdirectory: "Fixtures"
+        ))
+    }
 
     private func makeItem(
         url: URL = URL(fileURLWithPath: "/dev/null"),

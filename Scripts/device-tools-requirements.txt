@@ -1,0 +1,3 @@
+# Yerel Windows teşhis aracı; iOS uygulamasının bağımlılığı değildir.
+# Windows'ta lzfse wheel desteği için Python 3.12 kullanılır.
+pymobiledevice3==11.26.0

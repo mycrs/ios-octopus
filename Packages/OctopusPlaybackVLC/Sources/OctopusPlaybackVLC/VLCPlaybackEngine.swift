@@ -107,6 +107,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     /// `load()` içinde atansaydı film hep baştan başlardı. Bu yüzden
     /// istek saklanır ve ilk oynatılabilir durumda uygulanır.
     private var pendingSeek: TimeInterval?
+    private var loadGeneration = 0
 
     /// - Parameter audioSession: Testlerde sahte oturum verilebilsin diye dışarıdan alınır.
     ///
@@ -139,6 +140,8 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     // MARK: - Yükleme
 
     public func load(_ item: PlaybackItem) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         openWatchdog?.cancel()
         didStopManually = false
         isLiveContent = item.isLive
@@ -158,7 +161,8 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
             liveBuffer: preferences?.liveBuffer ?? .balanced
         ))
 
-        audioSession.activate()
+        await audioSession.activate()
+        guard !Task.isCancelled, loadGeneration == generation, !didStopManually else { return }
         player.media = media
         startOpenWatchdog()
 
@@ -374,6 +378,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     // MARK: - Yaşam döngüsü
 
     public func teardown() {
+        loadGeneration &+= 1
         openWatchdog?.cancel()
         openWatchdog = nil
         didStopManually = true

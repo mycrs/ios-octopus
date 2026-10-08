@@ -18,6 +18,7 @@ public actor GRDBVODRepository: VODRepository {
 
     private let database: AppDatabase
     private let detailLoader: MovieDetailLoading?
+    private var detailTasks: [Movie.ID: Task<Movie, Error>] = [:]
 
     public init(database: AppDatabase, detailLoader: MovieDetailLoading? = nil) {
         self.database = database
@@ -82,6 +83,24 @@ public actor GRDBVODRepository: VODRepository {
     /// ⚠️ **Önbellekli**: `get_vod_info` her detay açılışında çağrılırsa
     /// kullanıcı her seferinde bekler. Bir kez çekilen künye yerelde tutulur.
     public func loadDetails(id: Movie.ID) async throws -> Movie {
+        try Task.checkCancellation()
+        if let running = detailTasks[id] {
+            let result = try await running.value
+            try Task.checkCancellation()
+            return result
+        }
+
+        // Actor, await sırasında başka çağrıları kabul eder. Aynı filmin iki
+        // ekranı önbellek dolmadan açılırsa tek ağ isteğini ve yazımı paylaşır.
+        let task = Task { try await self.loadAndStoreDetails(id: id) }
+        detailTasks[id] = task
+        defer { detailTasks[id] = nil }
+        let result = try await task.value
+        try Task.checkCancellation()
+        return result
+    }
+
+    private func loadAndStoreDetails(id: Movie.ID) async throws -> Movie {
         guard let record = try await database.read({ db in
             try MovieRecord.fetchOne(db, key: id.value)
         }) else {
@@ -94,15 +113,43 @@ public actor GRDBVODRepository: VODRepository {
 
         // Detay ucu hata verirse liste verisiyle devam edilir; kullanıcı
         // en azından afiş ve adı görüp filmi oynatabilmeli.
-        guard let enriched = try? await detailLoader.loadDetails(for: stored) else {
+        let enriched: Movie
+        do {
+            enriched = try await detailLoader.loadDetails(for: stored)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
             Log.network.info("Film künyesi alınamadı, liste verisiyle devam ediliyor")
             return stored
         }
 
-        try await database.write { db in
-            try MovieRecord(enriched, detailsLoadedAt: Date()).update(db)
+        return try await database.write { db in
+            // İstek beklenirken katalog yenilenmiş olabilir; güncel sıra,
+            // kategori ve koruma bayrağını eski yanıtla ezme.
+            guard let current = try MovieRecord.fetchOne(db, key: id.value) else {
+                throw AppError.notFound
+            }
+            let merged = Self.merging(enriched, into: current.toDomain())
+            try MovieRecord(merged, detailsLoadedAt: Date()).update(db)
+            return merged
         }
-        return enriched
+    }
+
+    private static func merging(_ details: Movie, into stored: Movie) -> Movie {
+        var result = stored
+        if !details.title.isEmpty { result.title = details.title }
+        result.containerExtension = details.containerExtension ?? stored.containerExtension
+        result.posterURL = details.posterURL ?? stored.posterURL
+        result.backdropURL = details.backdropURL ?? stored.backdropURL
+        result.plot = details.plot ?? stored.plot
+        result.releaseDate = details.releaseDate ?? stored.releaseDate
+        result.durationSeconds = details.durationSeconds ?? stored.durationSeconds
+        result.rating = details.rating ?? stored.rating
+        if !details.genres.isEmpty { result.genres = details.genres }
+        if !details.cast.isEmpty { result.cast = details.cast }
+        result.director = details.director ?? stored.director
+        result.isAdult = stored.isAdult || details.isAdult
+        return result
     }
 
     public func search(
@@ -154,6 +201,7 @@ public actor GRDBSeriesRepository: SeriesRepository {
 
     private let database: AppDatabase
     private let detailLoader: SeriesDetailLoading?
+    private var detailTasks: [Series.ID: Task<Void, Error>] = [:]
 
     public init(database: AppDatabase, detailLoader: SeriesDetailLoading? = nil) {
         self.database = database
@@ -251,6 +299,21 @@ public actor GRDBSeriesRepository: SeriesRepository {
     /// açılışında yeniden çağrılıyordu; ağır bir istek ve kullanıcı her
     /// seferinde bekliyordu. Bir kez çekilen ağaç yerelde tutulur.
     public func loadDetails(id: Series.ID) async throws {
+        try Task.checkCancellation()
+        if let running = detailTasks[id] {
+            try await running.value
+            try Task.checkCancellation()
+            return
+        }
+
+        let task = Task { try await self.loadAndStoreDetails(id: id) }
+        detailTasks[id] = task
+        defer { detailTasks[id] = nil }
+        try await task.value
+        try Task.checkCancellation()
+    }
+
+    private func loadAndStoreDetails(id: Series.ID) async throws {
         guard let record = try await database.read({ db in
             try SeriesRecord.fetchOne(db, key: id.value)
         }) else {

@@ -12,6 +12,9 @@ import OctopusDomain
 /// Domain, Feature ve App'te **tek satır** değişmez.
 public protocol ContentProvider: Sendable {
 
+    /// Yeni senkronizasyonda sağlayıcının bellekteki kataloğunu tazeler.
+    func invalidateCache() async
+
     /// Hesabı doğrular. Başarısızsa `AppError.unauthorized` fırlatır.
     func authenticate() async throws -> ProviderAccount
 
@@ -42,6 +45,10 @@ public protocol ContentProvider: Sendable {
     /// İstek başlıkları (özellikle `User-Agent`).
     /// Birçok panel beklenmeyen UA'ya 403 döner — motorlar bunu iletmek zorundadır.
     var streamHeaders: [String: String] { get }
+}
+
+extension ContentProvider {
+    public func invalidateCache() async {}
 }
 
 /// `Playlist.Kind`'a göre doğru provider'ı üretir.

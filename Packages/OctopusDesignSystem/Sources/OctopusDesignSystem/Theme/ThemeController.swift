@@ -4,13 +4,8 @@ import OctopusDomain
 
 /// Uygulamanın marka rengini yönetir.
 ///
-/// ## Öncelik sırası
-/// 1. **Kullanıcı seçimi** — Ayarlar'dan bilinçli olarak seçilmişse her şeyi ezer
-/// 2. **Bayi paneli** — kullanıcı "Varsayılan"daysa panelin rengi uygulanır
-/// 3. **Uygulama varsayılanı** — `#00B0FF`
-///
-/// Bu sıra Android sürümüyle aynı: bayi markasını uygulamak istiyoruz ama
-/// kullanıcının kendi tercihini de ezmemeliyiz.
+/// Kullanıcı mavi ailesindeki bir vurgu tonunu seçebilir.
+/// Bayi bilgileri korunur; panel rengi ve logosu ürün kimliğini değiştirmez.
 @MainActor
 public final class ThemeController: ObservableObject {
 
@@ -20,7 +15,7 @@ public final class ThemeController: ObservableObject {
     @Published public private(set) var remoteColor: Color?
     /// Bayi adı — karşılama ve ayarlar ekranında gösterilebilir.
     @Published public private(set) var resellerName: String?
-    /// Bayi logosu — yoksa görünümler uygulamanın kendi işaretini kullanır.
+    /// Ürün logosu yerel ve şeffaftır; uzaktan logo indirilmez.
     @Published public private(set) var logoURL: URL?
 
     private let store: UserDefaults
@@ -36,7 +31,7 @@ public final class ThemeController: ObservableObject {
     public var accent: Color {
         // Kullanıcı bilinçli bir renk seçtiyse panel onu ezemez.
         if selection != .default { return selection.color }
-        return remoteColor ?? Theme.Palette.accent
+        return Theme.Palette.accent
     }
 
     /// Kullanıcı Ayarlar'dan renk seçti.
@@ -51,7 +46,7 @@ public final class ThemeController: ObservableObject {
     /// `BrandConfiguration.effectiveColorHex`) burada zaten elenmiş olur.
     public func apply(branding: BrandConfiguration?) {
         resellerName = branding?.resellerName
-        logoURL = branding?.logoURL
+        logoURL = nil
         // `effectiveColorHex` zaten doğrulanmış ve "seçilmemiş" sayılan
         // renkleri elemiş olarak gelir.
         remoteColor = branding?.effectiveColorHex.flatMap { Color(hexString: $0) }
@@ -61,7 +56,7 @@ public final class ThemeController: ObservableObject {
 // MARK: - Ortam değeri
 //
 // Doğrudan `Theme.Palette.accent` yerine bu değeri kullanan görünümler
-// bayi rengine uyum sağlar. `tint` mirası çoğu kontrolü zaten kapsar;
+// seçilen mavi vurgu tonuna uyum sağlar. `tint` mirası çoğu kontrolü zaten kapsar;
 // bu değer ikon ve çizim gibi tint almayan yerler içindir.
 
 private struct BrandColorKey: EnvironmentKey {

@@ -14,11 +14,6 @@ struct HomeHeroAccountView: View {
     var body: some View {
         if let account, account.username != nil || account.expiryDateText != nil {
             accountSurface(account)
-        } else {
-            Label("İçeriklerin güncel", systemImage: "checkmark.seal.fill")
-                .font(Theme.Typography.caption)
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(Theme.Palette.success, Theme.Palette.textSecondary)
         }
     }
 
@@ -47,7 +42,7 @@ struct HomeHeroAccountView: View {
                 icon: "person.fill",
                 caption: "KULLANICI",
                 value: username,
-                detail: "Aktif hesap",
+                detail: nil,
                 tint: brandColor
             )
         }
@@ -98,14 +93,14 @@ struct HomeHeroAccountView: View {
                 Text(value)
                     .font(Theme.Typography.caption.weight(.semibold))
                     .foregroundColor(Theme.Palette.textPrimary)
-                    .lineLimit(usesStackedLayout ? 2 : 1)
-                    .minimumScaleFactor(0.72)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : (usesStackedLayout ? 2 : 1))
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if let detail {
                     Text(AppLocalization.localized(detail, locale: locale))
                         .font(Theme.Typography.badge)
                         .foregroundColor(tint.opacity(0.88))
-                        .lineLimit(usesStackedLayout ? 2 : 1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : (usesStackedLayout ? 2 : 1))
                 }
             }
 
@@ -123,9 +118,6 @@ struct HomeHeroAccountView: View {
         }
     }
 
-    /// Hero üst seviyede erişilebilirlik boyutunu `xxxLarge` ile sınırlar.
-    /// Bu nedenle yalnızca `isAccessibilitySize` kontrolü kullanılsaydı hesap
-    /// satırı yatay kalıp metinleri keserdi; büyük standart boyutlarda da dizilir.
     private var usesStackedLayout: Bool {
         dynamicTypeSize >= .xxLarge
     }
@@ -137,12 +129,12 @@ private struct AccountSurfaceStyle: ViewModifier {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.sm)
             .background(
-                Color.white.opacity(0.045),
+                Theme.Palette.surfaceElevated,
                 in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
-                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+                    .stroke(Theme.Palette.separator, lineWidth: 1)
             }
     }
 }

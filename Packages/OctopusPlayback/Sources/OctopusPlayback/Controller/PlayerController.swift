@@ -120,6 +120,18 @@ public final class PlayerController: ObservableObject {
     private var lastSavedAt: Date?
     private var didRecordHistory = false
 
+    public var diagnosticSnapshot: PlaybackDiagnosticSnapshot {
+        PlaybackDiagnosticSnapshot(
+            capturedAt: now(), engine: engine == nil ? nil : decision, state: state,
+            format: item?.format, isLive: item?.isLive,
+            firstVideoFrameReady: (engine as? AVPlayerEngine)?.didRenderVideo,
+            audioTrackCount: audioTracks.count, subtitleTrackCount: subtitleTracks.count,
+            supportsAirPlay: supportsAirPlay, pictureInPictureAvailable: canUsePictureInPicture,
+            fallbackAttempted: didAttemptFallback, reconnectAttempt: reconnectAttempts,
+            fallbackAvailable: resolver.hasFallback
+        )
+    }
+
     /// ⚠️ `nowPlaying` varsayılanı **gövdede** üretiliyor: `@MainActor`
     /// izole bir tipin örneği varsayılan parametre ifadesi olamaz
     /// (bkz. `AVPlayerEngine.init`, aynı tuzak CI'da yakalandı).
@@ -212,8 +224,9 @@ public final class PlayerController: ObservableObject {
             && (preferences?.requiresFallbackEngine(for: prepared.source.storageKey) ?? false)
 
         // Adında UHD/HEVC geçen yayın, biçim olarak HLS görünse bile
-        // AVPlayer'ı zorlayacaktır: iOS HEVC'yi yalnızca fMP4/CMAF
-        // paketinde açar, IPTV panelleri ise MPEG-TS parçası gönderir.
+        // uyumsuz paketlenmiş olabilir: Apple, HLS'teki HEVC için fMP4
+        // ister; bazı IPTV panelleri MPEG-TS parçaları gönderir. UHD adı
+        // codec/container kanıtı değildir; bu tercih koruyucu bir ipucudur.
         //
         // Bu tahmin olmadan böyle bir kanal önce AVPlayer'da deneniyor,
         // ~800 ms sonra yedeğe düşülüyordu. İpucu o ilk seferi de siliyor.
@@ -245,15 +258,8 @@ public final class PlayerController: ObservableObject {
         }
 
         decision = wanted
-        let selectedEngine: PlaybackEngine
-        if forcesFallback, let fallback = resolver.makeRuntimeFallbackEngine() {
-            selectedEngine = fallback
-        } else {
-            selectedEngine = resolver.makeEngine(
-                for: prepared.format,
-                allowingFallback: allowsFallback
-            )
-        }
+        Log.playback.info("Motor seçimi: \(wanted.rawValue, privacy: .public) · yedek mevcut: \(resolver.hasFallback, privacy: .public) · fallback izinli: \(allowsFallback, privacy: .public)")
+        let selectedEngine = resolver.makeEngine(for: wanted)
         await attach(
             selectedEngine,
             loading: prepared,
@@ -366,13 +372,14 @@ public final class PlayerController: ObservableObject {
 
     /// Ekran kapanırken çağrılır. **Atlanamaz.**
     public func finish() async {
+        let pendingProgress = progressSnapshot(force: true)
         sessionGeneration &+= 1
         recoveryTask?.cancel()
         recoveryTask = nil
         stallTask?.cancel()
         stallTask = nil
-        await saveProgress(force: true)
-
+        // Depo yazımını beklemeden oturumu bırak. Beklerken yeni bir start()
+        // gelirse eski kapanış onun motorunu ve ekran durumunu temizlememeli.
         eventTask?.cancel()
         eventTask = nil
         engine?.teardown()
@@ -389,6 +396,8 @@ public final class PlayerController: ObservableObject {
         rate = 1.0
         volume = 1.0
         state = .idle
+
+        await saveProgress(pendingProgress)
     }
 
     // MARK: - Denetimler
@@ -401,7 +410,7 @@ public final class PlayerController: ObservableObject {
         engine?.pause()
         // Duraklatma bilinçli bir andır: konumu hemen yaz, uygulama
         // arka planda öldürülse bile kayıp olmasın.
-        Task { await saveProgress(force: true) }
+        enqueueProgressSave(force: true)
     }
 
     public func setVolume(_ newVolume: Float) {
@@ -505,7 +514,7 @@ public final class PlayerController: ObservableObject {
             // `playbackRate` üzerinden kendi ilerletir. Yalnızca süre ilk
             // kez öğrenildiğinde yazmak yeterli — sık yazmak çubuğu titretir.
             if learnedDuration { refreshNowPlaying() }
-            Task { await saveProgress(force: false) }
+            enqueueProgressSave(force: false)
 
         case .tracksDiscovered(let audio, let subtitle):
             audioTracks = audio
@@ -706,15 +715,33 @@ public final class PlayerController: ObservableObject {
     /// ⚠️ Canlı yayında kayıt yok: konumun anlamı olmadığı gibi, "devam et"
     /// rafına canlı kanal düşmesi de yanlış olurdu.
     private func saveProgress(force: Bool) async {
+        await saveProgress(progressSnapshot(force: force))
+    }
+
+    private struct PendingProgress: Sendable {
+        let source: PlaybackItem.Source
+        let snapshot: PlaybackProgress
+    }
+
+    /// Kaydı olay anında yakalar; görevin çalıştığı anda içerik değişmiş olabilir.
+    /// Canlı yayın ve kısıtlanan zaman olayları için boş yere Task oluşturulmaz.
+    private func enqueueProgressSave(force: Bool) {
+        guard let pending = progressSnapshot(force: force) else { return }
+        Task { [progress] in
+            try? await progress.save(pending.snapshot, for: pending.source)
+        }
+    }
+
+    private func progressSnapshot(force: Bool) -> PendingProgress? {
         guard
             let item, !item.isLive,
             let duration = time.duration, duration > 0,
             time.current > 0
-        else { return }
+        else { return nil }
 
         let timestamp = now()
         if !force, let lastSavedAt, timestamp.timeIntervalSince(lastSavedAt) < saveInterval {
-            return
+            return nil
         }
         lastSavedAt = timestamp
 
@@ -725,7 +752,12 @@ public final class PlayerController: ObservableObject {
             updatedAt: timestamp
         )
 
+        return PendingProgress(source: item.source, snapshot: snapshot)
+    }
+
+    private func saveProgress(_ pending: PendingProgress?) async {
+        guard let pending else { return }
         // Hata yutulur: ilerleme kaydı oynatmayı bölmemeli.
-        try? await progress.save(snapshot, for: item.source)
+        try? await progress.save(pending.snapshot, for: pending.source)
     }
 }

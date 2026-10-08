@@ -77,6 +77,9 @@ public actor ContentSyncService: ContentSyncing {
         }
 
         let provider = try await providerFactory.makeProvider(for: playlist)
+        // Aynı sağlayıcı oturum boyunca korunur. Elle yenilemede M3U'nun
+        // eski belleği kullanılmasın; aşamalar yine tek indirmeyi paylaşır.
+        await provider.invalidateCache()
         var contentCounts = SyncContentCounts.empty
 
         publish(.authenticating, for: playlistID)

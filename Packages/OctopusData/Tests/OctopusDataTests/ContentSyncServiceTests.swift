@@ -28,7 +28,7 @@ final class ContentSyncServiceTests: XCTestCase {
         )
     }
 
-    private func makeService(_ provider: FakeProvider) -> ContentSyncService {
+    private func makeService(_ provider: ContentProvider) -> ContentSyncService {
         ContentSyncService(
             playlists: playlists,
             providerFactory: FakeProviderFactory(provider: provider),
@@ -67,6 +67,28 @@ final class ContentSyncServiceTests: XCTestCase {
     }
 
     // MARK: - Değiştirme stratejisi
+
+    func test_m3uResync_downloadsFreshPlaylistOncePerSync() async throws {
+        let body = LockedBox("#EXTM3U\n#EXTINF:-1,Eski kanal\nhttp://x/old.ts\n")
+        let count = LockedBox(0)
+        let provider = M3UContentProvider(
+            sourceURL: URL(string: "http://liste.example.com/p.m3u")!,
+            playlistID: "p1",
+            httpClient: StubHTTPClient { _ in
+                count.set(count.get() + 1)
+                return Data(body.get().utf8)
+            }
+        )
+        let service = makeService(provider)
+        try await service.sync(playlistID: "p1")
+        body.set("#EXTM3U\n#EXTINF:-1,Yeni kanal\nhttp://x/new.ts\n")
+
+        try await service.sync(playlistID: "p1")
+
+        let stored = try await channels.channels(playlistID: "p1", categoryID: nil)
+        XCTAssertEqual(stored.map(\.name), ["Yeni kanal"])
+        XCTAssertEqual(count.get(), 2, "Her sync içindeki aşamalar tek indirmeyi paylaşmalı")
+    }
 
     func test_removedChannelsDisappearAfterResync() async throws {
         // Sağlayıcıdan kaldırılan kanal cihazda kalırsa kullanıcı tıkladığında

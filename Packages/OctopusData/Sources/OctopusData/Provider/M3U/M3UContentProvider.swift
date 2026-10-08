@@ -21,6 +21,7 @@ public actor M3UContentProvider: ContentProvider {
     private var cachedResult: M3UParser.Result?
     /// Devam eden indirme — eşzamanlı çağrılar aynı işi beklesin.
     private var loadTask: Task<M3UParser.Result, Error>?
+    private var loadGeneration = 0
 
     public init(
         sourceURL: URL,
@@ -111,13 +112,20 @@ public actor M3UContentProvider: ContentProvider {
     // MARK: - İndirme ve çözümleme
 
     private func load() async throws -> M3UParser.Result {
+        try Task.checkCancellation()
         if let cachedResult { return cachedResult }
 
         // Eşzamanlı çağrılar aynı indirmeyi tekrarlamasın.
-        if let loadTask { return try await loadTask.value }
+        if let loadTask {
+            let result = try await loadTask.value
+            try Task.checkCancellation()
+            return result
+        }
 
+        let generation = loadGeneration
         let task = Task<M3UParser.Result, Error> { [sourceURL, playlistID, httpClient] in
             let data = try await httpClient.get(sourceURL, headers: [:])
+            try Task.checkCancellation()
 
             // IPTV listeleri her zaman UTF-8 değildir; Latin-1 yaygın ikinci seçenek.
             guard let text = String(data: data, encoding: .utf8)
@@ -132,19 +140,24 @@ public actor M3UContentProvider: ContentProvider {
 
         do {
             let result = try await task.value
+            guard generation == loadGeneration else { throw CancellationError() }
             cachedResult = result
             loadTask = nil
             Log.parser.info("M3U çözümlendi: \(result.channels.count) kanal")
+            try Task.checkCancellation()
             return result
         } catch {
             // Başarısız indirme önbelleğe alınmaz; sonraki deneme yeniden istesin.
-            loadTask = nil
+            if generation == loadGeneration { loadTask = nil }
             throw error
         }
     }
 
     /// Senkronizasyon yeniden çalıştığında taze liste istenir.
     public func invalidateCache() {
+        loadGeneration &+= 1
         cachedResult = nil
+        loadTask?.cancel()
+        loadTask = nil
     }
 }

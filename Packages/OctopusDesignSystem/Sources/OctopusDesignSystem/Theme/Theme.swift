@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Tasarım sabitleri. Ekranlarda **ham değer yazılmaz** — hepsi buradan gelir.
 ///
@@ -15,19 +16,19 @@ public enum Theme {
     // bkz. Docs/REFERANS-ANALIZI.md § 1.
 
     public enum Palette {
-        public static let background = Color(hex: 0x1C1B1F)
-        public static let surface = Color(hex: 0x2B2930)
-        public static let surfaceElevated = Color(hex: 0x36333D)
+        public static let background = Color(hex: 0x091525)
+        public static let surface = Color(hex: 0x11263B)
+        public static let surfaceElevated = Color(hex: 0x19374F)
 
-        /// Marka rengi. Faz 3'te kullanıcı seçimi ve bayi paneli bunu ezebilecek.
+        /// Ortak ürün mavisi. Panel verisi uygulamanın görsel kimliğini değiştirmez.
         public static let accent = Color(hex: 0x00B0FF)
         public static let accentMuted = Color(hex: 0x00B0FF).opacity(0.16)
 
-        public static let textPrimary = Color(hex: 0xE6E1E5)
-        public static let textSecondary = Color(hex: 0x938F99)
-        public static let textTertiary = Color(hex: 0x6B6672)
+        public static let textPrimary = Color(hex: 0xFFFFFF)
+        public static let textSecondary = Color(hex: 0x9CB3CB)
+        public static let textTertiary = Color(hex: 0x9CB3CB)
 
-        public static let separator = Color(hex: 0x3A3740)
+        public static let separator = Color(hex: 0x294660)
 
         public static let live = Color(hex: 0xFF4D4F)
         public static let success = Color(hex: 0x00E676)
@@ -37,22 +38,44 @@ public enum Theme {
 
     /// Kullanıcının Ayarlar'dan seçebileceği marka renkleri.
     ///
-    /// Faz 3'te `ThemeController` bunları uygulayacak; şu an yalnızca
-    /// tasarım kararı olarak sabitlendi.
+    /// Eski kayıt anahtarları korunur; renkler mavi ailesine taşınmıştır.
     public enum BrandColor: String, CaseIterable, Sendable {
         case `default`
         case purple
         case green
         case orange
 
+        public var title: String {
+            switch self {
+            case .default: return "Mavi"
+            case .purple: return "Okyanus"
+            case .green: return "Turkuaz"
+            case .orange: return "Gök mavisi"
+            }
+        }
+
         public var color: Color {
             switch self {
             case .default: return Palette.accent
-            case .purple: return Color(hex: 0xE040FB)
-            case .green: return Color(hex: 0x00E676)
-            case .orange: return Color(hex: 0xFF9100)
+            case .purple: return Color(hex: 0x4596FF)
+            case .green: return Color(hex: 0x22D3EE)
+            case .orange: return Color(hex: 0x38BDF8)
             }
         }
+    }
+
+    /// Black or white text chosen by actual sRGB contrast, for the selected accent.
+    public static func contentColor(on color: Color) -> Color {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        guard UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
+            return Palette.textPrimary
+        }
+        func linear(_ value: CGFloat) -> Double {
+            let channel = Double(value)
+            return channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+        }
+        let luminance = 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+        return luminance > 0.179 ? .black : .white
     }
 
     // MARK: - Aralık (4pt ızgara)

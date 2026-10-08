@@ -42,15 +42,18 @@ extension AVPlayerEngine {
             // bir ses akışıdır. İkisi de boşsa asset hiçbir şey söylemiyor
             // demektir — o durumda karar gözcüye bırakılır.
             let videoTracks = try? await asset.loadTracks(withMediaType: .video)
+            guard isCurrentAsset(asset) else { return }
             let audioTracks = try? await asset.loadTracks(withMediaType: .audio)
+            guard isCurrentAsset(asset) else { return }
             if videoTracks?.isEmpty == true, audioTracks?.isEmpty == false {
                 markAudioOnlyPlayback()
             }
 
             let audioGroup = try await asset.loadMediaSelectionGroup(for: .audible)
+            guard isCurrentAsset(asset) else { return }
             let subtitleGroup = try await asset.loadMediaSelectionGroup(for: .legible)
 
-            guard !Task.isCancelled else { return }
+            guard isCurrentAsset(asset) else { return }
 
             var options: [String: AVMediaSelectionOption] = [:]
 
@@ -67,10 +70,15 @@ extension AVPlayerEngine {
             publish(audio: audio, subtitle: subtitle)
             syncSelectedTracks()
         } catch {
+            guard isCurrentAsset(asset) else { return }
             // İz okunamaması oynatmayı engellemez — çoğu canlı yayında
             // tek ses izi vardır ve seçim menüsü zaten gereksizdir.
             Log.playback.notice("İzler okunamadı: \(error.localizedDescription)")
         }
+    }
+
+    private func isCurrentAsset(_ asset: AVAsset) -> Bool {
+        !Task.isCancelled && player.currentItem?.asset === asset
     }
 
     /// Bir seçim grubunu `MediaTrack` listesine çevirir.

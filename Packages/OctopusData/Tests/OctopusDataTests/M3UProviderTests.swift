@@ -132,6 +132,30 @@ final class M3UProviderTests: XCTestCase {
         XCTAssertEqual(counter.get(), 2, "Senkronizasyon taze liste isteyebilmeli")
     }
 
+    func test_invalidationDuringDownload_doesNotRestoreStaleCache() async throws {
+        let started = expectation(description: "Eski liste indiriliyor")
+        let client = SuspendedM3UClient(started: started)
+        let provider = M3UContentProvider(sourceURL: sourceURL, playlistID: "p1", httpClient: client)
+        let oldDownload = Task { try await provider.fetchChannels(categoryID: nil) }
+        await fulfillment(of: [started], timeout: 2)
+
+        // Protokol üzerinden de somut sağlayıcının önbelleği temizlenmeli.
+        let contentProvider: ContentProvider = provider
+        await contentProvider.invalidateCache()
+        let fresh = try await provider.fetchChannels(categoryID: nil)
+        await client.releaseOldDownload()
+        do {
+            _ = try await oldDownload.value
+            XCTFail("Geçersiz kılınan indirme sonuç döndürmemeli")
+        } catch { XCTAssertTrue(error is CancellationError) }
+        let cached = try await provider.fetchChannels(categoryID: nil)
+        let count = await client.requestCount
+
+        XCTAssertEqual(fresh.map(\.name), ["Yeni"])
+        XCTAssertEqual(cached.map(\.name), ["Yeni"])
+        XCTAssertEqual(count, 2)
+    }
+
     // MARK: - Kodlama
 
     func test_latin1PlaylistIsDecoded() async throws {
@@ -158,5 +182,31 @@ final class M3UProviderTests: XCTestCase {
             provider.streamURL(for: channels[0])?.absoluteString,
             "http://sunucu.example.com/1.ts"
         )
+    }
+}
+
+private actor SuspendedM3UClient: HTTPClient {
+    private let started: XCTestExpectation
+    private var oldDownload: CheckedContinuation<Void, Never>?
+    private var isReleased = false
+    private(set) var requestCount = 0
+
+    init(started: XCTestExpectation) { self.started = started }
+
+    func get(_ url: URL, headers: [String: String]) async throws -> Data {
+        requestCount += 1
+        if requestCount == 1 {
+            started.fulfill()
+            if !isReleased { await withCheckedContinuation { oldDownload = $0 } }
+            // İptali yok sayan bir istemcide bile sağlayıcı eski sonucu atmalı.
+            return Data("#EXTM3U\n#EXTINF:-1,Eski\nhttp://x/old.ts\n".utf8)
+        }
+        return Data("#EXTM3U\n#EXTINF:-1,Yeni\nhttp://x/new.ts\n".utf8)
+    }
+
+    func releaseOldDownload() {
+        isReleased = true
+        oldDownload?.resume()
+        oldDownload = nil
     }
 }

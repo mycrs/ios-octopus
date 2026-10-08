@@ -25,7 +25,10 @@ public enum VLCEngineFactory {
     }
 
     @MainActor
-    public static func makeEngine(preferences: PlaybackPreferences? = nil) -> PlaybackEngine {
-        VLCPlaybackEngine(preferences: preferences)
+    public static func makeEngine(
+        preferences: PlaybackPreferences? = nil,
+        audioSession: AudioSessionController? = nil
+    ) -> PlaybackEngine {
+        VLCPlaybackEngine(audioSession: audioSession, preferences: preferences)
     }
 }

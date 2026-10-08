@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:   # Actions sekmesinden elle de tetiklenebilir
+  workflow_call:       # İmzalı yayından önce aynı derleme/test kapısı
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,6 +20,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Demir kuralları denetle
         run: bash Scripts/check-architecture.sh
+      - name: Cihaz log aracı gizlilik testleri
+        run: python3 -m unittest discover -s Scripts -p test_capture_ios_logs.py
 
   # ── 2) Mantık testleri — Linux'ta, simülatörsüz, hızlı ─────────────
   #

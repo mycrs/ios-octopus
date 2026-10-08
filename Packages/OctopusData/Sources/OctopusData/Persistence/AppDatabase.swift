@@ -73,13 +73,8 @@ public final class AppDatabase: Sendable {
         // Yabancı anahtarlar açık: kaynak silinince tüm içeriği cascade ile gider.
         config.foreignKeysEnabled = true
 
-        #if DEBUG
-        config.prepareDatabase { db in
-            db.trace { event in
-                Log.database.debug("SQL: \(event.description, privacy: .public)")
-            }
-        }
-        #endif
+        // SQL trace bağlama değerlerini (hesap/akış URL'si dahil) açığa
+        // çıkarabilir. Teşhis kayıtları sorgu parametrelerini içermez.
 
         return config
     }

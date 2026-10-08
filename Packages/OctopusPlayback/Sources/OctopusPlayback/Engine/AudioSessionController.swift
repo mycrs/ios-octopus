@@ -26,24 +26,20 @@ public final class AudioSessionController {
     }
 
     private let session: AVAudioSession
+    private let worker: AudioSessionWorker
     private var interruptionObserver: NSObjectProtocol?
 
-    public init(session: AVAudioSession = .sharedInstance()) {
+    public init(session: AVAudioSession = .sharedInstance(), worker: AudioSessionWorker? = nil) {
         self.session = session
+        self.worker = worker ?? AudioSessionWorker(session: session)
     }
 
     /// Oynatma başlamadan **önce** çağrılır.
     ///
     /// Hata yutulmaz ama fırlatılmaz da: ses oturumu kurulamasa bile video
     /// sessiz oynayabilir; kullanıcıya "oynatılamıyor" demek abartı olur.
-    public func activate() {
-        do {
-            // `.moviePlayback` modu AVPlayer'a doğru tamponlama profilini verir.
-            try session.setCategory(.playback, mode: .moviePlayback, options: [])
-            try session.setActive(true, options: [])
-        } catch {
-            Log.playback.error("Ses oturumu açılamadı: \(error.localizedDescription)")
-        }
+    public func activate() async {
+        await worker.activate()
     }
 
     /// Oynatıcı kapanırken çağrılır — sesi başka uygulamalara geri bırakır.
@@ -51,11 +47,7 @@ public final class AudioSessionController {
     /// ⚠️ `notifyOthersOnDeactivation` olmadan, arka planda çalan müzik
     /// uygulaması oynatıcı kapandıktan sonra kendiliğinden devam etmez.
     public func deactivate() {
-        do {
-            try session.setActive(false, options: [.notifyOthersOnDeactivation])
-        } catch {
-            Log.playback.error("Ses oturumu kapatılamadı: \(error.localizedDescription)")
-        }
+        worker.deactivate()
     }
 
     /// Kesintileri dinlemeye başlar.
@@ -115,7 +107,7 @@ public final class AudioSessionController {
         case .began:
             return .began
         case .ended:
-            let rawOptions = userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let rawOptions = (userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt) ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
             return options.contains(.shouldResume) ? .endedShouldResume : .endedShouldStay
         @unknown default:

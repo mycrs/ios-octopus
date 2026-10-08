@@ -9,3 +9,50 @@
 "Ses izi" = "Ses izi";
 "Kilit" = "Kilit";
 "Oynatma hızı" = "Oynatma hızı";
+
+"Oynatıcı ayarları" = "Oynatıcı ayarları";
+
+"Ses, altyazı ve ekran seçenekleri" = "Ses, altyazı ve ekran seçenekleri";
+
+"Mavi" = "Mavi";
+
+"Okyanus" = "Okyanus";
+
+"Turkuaz" = "Turkuaz";
+
+"Gök mavisi" = "Gök mavisi";
+
+// Source check and support report
+"Kaynak kontrolü ve destek raporu" = "Kaynak kontrolü ve destek raporu";
+"Kategoriler" = "Kategoriler";
+"Katalog bütünlüğünü ve oynatıcı durumunu incele" = "Katalog bütünlüğünü ve oynatıcı durumunu incele";
+"Kaynak kontrolü" = "Kaynak kontrolü";
+"Bu kontrol cihazdaki katalog bilgilerini inceler. Yayın erişimini veya codec uyumluluğunu ölçmez." = "Bu kontrol cihazdaki katalog bilgilerini inceler. Yayın erişimini veya codec uyumluluğunu ölçmez.";
+"Destek raporunu paylaş" = "Destek raporunu paylaş";
+"Rapor içerik adlarını, kaynak adresini, kullanıcı adını, parolayı veya PIN'i içermez." = "Rapor içerik adlarını, kaynak adresini, kullanıcı adını, parolayı veya PIN'i içermez.";
+"Kontrol için önce bir kaynak ekle ve etkinleştir." = "Kontrol için önce bir kaynak ekle ve etkinleştir.";
+"Yerel katalog" = "Yerel katalog";
+"Kaynak türü" = "Kaynak türü";
+"Son güncelleme" = "Son güncelleme";
+"Kaynak aboneliğinin süresi dolmuş görünüyor." = "Kaynak aboneliğinin süresi dolmuş görünüyor.";
+"Tekrarlanan yayın kaydı" = "Tekrarlanan yayın kaydı";
+"Rehber kimliği eksik" = "Rehber kimliği eksik";
+"Logosu eksik" = "Logosu eksik";
+"Tekrarlar kaynakta bilinçli tanımlanmış olabilir. Eksik rehber veya logo bilgisi yayının çalışmadığı anlamına gelmez." = "Tekrarlar kaynakta bilinçli tanımlanmış olabilir. Eksik rehber veya logo bilgisi yayının çalışmadığı anlamına gelmez.";
+"Oynatıcı anlık durumu" = "Oynatıcı anlık durumu";
+"Durum" = "Durum";
+"Yayın biçimi" = "Yayın biçimi";
+"Altyazı izi" = "Altyazı izi";
+"İlk görüntü karesi" = "İlk görüntü karesi";
+"Hazır" = "Hazır";
+"Henüz hazır değil" = "Henüz hazır değil";
+"Xtream hesabı" = "Xtream hesabı";
+"M3U listesi" = "M3U listesi";
+"Yerel M3U dosyası" = "Yerel M3U dosyası";
+"Aktivasyon kaynağı" = "Aktivasyon kaynağı";
+"Oynatma yok" = "Oynatma yok";
+"Tamponlanıyor" = "Tamponlanıyor";
+"Oynatılıyor" = "Oynatılıyor";
+"Duraklatıldı" = "Duraklatıldı";
+"Oynatma başarısız" = "Oynatma başarısız";
+"Kaynak kontrolü tamamlanamadı. Yeniden dene." = "Kaynak kontrolü tamamlanamadı. Yeniden dene.";

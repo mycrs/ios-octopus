@@ -7,44 +7,50 @@ struct SettingsRow: View {
     let icon: String
     let title: String
     var detail: String?
-    let action: () -> Void
+    var action: (() -> Void)? = nil
     @Environment(\.locale) private var locale
     @Environment(\.brandColor) private var brandColor
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: Theme.Spacing.md) {
-                Image(systemName: icon)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(brandColor)
-                    .frame(width: 34, height: 34)
-                    .background(
-                        brandColor.opacity(0.13),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    )
-
-                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    Text(AppLocalization.localized(title, locale: locale))
-                        .font(Theme.Typography.rowTitle)
-                        .foregroundColor(Theme.Palette.textPrimary)
-                        .multilineTextAlignment(.leading)
-
-                    if let detail {
-                        Text(AppLocalization.localized(detail, locale: locale))
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Palette.textTertiary)
-                    }
-                }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
-            .settingsSurface()
+        if let action {
+            Button(action: action) { label }
+                .buttonStyle(.plain)
+        } else {
+            label
         }
-        .buttonStyle(.plain)
+    }
+
+    private var label: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(brandColor)
+                .frame(width: 34, height: 34)
+                .background(
+                    brandColor.opacity(0.13),
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                Text(AppLocalization.localized(title, locale: locale))
+                    .font(Theme.Typography.rowTitle)
+                    .foregroundColor(Theme.Palette.textPrimary)
+                    .multilineTextAlignment(.leading)
+
+                if let detail {
+                    Text(AppLocalization.localized(detail, locale: locale))
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Palette.textTertiary)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(Theme.Palette.textTertiary)
+        }
+        .settingsSurface()
     }
 }
 

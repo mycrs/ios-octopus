@@ -63,6 +63,66 @@ final class PlayerControllerTests: XCTestCase {
 
     // MARK: - Yedek motora düşme
 
+    func test_rememberedFallback_opensHLSDirectlyOnFallback() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let preferences = makePreferences()
+        let item = makeItem(url: URL(string: "http://x/live.m3u8"))
+        preferences.rememberFallbackEngine(for: item.source.storageKey)
+        let controller = makeController(
+            native: native, fallback: fallback, preferences: preferences
+        )
+
+        await controller.start(item)
+
+        XCTAssertEqual(controller.engineIdentifier, "fallback")
+        XCTAssertTrue(native.loadedItems.isEmpty)
+        XCTAssertEqual(fallback.loadedItems.count, 1)
+        await controller.finish()
+    }
+
+    func test_UHDHint_opensHLSDirectlyOnFallback() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(native: native, fallback: fallback)
+        let item = PlaybackItem(
+            source: .liveChannel("uhd"),
+            url: URL(string: "http://x/live.m3u8")!,
+            title: "Sport UHD",
+            isLive: true
+        )
+
+        await controller.start(item)
+
+        XCTAssertEqual(controller.engineIdentifier, "fallback")
+        XCTAssertTrue(native.loadedItems.isEmpty)
+        XCTAssertEqual(fallback.loadedItems.count, 1)
+        await controller.finish()
+    }
+
+    func test_disabledFallback_ignoresRememberedSourceAndUHDHint() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let preferences = makePreferences()
+        preferences.useFallbackEngine = false
+        let item = PlaybackItem(
+            source: .liveChannel("uhd"),
+            url: URL(string: "http://x/live.m3u8")!,
+            title: "Sport UHD",
+            isLive: true
+        )
+        preferences.rememberFallbackEngine(for: item.source.storageKey)
+        let controller = makeController(
+            native: native, fallback: fallback, preferences: preferences
+        )
+
+        await controller.start(item)
+
+        XCTAssertEqual(controller.engineIdentifier, "native")
+        XCTAssertTrue(fallback.loadedItems.isEmpty)
+        await controller.finish()
+    }
+
     func test_unrecoverableFailure_switchesToFallback() async {
         let native = TestEngine(identifier: "native")
         let fallback = TestEngine(identifier: "fallback")
@@ -275,6 +335,44 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .idle)
     }
 
+    func test_finish_duringProgressSave_doesNotReleaseNewSession() async {
+        let oldEngine = TestEngine(identifier: "old")
+        let newEngine = TestEngine(identifier: "new")
+        let progress = TestProgressRepository()
+        var creates = 0
+        let controller = PlayerController(
+            resolver: PlaybackEngineResolver(native: {
+                creates += 1
+                return creates == 1 ? oldEngine : newEngine
+            }),
+            progress: progress,
+            history: TestHistoryRepository(),
+            setScreenAwake: { _ in }
+        )
+        await controller.start(makeItem())
+        oldEngine.emit(.timeChanged(PlaybackTime(current: 55, duration: 100, bufferedUpTo: 60)))
+        _ = await waitUntil { progress.saveCount == 1 }
+
+        let gate = ProgressSaveGate()
+        progress.beforeSave = { await gate.wait() }
+        let finishing = Task { await controller.finish() }
+        _ = await waitUntil { progress.saveCount == 2 }
+
+        await controller.start(makeItem(url: URL(string: "http://x/new.m3u8"), isLive: true))
+        newEngine.emit(.stateChanged(.playing))
+        _ = await waitUntil { controller.state == .playing }
+        await gate.open()
+        await finishing.value
+
+        XCTAssertTrue(oldEngine.didTeardown)
+        XCTAssertFalse(newEngine.didTeardown, "Eski kapanış yeni motoru bırakamaz")
+        XCTAssertEqual(controller.engineIdentifier, "new")
+        XCTAssertEqual(controller.state, .playing)
+        XCTAssertEqual(progress.stored[makeItem().source.storageKey]?.positionSeconds, 55)
+        progress.beforeSave = nil
+        await controller.finish()
+    }
+
     // MARK: - Ekranın kararması
 
     /// ⚠️ Bayrak süreç genelinde: oynatıcı kapandıktan sonra bırakılmazsa
@@ -447,5 +545,21 @@ final class PlayerControllerTests: XCTestCase {
             title: "Test filmi",
             isLive: isLive
         )
+    }
+}
+
+private actor ProgressSaveGate {
+    private var isOpen = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func wait() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func open() {
+        isOpen = true
+        continuation?.resume()
+        continuation = nil
     }
 }

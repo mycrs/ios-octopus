@@ -8,6 +8,7 @@ import OctopusDesignSystem
 /// çıkabiliyor; dokunma çalışsa da denetimler görünmüyordu. Denetim katmanı
 /// burada `UIHostingController` ile video yüzeyinden sonra eklenir ve her
 /// güncellemede öne alınır. AVPlayer ve VLC aynı kabı kullanır.
+@MainActor
 struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
 
     private let makeSurface: () -> UIView?
@@ -15,6 +16,7 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
     private let overlay: Overlay
     @Environment(\.brandColor) private var brandColor
 
+    @MainActor
     final class Coordinator {
         let store: PlayerHostedOverlayStore<Overlay>
 
@@ -78,6 +80,7 @@ struct PlayerSurfaceContainer<Overlay: View>: UIViewControllerRepresentable {
         _ controller: PlayerSurfaceViewController<PlayerHostedOverlay<Overlay>>,
         coordinator: Coordinator
     ) {
+        coordinator.store.cancelPendingUpdate()
         controller.releaseSurface()
     }
 }

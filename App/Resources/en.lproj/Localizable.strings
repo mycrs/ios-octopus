@@ -416,3 +416,48 @@
 "Program" = "Guide";
 "Şimdi" = "Now";
 "Sırada" = "Up next";
+
+"Oynatıcı ayarları" = "Player settings";
+
+"Ses, altyazı ve ekran seçenekleri" = "Audio, subtitles and display options";
+
+"Mavi" = "Blue";
+
+"Okyanus" = "Ocean";
+
+"Turkuaz" = "Turquoise";
+
+"Gök mavisi" = "Sky blue";
+
+// Source check and support report
+"Kaynak kontrolü ve destek raporu" = "Source check and support report";
+"Kategoriler" = "Categories";
+"Katalog bütünlüğünü ve oynatıcı durumunu incele" = "Inspect your catalog and player status";
+"Kaynak kontrolü" = "Source check";
+"Bu kontrol cihazdaki katalog bilgilerini inceler. Yayın erişimini veya codec uyumluluğunu ölçmez." = "This check inspects the catalog stored on your device. It does not test stream availability or codec compatibility.";
+"Destek raporunu paylaş" = "Share support report";
+"Rapor içerik adlarını, kaynak adresini, kullanıcı adını, parolayı veya PIN'i içermez." = "The report does not include content names, source addresses, usernames, passwords or your PIN.";
+"Kontrol için önce bir kaynak ekle ve etkinleştir." = "Add and activate a source before running this check.";
+"Yerel katalog" = "Local catalog";
+"Kaynak türü" = "Source type";
+"Son güncelleme" = "Last refresh";
+"Kaynak aboneliğinin süresi dolmuş görünüyor." = "The source subscription appears to have expired.";
+"Tekrarlanan yayın kaydı" = "Duplicate stream entries";
+"Rehber kimliği eksik" = "Missing guide ID";
+"Logosu eksik" = "Missing logo";
+"Tekrarlar kaynakta bilinçli tanımlanmış olabilir. Eksik rehber veya logo bilgisi yayının çalışmadığı anlamına gelmez." = "Duplicates may be intentional in your source. Missing guide or logo information does not mean a stream is unavailable.";
+"Oynatıcı anlık durumu" = "Player snapshot";
+"Durum" = "Status";
+"Yayın biçimi" = "Stream format";
+"Altyazı izi" = "Subtitle tracks";
+"İlk görüntü karesi" = "First video frame";
+"Hazır" = "Ready";
+"Henüz hazır değil" = "Not ready yet";
+"Xtream hesabı" = "Xtream account";
+"Yerel M3U dosyası" = "Local M3U file";
+"Aktivasyon kaynağı" = "Activation source";
+"Oynatma yok" = "No playback";
+"Tamponlanıyor" = "Buffering";
+"Duraklatıldı" = "Paused";
+"Oynatma başarısız" = "Playback failed";
+"Kaynak kontrolü tamamlanamadı. Yeniden dene." = "The source check could not be completed. Try again.";
