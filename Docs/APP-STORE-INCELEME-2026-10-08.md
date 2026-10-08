@@ -56,7 +56,25 @@ Bu turda XCTest sonrası seçili simülatör kapalıydı; `simctl spawn` log
 alamadı. Sayısal UIKit kayıtları bu yüzden runtime kanıtı sayılmaz.
 Collector completed xcresult diagnostics arşivinden yalnız aynı güvenli
 prefixleri çıkaracak şekilde düzeltilir; ham diagnostics yayımlanmaz.
-Yeni tam tur ve fiziksel cihaz kanıtı bekleniyor.
+Yedinci tur `a621e2e9846f94d970ac51afe0c29b1a20650507` /
+[37838710378](https://github.com/mycrs/ios-octopus/actions/runs/37838710378)
+**721 Swift testi ve mimari kapısından geçti**. iPhone gerçek filmde
+yatay kilidi, tam video alanını ve aynı detay sayfasına dönüşü; Canlı TV'de
+mini/tam ekran kareyi, soldaki seçili kanal panelini, mevcut kanala
+dokununca panelin kapanmasını, aramayla Sintel'e geçişi ve doğru dikey
+mini oynatıcıya dönüşü doğruladı. İkinci mini/tam ekran geçişi de yatay
+ve native kareyle geçti. Son kapatma öncesinde test görünür düğmeyi
+zorunlu gizleme varsayımında durdu; üç video dokunuşu yaptı, kapatma
+düğmesine hiç basmadı. Bu başarısızlık kapatma düğmesinin bozuk olduğunu
+kanıtlamaz. Görünür düğmeye doğrudan normal dokunma ve gerçek işlem
+sonucunu sınırlı yeniden deneme içinde doğrulama uygulanır; ürünün
+gizlenme süresi ve sonraki kontrol adımları değiştirilmez.
+Bu turda collector'ın iPhone kaydı gerçekten üretildi: CRC/SHA doğrulanmış
+`iphone-player-ui.log` altı güvenli olay içerir. Film ve ilk canlı kapanışı
+sonrasında yön 1, pencere 402×874, public lock 0, root etkileşimi açık,
+global event engeli/transition/modal kapalıdır; sekme seçimi 2→1 kaydedildi.
+İkinci collector'ın «unavailable» satırı başlamamış iPad akışına aittir.
+iPad ve imzalı iş çalışmadı. Yeni tam tur ve fiziksel cihaz kanıtı bekleniyor.
 Başarısız çalışmalardan binary/görsel gönderilmez. App Store'daki kayıtlı build 9
 ilişkisi ve mağaza alanları korunur; son başvuru yeni doğrulanmış paketi bekler.
 

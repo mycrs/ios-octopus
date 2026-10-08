@@ -262,6 +262,18 @@ Bilinen dört PHP dosyası için salt okunur canlı hash karşılaştırması
 güvenilir FTP/SSH erişimi ve doğrulanmış uzak document root eşlemesi
 bulunamadığından yapılamadı; uzaktan bağlantı veya DB/log okuması denenmedi.
 
+8 Ekim'de tarayıcıda yeniden okunan canlı gizlilik sayfası 16 Haziran
+2026 tarihli: reklam/analytics/tracking olmadığını, manuel kaynağın
+cihazda tutulduğunu ve Quick Setup bilgisinin kullanımdan veya süre
+sonundan sonra en geç 10 dakikada silindiğini söylüyor. IP/rate-limit
+ve yavaş istek logları ile bunların saklama süresini açıklamıyor.
+10 Temmuz tarihli kullanım koşulları aynı 10 dakika ifadesini içeriyor;
+platform listesinde iOS bulunmuyor. Bu metinler canlı backend'in
+gerçek silme/saklama davranışını kanıtlamaz. Yerel backend eşitliği
+doğrulanınca gerçek davranış, politika ve Apple beyanları birlikte
+eşleştirilmelidir. [Canlı gizlilik politikası](https://octopusplayer.com/privacy-policy/),
+[kullanım koşulları](https://octopusplayer.com/terms-of-service/).
+
 Kodun gösterdiği amaçlara ilişkin sınıflandırma yorumu: rate-limit IP'si
 güvenlik/App Functionality için `Other Data Types`; istek süresi Performance
 Data, IP/endpoint/durum teşhis bağlamı Other Diagnostic Data olabilir.

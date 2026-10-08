@@ -1023,3 +1023,15 @@ yanıtı gönderildi; ana ajan 8 mesajlı konuşmayı doğruladı. Yerel kanıt
 `.artifacts/apple-review-reply-sent.jpg`. Bu mesaj, 3.492 karakterlik
 Review Notes alanı ve gerçek Submit for Review ayrı adımlardır; yanıtın
 gönderilmesi Waiting for Review veya Apple onayı anlamına gelmez.
+
+Build 10 yedinci aday `a621e2e9846f94d970ac51afe0c29b1a20650507` /
+37838710378: **721 Swift testi ve mimari geçti**. iPhone film/Canlı TV
+yatay kilidi, sol kanal paneli ve aramayla kanal değişimi, aynı film
+detayına veya seçilen kanalın mini oynatıcısına dönüşü doğruladı.
+Gerçek iPhone UIKit logunda altı güvenli olay ve iki etkileşime açık
+dikey dönüş var. Son tekrar kapanışında test görünür close'u zorunlu
+gizleme varsayımında durdu; close'a hiç basmadı. Denetim zaten
+görünürse normal merkez dokunuşu ve işlem sonucunu sınırlı yeniden
+denemede kontrol et; görünürlük için zorunlu gizle/aç precondition'ı
+kullanma. Ürün süresi veya sonraki akış doğrulamaları değiştirilmez.
+Bu aday iPad'e veya imzalı yüke geçmedi; build 10 henüz telefonda değil.

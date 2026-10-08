@@ -218,18 +218,39 @@ final class ReviewJourneyTests: XCTestCase {
         let button = app.buttons[identifier]
         let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
         for _ in 0..<3 {
-            let window = app.windows.firstMatch
-            let windowFrame = window.frame
-            guard refreshPlayerControls(button, surface: surface) else { continue }
+            if playerActionCompleted(identifier) { return }
+            refreshPlayerControls(button, surface: surface)
             let visible = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button
             )
+            let window = app.windows.firstMatch
             if XCTWaiter.wait(for: [visible], timeout: 2) == .completed,
-               tapObservedPlayerButton(button, window: window, windowFrame: windowFrame) {
-                return
+               tapObservedPlayerButton(button, window: window, windowFrame: window.frame) {
+                let completed = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
+                    self.playerActionCompleted(identifier)
+                }, object: app)
+                if XCTWaiter.wait(for: [completed], timeout: 2) == .completed { return }
             }
         }
-        XCTFail("Oynatıcı denetimi görünür olmalı: \(identifier)")
+        XCTFail("Oynatıcı denetiminin işlemi tamamlanmalı: \(identifier)")
+    }
+
+    private func playerActionCompleted(_ identifier: String) -> Bool {
+        switch identifier {
+        case "player.playPause":
+            let button = app.buttons[identifier]
+            return button.exists && button.isEnabled && button.label == "Play"
+        case "player.channels.open":
+            return app.buttons["player.channels.close"].exists
+        case "player.close":
+            let frame = app.windows.firstMatch.frame
+            let mini = app.descendants(matching: .any)
+                .matching(identifier: "live.miniPlayer").firstMatch
+            return frame.width > 0 && frame.height > frame.width
+                && mini.exists && mini.isHittable
+        default:
+            return false
+        }
     }
 
     private func closePlayer(nativeVideo: XCUIElement) {
@@ -238,14 +259,13 @@ final class ReviewJourneyTests: XCTestCase {
         for _ in 0..<3 {
             if !nativeVideo.exists { return }
             let close = app.buttons["player.close"]
-            let window = app.windows.firstMatch
-            let windowFrame = window.frame
-            guard refreshPlayerControls(close, surface: nativeVideo) else { continue }
+            refreshPlayerControls(close, surface: nativeVideo)
             let visible = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: close
             )
             if XCTWaiter.wait(for: [visible], timeout: 2) == .completed {
-                _ = tapObservedPlayerButton(close, window: window, windowFrame: windowFrame)
+                let window = app.windows.firstMatch
+                _ = tapObservedPlayerButton(close, window: window, windowFrame: window.frame)
             }
             let dismissed = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == false"), object: nativeVideo
@@ -256,18 +276,12 @@ final class ReviewJourneyTests: XCTestCase {
         XCTFail("Sekme değiştirilmeden önce tam ekran oynatıcı kapanmalı")
     }
 
-    /// Refresh with real single taps in clear video regions before checking a
-    /// transient button. Opposite tap zones and an absence check avoid seeking.
-    private func refreshPlayerControls(_ button: XCUIElement, surface: XCUIElement) -> Bool {
-        if button.exists && button.isHittable {
-            surface.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.24)).tap()
-            let hidden = XCTNSPredicateExpectation(
-                predicate: NSPredicate(format: "exists == false"), object: button
-            )
-            guard XCTWaiter.wait(for: [hidden], timeout: 2) == .completed else { return false }
+    /// A visible control can be tapped immediately. Only reveal missing controls;
+    /// a forced hide can race auto-hide and turn into another reveal.
+    private func refreshPlayerControls(_ button: XCUIElement, surface: XCUIElement) {
+        if !button.exists || !button.isHittable {
+            surface.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
         }
-        surface.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
-        return true
     }
 
     /// Element.tap re-resolves and scrolls the transient control after its
