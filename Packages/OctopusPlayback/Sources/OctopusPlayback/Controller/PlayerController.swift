@@ -258,7 +258,7 @@ public final class PlayerController: ObservableObject {
         }
 
         decision = wanted
-        Log.playback.info("Motor seçimi: \(wanted.rawValue, privacy: .public) · yedek mevcut: \(resolver.hasFallback, privacy: .public) · fallback izinli: \(allowsFallback, privacy: .public)")
+        Log.playback.info("Motor seçimi: \(wanted.rawValue, privacy: .public) · yedek mevcut: \(self.resolver.hasFallback, privacy: .public) · fallback izinli: \(allowsFallback, privacy: .public)")
         let selectedEngine = resolver.makeEngine(for: wanted)
         await attach(
             selectedEngine,

@@ -21,7 +21,7 @@ public actor PanelRemoteConfigService: RemoteConfigProviding {
         endpoint: PanelEndpoint = PanelEndpoint(),
         httpClient: HTTPClient? = nil,
         store: UserDefaults = .standard,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.endpoint = endpoint
         // Panel isteği kullanıcı beklerken yapılır; uzun yeniden denemeler

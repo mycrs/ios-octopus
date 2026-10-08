@@ -33,7 +33,7 @@ public actor ContentSyncService: ContentSyncing {
         database: AppDatabase,
         httpClient: HTTPClient? = nil,
         store: UserDefaults = .standard,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.playlists = playlists
         self.providerFactory = providerFactory

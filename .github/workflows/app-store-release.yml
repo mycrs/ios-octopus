@@ -2,6 +2,12 @@ name: App Store Release
 
 on:
   workflow_dispatch:
+    inputs:
+      distribution:
+        description: Paket hedefi
+        type: choice
+        options: [testflight, device]
+        default: testflight
 
 permissions:
   contents: read
@@ -12,7 +18,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   upload:
-    name: İmzala ve TestFlight'a yükle
+    name: İmzalı test paketi
     runs-on: macos-latest
     environment: app-store
     needs: [verify]
@@ -33,6 +39,20 @@ jobs:
           printf '%s' "$API_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
           chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
 
+      - name: USB cihazı için imzalamayı hazırla
+        if: inputs.distribution == 'device'
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          OCTOPUS_TEST_DEVICE_UDID: ${{ secrets.OCTOPUS_TEST_DEVICE_UDID }}
+        run: |
+          python3 -m venv "$RUNNER_TEMP/device-build-tools"
+          "$RUNNER_TEMP/device-build-tools/bin/python" -m pip install -r Scripts/device-build-requirements.txt
+          "$RUNNER_TEMP/device-build-tools/bin/python" -m unittest discover -s Scripts -p test_device_build.py
+          "$RUNNER_TEMP/device-build-tools/bin/python" Scripts/prepare-device-build.py \
+            "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8" \
+            "$RUNNER_TEMP/DeviceExportOptions.plist"
+
       - name: Projeyi üret ve arşivle
         env:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -45,6 +65,7 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Octopus.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8" \
             -authenticationKeyID "$API_KEY_ID" \
@@ -54,17 +75,23 @@ jobs:
         env:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DISTRIBUTION: ${{ inputs.distribution }}
         run: |
+          task_export_options=ExportOptions.plist
+          if [ "$DISTRIBUTION" = device ]; then
+            task_export_options="$RUNNER_TEMP/DeviceExportOptions.plist"
+          fi
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Octopus.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
-            -exportOptionsPlist ExportOptions.plist \
+            -exportOptionsPlist "$task_export_options" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8" \
             -authenticationKeyID "$API_KEY_ID" \
             -authenticationKeyIssuerID "$API_ISSUER_ID"
 
       - name: IPA'yı TestFlight'a yükle
+        if: inputs.distribution != 'device'
         env:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -76,10 +103,31 @@ jobs:
             --apiIssuer "$API_ISSUER_ID"
 
       - name: IPA'yı sakla
-        if: always()
+        if: always() && inputs.distribution != 'device'
         uses: actions/upload-artifact@v5
         with:
           name: Octopus-ipa
           path: ${{ runner.temp }}/export/Octopus.ipa
           retention-days: 14
           if-no-files-found: warn
+
+      - name: Cihaz paketini doğrula ve şifrele
+        if: inputs.distribution == 'device'
+        env:
+          OCTOPUS_TEST_DEVICE_UDID: ${{ secrets.OCTOPUS_TEST_DEVICE_UDID }}
+          OCTOPUS_TEST_PACKAGE_PUBLIC_KEY: ${{ secrets.OCTOPUS_TEST_PACKAGE_PUBLIC_KEY }}
+        run: |
+          export EXPECTED_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$RUNNER_TEMP/Octopus.xcarchive/Products/Applications/Octopus.app/Info.plist")
+          "$RUNNER_TEMP/device-build-tools/bin/python" Scripts/seal-device-build.py \
+            "$RUNNER_TEMP/export/Octopus.ipa" "$RUNNER_TEMP/Octopus-device.ipa.sealed"
+
+      - name: Şifreli cihaz paketini sakla
+        if: inputs.distribution == 'device'
+        uses: actions/upload-artifact@v5
+        with:
+          name: Octopus-device-encrypted
+          path: |
+            ${{ runner.temp }}/Octopus-device.ipa.sealed
+            ${{ runner.temp }}/Octopus-device.ipa.sealed.json
+          retention-days: 1
+          if-no-files-found: error

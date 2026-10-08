@@ -789,3 +789,12 @@ telefona kurulup aynı UHD kanalda denenmesini istedi. Bu test için yapı
 numarası 8'e yükseltildi. Mevcut GitHub/Apple imzalama yoluyla gerçek
 macOS derlemesi ve XCTest çalıştırılacak; başarılı derleme ve cihazdaki
 build numarası doğrulanmadan düzeltmeler çalışmış sayılmayacak.
+
+USB kurulum için App Store Release iş akışına ayrı `device` paket hedefi
+eklenir. Seçilen cihaz kimliği GitHub environment secret üzerinden Apple
+cihaz kaydı/profiline iletilir, açık workflow input veya loga yazılmaz.
+Release arşivi imzasız hazırlanır, `release-testing` dışa aktarımı hedef
+cihazı içeren profil ile imzalar. Cihaz profili bulunan IPA, yerel alıcının
+açık anahtarıyla şifrelenmeden artifact olarak yüklenmez; özel anahtar
+Windows'ta `.artifacts` içinde kalır. Bu hedef TestFlight/App Store'a yükleme
+yapmaz. Aynı bundle ID ile güncelleme kurulur; eski uygulama/veri silinmez.
