@@ -51,14 +51,14 @@ struct PlayerFullscreenPresentationState {
     }
 
     mutating func request(_ id: String?) { desiredID = id }
-    mutating func nextAction() -> Action? {
+    mutating func nextAction(canPresent: Bool = true) -> Action? {
         guard transition == nil else { return nil }
         if let displayedID {
             if displayedID == desiredID { return .update(displayedID) }
             transition = .dismiss(displayedID)
             return .dismiss(displayedID)
         }
-        guard let desiredID else { return nil }
+        guard canPresent, let desiredID else { return nil }
         displayedID = desiredID
         transition = .present(desiredID)
         return .present(desiredID)
@@ -103,7 +103,19 @@ final class PlayerFullscreenPresenterController: UIViewController, UIAdaptivePre
         reconcile()
     }
     private func reconcile() {
-        guard !invalidated, let window = viewIfLoaded?.window, let scene = window.windowScene else { return }
+        guard !invalidated else { return }
+        // Fullscreen UIKit removes the presenting view from its window. Its
+        // existing host must still update/dismiss while that view is detached.
+        if let host {
+            switch state.nextAction(canPresent: false) {
+            case .update(let id) where host.playerID == id:
+                if let content { host.rootView = content }
+            case .dismiss: dismissOwned(host, animated: true)
+            default: break
+            }
+            return
+        }
+        guard let window = viewIfLoaded?.window, let scene = window.windowScene else { return }
         var anchor: UIViewController = self
         while let parent = anchor.parent { anchor = parent }
         if let presented = anchor.presentedViewController, presented !== host {
@@ -118,29 +130,21 @@ final class PlayerFullscreenPresenterController: UIViewController, UIAdaptivePre
             }
             return
         }
-        guard let action = state.nextAction() else { return }
-        switch action {
-        case .update(let id):
-            if host?.playerID == id, let content { host?.rootView = content }
-        case .present(let id):
-            guard let content else { state.didDismiss(id); return }
-            let controller = LandscapePlayerHostingController(
-                playerID: id, content: content, window: window, scene: scene
-            )
-            host = controller
-            releaseRetiringOrientation()
+        guard let content, case .present(let id) = state.nextAction() else { return }
+        let controller = LandscapePlayerHostingController(
+            playerID: id, content: content, window: window, scene: scene
+        )
+        host = controller
+        releaseRetiringOrientation()
+        controller.presentationController?.delegate = self
+        // Retain the bridge until UIKit completes even if SwiftUI dismantles
+        // it mid-transition; that completion must still dismiss its host.
+        anchor.present(controller, animated: true) { [self, controller] in
+            guard self.host === controller else { return }
+            self.state.didPresent(id)
             controller.presentationController?.delegate = self
-            // Retain the bridge until UIKit completes even if SwiftUI dismantles
-            // it mid-transition; that completion must still dismiss its host.
-            anchor.present(controller, animated: true) { [self, controller] in
-                guard self.host === controller else { return }
-                self.state.didPresent(id)
-                controller.presentationController?.delegate = self
-                if self.invalidated { self.dismissOwned(controller, animated: false) }
-                else { self.reconcile() }
-            }
-        case .dismiss:
-            if let host { dismissOwned(host, animated: true) }
+            if self.invalidated { self.dismissOwned(controller, animated: false) }
+            else { self.reconcile() }
         }
     }
     private func dismissOwned(_ controller: LandscapePlayerHostingController, animated: Bool) {

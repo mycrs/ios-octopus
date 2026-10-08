@@ -2,6 +2,21 @@ import XCTest
 @testable import Octopus
 
 final class PlayerFullscreenPresenterTests: XCTestCase {
+    func test_detachedPresentingWindow_defersFreshPresentationButAllowsOwnedUpdateAndClose() {
+        var state = PlayerFullscreenPresentationState()
+        state.request("a")
+        XCTAssertNil(state.nextAction(canPresent: false))
+        XCTAssertNil(state.displayedID)
+        XCTAssertEqual(state.nextAction(), .present("a"))
+        state.didPresent("a")
+
+        XCTAssertEqual(state.nextAction(canPresent: false), .update("a"))
+        state.request(nil)
+        XCTAssertEqual(state.nextAction(canPresent: false), .dismiss("a"))
+        state.didDismiss("a")
+        XCTAssertNil(state.nextAction(canPresent: false))
+    }
+
     func test_samePlayerRefresh_updatesContentWithoutAnotherPresentation() {
         var state = PlayerFullscreenPresentationState()
         state.request("a")
