@@ -69,12 +69,20 @@ jobs:
           xcodebuild test \
             -scheme OctopusReview -configuration Release \
             -destination "platform=iOS Simulator,id=$REVIEW_PHONE" \
+            -testLanguage en -testRegion US \
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/iphone.xcresult \
             -parallel-testing-enabled NO \
             -skipMacroValidation CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
           bash Scripts/capture-player-presentation-diagnostics.sh \
             "$REVIEW_PHONE" review-results/iphone-player-ui.log review-results/iphone.xcresult
+          python3 - <<'PY'
+          import plistlib
+          with open('ReviewDerivedData/Build/Products/Release-iphonesimulator/Octopus.app/Info.plist', 'rb') as source:
+              info = plistlib.load(source)
+          assert info.get('UIRequiresFullScreen') is True, 'Release iPad compatibility flag is missing'
+          print('Release UIRequiresFullScreen: true')
+          PY
           python3 - <<'PY'
           import json, os, subprocess
           inventory = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', '-j']))
@@ -88,6 +96,7 @@ jobs:
           xcodebuild test-without-building \
             -scheme OctopusReview -configuration Release \
             -destination "platform=iOS Simulator,id=$REVIEW_PAD" \
+            -testLanguage en -testRegion US \
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/ipad.xcresult \
             -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-

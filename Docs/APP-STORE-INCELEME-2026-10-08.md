@@ -5,13 +5,47 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
-Son Mac'te denenen build 10 kaynağı `b96b195744cbb1331e519a94b9ae56488be40da0`,
+Son Mac'te denenen build 10 kaynağı `a0d6bbb737e9443186a3a052c366bfb2e993944c`,
+[on birinci tur 37854715123](https://github.com/mycrs/ios-octopus/actions/runs/37854715123):
+**728 Swift testi / 0 hata**; mimari ve iOS uygulama derlemesi geçti.
+PIN testinin tam tuz/özet sözleşmesi de gerçek Mac testinde geçti.
+iPhone Release akışının tamamı **190,574 saniyede geçti**.
+
+iPad ilk filmdeki yatay pencere kontrolünde **103,520 saniyede başarısız**.
+Bu turun kanıtı önceki portrait/101 arızasından farklıdır: filtreli
+tanıda 101 yok; host 1376×1032 ile yataydır. AX snapshot yalnız Application
+gösterir, Window öğesi bulunmadığından assertion fiziksel tam ekranı
+doğrulayamadı. Özgün kayıt gerçek BBB görüntüsünü yatay uygulama penceresinde,
+dikey masaüstü/Dock ve sistem pencere düğmeleriyle gösterir. Mantıksal
+scene dönüşü gerçekleşmiştir; cihaz ekranının tamamını kaplama kanıtı yoktur.
+17 özgün ek SHA/CRC doğrulandı. Kayıt 2064×2752, 99,983 saniye; video SHA-256
+`727c25853405552099abefa9a88c45ebde6973dc90cecd065b11798fa2d13578`.
+Filtreli log SHA-256 `cecb57f606ff5576cca0953eb56d6d4f52774bf377ab84ff188715736ed6ae5b`.
+
+`UIRequiresFullScreen=YES` bu iPad ortamında fiziksel tam ekranı zorlamadı.
+Apple TN3192'nin Windowed Apps uyumluluk davranışı mantıksal yönü fiziksel
+ekranı döndürmeden değiştirebilir. Sıradaki kontrollü test simülatörde
+Apple'ın public Ayarlar → Multitasking & Gestures → Full Screen Apps
+arayüzünü kullanır; cihaz dikken yatay pencere, videonun pencereyi doldurması
+ve kapanışta doğru ekrana dönüş assertion'ları aynen korunur. Public
+Ayarlar seçimi doğrulanamazsa preflight başarısız olur; özel defaults/API,
+zamanlayıcı veya assertion zayıflatması kullanılmaz. Bu preflight henüz
+Mac'te denenmedi. [Apple'ın ayar adımları](https://support.apple.com/en-us/123635),
+[TN3192](https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key).
+
+On birinci turun imzalı işi **skipped**; build 10 üretilmedi, Apple'a
+yüklenmedi veya telefona kurulmadı. Eski build 9/görseller korunur.
+Kanıt `.artifacts/release10-attempt11-failure-qa.json` ve
+`.artifacts/release10-attempt11-unit-evidence` içindedir. Canlı backend
+gizlilik eşleştirmesi ve gerçek App Review gönderimi hâlâ bekliyor.
+
+Önceki onuncu build 10 kaynağı `b96b195744cbb1331e519a94b9ae56488be40da0`,
 [onuncu tur 37851820087](https://github.com/mycrs/ios-octopus/actions/runs/37851820087):
 **728 Swift testi / 1 hata**; mimari ve iOS uygulama derlemesi geçti.
 Tek birim hatası, tuzlu SHA-256 özetinde PIN rakamlarının tesadüfen
 geçmesini yasaklayan `ParentalControlTests` kontrolüdür. Üretim PIN
 saklaması değiştirilmeden testin tam özet/tuz sözleşmesi doğrulandı;
-bu yerel düzeltme henüz Mac'te çalışmadı.
+bu düzeltme yukarıdaki on birinci Mac turunda geçti.
 
 iPhone Release akışının tamamı **260,500 saniyede geçti**. Özgün 06-player
 PNG'si SHA/CRC doğrulandı; eXIf 6, etkili 2622×1206, gerçek video karesi
@@ -30,8 +64,8 @@ gerçek 0:09 ilerlemeye rağmen dikey letterbox gösterir. Video SHA-256
 `20eb691342bc60e05e44ac590a542377639ae8a923df71cb5fb7fd5a7b2209d7`.
 Filtreli özgün UI logu SHA-256 `86c2593448349063795d78132616ceb8f33acb3bb13b03c8d707baed263ba55c`.
 
-Sıradaki yerel aday `App/Info.plist` içinde public `UIRequiresFullScreen=YES`
-uyumluluk ayarını dener. Dört iPad yönü, uyarlanır yerleşim, mevcut dinamik
+On birinci aday `App/Info.plist` içinde public `UIRequiresFullScreen=YES`
+uyumluluk ayarını denedi; sonucu yukarıdadır. Dört iPad yönü, uyarlanır yerleşim, mevcut dinamik
 lease/kapanış korumaları ve aynı UI assertion'ları korunur. Bu ayar uygulama
 genelinde iPad pencere davranışını etkiler; Windowed Apps/Stage Manager'da
 yalnız mantıksal scene yönü seçimi fiziksel görüntü dönüşünü kanıtlamaz.

@@ -7,6 +7,7 @@ final class ReviewJourneyTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         XCUIDevice.shared.orientation = .portrait
+        try IPadFullScreenAppsPreflight.configureIfNeeded(in: self)
         app = XCUIApplication()
         app.launchArguments = ["-language.selection", "english"]
         app.launch()
