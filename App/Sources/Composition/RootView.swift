@@ -73,6 +73,7 @@ struct RootView: View {
                 dependencies: container.makePlayerDependencies()
             )
             .environmentObject(router)
+            .background(PlayerOrientationScope())
         }
         .sheet(item: $router.sheet) { sheet in
             sheetContent(for: sheet)

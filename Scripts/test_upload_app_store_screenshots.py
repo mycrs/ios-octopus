@@ -45,12 +45,16 @@ def png(width, height):
             chunk(b"IDAT", zlib.compress(pixels)) + chunk(b"IEND", b""))
 
 
+def selected_bytes(raw, device, name):
+    return raw.get((device, name), raw[device])
+
+
 def manifest(raw):
     return {"schema": 1, "source_run_id": RUN, "source_sha": SHA, "app_id": screens.APP_ID,
             "version": screens.VERSION, "locale": screens.LOCALE, "artifact": screens.ARTIFACT,
             "placement_groups": {"iphone": "phone-from-server", "ipad": "pad-from-server"},
             "images": [{"device": device, "name": name, "path": device + "-screens/" + name + ".png",
-                        "sha256": hashlib.sha256(raw[device]).hexdigest()}
+                        "sha256": hashlib.sha256(selected_bytes(raw, device, name)).hexdigest()}
                        for device in screens.DIMENSIONS for name in screens.SCREEN_NAMES]}
 
 
@@ -153,10 +157,42 @@ class ReplacementApple(FakeApple):
         return {"version_id": "version", "locale_id": "english", "placements": result}
 
 
+class MixedOrientationApple(ReplacementApple):
+    """Apple's native landscape specs stay mapped to each existing required group."""
+    def collection(self, path):
+        result = super().collection(path)
+        if path == "/v1/appAssetLibraryRefData":
+            reference = result[0]["attributes"]
+            for specification in list(reference["imageSpecs"]):
+                landscape = copy.deepcopy(specification)
+                landscape["specId"] += "-landscape"
+                dimensions = landscape["dimensions"]
+                dimensions["minWidth"], dimensions["minHeight"] = dimensions["minHeight"], dimensions["minWidth"]
+                dimensions["maxWidth"], dimensions["maxHeight"] = dimensions["maxHeight"], dimensions["maxWidth"]
+                reference["imageSpecs"].append(landscape)
+                for mapping in reference["placementTypes"][0]["specMappings"]:
+                    if specification["specId"] in mapping["specs"]:
+                        mapping["specs"].append(landscape["specId"])
+        return result
+
+    def request(self, method, path, body=None):
+        result = super().request(method, path, body)
+        if method == "POST" and path == "/v1/appAssetLibraryImages" and \
+                body["data"]["attributes"]["fileName"] == screens.LANDSCAPE_SCREEN_NAME + ".png":
+            image = self.images[result["data"]["id"]]
+            asset = image["attributes"]["imageAsset"]
+            asset["width"], asset["height"] = asset["height"], asset["width"]
+            image["attributes"]["specId"] += "-landscape"
+            return {"data": copy.deepcopy(image)}
+        return result
+
+
 class ScreenshotAPITests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.raw = {device: png(*dimensions) for device, dimensions in screens.DIMENSIONS.items()}
+        cls.mixed_raw = {**cls.raw, **{(device, screens.LANDSCAPE_SCREEN_NAME): png(*dimensions[::-1])
+                                     for device, dimensions in screens.DIMENSIONS.items()}}
 
     def test_manifest_rejects_other_source_extra_photos_and_changed_order(self):
         approved = manifest(self.raw)
@@ -183,7 +219,8 @@ class ScreenshotAPITests(unittest.TestCase):
             with self.assertRaises(screens.SafeError):
                 screens.png_dimensions(raw)
 
-    def write_archive(self, path, failure=False):
+    def write_archive(self, path, failure=False, raw=None):
+        raw = self.raw if raw is None else raw
         names = ["01-onboarding", "02-sample-credits", "03-home", "04-movies", "05-movie-detail", "06-player", "07-series", "08-episodes", "09-settings", "10-source-check"]
         with zipfile.ZipFile(path, "w") as archive:
             for device in screens.DIMENSIONS:
@@ -192,7 +229,7 @@ class ScreenshotAPITests(unittest.TestCase):
                                 "isAssociatedWithFailure": failure} for name in names]
                 archive.writestr(device + "-screens/manifest.json", json.dumps([{"attachments": attachments}]))
                 for name in screens.SCREEN_NAMES:
-                    archive.writestr(device + "-screens/" + name + ".png", self.raw[device])
+                    archive.writestr(device + "-screens/" + name + ".png", selected_bytes(raw, device, name))
 
     def test_artifact_checks_export_association_and_reviewed_hash(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -215,6 +252,78 @@ class ScreenshotAPITests(unittest.TestCase):
         self.assertEqual(screens.candidates(target["reference"], "iphone")[0]["group"], "phone-from-server")
         self.assertEqual(screens.candidates(target["reference"], "ipad")[0]["group"], "pad-from-server")
         self.assertTrue(all(call[0] == "GET" for call in api.calls))
+
+    def test_mixed_orientation_artifact_keeps_twelve_original_reviewed_pngs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "artifact.zip"
+            self.write_archive(path, raw=self.mixed_raw)
+            selected = screens.validate_manifest(manifest(self.mixed_raw), RUN, SHA)
+            images = screens.artifact_images(path, selected)
+            self.assertEqual(len(images), 12)
+            for selection, raw in images:
+                device, name = selection["device"], selection["name"]
+                self.assertEqual(raw, selected_bytes(self.mixed_raw, device, name))
+                expected = screens.DIMENSIONS[device][::-1] if name == "06-player" else screens.DIMENSIONS[device]
+                self.assertEqual(screens.png_dimensions(raw), expected)
+
+    def test_artifact_rejects_wrong_size_reversed_device_and_misplaced_landscape(self):
+        cases = [("iphone", "06-player", png(2622, 1205)),
+                 ("iphone", "06-player", self.mixed_raw[("ipad", "06-player")]),
+                 ("ipad", "06-player", self.raw["iphone"]),
+                 ("iphone", "03-home", self.mixed_raw[("iphone", "06-player")]),
+                 ("ipad", "08-episodes", self.mixed_raw[("ipad", "06-player")])]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "artifact.zip"
+            for device, name, wrong_raw in cases:
+                raw = {**self.mixed_raw, (device, name): wrong_raw}
+                with self.subTest(device=device, name=name, dimensions=wrong_raw[16:24]):
+                    self.write_archive(path, raw=raw)
+                    with self.assertRaises(screens.SafeError):
+                        screens.artifact_images(path, manifest(raw)["images"])
+
+    def test_landscape_spec_discovery_stays_in_same_required_device_group(self):
+        api = MixedOrientationApple()
+        target = screens.discover(api)
+        required = {"iphone": "IPHONE_DYNAMIC_ISLAND_MEDIUM_PROFILE", "ipad": "IPAD_13_PROFILE"}
+        for device, expected_group in required.items():
+            group = screens.candidates(target["reference"], device)[0]
+            self.assertEqual(group["group"], expected_group)
+            short = "phone" if device == "iphone" else "pad"
+            self.assertEqual(screens.image_specification(group, screens.DIMENSIONS[device])["spec_ids"], [short + "-spec"])
+            self.assertEqual(screens.image_specification(group, screens.DIMENSIONS[device][::-1])["spec_ids"], [short + "-spec-landscape"])
+            with self.assertRaises(screens.SafeError):
+                screens.image_specification(group, screens.DIMENSIONS["ipad" if device == "iphone" else "iphone"][::-1])
+        self.assertTrue(all(call[0] == "GET" for call in api.calls))
+
+    def test_landscape_spec_requires_group_mapping_png_mime_and_screenshot_compatibility(self):
+        original = screens.discover(MixedOrientationApple())["reference"]
+        for alteration in ("mapping", "placement", "extension", "mime", "dimensions"):
+            reference = copy.deepcopy(original)
+            specification = next(item for item in reference["imageSpecs"] if item["specId"] == "phone-spec-landscape")
+            if alteration == "mapping":
+                mapping = reference["placementTypes"][0]["specMappings"][0]
+                mapping["specs"].remove(specification["specId"])
+                # Being accepted by another device's group does not authorize the phone group.
+                reference["placementTypes"][0]["specMappings"][1]["specs"].append(specification["specId"])
+            elif alteration == "placement":
+                specification["compatiblePlacementTypes"] = ["APP_PREVIEW"]
+            elif alteration == "extension":
+                specification["fileExtensions"] = [".jpg"]
+            elif alteration == "mime":
+                specification["mimeTypes"] = ["image/jpeg"]
+            else:
+                specification["dimensions"]["maxWidth"] += 1
+            group = screens.candidates(reference, "iphone")[0]
+            with self.subTest(alteration=alteration), self.assertRaises(screens.SafeError):
+                screens.image_specification(group, screens.DIMENSIONS["iphone"][::-1])
+
+    def test_legacy_portrait_candidate_and_player_remain_supported(self):
+        group = screens.candidates(catalog(), "iphone")[0]
+        del group["specifications"]
+        self.assertEqual(screens.image_specification(group, screens.DIMENSIONS["iphone"])["spec_ids"], ["phone-spec"])
+        self.assertEqual(screens.screenshot_dimensions({"device": "iphone", "name": "06-player"}, self.raw["iphone"]), screens.DIMENSIONS["iphone"])
+        with self.assertRaises(screens.SafeError):
+            screens.image_specification(group, screens.DIMENSIONS["iphone"][::-1])
 
     def test_post_and_patch_unknown_outcomes_are_never_automatically_retried(self):
         api = screens.JsonAPI("https://api.appstoreconnect.apple.com", lambda: "Bearer private-test-token")
@@ -427,8 +536,9 @@ class ScreenshotAPITests(unittest.TestCase):
         with self.assertRaises(screens.SafeError):
             screens.transfer_parts(b"123456", [operation(0, 2), operation(3, 3)])
 
-    def selections(self):
-        return [(item, self.raw[item["device"]]) for item in manifest(self.raw)["images"]]
+    def selections(self, raw=None):
+        raw = self.raw if raw is None else raw
+        return [(item, selected_bytes(raw, item["device"], item["name"])) for item in manifest(raw)["images"]]
 
     def groups(self, target):
         return {device: screens.candidates(target["reference"], device)[0] for device in screens.DIMENSIONS}
@@ -473,6 +583,76 @@ class ScreenshotAPITests(unittest.TestCase):
             with self.assertRaises(screens.SafeError):
                 screens.upload(api, target, self.selections(), groups, SHA, lambda event: None)
         self.assertFalse(any(call[0] == "POST" and call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls))
+
+    def test_mixed_orientation_replacement_preserves_all_old_assets_and_resumes(self):
+        api, events = MixedOrientationApple(), []
+        snapshot, original_images = api.snapshot(), set(api.images)
+        for attempt in range(2):
+            target = screens.discover(api)
+            with patch.object(screens, "transfer_parts") as transferred:
+                screens.upload(api, target, self.selections(self.mixed_raw), self.groups(target), SHA, events.append, snapshot)
+                self.assertEqual(transferred.call_count, 12 if attempt == 0 else 0)
+        self.assertTrue(original_images <= set(api.images))
+        self.assertEqual(len(api.images), 19)
+        self.assertEqual(len(api.placements), 12)
+        self.assertEqual(sum(call[0] == "POST" and call[1] == "/v1/appAssetLibraryImages" for call in api.calls), 12)
+        self.assertEqual(sum(call[0] == "DELETE" for call in api.calls), 21)
+        for device, group in self.groups(screens.discover(api)).items():
+            placed = [item for item in api.placements if item["attributes"]["placementGroup"] == group["group"]]
+            images = [api.images[screens.placement_image(item)] for item in placed]
+            self.assertEqual([image["attributes"]["fileName"] for image in images], [name + ".png" for name in screens.SCREEN_NAMES])
+            for image in images:
+                attributes = image["attributes"]
+                landscape = attributes["fileName"] == "06-player.png"
+                expected = screens.DIMENSIONS[device][::-1] if landscape else screens.DIMENSIONS[device]
+                self.assertEqual((attributes["imageAsset"]["width"], attributes["imageAsset"]["height"]), expected)
+                self.assertEqual(attributes["specId"].endswith("-landscape"), landscape)
+        self.assertEqual(events[-1]["action"], "replacement_verified")
+
+    def test_upload_rejects_misplaced_landscape_or_missing_group_spec_before_any_write(self):
+        for alteration in ("name", "device", "group-spec"):
+            api = MixedOrientationApple()
+            target = screens.discover(api)
+            images, groups = self.selections(self.mixed_raw), self.groups(target)
+            if alteration == "name":
+                images[0] = (images[0][0], self.mixed_raw[("iphone", "06-player")])
+            elif alteration == "device":
+                images[3] = (images[3][0], self.mixed_raw[("ipad", "06-player")])
+            else:
+                groups["iphone"]["specifications"] = groups["iphone"]["specifications"][:1]
+            with self.subTest(alteration=alteration), patch.object(screens, "transfer_parts") as transferred:
+                with self.assertRaises(screens.SafeError):
+                    screens.upload(api, target, images, groups, SHA, lambda event: None, api.snapshot())
+                transferred.assert_not_called()
+            self.assertTrue(all(call[0] == "GET" for call in api.calls))
+            self.assertEqual(len(api.placements), 21)
+
+    def test_processed_landscape_requires_actual_dimensions_and_orientation_specific_spec(self):
+        for alteration in ("portrait-dimensions", "portrait-spec", "other-device", "null-asset"):
+            api, events = MixedOrientationApple(), []
+            target, request = screens.discover(api), api.request
+            def mismatched(method, path, body=None):
+                result = request(method, path, body)
+                image = result.get("data", {})
+                attributes = image.get("attributes", {})
+                if method == "GET" and path.startswith("/v1/appAssetLibraryImages/") and \
+                        attributes.get("state") == "PREPARE_FOR_SUBMISSION" and attributes.get("fileName") == "06-player.png":
+                    if alteration == "portrait-dimensions":
+                        attributes["imageAsset"] = {"width": 1206, "height": 2622}
+                    elif alteration == "portrait-spec":
+                        attributes["specId"] = "phone-spec"
+                    elif alteration == "other-device":
+                        attributes["specId"] = "pad-spec-landscape"
+                        attributes["imageAsset"] = {"width": 2752, "height": 2064}
+                    else:
+                        attributes["imageAsset"] = None
+                return result
+            with self.subTest(alteration=alteration), patch.object(api, "request", side_effect=mismatched), \
+                    patch.object(screens, "transfer_parts"), self.assertRaises(screens.SafeError):
+                screens.upload(api, target, self.selections(self.mixed_raw), self.groups(target), SHA, events.append, api.snapshot())
+            self.assertEqual(len(api.placements), 21)
+            self.assertFalse(any(call[0] == "DELETE" or call[1] == "/v1/appAssetLibraryPlacements" for call in api.calls))
+            self.assertFalse(any(event["action"] == "replacement_restore_snapshot" for event in events))
 
     def replacement_upload(self, api, snapshot, events):
         target = screens.discover(api)

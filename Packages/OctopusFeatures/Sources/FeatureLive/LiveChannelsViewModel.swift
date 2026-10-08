@@ -50,6 +50,9 @@ public final class LiveChannelsViewModel: ObservableObject {
     private let searchDebounce: Duration
 
     private var activePlaylistID: Playlist.ID?
+    public private(set) var hasLoadedPlaylist = false
+    private var playbackSelectionGeneration = 0
+    private var playbackAdoptionGeneration = 0
     /// Kilit kurulu ve açılmamışsa yetişkin kanallar süzülür.
     private var parentalFilter = ParentalFilter.open
     private var searchTask: Task<Void, Never>?
@@ -82,6 +85,7 @@ public final class LiveChannelsViewModel: ObservableObject {
     // MARK: - Yükleme
 
     public func load() async {
+        hasLoadedPlaylist = false
         if channels.isEmpty { state = .loading }
 
         do {
@@ -90,10 +94,17 @@ public final class LiveChannelsViewModel: ObservableObject {
                 state = .loaded(0)
                 channels = []
                 categories = []
+                activePlaylistID = nil
+                clearPlayingChannel()
+                hasLoadedPlaylist = true
                 return
+            }
+            if let previous = activePlaylistID, previous != playlist.id {
+                clearPlayingChannel()
             }
             activePlaylistID = playlist.id
             await refreshParentalFilter()
+            hasLoadedPlaylist = true
 
             let allCategories = try await dependencies.channels.categories(
                 playlistID: playlist.id
@@ -252,11 +263,12 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     /// Kanalın oynatılabilir adresini çözer.
     ///
-    /// ⚠️ Motoru burada **başlatmıyoruz**: `PlayerController` görünümün
-    /// ömrüne bağlı (`@StateObject`) ve ViewModel onu tutmamalı — aksi
-    /// hâlde ekran kapandığında motor bırakılmaz ve IPTV bağlantı kotası
-    /// dolar (bkz. `PlaybackEngine.teardown`).
+    /// The shared controller is started by the visible screen. A late result
+    /// from a previous tap or a disappeared screen must never start playback.
     public func playbackItem(for channel: Channel) async -> PlaybackItem? {
+        playbackSelectionGeneration &+= 1
+        playbackAdoptionGeneration &+= 1
+        let generation = playbackSelectionGeneration
         // Kilitli kanal gömülü oynatıcıda da açılmamalı; liste süzülüyor
         // ama numarayla arama gibi yollarla buraya düşebilir.
         guard parentalFilter.allows(channel: channel) else {
@@ -266,10 +278,15 @@ public final class LiveChannelsViewModel: ObservableObject {
 
         do {
             let item = try await dependencies.streams.playbackItem(for: channel)
+            guard !Task.isCancelled, generation == playbackSelectionGeneration,
+                  activePlaylistID == nil || activePlaylistID == channel.playlistID
+            else { return nil }
             playingChannel = channel
             playbackMessage = nil
             return item
         } catch {
+            guard !Task.isCancelled, generation == playbackSelectionGeneration else { return nil }
+            if error is CancellationError { return nil }
             playbackMessage = AppError.wrap(error).userMessage
             return nil
         }
@@ -277,7 +294,39 @@ public final class LiveChannelsViewModel: ObservableObject {
 
     /// Mini oynatıcı durdurulduğunda çağrılır.
     public func clearPlayingChannel() {
+        cancelPlaybackSelection()
         playingChannel = nil
+    }
+
+    public func cancelPlaybackSelection() {
+        playbackSelectionGeneration &+= 1
+        playbackAdoptionGeneration &+= 1
+    }
+
+    /// Adopts the channel already playing fullscreen, without resolving its
+    /// address or reloading the engine. The channel may be outside this filter.
+    @discardableResult
+    public func adoptCurrentPlayback() async -> Bool? {
+        playbackAdoptionGeneration &+= 1
+        let generation = playbackAdoptionGeneration
+        guard let session = dependencies.controller.session,
+              case .liveChannel(let id) = session.source,
+              let playlistID = activePlaylistID else {
+            playingChannel = nil
+            return false
+        }
+        let channel = try? await dependencies.channels.channel(id: id)
+        guard !Task.isCancelled, generation == playbackAdoptionGeneration,
+              dependencies.controller.session == session,
+              activePlaylistID == playlistID else { return nil }
+        guard let channel, channel.playlistID == playlistID,
+              parentalFilter.allows(channel: channel) else {
+            playingChannel = nil
+            return false
+        }
+        playingChannel = channel
+        playbackMessage = nil
+        return true
     }
 
     // MARK: - Favoriler

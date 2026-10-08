@@ -1,5 +1,6 @@
 import XCTest
 import OctopusDomain
+import OctopusPlayback
 @testable import FeatureLive
 
 /// Canlı TV listesi: yükleme, kategori geçişi, arama, favoriler.
@@ -22,7 +23,10 @@ final class LiveChannelsViewModelTests: XCTestCase {
         parental = StubParental()
     }
 
-    private func makeViewModel() -> LiveChannelsViewModel {
+    private func makeViewModel(
+        streams: StreamResolving = LiveStubStreams(),
+        controller: PlayerController? = nil
+    ) -> LiveChannelsViewModel {
         LiveChannelsViewModel(
             dependencies: LiveDependencies(
                 playlists: playlists,
@@ -31,9 +35,9 @@ final class LiveChannelsViewModelTests: XCTestCase {
                 favorites: favorites,
                 history: history,
                 resolver: LiveTestPlayback.makeResolver(),
-                streams: LiveStubStreams(),
+                streams: streams,
                 progress: LiveStubProgress(),
-                controller: LiveTestPlayback.makeController(
+                controller: controller ?? LiveTestPlayback.makeController(
                     progress: LiveStubProgress(),
                     history: history
                 ),
@@ -459,6 +463,149 @@ final class LiveChannelsViewModelTests: XCTestCase {
 
     // MARK: - Yardımcılar
 
+    func test_fullscreenZappedChannel_isAdoptedWithoutResolvingOrRetuning() async throws {
+        let a = makeChannel("a", "A")
+        let b = makeChannel("b", "B")
+        channels.stored = [a, b]
+        let streams = SelectionGatedStreams()
+        let controller = LiveTestPlayback.makeController(progress: LiveStubProgress(), history: history)
+        let viewModel = makeViewModel(streams: streams, controller: controller)
+        await viewModel.load()
+        await controller.start(PlaybackItem(
+            source: .liveChannel(b.id), url: URL(fileURLWithPath: "/sample.mp4"),
+            title: b.name, isLive: true
+        ))
+        let session = try XCTUnwrap(controller.session)
+
+        let adopted = await viewModel.adoptCurrentPlayback()
+
+        XCTAssertEqual(adopted, true)
+        XCTAssertEqual(viewModel.playingChannel?.id, b.id)
+        XCTAssertEqual(controller.session, session)
+        let requestCount = await streams.requestCount
+        XCTAssertEqual(requestCount, 0)
+        await controller.finish()
+    }
+
+    func test_recordedSampleChannel_adoptsWithoutInventingLiveSemantics() async {
+        let channel = makeChannel("sample", "Recorded sample")
+        channels.stored = [channel]
+        let controller = LiveTestPlayback.makeController(progress: LiveStubProgress(), history: history)
+        let viewModel = makeViewModel(controller: controller)
+        await viewModel.load()
+        await controller.start(PlaybackItem(
+            source: .liveChannel(channel.id), url: URL(fileURLWithPath: "/sample.mp4"),
+            title: channel.name, isLive: false
+        ))
+
+        let adopted = await viewModel.adoptCurrentPlayback()
+
+        XCTAssertEqual(adopted, true)
+        XCTAssertEqual(viewModel.playingChannel?.id, channel.id)
+        XCTAssertEqual(controller.currentItem?.isLive, false)
+        await controller.finish()
+    }
+
+    func test_fullscreenChannelFromAnotherSource_isNotAdopted() async {
+        let foreign = Channel(id: "foreign", playlistID: "p2", name: "Other", streamKey: "other")
+        channels.stored = [foreign]
+        let controller = LiveTestPlayback.makeController(progress: LiveStubProgress(), history: history)
+        let viewModel = makeViewModel(controller: controller)
+        await viewModel.load()
+        await controller.start(PlaybackItem(
+            source: .liveChannel(foreign.id), url: URL(fileURLWithPath: "/sample.mp4"),
+            title: foreign.name, isLive: true
+        ))
+
+        let adopted = await viewModel.adoptCurrentPlayback()
+
+        XCTAssertEqual(adopted, false)
+        XCTAssertNil(viewModel.playingChannel)
+        await controller.finish()
+    }
+
+    func test_latePreviousSelection_cannotReplaceNewChannel() async {
+        let a = makeChannel("a", "A")
+        let b = makeChannel("b", "B")
+        let streams = SelectionGatedStreams(blockedID: a.id)
+        let viewModel = makeViewModel(streams: streams)
+        await viewModel.load()
+        let older = Task { await viewModel.playbackItem(for: a) }
+        await streams.waitUntilBlocked()
+
+        let latest = await viewModel.playbackItem(for: b)
+        await streams.releaseBlocked()
+        let stale = await older.value
+
+        XCTAssertEqual(latest?.source, .liveChannel(b.id))
+        XCTAssertNil(stale)
+        XCTAssertEqual(viewModel.playingChannel?.id, b.id)
+    }
+
+    func test_leavingLiveWhileResolving_cannotReturnAnItemForHiddenPlayback() async {
+        let channel = makeChannel("a", "A")
+        let streams = SelectionGatedStreams(blockedID: channel.id)
+        let viewModel = makeViewModel(streams: streams)
+        await viewModel.load()
+        let pending = Task { await viewModel.playbackItem(for: channel) }
+        await streams.waitUntilBlocked()
+
+        viewModel.clearPlayingChannel()
+        await streams.releaseBlocked()
+        let item = await pending.value
+
+        XCTAssertNil(item)
+        XCTAssertNil(viewModel.playingChannel)
+        XCTAssertNil(viewModel.playbackMessage)
+    }
+
+    func test_canceledSelection_doesNotPublishPlaybackOrError() async {
+        let channel = makeChannel("a", "A")
+        let streams = SelectionGatedStreams(blockedID: channel.id)
+        let viewModel = makeViewModel(streams: streams)
+        await viewModel.load()
+        let pending = Task { await viewModel.playbackItem(for: channel) }
+        await streams.waitUntilBlocked()
+        pending.cancel()
+        await streams.releaseBlocked()
+        let item = await pending.value
+
+        XCTAssertNil(item)
+        XCTAssertNil(viewModel.playingChannel)
+        XCTAssertNil(viewModel.playbackMessage)
+    }
+
+    func test_staleAdoption_cannotRestorePreviousFullscreenChannel() async {
+        let a = makeChannel("a", "A")
+        let b = makeChannel("b", "B")
+        channels.stored = [a, b]
+        let gate = ChannelLookupGate()
+        channels.beforeLookup = { id in
+            if id == a.id { await gate.wait() }
+        }
+        let controller = LiveTestPlayback.makeController(progress: LiveStubProgress(), history: history)
+        let viewModel = makeViewModel(controller: controller)
+        await viewModel.load()
+        let itemA = PlaybackItem(
+            source: .liveChannel(a.id), url: URL(fileURLWithPath: "/a.mp4"), title: a.name, isLive: true
+        )
+        await controller.start(itemA)
+        let oldAdoption = Task { await viewModel.adoptCurrentPlayback() }
+        await gate.waitUntilBlocked()
+        await controller.start(PlaybackItem(
+            source: .liveChannel(b.id), url: URL(fileURLWithPath: "/b.mp4"), title: b.name, isLive: true
+        ))
+        let current = await viewModel.adoptCurrentPlayback()
+        await gate.open()
+        let stale = await oldAdoption.value
+
+        XCTAssertEqual(current, true)
+        XCTAssertNil(stale)
+        XCTAssertEqual(viewModel.playingChannel?.id, b.id)
+        XCTAssertEqual(controller.currentItem?.source, .liveChannel(b.id))
+        await controller.finish()
+    }
+
     private func makeChannel(
         _ id: String,
         _ name: String,
@@ -525,6 +672,7 @@ private final class StubPlaylists: PlaylistRepository, @unchecked Sendable {
 private final class StubChannels: ChannelRepository, @unchecked Sendable {
 
     var stored: [Channel] = []
+    var beforeLookup: ((Channel.ID) async -> Void)?
     var categories: [MediaCategory] = []
     var searchResults: [Channel] = []
     /// Numarayla geçiş testleri için.
@@ -544,7 +692,8 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
     ) async throws -> [Channel] { stored }
 
     func channel(id: Channel.ID) async throws -> Channel? {
-        stored.first { $0.id == id }
+        await beforeLookup?(id)
+        return stored.first { $0.id == id }
     }
 
     func channel(number: Int, playlistID: Playlist.ID) async throws -> Channel? {
@@ -653,4 +802,73 @@ private final class StubEPG: EPGRepository, @unchecked Sendable {
 
     func programs(playlistID: Playlist.ID, epgChannelID: String, from: Date, to: Date) async throws -> [EPGProgram] { [] }
     func purgePrograms(before date: Date) async throws {}
+}
+
+/// A resolver that deliberately ignores cancellation, like a completed remote
+/// response. The view model must still reject its outdated selection.
+private actor SelectionGatedStreams: StreamResolving {
+    private let blockedID: Channel.ID?
+    private var blocked: (Channel, CheckedContinuation<PlaybackItem, Never>)?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var requestCount = 0
+
+    init(blockedID: Channel.ID? = nil) { self.blockedID = blockedID }
+
+    func playbackItem(for channel: Channel) async throws -> PlaybackItem {
+        requestCount += 1
+        guard channel.id == blockedID else { return item(for: channel) }
+        return await withCheckedContinuation { continuation in
+            blocked = (channel, continuation)
+            let pending = waiters
+            waiters = []
+            for waiter in pending { waiter.resume() }
+        }
+    }
+
+    func waitUntilBlocked() async {
+        guard blocked == nil else { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func releaseBlocked() {
+        guard let (channel, continuation) = blocked else { return }
+        blocked = nil
+        continuation.resume(returning: item(for: channel))
+    }
+
+    private func item(for channel: Channel) -> PlaybackItem {
+        PlaybackItem(
+            source: .liveChannel(channel.id), url: URL(fileURLWithPath: "/sample.mp4"),
+            title: channel.name, isLive: true
+        )
+    }
+
+    func playbackItem(for movie: Movie) async throws -> PlaybackItem { throw AppError.notFound }
+    func playbackItem(for episode: Episode, in series: Series) async throws -> PlaybackItem {
+        throw AppError.notFound
+    }
+}
+
+private actor ChannelLookupGate {
+    private var blocked: CheckedContinuation<Void, Never>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            blocked = continuation
+            let pending = waiters
+            waiters = []
+            for waiter in pending { waiter.resume() }
+        }
+    }
+
+    func waitUntilBlocked() async {
+        guard blocked == nil else { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+        blocked?.resume()
+        blocked = nil
+    }
 }

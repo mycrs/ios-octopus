@@ -19,6 +19,16 @@ import OctopusDomain
 @MainActor
 public final class PlayerController: ObservableObject {
 
+    /// Identifies one opening, including a pending asynchronous load. A screen
+    /// may release only the session it owned, never a later channel selection.
+    public struct Session: Hashable, Sendable {
+        public let source: PlaybackItem.Source
+        fileprivate let generation: Int
+    }
+
+    @Published public private(set) var session: Session?
+    public var currentItem: PlaybackItem? { item }
+
     // MARK: - Yayınlanan durum
 
     @Published public private(set) var state: PlaybackState = .idle
@@ -170,7 +180,10 @@ public final class PlayerController: ObservableObject {
     // MARK: - Yaşam döngüsü
 
     /// İçeriği açar. Devam konumu burada eklenir.
-    public func start(_ requested: PlaybackItem) async {
+    public func start(
+        _ requested: PlaybackItem,
+        onSession: (@MainActor (Session) -> Void)? = nil
+    ) async {
         // ⚠️ Aynı yayın **zaten çalışıyorsa hiçbir şey yapılmaz.**
         //
         // Mini oynatıcı ile tam ekran oynatıcı aynı controller'ı paylaşıyor
@@ -180,17 +193,23 @@ public final class PlayerController: ObservableObject {
         // görüyordu. Guard sayesinde geçiş yalnızca video yüzeyinin yer
         // değiştirmesinden ibaret kalıyor — yayın hiç kesilmiyor.
         //
-        // Yalnızca **canlı** akış korunuyor: VOD'da aynı filmi yeniden
-        // açmak "baştan başlat" beklentisi taşıyabilir ve `start()` orada
-        // kaldığın yeri de yeniden hesaplıyor.
-        if requested.isLive,
+        // Kanal bağlamı korunur: bir kayıtlı örnek kanal da mini/tam ekran
+        // arasında taşınabilir. Film ve bölüm yeniden açıldığında devam
+        // konumu hesaplanır; kaydın isLive semantiği değiştirilmez.
+        if case .liveChannel = requested.source,
+           item?.source == requested.source,
            item?.url == requested.url,
            engine != nil,
-           state.isActive {
+           state.isActive || state == .loading || state == .paused {
+            if let session { onSession?(session) }
             return
         }
 
         sessionGeneration &+= 1
+        let opening = Session(source: requested.source, generation: sessionGeneration)
+        self.session = opening
+        item = requested
+        onSession?(opening)
         playbackRequested = true
         let session = sessionGeneration
         recoveryTask?.cancel()
@@ -391,8 +410,28 @@ public final class PlayerController: ObservableObject {
 
     /// Ekran kapanırken çağrılır. **Atlanamaz.**
     public func finish() async {
+        await saveProgress(releaseSession())
+    }
+
+    /// Navigation must silence its own session before hiding the video surface.
+    /// Progress is captured synchronously and saved without delaying dismissal.
+    public func stop(ifCurrent expected: Session) {
+        guard session == expected else { return }
+        guard let pending = releaseSession() else { return }
+        Task { [progress] in
+            try? await progress.save(pending.snapshot, for: pending.source)
+        }
+    }
+
+    public func finish(ifCurrent expected: Session) async {
+        guard session == expected else { return }
+        await finish()
+    }
+
+    private func releaseSession() -> PendingProgress? {
         let pendingProgress = progressSnapshot(force: true)
         sessionGeneration &+= 1
+        session = nil
         playbackRequested = false
         recoveryTask?.cancel()
         recoveryTask = nil
@@ -420,7 +459,7 @@ public final class PlayerController: ObservableObject {
         openStartedAt = nil
         firstFrameStartedAt = nil
 
-        await saveProgress(pendingProgress)
+        return pendingProgress
     }
 
     // MARK: - Denetimler

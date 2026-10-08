@@ -36,6 +36,8 @@ ARTIFACT = "Release-review-journey"
 CATEGORY = "APP_SCREENSHOTS_AND_PREVIEWS"
 SCREEN_NAMES = ("03-home", "10-source-check", "04-movies", "06-player", "08-episodes", "02-sample-credits")
 DIMENSIONS = {"iphone": (1206, 2622), "ipad": (2064, 2752)}
+NATIVE_DIMENSIONS = {device: (dimensions, dimensions[::-1]) for device, dimensions in DIMENSIONS.items()}
+LANDSCAPE_SCREEN_NAME = "06-player"
 REQUIRED_JOBS = ("Mimari kuralları", "Domain testleri (Linux)",
                  "Release inceleme akışı (iPhone ve iPad)", "iOS derleme",
                  "OctopusData testleri", "OctopusPlayback testleri",
@@ -224,6 +226,7 @@ def discover(apple):
 
 
 def candidates(reference, device):
+    """Discover compatible native orientations within each selected device group."""
     feature = one(reference["features"], lambda item: item["featureId"] == "APP_STORE_VERSIONS", "App Store version feature")
     policy = one(feature["placementPolicies"], lambda item: item["placementType"] == "APP_SCREENSHOT", "screenshot policy")
     placement = one(reference["placementTypes"], lambda item: item["placementTypeId"] == "APP_SCREENSHOT", "screenshot placement type")
@@ -232,8 +235,10 @@ def candidates(reference, device):
     displays = {item["displayClassId"] for item in reference["displayClasses"]
                 if item["deviceFamily"] == device.upper()}
     width, height = DIMENSIONS[device]
+    native_ranges = [{"minWidth": w, "maxWidth": w, "minHeight": h, "maxHeight": h}
+                     for w, h in NATIVE_DIMENSIONS[device]]
     specs = {item["specId"]: item for item in reference["imageSpecs"]
-             if item.get("dimensions") == {"minWidth": width, "maxWidth": width, "minHeight": height, "maxHeight": height}
+             if item.get("dimensions") in native_ranges
              and "APP_SCREENSHOT" in item.get("compatiblePlacementTypes", [])
              and ".png" in item.get("fileExtensions", []) and "image/png" in item.get("mimeTypes", [])}
     result = []
@@ -246,10 +251,19 @@ def candidates(reference, device):
         mappings = [item for item in placement["specMappings"] if item["placementGroupId"] == group_id]
         limits = [item["maxCount"] for item in policy["groupLimits"] if group_id in item["groupIds"]]
         accepted = sorted({identifier for item in mappings for identifier in item["specs"] if identifier in specs})
-        if accepted and len(limits) == 1:
+        specifications = []
+        for w, h in NATIVE_DIMENSIONS[device]:
+            identifiers = [identifier for identifier in accepted if specs[identifier]["dimensions"]["minWidth"] == w and
+                           specs[identifier]["dimensions"]["minHeight"] == h]
+            if identifiers:
+                specifications.append({"width": w, "height": h, "spec_ids": identifiers,
+                                       "max_file_size": min(specs[identifier]["maxFileSize"] for identifier in identifiers)})
+        # The five other selected screens require portrait support in this same group.
+        if specifications and (specifications[0]["width"], specifications[0]["height"]) == (width, height) and len(limits) == 1:
             result.append({"group": group_id, "max_count": limits[0], "spec_ids": accepted,
                            "platform": group["platform"], "display_class": group["displayClassId"],
                            "width": width, "height": height,
+                           "specifications": specifications,
                            "max_file_size": min(specs[identifier]["maxFileSize"] for identifier in accepted)})
     return result
 
@@ -319,7 +333,8 @@ def png_dimensions(raw):
             if kind != b"IHDR" or size != 13:
                 raise SafeError("Invalid screenshot PNG header")
             width, height, depth, color, compression, filtering, interlace = struct.unpack(">IIBBBBB", data)
-            if (width, height) not in DIMENSIONS.values() or (depth, color, compression, filtering, interlace) != (8, 2, 0, 0, 0):
+            if (width, height) not in {dimensions for values in NATIVE_DIMENSIONS.values() for dimensions in values} or \
+                    (depth, color, compression, filtering, interlace) != (8, 2, 0, 0, 0):
                 raise SafeError("Screenshot must retain its native RGB dimensions without alpha or resizing")
             dimensions = (width, height)
         elif kind in (b"IHDR", b"tRNS"):
@@ -342,6 +357,29 @@ def png_dimensions(raw):
     if len(decoded) != stride * height or not decoder.eof or decoder.unused_data or any(decoded[row * stride] > 4 for row in range(height)):
         raise SafeError("Screenshot PNG pixel data is invalid")
     return dimensions
+
+
+def screenshot_dimensions(selection, raw):
+    """Only the original player attachment may use its device's native landscape."""
+    device, name = selection.get("device"), selection.get("name")
+    if device not in DIMENSIONS or name not in SCREEN_NAMES:
+        raise SafeError("Screenshot selection is outside the reviewed device and screen names")
+    dimensions = png_dimensions(raw)
+    allowed = NATIVE_DIMENSIONS[device] if name == LANDSCAPE_SCREEN_NAME else (DIMENSIONS[device],)
+    if dimensions not in allowed:
+        raise SafeError("Screenshot dimensions or orientation do not match its reviewed device and screen")
+    return dimensions
+
+
+def image_specification(group, dimensions):
+    # Retain support for callers using the original portrait-only candidate shape.
+    specification = one(group.get("specifications", [group]),
+                        lambda item: (item["width"], item["height"]) == dimensions,
+                        "compatible native screenshot orientation in the selected placement group")
+    identifiers = sorted(set(specification["spec_ids"]) & set(group["spec_ids"]))
+    if not identifiers:
+        raise SafeError("Selected placement group does not accept this screenshot orientation")
+    return {**specification, "spec_ids": identifiers}
 
 
 def artifact_images(archive_path, selections):
@@ -371,8 +409,7 @@ def artifact_images(archive_path, selections):
             raw = archive.read(info)
             if hashlib.sha256(raw).hexdigest() != selection["sha256"]:
                 raise SafeError("Screenshot bytes differ from the reviewed manifest")
-            if png_dimensions(raw) != DIMENSIONS[device]:
-                raise SafeError("Screenshot dimensions do not match its device")
+            screenshot_dimensions(selection, raw)
             result.append((selection, raw))
     return result
 
@@ -508,7 +545,9 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
         by_reference.setdefault(image["attributes"].get("referenceName"), []).append(image)
     for selection, raw in images:
         group = groups[selection["device"]]
-        if len(raw) > group["max_file_size"]:
+        dimensions = screenshot_dimensions(selection, raw)
+        specification = image_specification(group, dimensions)
+        if len(raw) > specification["max_file_size"]:
             raise SafeError("Screenshot exceeds Apple's discovered specification size limit")
         reference = "octopus-review-" + sha + "-" + selection["device"] + "-" + selection["name"] + "-" + selection["sha256"]
         matches = by_reference.get(reference, [])
@@ -524,6 +563,7 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
         if image and image["attributes"].get("state") not in ("AWAITING_UPLOAD", "UPLOAD_COMPLETE", "PREPARE_FOR_SUBMISSION", "APPROVED"):
             raise SafeError("Existing referenced asset needs inspection before resuming")
         plans.append({"selection": selection, "raw": raw, "group": group, "reference": reference,
+                      "dimensions": dimensions, "specification": specification,
                       "image": image, "placement": placed[0] if placed else None})
     originals = replacement_surface(target, replacement, plans, existing) if replacement is not None else []
     removing = {item["id"] for item in originals}
@@ -561,9 +601,11 @@ def upload(apple, target, images, groups, sha, record, replacement=None):
     for plan in plans:
         image = processed_image(apple, plan["image"]["id"], deadline)
         attributes = image["attributes"]
-        asset = attributes.get("imageAsset", {})
-        if attributes.get("specId") not in plan["group"]["spec_ids"] or (asset.get("width"), asset.get("height")) != DIMENSIONS[plan["selection"]["device"]]:
-            raise SafeError("Processed asset does not match the selected device specification")
+        asset = attributes.get("imageAsset") or {}
+        if (attributes.get("specId") not in plan["specification"]["spec_ids"] or not isinstance(asset, dict) or
+                type(asset.get("width")) is not int or type(asset.get("height")) is not int or
+                (asset.get("width"), asset.get("height")) != plan["dimensions"]):
+            raise SafeError("Processed asset does not match the original screenshot dimensions and compatible specification")
         plan["image"] = image
         record({"action": "image_prepared", "image_id": image["id"], "reference_name": plan["reference"],
                 "state": attributes["state"]})

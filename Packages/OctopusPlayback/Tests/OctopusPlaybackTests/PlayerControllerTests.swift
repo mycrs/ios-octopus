@@ -584,6 +584,95 @@ final class PlayerControllerTests: XCTestCase {
 
     // MARK: - Sarma sınırları
 
+    func test_recordedChannelFullscreenHandoff_keepsOneLoadAndSession() async throws {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+        let item = channelItem("sample", isLive: false)
+        await controller.start(item)
+        native.emit(.stateChanged(.playing))
+        _ = await waitUntil { controller.state == .playing }
+        let session = try XCTUnwrap(controller.session)
+
+        await controller.start(item)
+        await controller.start(item)
+
+        XCTAssertEqual(controller.session, session)
+        XCTAssertEqual(native.loadedItems.count, 1)
+        XCTAssertEqual(native.playCount, 1)
+        XCTAssertFalse(native.didTeardown)
+        XCTAssertEqual(controller.currentItem?.isLive, false)
+        await controller.finish()
+    }
+
+    func test_staleScreenCleanup_doesNotStopNewChannelEvenWithSameURL() async throws {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+        await controller.start(channelItem("a"))
+        native.emit(.stateChanged(.playing))
+        _ = await waitUntil { controller.state == .playing }
+        let oldSession = try XCTUnwrap(controller.session)
+
+        await controller.start(channelItem("b"))
+        let newSession = try XCTUnwrap(controller.session)
+        controller.stop(ifCurrent: oldSession)
+        await controller.finish(ifCurrent: oldSession)
+
+        XCTAssertEqual(native.loadedItems.count, 2, "Different channel IDs must not share the same-URL shortcut")
+        XCTAssertEqual(controller.session, newSession)
+        XCTAssertEqual(controller.currentItem?.source, .liveChannel("b"))
+        XCTAssertFalse(native.didTeardown)
+        await controller.finish()
+    }
+
+    func test_surfaceClose_stopsAudioBeforeProgressSaveCompletes() async throws {
+        let native = TestEngine(identifier: "native")
+        let progress = TestProgressRepository()
+        let gate = ProgressSaveGate()
+        let controller = makeController(native: native, progress: progress)
+        await controller.start(makeItem())
+        native.emit(.timeChanged(PlaybackTime(current: 42, duration: 120, bufferedUpTo: 60)))
+        _ = await waitUntil { progress.stored[makeItem().source.storageKey] != nil }
+        progress.stored = [:]
+        progress.beforeSave = { await gate.wait() }
+        let session = try XCTUnwrap(controller.session)
+
+        controller.stop(ifCurrent: session)
+
+        XCTAssertTrue(native.didTeardown)
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertNil(controller.session)
+        XCTAssertNil(controller.currentItem)
+        await gate.open()
+        _ = await waitUntil { progress.stored[makeItem().source.storageKey] != nil }
+        XCTAssertEqual(progress.stored[makeItem().source.storageKey]?.positionSeconds, 42)
+    }
+
+    func test_sameChannelNewOpening_isProtectedFromPreviousOpeningCleanup() async throws {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+        await controller.start(channelItem("a"))
+        let oldSession = try XCTUnwrap(controller.session)
+        // Failed/opening retry is a new session even for the same source.
+        native.emit(.stateChanged(.ended))
+        _ = await waitUntil { controller.state == .ended }
+        await controller.start(channelItem("a"))
+        let currentSession = try XCTUnwrap(controller.session)
+
+        controller.stop(ifCurrent: oldSession)
+
+        XCTAssertNotEqual(oldSession, currentSession)
+        XCTAssertEqual(controller.session, currentSession)
+        XCTAssertFalse(native.didTeardown)
+        await controller.finish()
+    }
+
+    private func channelItem(_ id: String, isLive: Bool = true) -> PlaybackItem {
+        PlaybackItem(
+            source: .liveChannel(Channel.ID(id)), url: URL(fileURLWithPath: "/sample.mp4"),
+            title: "Sample", isLive: isLive
+        )
+    }
+
     func test_skip_staysWithinBounds() async {
         let native = TestEngine(identifier: "native")
         let controller = makeController(native: native)

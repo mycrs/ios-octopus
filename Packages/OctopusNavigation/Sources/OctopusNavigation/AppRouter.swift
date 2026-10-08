@@ -29,6 +29,12 @@ public final class AppRouter: ObservableObject {
 
     private let store: UserDefaults
     private static let startupTabKey = "startup.tab"
+    private struct LivePreviewContext {
+        let ownerID: UUID
+        let tab: AppTab
+        let pathDepth: Int
+    }
+    private var livePreviewContext: LivePreviewContext?
 
     /// Her sekmenin kendi gezinme yığını vardır — sekme değişince yığın korunur.
     @Published public var paths: [AppTab: NavigationPath] = [:]
@@ -87,10 +93,49 @@ public final class AppRouter: ObservableObject {
     // MARK: - Oynatıcı
 
     public func presentPlayer(_ source: PlaybackItem.Source, startAt: TimeInterval? = nil) {
-        player = PlayerPresentation(source: source, startAt: startAt)
+        player = PlayerPresentation(
+            source: source, startAt: startAt, originTab: selectedTab,
+            returnsToLivePreview: isLivePreviewVisible
+        )
     }
 
-    public func dismissPlayer() {
+    /// A Live screen may also be pushed from Home. Record the actual visible
+    /// receiver rather than assuming that a selected Live tab has a surface.
+    public func registerLivePreview(ownerID: UUID) {
+        livePreviewContext = LivePreviewContext(
+            ownerID: ownerID, tab: selectedTab,
+            pathDepth: paths[selectedTab]?.count ?? 0
+        )
+    }
+
+    public func unregisterLivePreview(ownerID: UUID) {
+        guard livePreviewContext?.ownerID == ownerID else { return }
+        livePreviewContext = nil
+    }
+
+    public var isLivePreviewVisible: Bool {
+        guard let context = livePreviewContext else { return false }
+        return selectedTab == context.tab
+            && (paths[selectedTab]?.count ?? 0) == context.pathDepth && sheet == nil
+    }
+
+    public func isLivePreviewVisible(ownerID: UUID) -> Bool {
+        ownsLivePreview(ownerID: ownerID) && isLivePreviewVisible
+    }
+
+    public func ownsLivePreview(ownerID: UUID) -> Bool {
+        livePreviewContext?.ownerID == ownerID
+    }
+
+    public func canReturnToLivePreview(from presentation: PlayerPresentation) -> Bool {
+        presentation.returnsToLivePreview && isLivePreviewVisible
+            && (player == nil || player?.id == presentation.id)
+    }
+
+    public func dismissPlayer(ifPresented expectedID: String? = nil) {
+        guard expectedID == nil || player?.id == expectedID else { return }
+        // Assigning the already-selected tab would pop its navigation path.
+        if let origin = player?.originTab, selectedTab != origin { selectedTab = origin }
         player = nil
     }
 
@@ -136,12 +181,14 @@ public final class AppRouter: ObservableObject {
     /// ama **yığında duran** ekran kimliğiyle açık kalır ve geri dönünce
     /// karşısına çıkardı.
     public func clearOpenScreens() {
+        livePreviewContext = nil
         paths = [:]
         player = nil
     }
 
     /// Kaynak silindi/değişti — tüm yığınları temizle, eski id'lerle ekran açık kalmasın.
     public func resetAfterPlaylistChange() {
+        livePreviewContext = nil
         paths = [:]
         player = nil
         sheet = nil

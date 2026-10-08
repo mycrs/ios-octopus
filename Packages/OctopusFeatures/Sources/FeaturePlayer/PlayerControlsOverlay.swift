@@ -13,6 +13,7 @@ struct PlayerControlsOverlay: View {
     let title: String
     let subtitle: String?
     let isLive: Bool
+    let isChannel: Bool
     let state: PlaybackState
     let time: PlaybackTime
     let hasAudioChoice: Bool
@@ -37,38 +38,36 @@ struct PlayerControlsOverlay: View {
     let onZap: (Int) -> Void
 
     var body: some View {
-        ZStack {
-            // Düğmeler açık sahnelerde okunabilsin diye üst ve alt perdeler.
-            LinearGradient(
-                colors: [.black.opacity(0.7), .clear, .black.opacity(0.8)],
-                startPoint: .top,
-                endPoint: .bottom
+        // Kontrast yalnızca denetimlerin arkasında; video üzerinde perde veya blur yok.
+        VStack(spacing: 0) {
+            PlayerControlsTopBar(
+                title: title,
+                subtitle: subtitle,
+                showsAirPlay: showsAirPlay,
+                showsPictureInPicture: showsPictureInPicture,
+                onClose: onClose,
+                onPictureInPicture: onPictureInPicture
             )
-            .allowsHitTesting(false)
-
-            VStack(spacing: 0) {
-                PlayerControlsTopBar(
-                    title: title,
-                    subtitle: subtitle,
-                    showsAirPlay: showsAirPlay,
-                    showsPictureInPicture: showsPictureInPicture,
-                    onClose: onClose,
-                    onPictureInPicture: onPictureInPicture
-                )
-                Spacer(minLength: 0)
-                PlayerTransportControls(
-                    isLive: isLive,
-                    state: state,
-                    canZap: canZap,
-                    onTogglePlay: onTogglePlay,
-                    onSkip: onSkip,
-                    onZap: onZap
-                )
-                Spacer(minLength: 0)
-                bottomBar
-            }
-            .padding(Theme.Spacing.md)
+            .padding(Theme.Spacing.xs)
+            .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 12))
+            Spacer(minLength: 0)
+            PlayerTransportControls(
+                isLive: isLive,
+                state: state,
+                canZap: canZap,
+                onTogglePlay: onTogglePlay,
+                onSkip: onSkip,
+                onZap: onZap
+            )
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, Theme.Spacing.xs)
+            .background(.black.opacity(0.45), in: Capsule())
+            Spacer(minLength: 0)
+            bottomBar
+                .padding(Theme.Spacing.sm)
+                .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 14))
         }
+        .padding(Theme.Spacing.md)
     }
 
     // MARK: - Alt
@@ -88,6 +87,8 @@ struct PlayerControlsOverlay: View {
 
             PlayerActionBar(
                 isLive: isLive,
+                isChannel: isChannel,
+                canZap: canZap,
                 hasAudioChoice: hasAudioChoice,
                 hasSubtitleChoice: hasSubtitleChoice,
                 videoFit: videoFit,
@@ -96,7 +97,8 @@ struct PlayerControlsOverlay: View {
                 onSetRate: onSetRate,
                 onShowTracks: onShowTracks,
                 onShowLivePanel: onShowLivePanel,
-                onLock: onLock
+                onLock: onLock,
+                onZap: onZap
             )
         }
     }

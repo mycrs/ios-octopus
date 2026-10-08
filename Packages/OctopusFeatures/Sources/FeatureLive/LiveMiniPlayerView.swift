@@ -54,7 +54,7 @@ struct LiveMiniPlayerView: View {
         .clipped()
         .contentShape(Rectangle())
         .onTapGesture(perform: onExpand)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(
             AppLocalization.localized(
                 channel.map { "Oynatılıyor: \($0.name)" } ?? "Oynatıcı",
@@ -62,6 +62,7 @@ struct LiveMiniPlayerView: View {
             )
         )
         .accessibilityHint("Tam ekran açar")
+        .accessibilityIdentifier("live.miniPlayer")
         // Sabit yükseklik erişilebilirlik yazı boyutunda taşmasın.
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }

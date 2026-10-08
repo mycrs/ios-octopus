@@ -35,6 +35,7 @@ extension PlayerScreen {
                     title: item.title,
                     subtitle: item.subtitle,
                     isLive: item.isLive,
+                    isChannel: hasChannelContext(item),
                     state: controller.state,
                     time: controller.time,
                     hasAudioChoice: controller.audioTracks.count > 1,
@@ -87,6 +88,7 @@ extension PlayerScreen {
                     },
                     onShowLivePanel: {
                         hideControlsTask?.cancel()
+                        showsControls = false
                         isShowingLivePanel = true
                     },
                     onZap: { step in

@@ -34,6 +34,8 @@ public struct PlayerScreen: View {
     @State var isShowingNextEpisodePrompt = false
     @State var gestureNotice: PlayerGestureNotice?
     @State var gestureNoticeTask: Task<Void, Never>?
+    @State private var ownedSession: PlayerController.Session?
+    private let presentation: PlayerPresentation
 
     let autoHideDelay: Duration
     let keepsControlsVisible: Bool
@@ -41,6 +43,7 @@ public struct PlayerScreen: View {
     let previewsNextEpisodeOverlay: Bool
 
     public init(presentation: PlayerPresentation, dependencies: PlayerDependencies) {
+        self.presentation = presentation
 #if DEBUG
         keepsControlsVisible = ProcessInfo.processInfo.arguments.contains("-keepPlayerControls")
         previewsPictureInPictureButton = ProcessInfo.processInfo.arguments.contains(
@@ -90,25 +93,37 @@ public struct PlayerScreen: View {
         .statusBarHidden(true)
         .task { await viewModel.resolve() }
         .sheet(item: $trackPickerFocus) { trackPicker($0) }
-        .sheet(isPresented: $isShowingLivePanel) { livePanel }
+        .overlay { if isShowingLivePanel { livePanel } }
         .onChange(of: controller.state, perform: handlePlaybackStateChange)
+        .onChange(of: controller.session) { session in
+            guard router.player?.id == presentation.id else { return }
+            ownedSession = session
+        }
         // ⚠️ Konum normalde 5 sn'de bir yazılıyor. Kullanıcı uygulamayı
         // arka plana alıp sistem onu öldürürse son 5 saniye kaybolurdu —
         // filmi tekrar açtığında biraz geriden başlardı. Arka plana geçiş
         // "şimdi yaz" için son güvenilir an.
         .onChange(of: scenePhase) { phase in
             guard phase != .active else { return }
+            let session = controller.session
             Task {
+                guard controller.session == session else { return }
                 await controller.persistPosition()
+                guard router.player?.id == presentation.id else { return }
                 guard await viewModel.lockAndValidateCurrentSource() else {
-                    await controller.finish()
-                    router.dismissPlayer()
+                    guard controller.session == session else { return }
+                    if let session { controller.stop(ifCurrent: session) }
+                    router.dismissPlayer(ifPresented: presentation.id)
                     return
                 }
             }
         }
         .onDisappear {
             gestureNoticeTask?.cancel()
+            hideControlsTask?.cancel()
+            // Item replacement and temporary sheets are not a player exit.
+            guard router.player?.id != presentation.id else { return }
+            releasePlaybackIfNeeded()
         }
     }
 
@@ -142,29 +157,12 @@ public struct PlayerScreen: View {
         // yeniden başlaması gerekiyor. Kimliksiz `.task` yalnızca görünüm
         // ilk kurulduğunda çalışır; kullanıcı sonraki kanala geçince ekran
         // eski yayında donup kalırdı.
-        .task(id: item.url) {
-            await controller.start(item)
+        .task(id: item) {
+            guard !Task.isCancelled, router.player?.id == presentation.id else { return }
+            await controller.start(item) { ownedSession = $0 }
+            guard !Task.isCancelled, router.player?.id == presentation.id else { return }
+            ownedSession = controller.session
             scheduleControlsHide()
-        }
-        .onDisappear {
-            hideControlsTask?.cancel()
-            // ⚠️ Canlı yayında ve Canlı TV sekmesine dönülüyorsa motor
-            // **bırakılmaz**: oradaki mini oynatıcı aynı denetleyiciyi
-            // paylaşıyor ve yayını kesintisiz devralıyor. Bırakmak,
-            // kullanıcının tam ekrandan çıkar çıkmaz yeniden bağlanmayı
-            // beklemesi demekti.
-            //
-            // Diğer her durumda bırakılır — özellikle canlı bir kanal
-            // Ana Sayfa'dan açıldıysa: orada devralacak bir yüzey yok,
-            // motor açık kalsa kullanıcı görüntüsüz ses dinlerdi.
-            if item.isLive, router.selectedTab == .live {
-                Task { await controller.persistPosition() }
-                return
-            }
-            // Motoru bırakmak ve son konumu yazmak: ikisi de atlanamaz.
-            // Ekran kapanırken görev iptal edilmesin diye `Task.detached`
-            // değil, controller'ın kendi ömrüne bağlı bir görev kullanılıyor.
-            Task { await controller.finish() }
         }
     }
 
@@ -188,12 +186,17 @@ public struct PlayerScreen: View {
             error: error,
             item: item,
             failureKind: controller.failureKind,
-            onRetry: { Task { await controller.start(item) } },
+            onRetry: {
+                Task {
+                    guard router.player?.id == presentation.id else { return }
+                    await controller.start(item) { ownedSession = $0 }
+                }
+            },
             onClose: close,
-            onPreviousChannel: item.isLive && viewModel.canZap
+            onPreviousChannel: hasChannelContext(item) && viewModel.canZap
                 ? { Task { await viewModel.zap(by: -1) } }
                 : nil,
-            onNextChannel: item.isLive && viewModel.canZap
+            onNextChannel: hasChannelContext(item) && viewModel.canZap
                 ? { Task { await viewModel.zap(by: 1) } }
                 : nil
         )
@@ -201,6 +204,23 @@ public struct PlayerScreen: View {
 
     func close() {
         hideControlsTask?.cancel()
-        router.dismissPlayer()
+        guard router.player?.id == presentation.id else { return }
+        ownedSession = controller.session
+        releasePlaybackIfNeeded()
+        router.dismissPlayer(ifPresented: presentation.id)
+    }
+
+    func hasChannelContext(_ item: PlaybackItem) -> Bool {
+        if case .liveChannel = item.source { return true }
+        return false
+    }
+
+    private func releasePlaybackIfNeeded() {
+        guard let session = ownedSession, controller.session == session else { return }
+        if case .liveChannel = session.source,
+           router.canReturnToLivePreview(from: presentation) {
+            return
+        }
+        controller.stop(ifCurrent: session)
     }
 }

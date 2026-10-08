@@ -12,7 +12,7 @@ struct PlayerLockControl: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 38, height: 38)
-                .background(.ultraThinMaterial, in: Circle())
+                .background(.black.opacity(0.62), in: Circle())
                 .overlay {
                     Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
                 }

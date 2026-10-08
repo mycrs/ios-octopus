@@ -87,13 +87,22 @@ public enum AppSheet: Hashable, Identifiable, Sendable {
 /// Akış URL'si taşınmaz — `FeaturePlayer` kendisi `StreamResolving` ile üretir.
 /// Böylece süresi dolmuş bir URL ile ekran açılmaz.
 public struct PlayerPresentation: Hashable, Identifiable, Sendable {
+    public let id: String
     public let source: PlaybackItem.Source
     public let startAt: TimeInterval?
+    public let originTab: AppTab?
+    public let returnsToLivePreview: Bool
 
-    public var id: String { source.storageKey }
-
-    public init(source: PlaybackItem.Source, startAt: TimeInterval? = nil) {
+    public init(
+        source: PlaybackItem.Source,
+        startAt: TimeInterval? = nil,
+        originTab: AppTab? = nil,
+        returnsToLivePreview: Bool = false
+    ) {
+        self.id = UUID().uuidString
         self.source = source
         self.startAt = startAt
+        self.originTab = originTab
+        self.returnsToLivePreview = returnsToLivePreview
     }
 }

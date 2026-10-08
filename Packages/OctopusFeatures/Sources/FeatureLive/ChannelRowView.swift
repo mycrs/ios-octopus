@@ -66,6 +66,7 @@ struct ChannelRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("live.channel")
         // ⚠️ VoiceOver: satır **tek** öğe olarak okunur (numara, ad, program
         // ardı ardına), favori ve rehber ise özel eylem olarak sunulur.
         // İç içe düğme bırakmak, kullanıcıyı her satırda üç kez durduruyordu.

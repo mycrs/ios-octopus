@@ -62,7 +62,7 @@ struct PlayerControlsTopBar: View {
                 if showsAirPlay {
                     AirPlayButton()
                         .frame(width: 38, height: 38)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .background(.black.opacity(0.62), in: Circle())
                         .overlay {
                             Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
                         }
@@ -99,7 +99,7 @@ struct PlayerControlsTopBar: View {
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 44, height: 44)
-                .background(.ultraThinMaterial, in: Circle())
+                .background(.black.opacity(0.62), in: Circle())
                 .overlay {
                     Circle().stroke(.white.opacity(0.14), lineWidth: 0.5)
                 }

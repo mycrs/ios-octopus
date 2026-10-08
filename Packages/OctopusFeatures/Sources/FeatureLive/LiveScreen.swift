@@ -88,6 +88,10 @@ public struct LiveScreen: View {
     @ObservedObject private var controller: PlayerController
     @EnvironmentObject private var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
+    @State private var playbackTask: Task<Void, Never>?
+    @State private var adoptionTask: Task<Void, Never>?
+    @State private var ownedSession: PlayerController.Session?
+    @State private var previewOwnerID = UUID()
 
     public init(dependencies: LiveDependencies) {
         _viewModel = StateObject(wrappedValue: LiveChannelsViewModel(dependencies: dependencies))
@@ -104,6 +108,10 @@ public struct LiveScreen: View {
         return !viewModel.isSearching && viewModel.lastWatchedChannel != nil
     }
 
+    private var ownsPreview: Bool {
+        router.isLivePreviewVisible(ownerID: previewOwnerID)
+    }
+
     public var body: some View {
         ZStack {
             Theme.Palette.background.ignoresSafeArea()
@@ -117,7 +125,7 @@ public struct LiveScreen: View {
                         controller: controller,
                         placeholderChannel: viewModel.lastWatchedChannel,
                         // Tam ekran kapalıyken yüzeyin sahibi burasıdır.
-                        ownsSurface: router.player == nil,
+                        ownsSurface: router.player == nil && ownsPreview,
                         onExpand: expandToFullScreen
                     )
                 }
@@ -151,19 +159,37 @@ public struct LiveScreen: View {
         // başlıyor. Artık tam 16:9'un tamamı görünür.
         .toolbar(.hidden, for: .navigationBar)
         .overlay(alignment: .topTrailing) { settingsButton }
-        .task { await viewModel.load() }
+        .onAppear { router.registerLivePreview(ownerID: previewOwnerID) }
+        .task {
+            await viewModel.load()
+            await synchronizePlayback()
+        }
+        .onChange(of: controller.session) { _ in
+            guard ownsPreview else { return }
+            ownedSession = controller.session
+            adoptionTask?.cancel()
+            adoptionTask = Task { await synchronizePlayback() }
+        }
+        .onChange(of: router.player?.id) { playerID in
+            guard playerID == nil, ownsPreview else { return }
+            adoptionTask?.cancel()
+            adoptionTask = Task { await synchronizePlayback() }
+        }
         // ⚠️ Motoru bırakmak **atlanamaz**: IPTV panelleri eşzamanlı
         // bağlantıyı sınırlar ve bırakılmayan her akış kotadan bir hak yer
         // (bkz. PlaybackEngine.teardown). Sekme değişince de tetiklenir.
         .onDisappear {
+            viewModel.cancelPlaybackSelection()
+            adoptionTask?.cancel()
             // ⚠️ Tam ekrana devrederken bırakma: `fullScreenCover` açılınca
             // bu ekran da "kayboldu" sayılıyor ve koşulsuz `finish()`
             // devraldığımız yayını hemen öldürürdü.
             guard router.player == nil else { return }
-            Task {
-                await controller.finish()
-                viewModel.clearPlayingChannel()
-            }
+            playbackTask?.cancel()
+            viewModel.clearPlayingChannel()
+            guard router.ownsLivePreview(ownerID: previewOwnerID) else { return }
+            router.unregisterLivePreview(ownerID: previewOwnerID)
+            if let session = ownedSession { controller.stop(ifCurrent: session) }
         }
         // Arka plana geçince gömülü yayın durur: kullanıcı Canlı TV
         // listesine bakarken sesin arka planda sürmesini beklemez —
@@ -171,7 +197,7 @@ public struct LiveScreen: View {
         .onChange(of: scenePhase) { phase in
             // Tam ekran açıkken oynatmanın sahibi o ekran: arka plan sesi
             // orada **isteniyor**, burada duraklatmak onu susturur.
-            guard router.player == nil else { return }
+            guard router.player == nil, ownsPreview else { return }
             guard viewModel.playingChannel != nil else { return }
             if phase == .active {
                 // Mini oynatıcıda ayrı bir oynat düğmesi yok. Arka plan için
@@ -219,9 +245,26 @@ public struct LiveScreen: View {
     /// Kanalı üstteki mini oynatıcıda başlatır.
     private func play(_ channel: Channel) {
         Haptics.selection()
-        Task {
+        playbackTask?.cancel()
+        playbackTask = Task {
             guard let item = await viewModel.playbackItem(for: channel) else { return }
-            await controller.start(item)
+            guard !Task.isCancelled, router.player == nil, ownsPreview else { return }
+            await controller.start(item) { ownedSession = $0 }
+            guard !Task.isCancelled, ownsPreview else { return }
+            ownedSession = controller.session
+        }
+    }
+
+    private func synchronizePlayback() async {
+        guard viewModel.hasLoadedPlaylist else { return }
+        let session = controller.session
+        guard let adopted = await viewModel.adoptCurrentPlayback() else { return }
+        guard !Task.isCancelled, controller.session == session,
+              router.player == nil, ownsPreview else { return }
+        if adopted {
+            ownedSession = session
+        } else if let session {
+            controller.stop(ifCurrent: session)
         }
     }
 

@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct OctopusApp: App {
 
+    @UIApplicationDelegateAdaptor(OctopusAppDelegate.self) private var appDelegate
     @StateObject private var container = AppContainer()
 
     init() {

@@ -15,6 +15,8 @@ import OctopusPlayback
 struct PlayerActionBar: View {
 
     let isLive: Bool
+    let isChannel: Bool
+    let canZap: Bool
     /// Ses düğmesi yalnızca **seçenek varsa** çıkar: tek izli bir
     /// yayında düğme açmak, seçim sunmadan kullanıcıya iş çıkarır.
     let hasAudioChoice: Bool
@@ -27,6 +29,7 @@ struct PlayerActionBar: View {
     let onShowTracks: (PlayerTrackPicker.Focus) -> Void
     let onShowLivePanel: () -> Void
     let onLock: () -> Void
+    let onZap: (Int) -> Void
 
     @State private var showsRates = false
     @Environment(\.locale) private var locale
@@ -98,7 +101,15 @@ struct PlayerActionBar: View {
                 )
             }
 
-            if isLive {
+            if isChannel {
+                if !isLive, canZap {
+                    button(title: "Önceki kanal", systemImage: "backward.end.fill", accessibilityLabel: "Önceki kanal",
+                           showsTitle: false, action: { onZap(-1) })
+                        .accessibilityIdentifier("player.channels.previous")
+                    button(title: "Sonraki kanal", systemImage: "forward.end.fill", accessibilityLabel: "Sonraki kanal",
+                           showsTitle: false, action: { onZap(1) })
+                        .accessibilityIdentifier("player.channels.next")
+                }
                 button(
                     title: "Kanallar",
                     systemImage: "list.bullet.rectangle",
@@ -106,6 +117,7 @@ struct PlayerActionBar: View {
                     showsTitle: showsTitles,
                     action: onShowLivePanel
                 )
+                .accessibilityIdentifier("player.channels.open")
             }
         }
     }

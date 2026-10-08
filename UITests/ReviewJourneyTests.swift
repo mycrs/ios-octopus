@@ -6,6 +6,7 @@ final class ReviewJourneyTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
         app = XCUIApplication()
         app.launchArguments = ["-language.selection", "english"]
         app.launch()
@@ -56,8 +57,18 @@ final class ReviewJourneyTests: XCTestCase {
         let rendered = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "ready"), object: nativeVideo)
         XCTAssertEqual(XCTWaiter.wait(for: [rendered], timeout: 45), .completed,
                        "Oynatma durumu tek başına kare kanıtı değildir; gerçek AVPlayerLayer hazır olmalı")
+        assertWindowOrientation(isLandscape: true)
+        // Upright phone/tablet posture must not rotate the fullscreen player back.
+        XCUIDevice.shared.orientation = .landscapeRight
+        assertWindowOrientation(isLandscape: true)
+        XCUIDevice.shared.orientation = .portrait
+        assertWindowOrientation(isLandscape: true)
+        assertFullscreenIgnoresPortraitPosture()
         capture("06-player")
         closePlayer(nativeVideo: nativeVideo)
+        assertWindowOrientation(isLandscape: false)
+        XCTAssertTrue(play.waitForExistence(timeout: 10), "Kapatınca filmi açtığımız detay ekranı korunmalı")
+        try verifyLiveFullscreenReturn()
 
         let series = app.buttons["Series"].firstMatch
         XCTAssertTrue(series.waitForExistence(timeout: 10))
@@ -92,6 +103,95 @@ final class ReviewJourneyTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func assertWindowOrientation(isLandscape: Bool) {
+        let orientation = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
+            guard let frame = app?.windows.firstMatch.frame, frame.width > 0, frame.height > 0 else { return false }
+            return isLandscape ? frame.width > frame.height : frame.height > frame.width
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [orientation], timeout: 10), .completed,
+                       isLandscape ? "Tam ekran oynatıcı yatay kalmalı" : "Kapatınca önceki dikey yön geri gelmeli")
+    }
+
+    private func assertFullscreenIgnoresPortraitPosture() {
+        let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
+            guard let frame = app?.windows.firstMatch.frame else { return false }
+            return frame.height > frame.width
+        }, object: app)
+        portrait.isInverted = true
+        XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 2), .completed,
+                       "Cihaz dik tutulunca tam ekran oyuncu yataydan çıkmamalı")
+    }
+
+    private func verifyLiveFullscreenReturn() throws {
+        let live = app.buttons["Live TV"].firstMatch
+        XCTAssertTrue(live.waitForExistence(timeout: 10))
+        live.tap()
+        let firstChannel = app.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "live.channel", "Big Buck Bunny"
+        )).firstMatch
+        XCTAssertTrue(firstChannel.waitForExistence(timeout: 20))
+        firstChannel.tap()
+        let mini = app.descendants(matching: .any).matching(identifier: "live.miniPlayer").firstMatch
+        XCTAssertTrue(mini.waitForExistence(timeout: 15))
+        waitForNativeFrame()
+        mini.tap()
+        assertWindowOrientation(isLandscape: true)
+        waitForNativeFrame()
+
+        revealAndTapPlayerButton("player.channels.open")
+        let currentRow = app.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "player.channels.channel", "Big Buck Bunny"
+        )).firstMatch
+        XCTAssertTrue(currentRow.waitForExistence(timeout: 10))
+        XCTAssertTrue(currentRow.isSelected, "Liste açık kanalı seçili göstermeli")
+        XCTAssertLessThan(currentRow.frame.maxX, app.windows.firstMatch.frame.midX,
+                          "Kanal listesi yatay videonun sol tarafında kalmalı")
+        currentRow.tap()
+        XCTAssertFalse(app.buttons["player.channels.close"].exists, "Mevcut kanala dokunmak paneli kapatmalı")
+        waitForNativeFrame()
+
+        revealAndTapPlayerButton("player.channels.open")
+        let search = app.textFields["player.channels.search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        search.tap()
+        search.typeText("Sintel\n")
+        let nextChannel = app.buttons.matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "player.channels.channel", "Sintel"
+        )).firstMatch
+        XCTAssertTrue(nextChannel.waitForExistence(timeout: 10))
+        XCTAssertTrue(nextChannel.isHittable)
+        nextChannel.tap()
+        waitForNativeFrame()
+        revealAndTapPlayerButton("player.close")
+        assertWindowOrientation(isLandscape: false)
+        XCTAssertTrue(mini.waitForExistence(timeout: 10))
+        let adopted = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label CONTAINS %@", "Sintel"), object: mini)
+        XCTAssertEqual(XCTWaiter.wait(for: [adopted], timeout: 10), .completed,
+                       "Tam ekranda seçilen kanal mini oynatıcıya devredilmeli")
+        waitForNativeFrame()
+        mini.tap()
+        assertWindowOrientation(isLandscape: true)
+        waitForNativeFrame()
+        revealAndTapPlayerButton("player.close")
+        assertWindowOrientation(isLandscape: false)
+    }
+
+    private func waitForNativeFrame() {
+        let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
+        let rendered = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND value == %@", "ready"), object: surface)
+        XCTAssertEqual(XCTWaiter.wait(for: [rendered], timeout: 45), .completed,
+                       "Gerçek AVPlayerLayer ilk kareyi göstermeli")
+    }
+
+    private func revealAndTapPlayerButton(_ identifier: String) {
+        let button = app.buttons[identifier]
+        let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
+        if !button.isHittable { surface.tap() }
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 3), .completed)
+        button.tap()
     }
 
     private func closePlayer(nativeVideo: XCUIElement) {
