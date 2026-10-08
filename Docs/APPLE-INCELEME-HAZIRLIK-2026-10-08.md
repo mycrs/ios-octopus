@@ -13,8 +13,14 @@ onarıldı. İkinci tur `64c1849` / 37819697146'da 715 Swift testi ve mimari
 kapısı geçti. Release testi denetimlerin otomatik gizlenmesiyle çakıştı;
 dokunma zamanlaması onarıldı. Yatay kilit doğrulanırken uygulama elemanı
 ekran kaydı kırpılabildiği için kilit testi korunur, görsel yataya hizalı
-cihazın gerçek tam ekranından alınır. Başarılı yeni tam tur ve cihaz kanıtı
-henüz yok.
+cihazın gerçek tam ekranından alınır. Üçüncü tur `45ed5d0` / 37822616226'da
+715 Swift testi ve iPhone Release akışının tamamı geçti. iPad ekran kaydı
+gerçek portrede kalma hatasını doğruladı. Yön tercihi ve iOS 26+ public
+yön kilidi gerçek sunulan tam ekran UIKit hosting denetleyicisine taşındı;
+geçişler kimlik ve scene lease ile sıralanır. Kontrollerin mağaza karesinde
+görünmesi normal duraklat eylemiyle sağlanır; özgün EXIF metaverisiyle
+ham/görünür boyutlar ayrı doğrulanır. Başarılı yeni tam tur ve cihaz
+kanıtı henüz yok.
 Build 9'daki başarı bu dört ek düzeltmenin kanıtı sayılmaz; son App Review
 başvurusu yeni pakete ve gizlilik eşleştirmesinin tamamlanmasına bağlıdır.
 

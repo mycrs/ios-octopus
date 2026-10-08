@@ -69,7 +69,14 @@ final class ReviewJourneyTests: XCTestCase {
         XCUIDevice.shared.orientation = .landscapeRight
         assertWindowOrientation(isLandscape: true)
         assertVideoFillsWindow(nativeVideo)
-        if !close.isHittable { nativeVideo.tap() }
+        // A normal pause keeps the real controls visible while a slow screenshot
+        // is captured; the ready video frame remains displayed by AVPlayerLayer.
+        revealAndTapPlayerButton("player.playPause")
+        let paused = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@ AND enabled == true", "Play"),
+            object: app.buttons["player.playPause"]
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [paused], timeout: 10), .completed)
         capture("06-player", fullScreen: true)
         XCUIDevice.shared.orientation = .portrait
         assertFullscreenIgnoresPortraitPosture()
@@ -209,7 +216,7 @@ final class ReviewJourneyTests: XCTestCase {
         let button = app.buttons[identifier]
         let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
         for _ in 0..<3 {
-            if !button.isHittable { surface.tap() }
+            if !button.exists || !button.isHittable { surface.tap() }
             let visible = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button
             )

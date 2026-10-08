@@ -23,6 +23,7 @@ struct RootView: View {
     @EnvironmentObject var router: AppRouter
     @EnvironmentObject var language: LanguageController
     @Environment(\.scenePhase) private var scenePhase
+    @State private var playerPresentationRevision = 0
 
     var body: some View {
         ZStack {
@@ -65,17 +66,12 @@ struct RootView: View {
         .environmentObject(container.themeController)
         // Oynatıcı tercihleri de aynı yoldan: Ayarlar düzenler, motorlar okur.
         .environmentObject(container.playbackPreferences)
-        // Oynatıcı tam ekran sunulur — gezinme yığınına girmez,
-        // böylece hangi ekrandan açılırsa açılsın davranışı aynıdır.
-        .fullScreenCover(item: $router.player) { presentation in
-            PlayerScreen(
-                presentation: presentation,
-                dependencies: container.makePlayerDependencies()
-            )
-            .environmentObject(router)
-            .background(PlayerOrientationScope())
+        // Sunulan UIKit denetleyicisi yön kilidini kendisi taşır; iPad
+        // arka plandaki bir SwiftUI alt denetleyicisinin tercihini kullanmaz.
+        .background {
+            playerPresenter(scenePhase: scenePhase, revision: playerPresentationRevision)
         }
-        .sheet(item: $router.sheet) { sheet in
+        .sheet(item: $router.sheet, onDismiss: { playerPresentationRevision &+= 1 }) { sheet in
             sheetContent(for: sheet)
                 .environmentObject(router)
         }

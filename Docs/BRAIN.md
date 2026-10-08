@@ -28,7 +28,7 @@ yedek sunucu listesi ve bakım/güncelleme kapısı panelden gelir.
 | Görsel dil | Android sürümüyle aynı kimlik, iOS'a özgü cila | Marka `#00B0FF`; PC/Android/iOS ortak lacivert palet (`#091525`, `#11263B`, `#19374F`); kullanıcının 03.10.2026 talebiyle şeffaf mavi/turkuaz ahtapot logosu, yalnızca mavi ailesinden vurgu seçenekleri. Panel renkleri ve logoları ürün kimliğini değiştirmez, okunaklı metin; SF Symbols + iOS tipografisi + haptik. Büyük yazılar sınırlandırılmaz; düzen dikeyleşir. |
 | Dil | Türkçe + İngilizce | Varsayılan cihaz dili; Ayarlar'da Sistem/Türkçe/English seçimi anında ve kalıcı uygulanır |
 | Oynatma | AVPlayer **+** VLCKit | HLS → AVPlayer (canlı/film/bölümde yalnızca düğmeyle PiP, AirPlay, arka plan). MPEG-TS/RTSP → VLCKit fallback |
-| Tam ekran ve dönüş | Oynatıcı kendi window scene'inde yatay; kapatınca önceki yön ve gezinme yolu korunur | iOS 16 public geometry API; görünür Live alıcısı varsa aynı oturum mini yüzeye devredilir, alıcı yoksa ses gecikmeden durur. Kanal paneli cached yerel sol overlay; video üstünde Material blur yok. |
+| Tam ekran ve dönüş | Oynatıcı kendi window scene'inde yatay; kapatınca önceki yön ve gezinme yolu korunur | Gerçek tam ekran UIKit hosting denetleyicisi, iOS 16 public geometry API ve iOS 26+ public orientation lock; görünür Live alıcısı varsa aynı oturum mini yüzeye devredilir, alıcı yoksa ses gecikmeden durur. Kanal paneli cached yerel sol overlay; video üstünde Material blur yok. |
 | Min. platform | **iOS 16.0**, iPhone + iPad | Kapsam geniş |
 | Proje üretimi | **XcodeGen** (`project.yml`) | `.xcodeproj` git'e girmez → merge conflict yok, Windows'ta düzenlenebilir |
 | UI | SwiftUI, `NavigationStack` | iOS 16'da mevcut |

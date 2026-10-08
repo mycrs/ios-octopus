@@ -15,8 +15,18 @@ gizlenme süresiyle çakıştı; dokunma yardımcısı sınırlı yeniden görü
 ile onarıldı. AX kanıtında pencere/video 874×402 ve ilk kare hazırdı.
 Dikey cihaz duruşuyla yatay kilitli pencere ayrıştığında `app.screenshot()`
 kırpıldığı için dikey kilit testi korunup tam ekran kaydı cihaz yataya
-hizalandıktan sonra `XCUIScreen.main.screenshot()` ile alınır. Yeni tam tur
-ve fiziksel cihaz kanıtı bekleniyor.
+hizalandıktan sonra `XCUIScreen.main.screenshot()` ile alınır.
+Üçüncü Mac turu `45ed5d0` / 37822616226'da **715 Swift testi ve mimari
+kapısı geçti; iPhone Release akışının tamamı başarılı**. iPad ilk filmde
+yatay yön kontrolünden geçmedi. Özgün ekran kaydı oynatmanın ilerlediğini,
+oynatıcı arayüzünün ise portrede kaldığını doğruladı; bu gerçek yön hatasıdır.
+SwiftUI cover'ın arka plan alt denetleyicisi yerine, kendi tam ekran UIKit
+hosting denetleyicisi kullanılır. Yön tercihi, scene lease ve iOS 26+
+public orientation lock gerçek sunulan denetleyiciye aittir. Kapanış
+tamamlanmadan eski yön geri istenmez; eski kapanış yeni oynatıcıyı kapatamaz.
+Mağaza oynatıcı karesinde normal duraklat düğmesiyle denetimler görünür
+tutulur; video karesi ve PNG'nin özgün EXIF yön metaverisi korunur.
+Yeni tam tur ve fiziksel cihaz kanıtı bekleniyor.
 Bu çalışmadan binary/görsel gönderilmez. App Store'daki kayıtlı build 9
 ilişkisi ve mağaza alanları korunur; son başvuru yeni doğrulanmış paketi bekler.
 

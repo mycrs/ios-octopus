@@ -64,6 +64,7 @@ struct PlayerTransportControls: View {
             }
         }
         .disabled(state.showsSpinner)
+        .accessibilityIdentifier("player.playPause")
         .accessibilityLabel(
             AppLocalization.localized(
                 state == .playing ? "Duraklat" : "Oynat",
