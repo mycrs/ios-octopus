@@ -1,6 +1,7 @@
 """Extract only fixed public UIKit messages; never publish raw test diagnostics."""
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -9,7 +10,7 @@ import tempfile
 import time
 
 PREFIXES = ("Player dismissal +2s", "Player dismissal tabSelection",
-            "Player orientation request failed")
+            "Player orientation request failed", "Player orientation request state")
 PREDICATE = ('process == "Octopus" AND subsystem == "com.octopus.iptv" '
              'AND category == "ui" AND (' + ' OR '.join(
                  f'eventMessage BEGINSWITH "{prefix}"' for prefix in PREFIXES) + ')')
@@ -33,6 +34,10 @@ MESSAGES = tuple(re.compile(pattern) for pattern in (
     r"Player dismissal \+2s viewLayers=\d+ animationKeys=\d+ inspected=\d+ repeated=\d+"
     + r" maxDuration=" + NUMBER + r" knownProperties=(?:" + PROPERTY + r"(?:," + PROPERTY + r")*)?"
 ))
+REQUEST_STATE = re.compile(
+    r"Player orientation request state requested=[0-9]+ orientation=[0-4] locked=(?:-1|0|1)"
+    r" appMask=[0-9]+ rootMask=[0-9]+ presentedMask=[0-9]+"
+    + r" width=(?P<width>" + NUMBER + r") height=(?P<height>" + NUMBER + r")", re.ASCII)
 TIMESTAMP = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{4})?)\s")
 PROCESS = re.compile(r"\bOctopus(?:\[\d+:[0-9a-fA-Fx]+\]|:)\s")
 
@@ -60,9 +65,20 @@ def filtered_lines(text):
         before, found, message = line.partition(marker)
         timestamp = TIMESTAMP.match(before)
         if found and timestamp and PROCESS.search(before) and len(message) <= 2048:
-            if any(pattern.fullmatch(message) for pattern in MESSAGES):
+            if any(pattern.fullmatch(message) for pattern in MESSAGES) or orientation_state(message):
                 lines.append(timestamp.group(1) + " " + message)
     return lines
+
+
+def orientation_state(message):
+    fields = REQUEST_STATE.fullmatch(message)
+    if fields is None:
+        return False
+    try:
+        dimensions = (float(fields[name]) for name in ("width", "height"))
+        return all(math.isfinite(value) and value >= 0 for value in dimensions)
+    except (OverflowError, ValueError):
+        return False
 
 
 def original_booted(device, deadline):

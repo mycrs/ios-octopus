@@ -6,6 +6,32 @@ olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tut
 Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
 build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
+Son build 10 adayı `4983c0b08aee0b5f08e857785ba018b760749244`,
+[37842943490 numaralı sekizinci Mac turu](https://github.com/mycrs/ios-octopus/actions/runs/37842943490):
+**721 Swift testi / 0 hata ve mimari geçti**. iPhone Release akışının
+tamamı **281,438 saniyede başarılı**: film detayına geri dönüş, gerçek
+native video, Canlı TV mini/tam ekran geçişleri, yerel kanal paneli,
+mevcut kanala tekrar dokunma, Sintel araması/seçimi, doğru mini oynatıcıya
+dönüş, bölüm ve kaynak ekranı doğrulandı. iPad Pro 13-inch (M5),
+iPadOS 26.4.1 simülatörü ilk filmde native kareyi gösterdi fakat gerçek tam ekran
+dikey kaldı; yatay pencere assertion'ı başarısız oldu. Özgün 2064×2752
+kayıt oynayan filmi portrede gösterir. Filtreli UIKit kaydındaki yön
+isteği hatası **101**, isteğin reddedildiğini gösterir; erken portrait
+kilidinin neden olduğu yorumu henüz gerçek sonraki Mac testiyle
+doğrulanmış bir kök neden değildir.
+
+Yeni yerel aday kilidi bekleyen/kilitli/kapanan durumlarıyla yönetir:
+yatay yön isteği kilitten önce yapılır; kilit ancak kendi scene yönü ile
+view/window geometrisi gerçekten yatay gözlendikten sonra açılır.
+Kapanış mühürlendiğinden geç gelen callback yeniden kilitlemez.
+Bu aday henüz doğrulanmadı. Sekizinci turda imzalı iş **skipped**;
+imzalı build 10, Apple yüklemesi ve USB kurulumu yok. Başarısız kaynak
+turunun eksik iPhone/iPad görselleri mağazaya gönderilmez. App Store'daki
+build 9 ve kaynak pinleri korunur; mevcut M3U/Xtream inceleme kapsamı,
+canlı backend gizlilik eşleştirmesi ve gerçek Submit for Review hâlâ ayrı
+bekleyen adımlardır. CRC/SHA doğrulanmış yerel kanıt
+`.artifacts/build10-attempt8-small` altında tutulur.
+
 Son kullanıcı talebiyle build 10'a yatay tam ekran, Android tarzı yerel
 kanal paneli, blur temizliği ve mini oynatıcıya güvenli dönüş eklendi.
 İlk Mac turu `bc5ee4b` / 37818493598: yeni Playback testi derleme hatası

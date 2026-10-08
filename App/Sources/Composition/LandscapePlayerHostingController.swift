@@ -10,13 +10,13 @@ final class LandscapePlayerHostingController: UIHostingController<AnyView> {
     private weak var playerWindow: UIWindow?
     private let sceneID: ObjectIdentifier
     private var lease: UUID?
-    private var isClosing = false
+    private var orientationLock = PlayerFullscreenOrientationLockState()
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation { .landscapeRight }
 
     @available(iOS 26.0, *)
-    override var prefersInterfaceOrientationLocked: Bool { lease != nil && !isClosing }
+    override var prefersInterfaceOrientationLocked: Bool { lease != nil && orientationLock.prefersLocked }
 
     init(playerID: String, content: AnyView, window: UIWindow, scene: UIWindowScene) {
         self.playerID = playerID
@@ -38,17 +38,39 @@ final class LandscapePlayerHostingController: UIHostingController<AnyView> {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        guard let scene = playerScene, lease != nil, !isClosing else { return }
+        guard let scene = playerScene, lease != nil, !orientationLock.isClosing else { return }
         setNeedsUpdateOfSupportedInterfaceOrientations()
-        if #available(iOS 26.0, *) { setNeedsUpdateOfPrefersInterfaceOrientationLocked() }
         Self.request(.landscape, scene: scene, window: playerWindow)
+        orientationLock.didRequestLandscape()
+        updateOrientationLockIfAligned()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateOrientationLockIfAligned()
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+            self?.updateOrientationLockIfAligned()
+        }
+    }
+
+    private func updateOrientationLockIfAligned() {
+        guard lease != nil, let scene = playerScene, let window = viewIfLoaded?.window,
+              window.windowScene === scene,
+              orientationLock.observe(
+                orientation: scene.interfaceOrientation, viewSize: view.bounds.size,
+                windowSize: window.bounds.size
+              ) else { return }
+        if #available(iOS 26.0, *) { setNeedsUpdateOfPrefersInterfaceOrientationLocked() }
     }
 
     /// Drop the visible controller's lock preference before UIKit dismisses it.
     /// Keep its scene lease and supported mask until actual dismissal completes.
     func prepareForDismissal() {
-        guard !isClosing else { return }
-        isClosing = true
+        guard orientationLock.beginDismissal() else { return }
         if #available(iOS 26.0, *) { setNeedsUpdateOfPrefersInterfaceOrientationLocked() }
     }
 
@@ -76,6 +98,18 @@ final class LandscapePlayerHostingController: UIHostingController<AnyView> {
 
     private static func request(_ mask: UIInterfaceOrientationMask, scene: UIWindowScene, window: UIWindow?) {
         if let root = window?.rootViewController { updateOrientations(root) }
+        let locked: Int
+        if #available(iOS 26.0, *) {
+            locked = scene.effectiveGeometry.isInterfaceOrientationLocked ? 1 : 0
+        } else {
+            locked = -1
+        }
+        let appMask = UIApplication.shared.supportedInterfaceOrientations(for: window).rawValue
+        let rootMask = window?.rootViewController?.supportedInterfaceOrientations.rawValue ?? 0
+        let presentedMask = window?.rootViewController?.presentedViewController?.supportedInterfaceOrientations.rawValue ?? 0
+        let width = Double(window?.bounds.width ?? 0)
+        let height = Double(window?.bounds.height ?? 0)
+        Log.ui.info("Player orientation request state requested=\(mask.rawValue, privacy: .public) orientation=\(scene.interfaceOrientation.rawValue, privacy: .public) locked=\(locked, privacy: .public) appMask=\(appMask, privacy: .public) rootMask=\(rootMask, privacy: .public) presentedMask=\(presentedMask, privacy: .public) width=\(width, privacy: .public) height=\(height, privacy: .public)")
         scene.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { error in
             Log.ui.error("Player orientation request failed; code=\((error as NSError).code, privacy: .public)")
         }

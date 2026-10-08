@@ -1035,3 +1035,31 @@ görünürse normal merkez dokunuşu ve işlem sonucunu sınırlı yeniden
 denemede kontrol et; görünürlük için zorunlu gizle/aç precondition'ı
 kullanma. Ürün süresi veya sonraki akış doğrulamaları değiştirilmez.
 Bu aday iPad'e veya imzalı yüke geçmedi; build 10 henüz telefonda değil.
+
+Build 10 sekizinci aday `4983c0b08aee0b5f08e857785ba018b760749244` /
+[37842943490](https://github.com/mycrs/ios-octopus/actions/runs/37842943490):
+**721 Swift testi / 0 hata ve mimari geçti**. iPhone Release kullanıcı
+akışının tamamı **281,438 saniyede geçti**; gerçek native film karesi,
+aynı detay sayfasına dönüş, Canlı TV mini/tam ekran geçişleri, yerel sol
+kanal paneli, mevcut kanala dokunma, Sintel araması/kanal değişimi,
+doğru mini oynatıcıya dönüş, bölüm ve kaynak kontrolü doğrulandı.
+iPad Pro 13-inch (M5), iPadOS 26.4.1 simülatörü ilk filmde native kareyi üretir
+ama tam ekran portrede kalır; yatay pencere kontrolü başarısızdır.
+Özgün 2064×2752 kayıt ilerleyen filmi portrede gösterir. Gerçek filtreli
+UIKit kaydı `Player orientation request failed; code=101` içerir;
+isteğin reddi kanıtlanmıştır, erken portrait kilidinin buna neden olduğu
+yorumu ise henüz sonraki Mac testiyle doğrulanmamış bir çıkarımdır.
+
+Şimdiki yerel onarım adayı `PlayerFullscreenOrientationLockState` ile
+bekleyen → kilitli → kapanan durumlarını ayırır. Yatay geometry isteği
+kilit tercihi etkinleşmeden yapılır. Public lock yalnız kendi scene yönü ile view ve
+window geometrisi gerçekten yatay gözlendiğinde açılır; kapanış durumu
+mühürlenir ve geç callback yeniden kilitleyemez. Henüz gerçek Mac
+doğrulaması yok. Sekizinci turda imzalı iş **skipped**; imzalı build 10
+üretilmedi, Apple'a yüklenmedi veya telefona kurulmadı. Bu başarısız turdan
+eksik görsel takımı gönderilmez. Son doğrulanmış imzalı/kurulu kaynak
+build 9'dur; mağaza kayıtları, kaynak pinleri, M3U/Xtream inceleme kapsamı
+ve bekleyen canlı backend gizlilik eşleştirmesi korunur. Son tur kanıtı
+`.artifacts/build10-attempt8-small/extraction-report.json`, filtreli
+`ipad-player-ui.log` ve `video-inspection/frame-report.json` altında
+aynı kaynak/run, özgün SHA/CRC ve native video zamanlarıyla tutulur.

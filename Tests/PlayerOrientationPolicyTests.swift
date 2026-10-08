@@ -4,6 +4,63 @@ import UIKit
 
 @MainActor
 final class PlayerOrientationPolicyTests: XCTestCase {
+    func test_initialLayoutCannotLockBeforeLandscapeRequestIsIssued() {
+        var state = PlayerFullscreenOrientationLockState()
+        let landscape = CGSize(width: 1376, height: 1032)
+        XCTAssertFalse(state.observe(orientation: .landscapeRight, viewSize: landscape, windowSize: landscape))
+        XCTAssertFalse(state.prefersLocked)
+        state.didRequestLandscape()
+        XCTAssertTrue(state.observe(orientation: .landscapeRight, viewSize: landscape, windowSize: landscape))
+        XCTAssertTrue(state.prefersLocked)
+    }
+
+    func test_portraitSceneCannotBeLockedBeforeLandscapeTransition() {
+        var state = PlayerFullscreenOrientationLockState()
+        state.didRequestLandscape()
+        XCTAssertFalse(state.prefersLocked)
+        XCTAssertFalse(state.observe(orientation: .portrait,
+                                     viewSize: CGSize(width: 1376, height: 1032),
+                                     windowSize: CGSize(width: 1376, height: 1032)))
+        XCTAssertFalse(state.prefersLocked)
+    }
+
+    func test_landscapeSceneWaitsForBothViewAndWindowGeometry() {
+        var state = PlayerFullscreenOrientationLockState()
+        state.didRequestLandscape()
+        let portrait = CGSize(width: 1032, height: 1376)
+        let landscape = CGSize(width: 1376, height: 1032)
+        XCTAssertFalse(state.observe(orientation: .landscapeRight, viewSize: portrait, windowSize: landscape))
+        XCTAssertFalse(state.observe(orientation: .landscapeRight, viewSize: landscape, windowSize: portrait))
+        XCTAssertFalse(state.observe(orientation: .landscapeRight, viewSize: .zero, windowSize: .zero))
+        XCTAssertTrue(state.observe(orientation: .landscapeRight, viewSize: landscape, windowSize: landscape))
+        XCTAssertTrue(state.prefersLocked)
+        XCTAssertFalse(state.observe(orientation: .landscapeRight, viewSize: landscape, windowSize: landscape))
+    }
+
+    func test_landscapeLockSurvivesPortraitDevicePostureUntilDismissal() {
+        var state = PlayerFullscreenOrientationLockState()
+        state.didRequestLandscape()
+        let landscape = CGSize(width: 874, height: 402)
+        XCTAssertTrue(state.observe(orientation: .landscapeLeft, viewSize: landscape, windowSize: landscape))
+        XCTAssertFalse(state.observe(orientation: .portrait, viewSize: landscape, windowSize: landscape))
+        XCTAssertTrue(state.prefersLocked)
+        XCTAssertTrue(state.beginDismissal())
+        XCTAssertFalse(state.prefersLocked)
+        XCTAssertTrue(state.isClosing)
+        XCTAssertFalse(state.beginDismissal())
+        XCTAssertFalse(state.observe(orientation: .landscapeRight, viewSize: landscape, windowSize: landscape))
+    }
+
+    func test_dismissalBeforeRotationCompletionCannotRelockPlayer() {
+        var state = PlayerFullscreenOrientationLockState()
+        XCTAssertTrue(state.beginDismissal())
+        let landscape = CGSize(width: 1376, height: 1032)
+        state.didRequestLandscape()
+        XCTAssertFalse(state.observe(orientation: .landscapeRight, viewSize: landscape, windowSize: landscape))
+        XCTAssertFalse(state.prefersLocked)
+        XCTAssertTrue(state.isClosing)
+    }
+
     func test_fullscreenRestrictsItsSceneAndRestoresPreviousOrientation() {
         let policy = PlayerOrientationPolicy()
         let scene = NSObject()

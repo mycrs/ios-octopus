@@ -5,6 +5,34 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
+Son build 10 adayı `4983c0b08aee0b5f08e857785ba018b760749244`,
+[sekizinci Mac turu 37842943490](https://github.com/mycrs/ios-octopus/actions/runs/37842943490):
+**721 Swift testi / 0 hata ve mimari kapısı geçti**. iPhone Release
+kullanıcı akışının tamamı **281,438 saniyede geçti**: gerçek native kare,
+filmden aynı detaya dönüş, Canlı TV mini/tam ekran geçişleri, soldaki
+kanal paneli, mevcut kanala dokunma, Sintel araması ve kanal değişimi,
+seçilen mini oynatıcıya dönüş, bölüm ve kaynak kontrolü doğrulandı.
+iPad Pro 13-inch (M5), iPadOS 26.4.1 simülatörü ilk filmde gerçek native
+kareyi üretti; oynatıcı dikey kaldığı için yatay pencere kontrolü
+başarısız oldu. Özgün kayıt 2064×2752 portrede ilerleyen filmi gösterir;
+filtreli UIKit kaydı `Player orientation request failed; code=101` içerir.
+Bu, reddedilen yön isteğinin kanıtıdır; çözümleme arızası veya testin
+ekranı yanlış kırpması değildir. Kilidin portrede erken uygulanması
+olasılığı, henüz sonraki gerçek Mac testiyle doğrulanmamış bir çıkarımdır.
+
+Şimdiki yerel düzeltme adayı kilit durumunu **bekleyen → kilitli → kapanan**
+olarak ayırır. Önce yatay geometry isteği yapılır; public lock tercihi
+yalnız kendi scene yönü, view ve window ölçüleri gerçekten yatay
+gözlendikten sonra açılır. Kapanış durumu mühürlenir; geç kalan dönüş/layout
+callback'i kilidi yeniden açamaz. Bu değişiklik henüz Mac'te doğrulanmadı.
+Sekizinci turda imzalı iş **skipped**; imzalı build 10 üretilmedi,
+Apple'a yüklenmedi veya telefona kurulmadı. Tamamlanmış yeni iPhone/iPad
+görsel takımı yok; başarısız turdan görsel gönderilmez. Mevcut build 9,
+mağaza kayıtları ve bekleyen gizlilik/inceleme kaynak kapsamı korunur.
+Yerel kanıtlar `.artifacts/build10-attempt8-small/extraction-report.json`,
+`ipad-player-ui.log` ve `video-inspection/frame-report.json` içinde aynı
+kaynak/run kimliği, özgün dosya SHA/CRC'si ve video zamanlarıyla tutulur.
+
 Build 10 düzeltmeleri `bc5ee4b2cb522075f17c4dc65709bdde7fe3f69c` kaynağında
 uygulandı. [İlk Mac çalışması 37818493598](https://github.com/mycrs/ios-octopus/actions/runs/37818493598)
 henüz son başarılı doğrulama değildir: Playback'te yeni bir testin escaping

@@ -154,6 +154,53 @@ class DiagnosticTests(unittest.TestCase):
                     "Player dismissal tabSelection from=-1 to=3"]
         self.assertEqual(len(collector.filtered_lines("".join(event(value) for value in messages))), 6)
 
+    def test_orientation_state_retains_only_complete_ordered_numeric_records(self):
+        messages = [
+            "Player orientation request state requested=24 orientation=1 locked=0 appMask=24 rootMask=30 presentedMask=24 width=1032.000000 height=1376.000000",
+            "Player orientation request state requested=0 orientation=0 locked=-1 appMask=0 rootMask=0 presentedMask=0 width=0 height=0",
+            "Player orientation request state requested=30 orientation=4 locked=1 appMask=30 rootMask=30 presentedMask=24 width=1.032e3 height=1.376e+3",
+        ]
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in messages)),
+                         ["2026-10-08 14:10:20.123 " + value for value in messages])
+
+    def test_orientation_state_rejects_nonfinite_negative_and_out_of_range_values(self):
+        valid = "Player orientation request state requested=24 orientation=1 locked=0 appMask=24 rootMask=30 presentedMask=24 width=1032 height=1376"
+        changes = [("requested=24", "requested=-1"), ("appMask=24", "appMask=-24"),
+                   ("rootMask=30", "rootMask=-30"), ("presentedMask=24", "presentedMask=-24"),
+                   ("orientation=1", "orientation=5"), ("orientation=1", "orientation=-1"),
+                   ("locked=0", "locked=2"), ("locked=0", "locked=-2")]
+        for field in ("width=1032", "height=1376"):
+            name = field.partition("=")[0]
+            changes.extend((field, name + "=" + value) for value in
+                           ("NaN", "nan", "inf", "Infinity", "-inf", "1e309", "-0.1", "-1e3"))
+        for before, after in changes:
+            with self.subTest(rejected_value=after):
+                self.assertEqual(collector.filtered_lines(event(valid.replace(before, after))), [])
+
+    def test_orientation_state_rejects_suffixes_urls_titles_and_schema_changes(self):
+        valid = "Player orientation request state requested=24 orientation=1 locked=0 appMask=24 rootMask=30 presentedMask=24 width=1032 height=1376"
+        invalid = [valid + " url=https://provider/user/password/stream.ts",
+                   valid + " title=Private channel", valid + " token=secret", valid + " ",
+                   valid.replace("rootMask=30 presentedMask=24", "presentedMask=24 rootMask=30"),
+                   valid.replace(" appMask=24", ""), valid.replace("width=1032", "width=\"1032\""),
+                   valid.replace("appMask=24", "appMask=24.0"),
+                   valid.replace("requested=24", "requested=٢٤")]
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in invalid)), [])
+        self.assertEqual(collector.filtered_lines(event(valid, process="OtherApp")
+                                                  + event(valid, category="network")), [])
+
+    def test_orientation_state_archive_recovery_publishes_only_approved_geometry(self):
+        valid = "Player orientation request state requested=24 orientation=1 locked=0 appMask=24 rootMask=30 presentedMask=24 width=1032.000000 height=1376.000000"
+        self.log = event(valid) + event(valid + " title=Private channel")
+        self.collect()
+        self.assertEqual(self.output.read_text(encoding="utf-8"), "2026-10-08 14:10:20.123 " + valid + "\n")
+        calls = [call for call in self.calls if "--archive" in call]
+        self.assertEqual(len(calls), 1)
+        self.assertIn('eventMessage BEGINSWITH "Player orientation request state"',
+                      calls[0][calls[0].index("--predicate") + 1])
+        self.assertFalse(any(path.exists() for path in self.exported))
+        self.assertEqual(list(self.output.parent.iterdir()), [self.output])
+
     def test_existing_file_is_not_overwritten(self):
         self.output.parent.mkdir()
         self.output.write_text("existing approved diagnostic\n", encoding="utf-8")
