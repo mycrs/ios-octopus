@@ -6,6 +6,13 @@ olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tut
 Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
 build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
+Son kullanıcı talebiyle build 10'a yatay tam ekran, Android tarzı yerel
+kanal paneli, blur temizliği ve mini oynatıcıya güvenli dönüş eklendi.
+İlk Mac turu `bc5ee4b` / 37818493598: yeni Playback testi derleme hatası
+yerelde onarıldı; başarılı yeni tam tur ve cihaz kanıtı henüz yok.
+Build 9'daki başarı bu dört ek düzeltmenin kanıtı sayılmaz; son App Review
+başvurusu yeni pakete ve gizlilik eşleştirmesinin tamamlanmasına bağlıdır.
+
 Sonraki hazırlık kararı: kullanıcı yalnızca M3U sağladı, Xtream inceleme
 hesabı yok. Build 9'da karşılama ve Ayarlar'dan tüm kullanıcılara
 sunulan isteğe bağlı örnek kitaplığı var. İki açık lisanslı kısa film,

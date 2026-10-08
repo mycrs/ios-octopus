@@ -5,6 +5,15 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
+Build 10 düzeltmeleri `bc5ee4b2cb522075f17c4dc65709bdde7fe3f69c` kaynağında
+uygulandı. [İlk Mac çalışması 37818493598](https://github.com/mycrs/ios-octopus/actions/runs/37818493598)
+henüz son başarılı doğrulama değildir: Playback'te yeni bir testin escaping
+closure kullanımı derlenmedi, test yerel sabit yakalayacak şekilde düzeltildi.
+Özellik testleri ve mimari/veri/tasarım sistemi kapıları geçti; kalan App ve
+Release sonuçları, yenilenecek tam test turu ve fiziksel cihaz testi bekleniyor.
+Bu çalışmadan binary/görsel gönderilmez. App Store'daki kayıtlı build 9
+ilişkisi ve mağaza alanları korunur; son başvuru yeni doğrulanmış paketi bekler.
+
 Güncel doğrulanan kaynak `9c0e98a2b9f09140a062c90eaf7bd7c3010ae299`,
 [yayın çalışması 37808603564](https://github.com/mycrs/ios-octopus/actions/runs/37808603564).
 694 Swift testi, iPhone/iPad Release kullanıcı akışları ve imzalı Apple

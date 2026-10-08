@@ -629,9 +629,11 @@ final class PlayerControllerTests: XCTestCase {
         let progress = TestProgressRepository()
         let gate = ProgressSaveGate()
         let controller = makeController(native: native, progress: progress)
-        await controller.start(makeItem())
+        let item = makeItem()
+        let itemKey = item.source.storageKey
+        await controller.start(item)
         native.emit(.timeChanged(PlaybackTime(current: 42, duration: 120, bufferedUpTo: 60)))
-        _ = await waitUntil { progress.stored[makeItem().source.storageKey] != nil }
+        _ = await waitUntil { progress.stored[itemKey] != nil }
         progress.stored = [:]
         progress.beforeSave = { await gate.wait() }
         let session = try XCTUnwrap(controller.session)
@@ -643,8 +645,8 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertNil(controller.session)
         XCTAssertNil(controller.currentItem)
         await gate.open()
-        _ = await waitUntil { progress.stored[makeItem().source.storageKey] != nil }
-        XCTAssertEqual(progress.stored[makeItem().source.storageKey]?.positionSeconds, 42)
+        _ = await waitUntil { progress.stored[itemKey] != nil }
+        XCTAssertEqual(progress.stored[itemKey]?.positionSeconds, 42)
     }
 
     func test_sameChannelNewOpening_isProtectedFromPreviousOpeningCleanup() async throws {
