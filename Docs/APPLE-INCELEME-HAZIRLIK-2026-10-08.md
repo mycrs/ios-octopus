@@ -14,10 +14,14 @@ uygulama kontrollerini incelemeyi kolaylaştırır. Bu, gerçek Xtream servisi,
 operatör EPG'si veya UHD uyumluluğu testinin yerine geçmez. Son build'in
 uygulama/oynatma testi tamamlandı iddiası bu araştırmadan çıkarılmaz.
 
-Son durum güncellemesi: build 9 CI, derleme hataları düzeltildikten sonra
-`dd3eae2` kaynağıyla yeniden başlatıldı; build 9 upload ve App Review
+Son durum güncellemesi: build 9 CI `3f633b3` kaynağıyla
+[37797698561](https://github.com/mycrs/ios-octopus/actions/runs/37797698561)
+çalışmasında sürüyor; build 9 upload ve App Review
 submission henüz doğrulanmadı. Canlı App Store Connect'te İngilizce
 **Your playlists, organized** alt başlığı ve aşağıdaki yaş anketi kaydedildi.
+İngilizce açıklama/tanıtım/anahtar kelimeler son denetimden önceki haliyle
+kaydedildi. Ayrı playlist PIN'i kapsamını Quick Setup ile sınırlayan
+son açıklama düzeltmesi mağazaya ayrıca kaydedilmelidir.
 Araştırma ajanı hesapta değişiklik yapmadı; kaydedilen işlemleri ana
 ajanın gözlemi ve yaş sonucu görüntüsü üzerinden belgeler.
 
@@ -34,6 +38,10 @@ başlıktaki IPTV kelimesinin yasak olduğu kanıtlanmadı.
 sorgusu telefonda **1.0.0 (8)** olduğunu doğruladı. Kanal oynatma olayı
 içermeyen açılış kaydı, UHD sorununun düzeldiği anlamına gelmez. Apple'ın
 build 8'i incelediği de söylenemez.
+Son CI'da gerçek video karesi ekran görüntüsünde görülmelidir; yalnız
+`playing` olayı, motor seçimi veya boş oynatıcı kutusu kanıt sayılmaz.
+Bu örnek video doğrulaması, önceki UHD kanalının fiziksel cihazda
+düzeldiği anlamına gelmez.
 
 Güncel 4.3(a), aynı uygulamanın birden çok bundle ID ile dağıtılmasını;
 4.3(b), yaygın uygulamalardan ayırt edilemeyen deneyimleri ele alır.
@@ -70,7 +78,9 @@ güncellenmeden yeniden kullanılmamalı.
 Mevcut üründe gösterilebilir üç bağlantılı iş var:
 
 1. Kullanıcı kaynaklarını kendi yönetir: Xtream, uzak M3U ve yerel M3U
-   ekleme; kaynak değiştirme; isteğe bağlı kaynak PIN'i.
+   ekleme; kaynak değiştirme. Ayrı kaynak PIN'i yalnız Code/Quick Setup
+   yanıtında PIN'le hazırlanmış kaynaklar için uygulanır. Normal M3U ve
+   örnek kitaplıkta ayrı kaynak PIN'i oluşturma yolu yoktur.
 2. İzleme düzenini korur: favoriler, geçmiş, kaldığı yer ve kategori
    koruması birlikte çalışır. Arama, ana sayfa ve oynatıcı gezinmesinde
    korumalı içerik görünmemelidir.
@@ -104,6 +114,10 @@ Gönderim paketinde şu bilgiler açık olmalı:
 - Yeni build numarası ve ilk kurulumdan başlayarak kaynak ekleme adımları.
 - M3U adresi ve yalnızca test ettiği işlevler. Yerel M3U dosyası kullanılacaksa
   dosyayı indirip iOS dosya seçicisinden içe alma adımları.
+  Örnek kitaplık açıldıysa tekrar Start setup aranmaz: Settings'te Source
+  bölümündeki aktif kaynak adına dokun → Sources → + → M3U. İki test
+  kaynağında kategori ebeveyn PIN'i incelenir; ayrı Quick Setup kaynak
+  PIN'i de test edilmiş gibi anlatılmaz.
 - Film/bölüm/rehber arayüzleri için açık lisanslı örnek kitaplığı; örnek
   rehber ve bağımsız film seçkisi gerçek yayıncı/dizi diye sunulmaz.
   Gerçek Xtream test hesabı yoksa varmış gibi yazılmaz. İleride hesap
@@ -284,4 +298,4 @@ gönderim kaydı. Apple'ın kabul kararı henüz yoksa «onaylandı» denmez.
 | Kaydedilen metadata / yaş | İngilizce alt başlık ve yaş anketi kaydedildi; hesaplanan 13+/bölgesel sonuçlar yukarıda. Diğer taslak alanlar son canlı kontrol bekler. |
 | Review Notes ve 4.3 mesajı | Son build doğrulaması sonrası için taslak hazır; gönderilmedi. |
 | Sunucu veri saklama ve privacy beyanı | Kaynak koddan teyit edilemiyor. |
-| Yeni App Store dağıtım build'i ve inceleme gönderimi | Build 9 `dd3eae2` CI tekrar denemesi başlatıldı; upload/submission henüz doğrulanmadı. |
+| Yeni App Store dağıtım build'i ve inceleme gönderimi | Build 9 `3f633b3`, CI 37797698561 sürüyor; upload/submission henüz doğrulanmadı. |

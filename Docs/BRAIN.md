@@ -915,3 +915,14 @@ kaydedildi. Örnek filmlere göre kaydedilen yaş cevapları genel 13+, eski
 sistemlerde 12+ sonucunu verdi; bölgesel sonuçlar inceleme belgesindedir.
 Build 9 yüklemesi, iPad Release akışı ve fiziksel cihaz UHD görüntüsü hâlâ
 doğrulanmadı; başarısız test kapısı Apple'a paket yüklemesini durdurdu.
+
+`3f633b3` turunda Data 294/294, Domain 84, Playback 71, Features 211
+ve DesignSystem 11 test geçti. iPhone Release kullanıcı akışı 95 saniyede
+tamamlandı: örnek kitaplığı, film seçimi, gerçek AVPlayerLayer video karesi,
+örnek bölüm listesi, Ayarlar ve kaynak kontrolü; 10 ekran görüntüsü alındı.
+Ardından CI zaten Shutdown durumundaki telefon simülatörünü yeniden
+kapatmaya çalıştığı için iPad adımına geçemedi. Simülatör durumu artık
+okunur; yalnız Booted ise kapatılır, beklenmeyen durum hâlâ hata verir.
+iPad ve yayın yüklemesi yeni turda doğrulanacak. Mağaza metnindeki ayrı
+liste PIN'i iddiası yalnız Code/Quick Setup kaynaklarıyla sınırlandırıldı;
+normal M3U/örnek kitaplık için kategori ebeveyn PIN'i anlatılır.
