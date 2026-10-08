@@ -641,16 +641,16 @@ private final class StubEPG: EPGRepository, @unchecked Sendable {
 
     var programs: [String: EPGProgram] = [:]
 
-    func nowPlaying(epgChannelID: String, at date: Date) async throws -> EPGProgram? {
+    func nowPlaying(playlistID: Playlist.ID, epgChannelID: String, at date: Date) async throws -> EPGProgram? {
         programs[epgChannelID]
     }
 
-    func nowPlaying(epgChannelIDs: [String], at date: Date) async throws -> [String: EPGProgram] {
+    func nowPlaying(playlistID: Playlist.ID, epgChannelIDs: [String], at date: Date) async throws -> [String: EPGProgram] {
         programs.filter { epgChannelIDs.contains($0.key) }
     }
 
-    func allNowPlaying(at date: Date) async throws -> [String: EPGProgram] { programs }
+    func allNowPlaying(playlistID: Playlist.ID, at date: Date) async throws -> [String: EPGProgram] { programs }
 
-    func programs(epgChannelID: String, from: Date, to: Date) async throws -> [EPGProgram] { [] }
+    func programs(playlistID: Playlist.ID, epgChannelID: String, from: Date, to: Date) async throws -> [EPGProgram] { [] }
     func purgePrograms(before date: Date) async throws {}
 }

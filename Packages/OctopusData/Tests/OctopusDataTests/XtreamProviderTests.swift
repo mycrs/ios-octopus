@@ -213,6 +213,31 @@ final class XtreamProviderTests: XCTestCase {
 
     // MARK: - Akış adresleri
 
+    func test_allMalformedCatalogRowsAreFailureWhileEmptyCatalogRemainsValid() async throws {
+        let malformed = makeProvider { _ in Data("[{}]".utf8) }
+        let validEmpty = makeProvider { _ in Data("[]".utf8) }
+        for (provider, isMalformed) in [(malformed, true), (validEmpty, false)] {
+            let operations: [() async throws -> Int] = [
+                { try await provider.fetchChannels(categoryID: nil).count },
+                { try await provider.fetchMovies(categoryID: nil).count },
+                { try await provider.fetchSeries(categoryID: nil).count },
+                { try await provider.fetchCategories(kind: .live).count }
+            ]
+            for operation in operations {
+                do {
+                    let count = try await operation()
+                    XCTAssertFalse(isMalformed, "Dolu ve tümü bozuk yanıt boş katalog olamaz")
+                    XCTAssertEqual(count, 0)
+                } catch {
+                    XCTAssertTrue(isMalformed)
+                    guard case .invalidResponse = error as? AppError else {
+                        return XCTFail("Geçersiz katalog hatası bekleniyordu")
+                    }
+                }
+            }
+        }
+    }
+
     func test_streamURL_forLiveUsesRequestedFormat() {
         let channel = Channel(
             id: "p1#live#1", playlistID: "p1", name: "TRT 1", streamKey: "12345"

@@ -210,6 +210,7 @@ struct EpisodeRecord: Codable, FetchableRecord, PersistableRecord {
     var title: String
     var streamKey: String
     var containerExtension: String?
+    var directURL: String?
     var plot: String?
     var stillURL: String?
     var durationSeconds: Int?
@@ -223,6 +224,7 @@ struct EpisodeRecord: Codable, FetchableRecord, PersistableRecord {
         self.title = episode.title
         self.streamKey = episode.streamKey
         self.containerExtension = episode.containerExtension
+        self.directURL = episode.directURL?.absoluteString
         self.plot = episode.plot
         self.stillURL = episode.stillURL?.absoluteString
         self.durationSeconds = episode.durationSeconds
@@ -238,6 +240,7 @@ struct EpisodeRecord: Codable, FetchableRecord, PersistableRecord {
             title: title,
             streamKey: streamKey,
             containerExtension: containerExtension,
+            directURL: directURL.flatMap { URL(string: $0) },
             plot: plot,
             stillURL: stillURL.flatMap { URL(string: $0) },
             durationSeconds: durationSeconds,
@@ -253,14 +256,16 @@ struct EPGProgramRecord: Codable, FetchableRecord, PersistableRecord {
     static let databaseTableName = "epgProgram"
 
     var id: String
+    var playlistId: String?
     var epgChannelId: String
     var title: String
     var summary: String?
     var startDate: Date
     var endDate: Date
 
-    init(_ program: EPGProgram) {
-        self.id = program.id.value
+    init(_ program: EPGProgram, playlistID: Playlist.ID) {
+        self.id = EntityID.scopedEPGProgram(playlistID: playlistID, programID: program.id).value
+        self.playlistId = playlistID.value
         self.epgChannelId = program.epgChannelID
         self.title = program.title
         self.summary = program.summary

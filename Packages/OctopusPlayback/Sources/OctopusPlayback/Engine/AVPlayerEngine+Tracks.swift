@@ -73,7 +73,8 @@ extension AVPlayerEngine {
             guard isCurrentAsset(asset) else { return }
             // İz okunamaması oynatmayı engellemez — çoğu canlı yayında
             // tek ses izi vardır ve seçim menüsü zaten gereksizdir.
-            Log.playback.notice("İzler okunamadı: \(error.localizedDescription)")
+            let failure = error as NSError
+            Log.playback.notice("İzler okunamadı: domain=\(failure.domain, privacy: .public), code=\(failure.code)")
         }
     }
 

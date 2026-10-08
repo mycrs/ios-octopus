@@ -13,11 +13,14 @@
     · Cihaz tanımlayıcı → YOK (identifierForVendor kullanılmıyor)
     · Dosya zaman damgası / disk alanı / açılış zamanı / aktif klavye → YOK
 
-  ⚠️ `NSPrivacyCollectedDataTypes` boş: uygulama panele yalnızca aktivasyon
-  kodunu gönderiyor, kullanıcıya bağlı hiçbir veri toplamıyor. IPTV hesap
-  parolası cihazda Keychain'de kalır. Panelin SUNUCU tarafında tuttuğu
-  kayıtlar (IP vb.) bu bildirimin kapsamı değildir ama App Store Connect'teki
-  "App Privacy" cevaplarını bunlara göre gözden geçir.
+  `NSPrivacyCollectedDataTypes` şu anda boş. IPTV hesap parolası cihazda
+  Keychain'de saklanır; katalog ve oynatma için gerekli isteklerde yalnızca
+  kullanıcının seçtiği sağlayıcıya gönderilir. İsteğe bağlı aktivasyon kodu
+  Octopus aktivasyon servisine iletilir. Cihaz dışına gerekli bir isteğin
+  gönderilmesi, tek başına isteği servis etmekten daha uzun süre veri
+  saklandığı anlamına gelmez. Sunucu/SDK saklama davranışları değişirse bu
+  manifest ve App Store Connect'teki App Privacy cevapları gerçek veri
+  türleri ve amaçlara göre yeniden değerlendirilmelidir.
 -->
 <plist version="1.0">
 <dict>

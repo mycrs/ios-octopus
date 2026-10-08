@@ -23,6 +23,7 @@ public struct GRDBSourceHealthReader: SourceHealthReading {
             case .m3u: kind = .m3u
             case .m3uLocalFile: kind = .localFile
             case .activationCode: kind = .activation
+            case .sampleLibrary: kind = .sampleLibrary
             }
             let arguments: StatementArguments = [playlistID.value]
             let row = try Row.fetchOne(db, sql: Self.summarySQL, arguments: arguments)

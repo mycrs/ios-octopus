@@ -67,7 +67,7 @@ public final class ChannelGuideViewModel: ObservableObject {
     }
 
     private func loadPrograms() async {
-        guard let epgID = channel?.epgChannelID else {
+        guard let channel, let epgID = channel.epgChannelID else {
             // Kanalın rehber kimliği yoksa akış gösterilemez; bu bir hata
             // değil, yaygın bir eksiklik.
             entries = []
@@ -82,6 +82,7 @@ public final class ChannelGuideViewModel: ObservableObject {
 
         do {
             let programs = try await dependencies.epg.programs(
+                playlistID: channel.playlistID,
                 epgChannelID: epgID,
                 from: dayStart,
                 to: dayEnd

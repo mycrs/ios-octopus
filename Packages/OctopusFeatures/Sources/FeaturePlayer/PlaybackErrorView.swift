@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit          // UIPasteboard
 import OctopusDomain
 import OctopusDesignSystem
+import OctopusPlayback
 
 /// Adres üretildi ama yayın açılamadı.
 ///
@@ -19,6 +20,7 @@ struct PlaybackErrorView: View {
 
     let error: AppError
     let item: PlaybackItem
+    let failureKind: PlaybackFailureKind?
     let onRetry: () -> Void
     let onClose: () -> Void
     let onPreviousChannel: (() -> Void)?
@@ -30,6 +32,7 @@ struct PlaybackErrorView: View {
     init(
         error: AppError,
         item: PlaybackItem,
+        failureKind: PlaybackFailureKind? = nil,
         onRetry: @escaping () -> Void,
         onClose: @escaping () -> Void,
         onPreviousChannel: (() -> Void)? = nil,
@@ -37,6 +40,7 @@ struct PlaybackErrorView: View {
     ) {
         self.error = error
         self.item = item
+        self.failureKind = failureKind
         self.onRetry = onRetry
         self.onClose = onClose
         self.onPreviousChannel = onPreviousChannel
@@ -48,7 +52,7 @@ struct PlaybackErrorView: View {
             EmptyStateView(
                 icon: "play.slash",
                 title: "Yayın açılamadı",
-                message: error.userMessage,
+                message: failureMessage,
                 actionTitle: "Tekrar dene",
                 action: onRetry
             )
@@ -95,5 +99,23 @@ struct PlaybackErrorView: View {
             }
         }
         .padding(Theme.Spacing.lg)
+    }
+
+    /// Only known local messages are shown; provider error text stays private.
+    private var failureMessage: String {
+        switch failureKind {
+        case .requiresFallbackHeaders, .unsupportedHeaders:
+            return "Bu yayının gerekli istek başlıkları sistem oynatıcısı tarafından desteklenmiyor."
+        case .unsupportedFormat:
+            return "Yayın biçimi sistem oynatıcısı tarafından desteklenmiyor."
+        case .videoNotRendered:
+            return "Yayından görüntü alınamadı. Oynatıcı tercihlerini kontrol edip tekrar dene."
+        case .decoder:
+            return "Yayının ses veya görüntüsü çözülemedi. Oynatıcı tercihlerini kontrol edip tekrar dene."
+        case .authorization where error != .unauthorized:
+            return "Sunucu erişimi reddetti (403). Aboneliğin süresi dolmuş ya da aynı anda izin verilen cihaz sayısı aşılmış olabilir."
+        default:
+            return error.userMessage
+        }
     }
 }

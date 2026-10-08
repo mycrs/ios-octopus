@@ -32,6 +32,9 @@ public final class SearchViewModel: ObservableObject {
     private var activePlaylistID: Playlist.ID?
     private var parentalFilter = ParentalFilter.open
     private var searchTask: Task<Void, Never>?
+    private var contextGeneration = 0
+    private var searchGeneration = 0
+    private var isPreparing = false
 
     public init(
         dependencies: SearchDependencies,
@@ -49,37 +52,50 @@ public final class SearchViewModel: ObservableObject {
     }
 
     public func prepare() async {
-        activePlaylistID = try? await dependencies.playlists.activePlaylist()?.id
-        // Ekran her açıldığında tazelenir: kullanıcı ayarlardan kilidi
-        // değiştirmiş olabilir.
-        parentalFilter = await .current(dependencies.parental)
+        contextGeneration &+= 1
+        let context = contextGeneration
+        isPreparing = true
+        searchTask?.cancel()
+        searchGeneration &+= 1
+        activePlaylistID = nil
+        clear()
+        state = .idle
+
+        let playlistID = try? await dependencies.playlists.activePlaylist()?.id
+        let filter = await ParentalFilter.current(dependencies.parental)
+        guard context == contextGeneration, !Task.isCancelled else { return }
+        activePlaylistID = playlistID
+        parentalFilter = filter
+        isPreparing = false
+        // Kaynak veya erişim değişince ekrandaki sorgu yeni bağlamda çalışır.
+        scheduleSearch()
     }
 
     // MARK: - Arama
 
     private func scheduleSearch() {
         searchTask?.cancel()
+        searchGeneration &+= 1
+        let generation = searchGeneration
 
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else {
+        guard query.count >= 2, !isPreparing else {
             clear()
             state = .idle
             return
         }
 
-        // Tek harflik sorgular neredeyse tüm katalogla eşleşir ve
-        // sonuç listesi işe yaramaz olur.
-        guard query.count >= 2 else { return }
-
         searchTask = Task { [weak self, debounce] in
             try? await Task.sleep(for: debounce)
             guard let self, !Task.isCancelled else { return }
-            await self.performSearch(query)
+            await self.performSearch(query, generation: generation)
         }
     }
 
-    private func performSearch(_ query: String) async {
+    private func performSearch(_ query: String, generation: Int) async {
+        guard generation == searchGeneration, !Task.isCancelled else { return }
         guard let playlistID = activePlaylistID else {
+            clear()
             state = .loaded(0)
             return
         }
@@ -102,7 +118,8 @@ public final class SearchViewModel: ObservableObject {
         let foundMovies = (try? await movieResults) ?? []
         let foundSeries = (try? await seriesResults) ?? []
 
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, generation == searchGeneration,
+              playlistID == activePlaylistID else { return }
 
         // ⚠️ Süzme burada şart: arama, kilidi atlatmanın en kolay yoludur —
         // yetişkin içerik listede gizliyken adıyla aratılabilirdi.

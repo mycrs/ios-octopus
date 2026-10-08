@@ -58,6 +58,7 @@ struct SourceHealthScreen: View {
     private func catalog(_ summary: SourceHealthSnapshot) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text("Yerel katalog").font(Theme.Typography.sectionTitle)
+                .accessibilityIdentifier("source-health.catalog")
             row("Kaynak türü", value: language.localized(sourceTitle(summary.sourceKind)))
             row("Canlı TV", value: "\(summary.channels)")
             row("Filmler", value: "\(summary.movies)")
@@ -121,6 +122,7 @@ struct SourceHealthScreen: View {
         case .m3u: return "M3U listesi"
         case .localFile: return "Yerel M3U dosyası"
         case .activation: return "Aktivasyon kaynağı"
+        case .sampleLibrary: return "Örnek kütüphane"
         }
     }
 

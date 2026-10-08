@@ -22,13 +22,13 @@ final class AVPlayerEngineTests: XCTestCase {
         )
     }
 
-    func test_assetOptions_carriesHeaders() {
-        let item = makeItem(headers: ["User-Agent": "Octopus/1.0"])
+    func test_assetOptions_carriesDocumentedUserAgentOnly() {
+        let item = makeItem(headers: ["user-agent": "Octopus/1.0"])
         let options = AVPlayerEngine.assetOptions(for: item)
 
         // ⚠️ IPTV'de bu başlık olmadan panellerin çoğu 403 döner.
-        let headers = options["AVURLAssetHTTPHeaderFieldsKey"] as? [String: String]
-        XCTAssertEqual(headers?["User-Agent"], "Octopus/1.0")
+        XCTAssertEqual(options[AVURLAssetHTTPUserAgentKey] as? String, "Octopus/1.0")
+        XCTAssertEqual(options.count, 1)
     }
 
     // MARK: - Durum makinesi
@@ -178,6 +178,13 @@ final class AVPlayerEngineTests: XCTestCase {
 
     func test_firstFrameReadiness_isResetWhenReusingSurfaceForAnotherItem() async throws {
         let engine = AVPlayerEngine()
+        let frameEvents = Task<Int, Never> {
+            var count = 0
+            for await event in engine.events {
+                if case .firstVideoFrameRendered = event { count += 1 }
+            }
+            return count
+        }
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 180))
         let host = UIViewController()
         window.rootViewController = host
@@ -189,6 +196,8 @@ final class AVPlayerEngineTests: XCTestCase {
         }
         await engine.load(makeItem(url: try videoFixtureURL()))
         let surface = engine.makeVideoView()
+        XCTAssertEqual(surface.accessibilityIdentifier, "player.native-video")
+        XCTAssertEqual(surface.accessibilityValue, "waiting")
         surface.frame = host.view.bounds
         host.view.addSubview(surface)
         host.view.layoutIfNeeded()
@@ -196,6 +205,7 @@ final class AVPlayerEngineTests: XCTestCase {
 
         let rendered = await waitUntil { engine.didRenderVideo }
         XCTAssertTrue(rendered, "AVPlayerLayer'ın ilk kare sinyali izlenmeli")
+        XCTAssertEqual(surface.accessibilityValue, "ready")
 
         await engine.load(makeItem(url: missingFileURL()))
         let failed = await waitUntil {
@@ -206,6 +216,10 @@ final class AVPlayerEngineTests: XCTestCase {
         XCTAssertTrue(failed)
         XCTAssertTrue(engine.makeVideoView() === surface, "Zap sırasında yüzey korunmalı")
         XCTAssertFalse(engine.didRenderVideo, "Eski katmanın kare sinyali yeni yayına taşınamaz")
+        XCTAssertEqual(surface.accessibilityValue, "waiting")
+        engine.teardown()
+        let renderedEventCount = await frameEvents.value
+        XCTAssertEqual(renderedEventCount, 1, "Only the visible fixture emits a first-frame event")
     }
 
     // MARK: - Canlı yayın davranışı

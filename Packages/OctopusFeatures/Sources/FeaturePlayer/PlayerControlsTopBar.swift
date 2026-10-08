@@ -30,6 +30,7 @@ struct PlayerControlsTopBar: View {
                     action: onClose
                 )
                 .frame(width: 44, height: 44)
+                .accessibilityIdentifier("player.close")
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)

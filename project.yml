@@ -91,7 +91,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: com.octopus.iptv
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "8"
+        CURRENT_PROJECT_VERSION: "9"
         ENABLE_BITCODE: NO
     dependencies:
       # Composition root her modülü görebilen TEK yerdir.
@@ -147,6 +147,18 @@ targets:
     dependencies:
       - target: Octopus
 
+  OctopusReviewUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Octopus
+    dependencies:
+      - target: Octopus
+
 schemes:
   Octopus:
     build:
@@ -176,3 +188,12 @@ schemes:
         - OctopusTests
     archive:
       config: Release
+
+  OctopusReview:
+    build:
+      targets:
+        Octopus: all
+    test:
+      config: Release
+      targets:
+        - OctopusReviewUITests

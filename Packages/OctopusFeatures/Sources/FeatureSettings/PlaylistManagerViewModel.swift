@@ -27,6 +27,8 @@ public final class PlaylistManagerViewModel: ObservableObject {
 
     private let dependencies: SettingsDependencies
     private let now: () -> Date
+    private var activationGeneration = 0
+    private var loadGeneration = 0
 
     public init(dependencies: SettingsDependencies, now: @escaping () -> Date = Date.init) {
         self.dependencies = dependencies
@@ -36,8 +38,10 @@ public final class PlaylistManagerViewModel: ObservableObject {
     // MARK: - Yükleme
 
     public func load() async {
+        loadGeneration &+= 1
+        let generation = loadGeneration
         isLoading = rows.isEmpty
-        defer { isLoading = false }
+        defer { if generation == loadGeneration { isLoading = false } }
 
         do {
             let playlists = try await dependencies.playlists.all()
@@ -50,9 +54,11 @@ public final class PlaylistManagerViewModel: ObservableObject {
                     )
                 )
             }
+            guard generation == loadGeneration else { return }
             rows = resolvedRows
             errorMessage = nil
         } catch {
+            guard generation == loadGeneration else { return }
             errorMessage = AppError.wrap(error).userMessage
         }
     }
@@ -60,8 +66,11 @@ public final class PlaylistManagerViewModel: ObservableObject {
     // MARK: - Eylemler
 
     public func activate(_ id: Playlist.ID, pin: String? = nil) async {
+        activationGeneration &+= 1
+        let generation = activationGeneration
         do {
             let didActivate = try await dependencies.activatePlaylist(id, pin)
+            guard generation == activationGeneration else { return }
             guard didActivate else {
                 pendingUnlockID = id
                 if pin != nil { errorMessage = "Liste PIN'i hatalı." }
@@ -71,6 +80,7 @@ public final class PlaylistManagerViewModel: ObservableObject {
             await load()
             await dependencies.notifyPlaylistChanged()
         } catch {
+            guard generation == activationGeneration, !(error is CancellationError) else { return }
             errorMessage = AppError.wrap(error).userMessage
         }
     }
@@ -80,6 +90,7 @@ public final class PlaylistManagerViewModel: ObservableObject {
     }
 
     public func resync(_ id: Playlist.ID) async {
+        guard syncingID == nil else { return }
         syncingID = id
         defer { syncingID = nil }
 
@@ -88,6 +99,7 @@ public final class PlaylistManagerViewModel: ObservableObject {
             await load()
             errorMessage = nil
         } catch {
+            guard !(error is CancellationError) else { return }
             errorMessage = AppError.wrap(error).userMessage
         }
     }
@@ -98,6 +110,7 @@ public final class PlaylistManagerViewModel: ObservableObject {
     /// yeniden eklerse verisi yerinde bulunur.
     public func delete(_ id: Playlist.ID) async {
         do {
+            await dependencies.sync.cancel(playlistID: id)
             try await dependencies.playlists.delete(id: id)
             await dependencies.removePlaylistLock(id)
             await load()
@@ -137,6 +150,8 @@ public final class PlaylistManagerViewModel: ObservableObject {
             return fileName
         case .activationCode:
             return "Aktivasyon kodu"
+        case .sampleLibrary:
+            return "Örnek kütüphane"
         }
     }
 

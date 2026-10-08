@@ -36,6 +36,10 @@ public protocol ContentProvider: Sendable {
     /// senkronizasyon servisinde akış halinde yapılır.
     var epgSourceURL: URL? { get }
 
+    /// Yerel, açıkça örnek olarak işaretlenmiş rehber. Normal kaynaklar nil
+    /// döndürür; ağ/XMLTV yolu değişmez.
+    func localEPGPrograms(at date: Date) -> [EPGProgram]?
+
     // MARK: - Akış adresi kurulumu
 
     func streamURL(for channel: Channel) -> URL?
@@ -49,6 +53,7 @@ public protocol ContentProvider: Sendable {
 
 extension ContentProvider {
     public func invalidateCache() async {}
+    public func localEPGPrograms(at date: Date) -> [EPGProgram]? { nil }
 }
 
 /// `Playlist.Kind`'a göre doğru provider'ı üretir.

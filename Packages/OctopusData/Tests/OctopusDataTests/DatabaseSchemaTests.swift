@@ -38,6 +38,55 @@ final class DatabaseSchemaTests: XCTestCase {
         XCTAssertNoThrow(try AppDatabase(queue), "Göç zinciri tekrar uygulanabilir olmalı")
     }
 
+    func test_epgSourceMigrationPreservesLegacyGuideAndUserCatalog() async throws {
+        let queue = try DatabaseQueue(configuration: AppDatabase.makeConfiguration())
+        try AppDatabase.migrator.migrate(queue, upTo: "v4_panel_sirasi")
+        try queue.write { db in
+            try db.execute(sql: "INSERT INTO playlist (id, name, kindType, createdAt, isActive) VALUES ('p1', 'Kaynak', 'm3u', '2026-01-01', 1)")
+            try db.execute(sql: "INSERT INTO channel (id, playlistId, name, streamKey, sortOrder, isAdult) VALUES ('p1#live#1', 'p1', 'Kanal', '1', 0, 0)")
+            try db.execute(sql: "INSERT INTO favorite (itemKey, addedAt) VALUES ('live:p1#live#1', '2026-01-01')")
+            try db.execute(sql: "INSERT INTO epgProgram (id, epgChannelId, title, startDate, endDate) VALUES ('legacy', 'trt1', 'Rehber', '2026-01-01', '2026-01-02')")
+        }
+
+        let migrated = try AppDatabase(queue)
+
+        let counts = try await migrated.read { db in
+            [
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM channel") ?? 0,
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM favorite") ?? 0,
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM epgProgram WHERE id = 'legacy' AND playlistId IS NULL") ?? 0
+            ]
+        }
+        XCTAssertEqual(counts, [1, 1, 1], "Göç toplu içerik yeniden yazımı veya veri silmesi yapmamalı")
+    }
+
+    func test_sourceGuideIsDeletedWithItsPlaylist() async throws {
+        let database = try makeDatabase()
+        try await database.write { db in
+            try db.execute(sql: "INSERT INTO playlist (id, name, kindType, createdAt, isActive) VALUES ('p1', 'Kaynak', 'm3u', '2026-01-01', 1)")
+            try db.execute(sql: "INSERT INTO epgProgram (id, playlistId, epgChannelId, title, startDate, endDate) VALUES ('scoped', 'p1', 'trt1', 'Rehber', '2026-01-01', '2026-01-02')")
+            try db.execute(sql: "DELETE FROM playlist WHERE id = 'p1'")
+        }
+        let remaining = try await database.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM epgProgram") ?? 0
+        }
+        XCTAssertEqual(remaining, 0, "Silinmiş kaynağın rehberi yeni kaynakta görünmemeli")
+    }
+
+    func test_storageFailureDoesNotExposeStatementOrCredentialValues() async throws {
+        let database = try makeDatabase()
+        do {
+            try await database.write { db in
+                try db.execute(sql: "INSERT INTO missing_table VALUES ('https://source.example.com/user/private-password')")
+            }
+            XCTFail("Geçersiz tablo yazımı başarısız olmalı")
+        } catch let error as AppError {
+            XCTAssertEqual(error, .storage(reason: "Veri kaydedilemedi"))
+            XCTAssertFalse(String(describing: error).contains("private-password"))
+            XCTAssertFalse(String(describing: error).contains("source.example.com"))
+        }
+    }
+
     // MARK: - Yabancı anahtar / cascade
     //
     // Kaynak silinince ona ait TÜM içerik gitmeli; yetim satır kalmamalı.

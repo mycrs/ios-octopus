@@ -196,6 +196,68 @@ final class SearchViewModelTests: XCTestCase {
 
     // MARK: - Kaynak yok
 
+    func test_prepareClearsPreviousSourceAndRepeatsCurrentQuery() async {
+        channels.results = [Channel(id: "c1", playlistID: "p1", name: "Eski", streamKey: "1")]
+        let viewModel = makeViewModel()
+        await viewModel.prepare()
+        viewModel.searchText = "kanal"
+        await waitUntil("ilk kaynak yüklenmeli") { viewModel.channels.count == 1 }
+
+        playlists.active = Playlist(
+            id: "p2", name: "İkinci", kind: .m3u(url: URL(string: "https://example.com/second.m3u")!),
+            createdAt: Date(), isActive: true
+        )
+        channels.results = [Channel(id: "c2", playlistID: "p2", name: "Yeni", streamKey: "2")]
+        await viewModel.prepare()
+        XCTAssertTrue(viewModel.isEmpty, "Eski kaynağın sonuçları yeni bağlamda görünmemeli")
+        await waitUntil("sorgu yeni kaynak için tekrarlanmalı") { viewModel.channels.first?.id == "c2" }
+        XCTAssertEqual(channels.playlistIDs, ["p1", "p2"])
+    }
+
+    func test_prepareReappliesParentalLockToVisibleResults() async {
+        channels.results = [Channel(id: "adult", playlistID: "p1", name: "Yetişkin", streamKey: "1", isAdult: true)]
+        parental.enabled = true
+        parental.unlocked = true
+        let viewModel = makeViewModel()
+        await viewModel.prepare()
+        viewModel.searchText = "yetişkin"
+        await waitUntil("açık sonuç görünmeli") { !viewModel.isEmpty }
+        parental.unlocked = false
+        await viewModel.prepare()
+        XCTAssertTrue(viewModel.isEmpty)
+        await waitUntil("kilitli arama tamamlanmalı") { viewModel.state == .loaded(0) }
+        XCTAssertTrue(viewModel.isEmpty)
+    }
+
+    func test_shortenedQueryClearsStaleResults() async {
+        channels.results = [Channel(id: "c1", playlistID: "p1", name: "Kanal", streamKey: "1")]
+        let viewModel = makeViewModel()
+        await viewModel.prepare()
+        viewModel.searchText = "kanal"
+        await waitUntil("sonuç gelmeli") { !viewModel.isEmpty }
+        viewModel.searchText = "k"
+        XCTAssertTrue(viewModel.isEmpty)
+        XCTAssertEqual(viewModel.state, .idle)
+    }
+
+    func test_lateResultFromCancelledQueryCannotReplaceLatestResults() async {
+        let gate = SuspendedSearch()
+        channels.suspendedSearch = gate
+        channels.results = [Channel(id: "latest", playlistID: "p1", name: "Yeni", streamKey: "2")]
+        let viewModel = makeViewModel()
+        await viewModel.prepare()
+        viewModel.searchText = "eski"
+        await gate.waitUntilStarted()
+        viewModel.searchText = "yeni"
+        await waitUntil("yeni sorgu önce tamamlanmalı") { viewModel.channels.first?.id == "latest" }
+
+        await gate.resume(with: [Channel(id: "stale", playlistID: "p1", name: "Eski", streamKey: "1")])
+        await waitABit()
+
+        XCTAssertEqual(viewModel.channels.map(\.id), ["latest"])
+        XCTAssertEqual(viewModel.state, .loaded(1))
+    }
+
     func test_noActivePlaylistYieldsNoResults() async {
         playlists.active = nil
         channels.results = [Channel(id: "c1", playlistID: "p1", name: "Kanal", streamKey: "1")]
@@ -247,6 +309,8 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
 
     var results: [Channel] = []
     private(set) var queries: [String] = []
+    private(set) var playlistIDs: [Playlist.ID] = []
+    var suspendedSearch: SuspendedSearch?
 
     func categories(playlistID: Playlist.ID) async throws -> [MediaCategory] { [] }
     func channels(playlistID: Playlist.ID, categoryID: MediaCategory.ID?) async throws -> [Channel] { [] }
@@ -255,6 +319,10 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
 
     func search(query: String, playlistID: Playlist.ID, limit: Int) async throws -> [Channel] {
         queries.append(query)
+        playlistIDs.append(playlistID)
+        if query == "eski", let suspendedSearch {
+            return await suspendedSearch.wait()
+        }
         return results
     }
 
@@ -263,6 +331,30 @@ private final class StubChannels: ChannelRepository, @unchecked Sendable {
         categoryID: MediaCategory.ID?
     ) -> AsyncStream<[Channel]> {
         AsyncStream { $0.finish() }
+    }
+}
+
+/// Bilerek iptali dinlemez: geç gelen sağlayıcı cevabını temsil eder.
+private actor SuspendedSearch {
+    private var started = false
+    private var arrival: CheckedContinuation<Void, Never>?
+    private var result: CheckedContinuation<[Channel], Never>?
+
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { arrival = $0 }
+    }
+
+    func wait() async -> [Channel] {
+        started = true
+        arrival?.resume()
+        arrival = nil
+        return await withCheckedContinuation { result = $0 }
+    }
+
+    func resume(with channels: [Channel]) {
+        result?.resume(returning: channels)
+        result = nil
     }
 }
 

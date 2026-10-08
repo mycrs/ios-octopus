@@ -12,6 +12,8 @@ import NukeUI
 /// eksikliği satırın boş görünmesine yol açmamalı.
 public struct RemoteImageView<Placeholder: View>: View {
 
+    @Environment(\.displayScale) private var displayScale
+
     private let url: URL?
     private let contentMode: SwiftUI.ContentMode
     private let targetWidth: CGFloat?
@@ -46,17 +48,19 @@ public struct RemoteImageView<Placeholder: View>: View {
         }
     }
 
-    /// ⚠️ **Bellek**: sağlayıcılar 1000×1500 afiş döndürüyor. 104pt'lik bir
-    /// küçük resim için tam boyutta çözmek kare başına ~6 MB demek; yüz
-    /// afişlik bir ızgarada uygulama bellek baskısıyla düşüyor.
-    /// Küçültme çözme (decode) sırasında yapılır — indirilen bayt aynı
-    /// kalır ama bellekteki bitmap ekrandaki boyut kadar olur.
+    /// Nuke'nin thumbnail decoder'ı, tam bitmap oluşmadan boyutu sınırlar.
+    /// Resize tek başına çözülmüş görseli küçültür ve ilk bellek yükünü önlemez.
+    /// 2:3 afişlerin yüksekliğine pay bırakılır; indirilen bayt değişmez.
     private func request(for url: URL) -> ImageRequest {
-        guard let targetWidth else { return ImageRequest(url: url) }
+        guard let targetWidth, targetWidth > 0, targetWidth.isFinite else {
+            return ImageRequest(url: url)
+        }
+        let pixelLimit = Float(min(2048, max(1, targetWidth * displayScale * 1.5)))
 
         return ImageRequest(
             url: url,
-            processors: [ImageProcessors.Resize(width: targetWidth)]
+            processors: [ImageProcessors.Resize(width: targetWidth)],
+            userInfo: [.thumbnailKey: ImageRequest.ThumbnailOptions(maxPixelSize: pixelLimit)]
         )
     }
 }

@@ -78,9 +78,11 @@ public struct XtreamContentProvider: ContentProvider {
         let dtos = try decode([XtreamCategoryDTO].self, from: data, context: "kategoriler")
 
         // Sıra panelin döndürdüğü sıradır — kullanıcı alıştığı düzeni görsün.
-        return dtos.enumerated().compactMap { index, dto in
+        let categories = dtos.enumerated().compactMap { index, dto in
             dto.toDomain(playlistID: playlistID, kind: kind, sortOrder: index)
         }
+        try validateMappedCatalog(total: dtos.count, kept: categories.count, context: "kategoriler")
+        return categories
     }
 
     // MARK: - Katalog
@@ -94,6 +96,7 @@ public struct XtreamContentProvider: ContentProvider {
             dto.toDomain(playlistID: playlistID, sortOrder: index)
         }
         logDropped(total: dtos.count, kept: channels.count, kind: "kanal")
+        try validateMappedCatalog(total: dtos.count, kept: channels.count, context: "kanallar")
         return channels
     }
 
@@ -108,6 +111,7 @@ public struct XtreamContentProvider: ContentProvider {
             $0.element.toDomain(playlistID: playlistID, sortOrder: $0.offset)
         }
         logDropped(total: dtos.count, kept: movies.count, kind: "film")
+        try validateMappedCatalog(total: dtos.count, kept: movies.count, context: "filmler")
         return movies
     }
 
@@ -148,6 +152,7 @@ public struct XtreamContentProvider: ContentProvider {
             $0.element.toDomain(playlistID: playlistID, sortOrder: $0.offset)
         }
         logDropped(total: dtos.count, kept: series.count, kind: "dizi")
+        try validateMappedCatalog(total: dtos.count, kept: series.count, context: "diziler")
         return series
     }
 
@@ -214,10 +219,16 @@ public struct XtreamContentProvider: ContentProvider {
     }
 
     public func streamURL(for episode: Episode) -> URL? {
-        makeStreamURL(
+        if let direct = XtreamEpisodeURLPolicy.directURL(episode.directURL?.absoluteString) {
+            return direct
+        }
+        guard let ext = XtreamEpisodeURLPolicy.containerExtension(episode.containerExtension) else {
+            return nil
+        }
+        return makeStreamURL(
             section: "series",
             key: episode.streamKey,
-            extension: episode.containerExtension ?? "mp4"
+            extension: ext
         )
     }
 
@@ -260,6 +271,14 @@ public struct XtreamContentProvider: ContentProvider {
     }
 
     // MARK: - Yardımcılar
+
+    private func validateMappedCatalog(total: Int, kept: Int, context: String) throws {
+        // Gerçek boş katalog geçerlidir. Dolu fakat tümü bozuk cevap,
+        // kullanıcının çalışan yerel kataloğunu silen bir boş liste olamaz.
+        guard total == 0 || kept > 0 else {
+            throw AppError.invalidResponse(reason: "\(context) için geçerli kayıt bulunamadı")
+        }
+    }
 
     private func decode<T: Decodable>(
         _ type: T.Type,

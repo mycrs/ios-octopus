@@ -109,6 +109,20 @@ final class PlaylistRepositoryTests: XCTestCase {
         }
     }
 
+    func test_selectingMissingSourcePreservesCurrentActiveSource() async throws {
+        try await repository.add(makePlaylist(id: "p1", isActive: true), password: nil)
+
+        do {
+            try await repository.setActive(id: "deleted")
+            XCTFail("Silinmiş kaynak seçilememeli")
+        } catch {
+            XCTAssertEqual(error as? AppError, .notFound)
+        }
+
+        let active = try await repository.activePlaylist()
+        XCTAssertEqual(active?.id, "p1", "Hedef kaynak yokken mevcut seçim sıfırlanmamalı")
+    }
+
     func test_delete_removesPasswordFromKeychain() async throws {
         let playlist = makePlaylist(id: "p1")
         try await repository.add(playlist, password: "gizli123")

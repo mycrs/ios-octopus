@@ -99,12 +99,11 @@ extension PlayerScreen {
                 .transition(.opacity)
             }
 
-            if let episode = presentedNextEpisode,
-               let countdown = presentedNextEpisodeCountdown {
+            if let episode = presentedNextEpisode {
                 NextEpisodeOverlay(
                     episode: episode,
-                    countdown: countdown,
                     onPlay: playNextEpisodeNow,
+                    onAutomaticAdvance: playNextEpisodesAutomatically,
                     onCancel: cancelNextEpisode
                 )
                 .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -144,7 +143,8 @@ extension PlayerScreen {
 
         hideControlsTask = Task {
             try? await Task.sleep(for: autoHideDelay)
-            guard !Task.isCancelled, controller.state == .playing else { return }
+            guard !Task.isCancelled, controller.state == .playing,
+                  !isShowingNextEpisodePrompt else { return }
             showsControls = false
         }
     }

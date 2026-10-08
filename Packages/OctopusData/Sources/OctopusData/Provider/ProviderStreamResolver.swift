@@ -29,7 +29,11 @@ public struct ProviderStreamResolver: StreamResolving {
     // MARK: - Canlı yayın
 
     public func playbackItem(for channel: Channel) async throws -> PlaybackItem {
-        let provider = try await provider(for: channel.playlistID)
+        let source = try await providerContext(for: channel.playlistID)
+        let provider = source.provider
+        // Örnek kanallar sonlu, kayıtlı filmdir. Gerçek canlı yayın gibi
+        // tekrar bağlanma/sonsuz oynatma davranışı veya etiketi verilmez.
+        let isRecordedSample = source.playlist.kind == .sampleLibrary
 
         guard let url = provider.streamURL(for: channel) else {
             throw AppError.playbackFailed(reason: "Kanal adresi kurulamadı")
@@ -40,7 +44,7 @@ public struct ProviderStreamResolver: StreamResolving {
             url: url,
             title: channel.name,
             artworkURL: channel.logoURL,
-            isLive: true,
+            isLive: !isRecordedSample,
             // Paneller User-Agent denetler; motor bu başlığı iletmek zorunda.
             headers: provider.streamHeaders
         )
@@ -49,7 +53,7 @@ public struct ProviderStreamResolver: StreamResolving {
     // MARK: - Film
 
     public func playbackItem(for movie: Movie) async throws -> PlaybackItem {
-        let provider = try await provider(for: movie.playlistID)
+        let provider = try await providerContext(for: movie.playlistID).provider
 
         guard let url = provider.streamURL(for: movie) else {
             throw AppError.playbackFailed(reason: "Film adresi kurulamadı")
@@ -75,7 +79,7 @@ public struct ProviderStreamResolver: StreamResolving {
     // MARK: - Dizi bölümü
 
     public func playbackItem(for episode: Episode, in series: Series) async throws -> PlaybackItem {
-        let provider = try await provider(for: series.playlistID)
+        let provider = try await providerContext(for: series.playlistID).provider
 
         guard let url = provider.streamURL(for: episode) else {
             throw AppError.playbackFailed(reason: "Bölüm adresi kurulamadı")
@@ -100,12 +104,12 @@ public struct ProviderStreamResolver: StreamResolving {
 
     // MARK: - Yardımcı
 
-    private func provider(for playlistID: Playlist.ID) async throws -> ContentProvider {
+    private func providerContext(for playlistID: Playlist.ID) async throws -> (provider: ContentProvider, playlist: Playlist) {
         guard let playlist = try await playlists.playlist(id: playlistID) else {
             // Kaynak silinmiş ama ekran hâlâ açık olabilir.
             throw AppError.notFound
         }
-        return try await providerFactory.makeProvider(for: playlist)
+        return (try await providerFactory.makeProvider(for: playlist), playlist)
     }
 }
 

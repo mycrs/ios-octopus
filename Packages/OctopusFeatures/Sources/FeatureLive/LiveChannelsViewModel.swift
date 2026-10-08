@@ -170,9 +170,10 @@ public final class LiveChannelsViewModel: ObservableObject {
             var allowed = parentalFilter.filter(results)
 
             // Numara yazıldıysa o kanal en üste alınır.
-            if let match = try await numberMatch(for: query, playlistID: playlistID) {
-                allowed.removeAll { $0.id == match.id }
-                allowed.insert(match, at: 0)
+            let numberedChannel = try await numberMatch(for: query, playlistID: playlistID)
+            if let numberedChannel {
+                allowed.removeAll { $0.id == numberedChannel.id }
+                allowed.insert(numberedChannel, at: 0)
             }
 
             guard !Task.isCancelled else { return }
@@ -325,12 +326,16 @@ public final class LiveChannelsViewModel: ObservableObject {
     /// hem de SQLite değişken sınırına takılır.
     private func startEPGRefresh() {
         epgTask?.cancel()
+        guard let playlistID = activePlaylistID else {
+            nowPlaying = [:]
+            return
+        }
         epgTask = Task { [weak self, dependencies, epgRefreshInterval] in
             while !Task.isCancelled {
                 let current = Date()
-                let programs = (try? await dependencies.epg.allNowPlaying(at: current)) ?? [:]
+                let programs = (try? await dependencies.epg.allNowPlaying(playlistID: playlistID, at: current)) ?? [:]
 
-                guard let self, !Task.isCancelled else { return }
+                guard let self, !Task.isCancelled, self.activePlaylistID == playlistID else { return }
                 self.nowPlaying = programs
                 self.clock = current
 

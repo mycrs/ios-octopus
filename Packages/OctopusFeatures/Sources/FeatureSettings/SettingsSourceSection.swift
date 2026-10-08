@@ -19,6 +19,20 @@ extension SettingsScreen {
                 Task { await viewModel.resyncActivePlaylist() }
             }
 
+            if let install = dependencies.installSampleLibrary {
+                NavigationLink {
+                    SampleLibrarySettingsScreen(install: install)
+                } label: {
+                    SettingsRow(
+                        icon: "books.vertical",
+                        title: "Örnek kütüphane",
+                        detail: "Açık lisanslı örnek filmlerle özellikleri keşfet"
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("sample-library.open")
+            }
+
             if dependencies.sourceHealth != nil {
                 NavigationLink {
                     SourceHealthScreen(dependencies: dependencies)
@@ -30,6 +44,7 @@ extension SettingsScreen {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("source-health.open")
             }
 
             if viewModel.playlistCount > 1 {

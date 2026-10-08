@@ -92,6 +92,9 @@ public enum PlaybackEvent: Sendable {
     case tracksDiscovered(audio: [MediaTrack], subtitle: [MediaTrack])
     case naturalSizeChanged(width: Double, height: Double)
 
+    /// A frame is ready on the actual video surface, independently of .playing.
+    case firstVideoFrameRendered
+
     /// Motor bu içeriği açamadı — `PlayerController` yedek motora geçmeyi dener.
-    case unrecoverableFailure(AppError)
+    case unrecoverableFailure(AppError, kind: PlaybackFailureKind = .unknown)
 }

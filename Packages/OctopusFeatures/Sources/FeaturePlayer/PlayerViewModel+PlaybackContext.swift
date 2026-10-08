@@ -64,6 +64,7 @@ extension PlayerViewModel {
         }
 
         let programs = (try? await epg.programs(
+            playlistID: channel.playlistID,
             epgChannelID: epgID,
             from: now.addingTimeInterval(-3_600),
             to: now.addingTimeInterval(12 * 3_600)

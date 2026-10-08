@@ -95,6 +95,7 @@ public struct MovieDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(Theme.Palette.accent)
+            .accessibilityIdentifier("movie.play")
 
             Button {
                 Task { await viewModel.toggleFavorite() }

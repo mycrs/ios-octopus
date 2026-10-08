@@ -26,7 +26,8 @@ public final class AppDatabase: Sendable {
             // Referans projede cache hataları sessizce yutulduğu için
             // 14k kanallık hesapta cache'in HİÇ çalışmadığı aylarca fark edilmedi.
             // Kalıcılık hataları burada asla sessiz kalmaz.
-            Log.database.error("Migration başarısız: \(String(describing: error))")
+            let code = (error as NSError).code
+            Log.database.error("Migration başarısız: code=\(code)")
             throw AppError.storage(reason: "Veritabanı hazırlanamadı")
         }
         Log.database.info("Veritabanı hazır — şema sürümü güncel")
@@ -88,9 +89,14 @@ extension AppDatabase {
     func write<T>(_ updates: @Sendable (Database) throws -> T) async throws -> T {
         do {
             return try await writer.write(updates)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
-            Log.database.error("Yazma hatası: \(String(describing: error))")
-            throw AppError.storage(reason: String(describing: error))
+            // GRDB hata açıklaması SQL ve bağlama değerlerini içerebilir.
+            // Kaynak/hesap adresleri loga veya kullanıcı mesajına taşınmaz.
+            let code = (error as NSError).code
+            Log.database.error("Yazma hatası: code=\(code)")
+            throw AppError.storage(reason: "Veri kaydedilemedi")
         }
     }
 
@@ -98,9 +104,12 @@ extension AppDatabase {
     func read<T>(_ value: @Sendable (Database) throws -> T) async throws -> T {
         do {
             return try await writer.read(value)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
-            Log.database.error("Okuma hatası: \(String(describing: error))")
-            throw AppError.storage(reason: String(describing: error))
+            let code = (error as NSError).code
+            Log.database.error("Okuma hatası: code=\(code)")
+            throw AppError.storage(reason: "Veri okunamadı")
         }
     }
 }

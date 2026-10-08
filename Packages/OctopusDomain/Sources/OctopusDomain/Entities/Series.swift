@@ -110,6 +110,8 @@ public struct Episode: Identifiable, Hashable, Codable, Sendable {
     public var title: String
     public var streamKey: String
     public var containerExtension: String?
+    /// Sağlayıcının bölüm için verdiği doğrudan medya adresi.
+    public var directURL: URL?
 
     public var plot: String?
     public var stillURL: URL?
@@ -124,6 +126,7 @@ public struct Episode: Identifiable, Hashable, Codable, Sendable {
         title: String,
         streamKey: String,
         containerExtension: String? = nil,
+        directURL: URL? = nil,
         plot: String? = nil,
         stillURL: URL? = nil,
         durationSeconds: Int? = nil,
@@ -136,6 +139,7 @@ public struct Episode: Identifiable, Hashable, Codable, Sendable {
         self.title = title
         self.streamKey = streamKey
         self.containerExtension = containerExtension
+        self.directURL = directURL
         self.plot = plot
         self.stillURL = stillURL
         self.durationSeconds = durationSeconds

@@ -11,6 +11,16 @@ import AVFoundation
 /// kendisidir**; boyutu her zaman birebir aynıdır.
 final class PlayerLayerView: UIView {
 
+    /// Kare gözlemi ile mevcut katman durumu birlikte doğrulanır.
+    var hasRenderedVideo = false
+
+    override var accessibilityValue: String? {
+        get {
+            hasRenderedVideo && playerLayer?.isReadyForDisplay == true ? "ready" : "waiting"
+        }
+        set { super.accessibilityValue = newValue }
+    }
+
     override class var layerClass: AnyClass { AVPlayerLayer.self }
 
     /// Katmana tip güvenli erişim. `as!` yasak (bkz. CLAUDE.md), bu yüzden
@@ -34,6 +44,9 @@ final class PlayerLayerView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .black
+        isAccessibilityElement = true
+        accessibilityIdentifier = "player.native-video"
+        accessibilityLabel = NSLocalizedString("Video", comment: "Player video surface")
     }
 
     @available(*, unavailable)

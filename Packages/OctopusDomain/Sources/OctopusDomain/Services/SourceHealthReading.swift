@@ -8,7 +8,7 @@ public protocol SourceHealthReading: Sendable {
 /// Rapor paylaşılırken sırları yanlışlıkla taşımamak için URL/entity içermez.
 public struct SourceHealthSnapshot: Codable, Equatable, Sendable {
     public enum SourceKind: String, Codable, Sendable {
-        case xtream, m3u, localFile, activation
+        case xtream, m3u, localFile, activation, sampleLibrary
     }
 
     public let sourceKind: SourceKind

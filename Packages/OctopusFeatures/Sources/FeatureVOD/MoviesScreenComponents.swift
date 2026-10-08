@@ -40,6 +40,7 @@ struct MoviePosterCell: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("movie.card.\(movie.id.value)")
         // Afiş, kalp ve puan ayrı ayrı okunursa ızgarada gezinmek işkence
         // olur; hücre tek öğe, favori ise özel eylem.
         .accessibilityElement(children: .combine)

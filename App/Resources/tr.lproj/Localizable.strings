@@ -56,3 +56,42 @@
 "Duraklatıldı" = "Duraklatıldı";
 "Oynatma başarısız" = "Oynatma başarısız";
 "Kaynak kontrolü tamamlanamadı. Yeniden dene." = "Kaynak kontrolü tamamlanamadı. Yeniden dene.";
+
+/* iOS kararlılık ve inceleme erişimi */
+"Gizlilik Politikası" = "Gizlilik Politikası";
+"Kullanım Koşulları" = "Kullanım Koşulları";
+"Yardım ve Destek" = "Yardım ve Destek";
+"Tarayıcıda açılır" = "Tarayıcıda açılır";
+"Bir daha sorma · Otomatik geç" = "Bir daha sorma · Otomatik geç";
+"Otomatik geçiş yalnızca bu oynatıcı oturumu için geçerlidir." = "Otomatik geçiş yalnızca bu oynatıcı oturumu için geçerlidir.";
+"Bu yayının gerekli istek başlıkları sistem oynatıcısı tarafından desteklenmiyor." = "Bu yayının gerekli istek başlıkları sistem oynatıcısı tarafından desteklenmiyor.";
+"Yayın sunucusu geçici olarak yanıt veremiyor." = "Yayın sunucusu geçici olarak yanıt veremiyor.";
+"Yayın bağlantısı kesildi. Bağlantını kontrol edip tekrar dene." = "Yayın bağlantısı kesildi. Bağlantını kontrol edip tekrar dene.";
+"Görüntü çözülemedi. Yedek oynatıcı deneniyor." = "Görüntü çözülemedi. Yedek oynatıcı deneniyor.";
+"Yayın biçimi sistem oynatıcısı tarafından desteklenmiyor." = "Yayın biçimi sistem oynatıcısı tarafından desteklenmiyor.";
+"Yayın açılamadı. Kaynağı kontrol edip tekrar dene." = "Yayın açılamadı. Kaynağı kontrol edip tekrar dene.";
+
+/* Örnek kitaplık ve içerik açıklaması */
+"Örnek kütüphane" = "Örnek kütüphane";
+"Örnek kütüphaneyi keşfet" = "Örnek kütüphaneyi keşfet";
+"Örnek kütüphaneyi aç" = "Örnek kütüphaneyi aç";
+"Açık lisanslı örnek filmlerle özellikleri keşfet" = "Açık lisanslı örnek filmlerle özellikleri keşfet";
+"Hesap eklemeden özellikleri keşfet" = "Hesap eklemeden özellikleri keşfet";
+"Açık lisanslı kısa filmlerle oynatıcıyı, favorileri, aramayı ve kaldığın yerden devam etmeyi deneyebilirsin." = "Açık lisanslı kısa filmlerle oynatıcıyı, favorileri, aramayı ve kaldığın yerden devam etmeyi deneyebilirsin.";
+"Örnek TV koleksiyonu kayıtlı filmlerden oluşur; canlı yayın değildir. Rehber, yerel bir örnek programdır." = "Örnek TV koleksiyonu kayıtlı filmlerden oluşur; canlı yayın değildir. Rehber, yerel bir örnek programdır.";
+"Dizi ekranındaki örnek koleksiyonun bölümleri aynı filmleri içerir." = "Dizi ekranındaki örnek koleksiyonun bölümleri aynı filmleri içerir.";
+"Örnek kütüphane ayrı bir kaynak olarak eklenir. Kişisel kaynakların ve onlara ait favori ve izleme kayıtların korunur. Ayarlar’dan kaynak değiştirebilirsin." = "Örnek kütüphane ayrı bir kaynak olarak eklenir. Kişisel kaynakların ve onlara ait favori ve izleme kayıtların korunur. Ayarlar’dan kaynak değiştirebilirsin.";
+"Eserler ve lisanslar" = "Eserler ve lisanslar";
+"Lisans" = "Lisans";
+"Yapım ekibi ve film bilgisi" = "Yapım ekibi ve film bilgisi";
+"Filmler, orijinal jenerikleriyle oynatılır. İnternet bağlantısı gerekir." = "Filmler, orijinal jenerikleriyle oynatılır. İnternet bağlantısı gerekir.";
+"Örnek kütüphane hazırlanıyor…" = "Örnek kütüphane hazırlanıyor…";
+"Örnek kütüphane hazırlanamadı. Tekrar dene." = "Örnek kütüphane hazırlanamadı. Tekrar dene.";
+"Örnek kütüphane hazır. Ana sayfadan koleksiyonu keşfedebilirsin." = "Örnek kütüphane hazır. Ana sayfadan koleksiyonu keşfedebilirsin.";
+"Yasal yayın kaynağını ekleyebilir veya açık lisanslı örnek filmlerle uygulamayı keşfedebilirsin. Kendi kaynaklarının kullanım hakkından sen sorumlusun." = "Yasal yayın kaynağını ekleyebilir veya açık lisanslı örnek filmlerle uygulamayı keşfedebilirsin. Kendi kaynaklarının kullanım hakkından sen sorumlusun.";
+"Video" = "Video";
+"Yayından görüntü alınamadı. Oynatıcı tercihlerini kontrol edip tekrar dene." = "Yayından görüntü alınamadı. Oynatıcı tercihlerini kontrol edip tekrar dene.";
+"Yayının ses veya görüntüsü çözülemedi. Oynatıcı tercihlerini kontrol edip tekrar dene." = "Yayının ses veya görüntüsü çözülemedi. Oynatıcı tercihlerini kontrol edip tekrar dene.";
+"Örnek Kitaplık" = "Örnek Kitaplık";
+"Açık Film Seçkisi · Örnek" = "Açık Film Seçkisi · Örnek";
+"Ticari kanal aboneliği sağlanmaz. Açık lisanslı örnek filmleri deneyebilir veya kullanım iznin olan kendi kaynağını ekleyebilirsin." = "Ticari kanal aboneliği sağlanmaz. Açık lisanslı örnek filmleri deneyebilir veya kullanım iznin olan kendi kaynağını ekleyebilirsin.";

@@ -461,3 +461,42 @@
 "Duraklatıldı" = "Paused";
 "Oynatma başarısız" = "Playback failed";
 "Kaynak kontrolü tamamlanamadı. Yeniden dene." = "The source check could not be completed. Try again.";
+
+/* iOS kararlılık ve inceleme erişimi */
+"Gizlilik Politikası" = "Privacy Policy";
+"Kullanım Koşulları" = "Terms of Use";
+"Yardım ve Destek" = "Help and Support";
+"Tarayıcıda açılır" = "Opens in your browser";
+"Bir daha sorma · Otomatik geç" = "Don’t ask again · Play automatically";
+"Otomatik geçiş yalnızca bu oynatıcı oturumu için geçerlidir." = "Automatic playback applies only to this player session.";
+"Bu yayının gerekli istek başlıkları sistem oynatıcısı tarafından desteklenmiyor." = "The system player does not support the request headers required by this stream.";
+"Yayın sunucusu geçici olarak yanıt veremiyor." = "The stream server is temporarily unavailable.";
+"Yayın bağlantısı kesildi. Bağlantını kontrol edip tekrar dene." = "The stream connection was interrupted. Check your connection and try again.";
+"Görüntü çözülemedi. Yedek oynatıcı deneniyor." = "Video could not be decoded. Trying the fallback player.";
+"Yayın biçimi sistem oynatıcısı tarafından desteklenmiyor." = "The stream format is not supported by the system player.";
+"Yayın açılamadı. Kaynağı kontrol edip tekrar dene." = "The stream could not be opened. Check the source and try again.";
+
+/* Örnek kitaplık ve içerik açıklaması */
+"Örnek kütüphane" = "Sample Library";
+"Örnek kütüphaneyi keşfet" = "Explore Sample Library";
+"Örnek kütüphaneyi aç" = "Open Sample Library";
+"Açık lisanslı örnek filmlerle özellikleri keşfet" = "Explore features with openly licensed sample films";
+"Hesap eklemeden özellikleri keşfet" = "Explore features without adding an account";
+"Açık lisanslı kısa filmlerle oynatıcıyı, favorileri, aramayı ve kaldığın yerden devam etmeyi deneyebilirsin." = "Try playback, favorites, search, and resume watching with openly licensed short films.";
+"Örnek TV koleksiyonu kayıtlı filmlerden oluşur; canlı yayın değildir. Rehber, yerel bir örnek programdır." = "The sample TV collection contains recorded films, not live broadcasts. Its guide is a local sample schedule.";
+"Dizi ekranındaki örnek koleksiyonun bölümleri aynı filmleri içerir." = "The sample collection in Series uses the same films as its episodes.";
+"Örnek kütüphane ayrı bir kaynak olarak eklenir. Kişisel kaynakların ve onlara ait favori ve izleme kayıtların korunur. Ayarlar’dan kaynak değiştirebilirsin." = "The sample library is added as a separate source. Your personal sources, favorites, and viewing records are preserved. Switch sources in Settings.";
+"Eserler ve lisanslar" = "Films and licenses";
+"Lisans" = "License";
+"Yapım ekibi ve film bilgisi" = "Filmmakers and film information";
+"Filmler, orijinal jenerikleriyle oynatılır. İnternet bağlantısı gerekir." = "Films play with their original credits. An internet connection is required.";
+"Örnek kütüphane hazırlanıyor…" = "Preparing sample library…";
+"Örnek kütüphane hazırlanamadı. Tekrar dene." = "The sample library could not be prepared. Try again.";
+"Örnek kütüphane hazır. Ana sayfadan koleksiyonu keşfedebilirsin." = "The sample library is ready. Explore the collection from Home.";
+"Yasal yayın kaynağını ekleyebilir veya açık lisanslı örnek filmlerle uygulamayı keşfedebilirsin. Kendi kaynaklarının kullanım hakkından sen sorumlusun." = "Add your legal streaming source or explore the app with openly licensed sample films. You are responsible for the rights to use your own sources.";
+"Video" = "Video";
+"Yayından görüntü alınamadı. Oynatıcı tercihlerini kontrol edip tekrar dene." = "No video could be displayed from this stream. Check your player preferences and try again.";
+"Yayının ses veya görüntüsü çözülemedi. Oynatıcı tercihlerini kontrol edip tekrar dene." = "The stream’s audio or video could not be decoded. Check your player preferences and try again.";
+"Örnek Kitaplık" = "Sample Library";
+"Açık Film Seçkisi · Örnek" = "Open Film Collection · Sample";
+"Ticari kanal aboneliği sağlanmaz. Açık lisanslı örnek filmleri deneyebilir veya kullanım iznin olan kendi kaynağını ekleyebilirsin." = "No commercial channel subscription is provided. Try openly licensed sample films or add a source you are authorized to use.";

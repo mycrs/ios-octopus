@@ -215,6 +215,117 @@ final class PlayerControllerTests: XCTestCase {
 
     // MARK: - İzleme geçmişi
 
+    func test_authorizationFailureDoesNotSwapOrReconnectLiveEngine() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let preferences = makePreferences()
+        let controller = makeController(native: native, fallback: fallback, preferences: preferences)
+        let item = makeItem(isLive: true)
+        await controller.start(item)
+
+        native.emit(.unrecoverableFailure(.unauthorized, kind: .authorization))
+        _ = await waitUntil { controller.state == .failed(.unauthorized) }
+
+        XCTAssertTrue(fallback.loadedItems.isEmpty)
+        XCTAssertEqual(native.loadedItems.count, 1)
+        XCTAssertFalse(preferences.requiresFallbackEngine(for: item.source.storageKey))
+        await controller.finish()
+    }
+
+    func test_networkFailureRetriesSameLiveEngineWithoutRememberingFallback() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let preferences = makePreferences()
+        let controller = makeController(native: native, fallback: fallback, preferences: preferences)
+        let item = makeItem(isLive: true)
+        await controller.start(item)
+
+        native.emit(.unrecoverableFailure(.network(reason: "fixture"), kind: .network))
+        let retried = await waitUntil { native.loadedItems.count == 2 }
+
+        XCTAssertTrue(retried)
+        XCTAssertTrue(fallback.loadedItems.isEmpty)
+        XCTAssertFalse(preferences.requiresFallbackEngine(for: item.source.storageKey))
+        await controller.finish()
+    }
+
+    func test_explicitPauseCancelsPendingReconnect() async {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+        await controller.start(makeItem(isLive: true))
+        native.emit(.unrecoverableFailure(.network(reason: "fixture"), kind: .network))
+        _ = await waitUntil { controller.state == .buffering }
+
+        controller.pause()
+        let restarted = await waitUntil(timeout: 2.2) { native.loadedItems.count > 1 }
+
+        XCTAssertFalse(restarted, "A pending recovery must not undo an explicit pause/background pause")
+        await controller.finish()
+    }
+
+    func test_decoderFailureSwitchesOnceAndRemembersEngine() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let preferences = makePreferences()
+        let controller = makeController(native: native, fallback: fallback, preferences: preferences)
+        let item = makeItem()
+        await controller.start(item)
+
+        native.emit(.unrecoverableFailure(.playbackFailed(reason: "fixture"), kind: .decoder))
+        let switched = await waitUntil { controller.engineIdentifier == "fallback" }
+
+        XCTAssertTrue(switched)
+        XCTAssertTrue(preferences.requiresFallbackEngine(for: item.source.storageKey))
+        await controller.finish()
+    }
+
+    func test_unknownFailureCompatibilityFallbackIsNotRemembered() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let preferences = makePreferences()
+        let controller = makeController(native: native, fallback: fallback, preferences: preferences)
+        let item = makeItem()
+        await controller.start(item)
+
+        native.emit(.unrecoverableFailure(.playbackFailed(reason: "fixture")))
+        _ = await waitUntil { controller.engineIdentifier == "fallback" }
+
+        XCTAssertFalse(preferences.requiresFallbackEngine(for: item.source.storageKey))
+        await controller.finish()
+    }
+
+    func test_refererRequiredSourceSelectsFallbackBeforeMakingNativeRequest() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(native: native, fallback: fallback)
+        let item = PlaybackItem(
+            source: .movie(Movie.ID("headers")), url: URL(fileURLWithPath: "/fixture"),
+            title: "Fixture", isLive: false, headers: ["Referer": "https://example.invalid"]
+        )
+        await controller.start(item)
+
+        XCTAssertTrue(native.loadedItems.isEmpty)
+        XCTAssertEqual(fallback.loadedItems.count, 1)
+        await controller.finish()
+    }
+
+    func test_unsupportedAuthorizationHeadersDoNotOpenEitherEngine() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(native: native, fallback: fallback)
+        let item = PlaybackItem(
+            source: .movie(Movie.ID("headers")), url: URL(fileURLWithPath: "/fixture"),
+            title: "Fixture", isLive: false, headers: ["Authorization": "fixture"]
+        )
+        await controller.start(item)
+
+        XCTAssertTrue(native.loadedItems.isEmpty)
+        XCTAssertTrue(fallback.loadedItems.isEmpty)
+        XCTAssertEqual(controller.failureKind, .unsupportedHeaders)
+        if case .failed = controller.state {} else { XCTFail("Header incompatibility must be explicit") }
+        await controller.finish()
+    }
+
     func test_history_isRecordedOnceWhenPlaybackActuallyStarts() async {
         let native = TestEngine(identifier: "native")
         let history = TestHistoryRepository()

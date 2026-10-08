@@ -14,11 +14,22 @@ public enum ImageLoading {
 
     /// Açılışta **bir kez** çağrılır.
     public static func configure() {
+        let isConstrained = ProcessInfo.processInfo.physicalMemory <= 3 * 1_024 * 1_024 * 1_024
+        let memory = ImageCache()
+        memory.costLimit = (isConstrained ? 32 : 96) * 1_024 * 1_024
+        memory.countLimit = isConstrained ? 128 : 512
+        // Nuke bu cache'i bellek uyarısında boşaltır ve arka planda küçültür.
+        // Büyük iPad/iPhone RAM'i afişlere sınırsız bütçe vermemeli.
         ImagePipeline.shared = ImagePipeline {
             // Diskte ham baytı sakla: afiş ve logo adresleri sabit,
             // içerikleri değişmez. Varsayılan URLCache yerine Nuke'un
             // kendi deposu kullanılıyor çünkü boyut sınırı ayarlanabiliyor.
-            $0.dataCache = try? DataCache(name: Self.cacheName)
+            $0 = .withDataCache(
+                name: Self.cacheName,
+                sizeLimit: (isConstrained ? 128 : 256) * 1_024 * 1_024
+            )
+            $0.imageCache = memory
+            $0.dataLoadingQueue.maxConcurrentOperationCount = isConstrained ? 3 : 4
 
             // Hem baytı hem çözülmüş görüntüyü sakla. Küçültülmüş afişleri
             // yeniden çözmek CPU yakıyordu.
@@ -32,10 +43,7 @@ public enum ImageLoading {
 
     private static let cacheName = "com.octopus.iptv.images"
 
-    /// Kullanıcı "önbelleği temizle" derse veya kaynak değişince.
-    ///
-    /// Kaynak değiştiğinde eski panelin afişleri artık geçersiz; diskte
-    /// tutmak yalnızca yer kaplar.
+    /// Kullanıcı önbelleği temizler. Kaynak geçişinde ortak görseller korunur.
     public static func clearCache() {
         ImagePipeline.shared.cache.removeAll()
     }

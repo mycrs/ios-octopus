@@ -67,8 +67,8 @@ public struct PlaybackEngineResolver {
 
     /// Native motor içeriği açamadığında çağrılır (çalışma zamanı fallback).
     ///
-    /// `unknown` formatlı akışlarda ilk deneme AVPlayer'la yapılır; 403/codec
-    /// hatası gelirse `PlayerController` buraya düşer ve VLC ile yeniden dener.
+    /// Codec/format failures can request VLC. Account and transient network
+    /// failures are classified separately and never trigger this path.
     /// Yedek yoksa `nil` döner ve hata kullanıcıya gösterilir.
     public func makeRuntimeFallbackEngine() -> PlaybackEngine? {
         makeFallback?()

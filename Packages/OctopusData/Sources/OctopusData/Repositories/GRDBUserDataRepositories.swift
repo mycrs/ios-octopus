@@ -13,9 +13,10 @@ public actor GRDBEPGRepository: EPGRepository {
         self.database = database
     }
 
-    public func nowPlaying(epgChannelID: String, at date: Date) async throws -> EPGProgram? {
+    public func nowPlaying(playlistID: Playlist.ID, epgChannelID: String, at date: Date) async throws -> EPGProgram? {
         let record = try await database.read { db in
             try EPGProgramRecord
+                .filter(Column("playlistId") == playlistID.value)
                 .filter(Column("epgChannelId") == epgChannelID)
                 .filter(Column("startDate") <= date && Column("endDate") > date)
                 .fetchOne(db)
@@ -28,6 +29,7 @@ public actor GRDBEPGRepository: EPGRepository {
     /// Kanal listesinde her satır için ayrı sorgu atılsaydı 500 kanallık
     /// ekranda 500 sorgu olurdu (N+1). Tek `IN` sorgusuyla çözülür.
     public func nowPlaying(
+        playlistID: Playlist.ID,
         epgChannelIDs: [String],
         at date: Date
     ) async throws -> [String: EPGProgram] {
@@ -35,6 +37,7 @@ public actor GRDBEPGRepository: EPGRepository {
 
         let records = try await database.read { db in
             try EPGProgramRecord
+                .filter(Column("playlistId") == playlistID.value)
                 .filter(epgChannelIDs.contains(Column("epgChannelId")))
                 .filter(Column("startDate") <= date && Column("endDate") > date)
                 .fetchAll(db)
@@ -50,9 +53,10 @@ public actor GRDBEPGRepository: EPGRepository {
     ///
     /// `epg_byChannelTime` indeksi zaman aralığını da kapsadığı için
     /// bu sorgu tam tarama yapmaz.
-    public func allNowPlaying(at date: Date) async throws -> [String: EPGProgram] {
+    public func allNowPlaying(playlistID: Playlist.ID, at date: Date) async throws -> [String: EPGProgram] {
         let records = try await database.read { db in
             try EPGProgramRecord
+                .filter(Column("playlistId") == playlistID.value)
                 .filter(Column("startDate") <= date && Column("endDate") > date)
                 .fetchAll(db)
         }
@@ -63,12 +67,14 @@ public actor GRDBEPGRepository: EPGRepository {
     }
 
     public func programs(
+        playlistID: Playlist.ID,
         epgChannelID: String,
         from: Date,
         to: Date
     ) async throws -> [EPGProgram] {
         let records = try await database.read { db in
             try EPGProgramRecord
+                .filter(Column("playlistId") == playlistID.value)
                 .filter(Column("epgChannelId") == epgChannelID)
                 .filter(Column("endDate") > from && Column("startDate") < to)
                 .order(Column("startDate"))

@@ -20,6 +20,8 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
         /// Bayi tarafından verilen aktivasyon kodu.
         /// Panel kodu çözüp gerçek Xtream bilgilerini döndürür.
         case activationCode(code: String)
+        /// Hesap gerektirmeyen, her kullanıcıya açık örnek film kitaplığı.
+        case sampleLibrary
     }
 
     public let id: ID

@@ -141,37 +141,6 @@ extension SettingsScreen {
         }
     }
 
-    var aboutSection: some View {
-        section("Uygulama") {
-            HStack {
-                Text("Sürüm")
-                    .font(Theme.Typography.rowSubtitle)
-                    .foregroundColor(Theme.Palette.textSecondary)
-                Spacer()
-                Text(viewModel.appVersion)
-                    .font(Theme.Typography.rowSubtitle)
-                    .foregroundColor(Theme.Palette.textTertiary)
-            }
-            .settingsSurface()
-
-            // ⚠️ Karşılama ekranındaki notun ikinci kopyası — kasıtlı.
-            // Kurulumu bir kez geçen kullanıcı o ekranı bir daha görmez;
-            // App Store incelemesi de çoğu zaman doğrudan uygulamanın
-            // içinde gezinir. Uygulamanın içerik sağlamadığı, kalıcı
-            // olarak görülebilen bir yerde de yazılı olmalı.
-            Text(
-                AppLocalization.localized(
-                    "Bu uygulama yalnızca bir oynatıcıdır: içerik sağlamaz ve barındırmaz. Yayınlar eklediğin kendi aboneliğinden gelir.",
-                    locale: language.locale
-                )
-            )
-            .font(Theme.Typography.caption)
-            .foregroundColor(Theme.Palette.textTertiary)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, Theme.Spacing.xs)
-        }
-    }
-
     func section<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content

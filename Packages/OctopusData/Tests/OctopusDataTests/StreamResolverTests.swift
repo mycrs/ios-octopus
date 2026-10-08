@@ -250,6 +250,47 @@ final class StreamResolverTests: XCTestCase {
         XCTAssertFalse((first as AnyObject) === (second as AnyObject))
     }
 
+    func test_editingGuideAddressForcesNewProvider() async throws {
+        let fetched = try await playlists.playlist(id: "m3u1")
+        let original = try XCTUnwrap(fetched)
+        let before = try await factory.makeProvider(for: original)
+        var edited = original
+        edited.epgURL = try XCTUnwrap(URL(string: "https://guide.example.com/new.xml"))
+
+        let after = try await factory.makeProvider(for: edited)
+
+        XCTAssertFalse((before as AnyObject) === (after as AnyObject))
+        XCTAssertEqual(after.epgSourceURL, edited.epgURL)
+    }
+
+    func test_concurrentProviderConstructionSharesOneHostResolutionAndInstance() async throws {
+        let started = expectation(description: "Sunucu çözümlemesi başladı")
+        let duplicate = expectation(description: "Tekrarlı sunucu çözümlemesi")
+        duplicate.isInverted = true
+        let gate = SyncTestGate(started: started, duplicate: duplicate)
+        let secrets = FakeSecretStore()
+        try secrets.save("parola", for: "playlist.xtream1")
+        let coalescingFactory = DefaultContentProviderFactory(
+            httpClient: StubHTTPClient { _ in Data() }, secrets: secrets,
+            hostResolver: GatedHostResolver(gate: gate)
+        )
+        let fetched = try await playlists.playlist(id: "xtream1")
+        let playlist = try XCTUnwrap(fetched)
+        let first = Task { try await coalescingFactory.makeProvider(for: playlist) }
+        await fulfillment(of: [started], timeout: 2)
+        let others = (0..<6).map { _ in Task { try await coalescingFactory.makeProvider(for: playlist) } }
+        await fulfillment(of: [duplicate], timeout: 0.15)
+        await gate.open()
+
+        let provider = try await first.value
+        for request in others {
+            let same = try await request.value
+            XCTAssertTrue((provider as AnyObject) === (same as AnyObject))
+        }
+        let calls = await gate.calls
+        XCTAssertEqual(calls, 1, "Actor await sırasında aynı sunucuyu tekrar yoklamamalı")
+    }
+
     func test_activationCodeSource_reportsUnsupportedForNow() async throws {
         try await playlists.add(
             Playlist(
@@ -269,5 +310,14 @@ final class StreamResolverTests: XCTestCase {
         } catch {
             XCTAssertNotNil(error as? AppError)
         }
+    }
+}
+
+private struct GatedHostResolver: HostResolving {
+    let gate: SyncTestGate
+
+    func resolve(preferring current: URL) async -> URL {
+        await gate.wait()
+        return current
     }
 }

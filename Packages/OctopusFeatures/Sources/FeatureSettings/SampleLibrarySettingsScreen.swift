@@ -1,0 +1,98 @@
+import SwiftUI
+import OctopusDomain
+import OctopusDesignSystem
+
+struct SampleLibrarySettingsScreen: View {
+    @StateObject private var model: SampleLibrarySettingsModel
+    @Environment(\.locale) private var locale
+    @Environment(\.brandColor) private var brandColor
+
+    init(install: @escaping @MainActor () async throws -> Void) {
+        _model = StateObject(wrappedValue: SampleLibrarySettingsModel(install: install))
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                introduction
+                credits
+            }
+            .padding(Theme.Spacing.lg)
+        }
+        .safeAreaInset(edge: .bottom) { installAction }
+        .background(Theme.Palette.background.ignoresSafeArea())
+        .navigationTitle("Örnek kütüphane")
+        .navigationBarTitleDisplayMode(.inline)
+        .accessibilityIdentifier("sample-library.screen")
+    }
+
+    private var installAction: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            if let error = model.errorMessage {
+                InlineMessageView(
+                    text: AppLocalization.localized(error, locale: locale), kind: .error
+                )
+            }
+            if model.state == .installed {
+                InlineMessageView(
+                    text: AppLocalization.localized(
+                        "Örnek kütüphane hazır. Ana sayfadan koleksiyonu keşfedebilirsin.",
+                        locale: locale
+                    ), kind: .info
+                )
+            }
+            if model.state == .installing {
+                ProgressView("Örnek kütüphane hazırlanıyor…")
+            }
+            Button {
+                Task { await model.install() }
+            } label: {
+                Text("Örnek kütüphaneyi aç")
+                    .font(Theme.Typography.rowTitle)
+                    .frame(maxWidth: .infinity, minHeight: 54)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(brandColor)
+            .disabled(model.state != .idle)
+            .accessibilityIdentifier("sample-library.install")
+        }
+        .padding(Theme.Spacing.lg)
+        .background(Theme.Palette.background)
+    }
+
+    private var introduction: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("Hesap eklemeden özellikleri keşfet")
+                .font(Theme.Typography.sectionTitle)
+            Text("Açık lisanslı kısa filmlerle oynatıcıyı, favorileri, aramayı ve kaldığın yerden devam etmeyi deneyebilirsin.")
+            Text("Örnek TV koleksiyonu kayıtlı filmlerden oluşur; canlı yayın değildir. Rehber, yerel bir örnek programdır.")
+            Text("Dizi ekranındaki örnek koleksiyonun bölümleri aynı filmleri içerir.")
+            Text("Örnek kütüphane ayrı bir kaynak olarak eklenir. Kişisel kaynakların ve onlara ait favori ve izleme kayıtların korunur. Ayarlar’dan kaynak değiştirebilirsin.")
+        }
+        .font(Theme.Typography.rowSubtitle)
+        .foregroundColor(Theme.Palette.textSecondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var credits: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            Text("Eserler ve lisanslar")
+                .font(Theme.Typography.sectionTitle)
+            ForEach(SampleLibraryCatalog.credits, id: \.title) { credit in
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text(credit.title).font(Theme.Typography.rowTitle)
+                    Text(credit.creator).font(Theme.Typography.caption)
+                    Text(credit.copyrightNotice).font(Theme.Typography.caption)
+                    Text(credit.licenseName).font(Theme.Typography.caption)
+                    Link("Lisans", destination: credit.licenseURL)
+                    Link("Yapım ekibi ve film bilgisi", destination: credit.creditsURL)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Text("Filmler, orijinal jenerikleriyle oynatılır. İnternet bağlantısı gerekir.")
+                .font(Theme.Typography.caption)
+        }
+        .foregroundColor(Theme.Palette.textSecondary)
+        .settingsSurface()
+    }
+}

@@ -100,6 +100,33 @@ extension AppDatabase {
             )
         }
 
+        // XMLTV kanal/program kimlikleri sağlayıcılar arasında benzersiz
+        // değildir. Eski kayıtların kaynağı bilinmediği için toplu eşleme
+        // yapılmaz; nullable kolon onları korur, yeni rehber kaynakla yazılır.
+        migrator.registerMigration("v5_epg_kaynak") { db in
+            try db.alter(table: "epgProgram") { t in
+                t.add(column: "playlistId", .text)
+                    .references("playlist", onDelete: .cascade)
+            }
+            try db.create(
+                index: "epg_byPlaylistChannelTime",
+                on: "epgProgram",
+                columns: ["playlistId", "epgChannelId", "startDate", "endDate"]
+            )
+            try db.create(
+                index: "epg_byPlaylistEnd",
+                on: "epgProgram",
+                columns: ["playlistId", "endDate"]
+            )
+        }
+
+        // Mevcut bölüm ağacı korunur; doğrudan adresi ilk ayrıntı yenilemesi doldurur.
+        migrator.registerMigration("v6_bolum_dogrudan_adres") { db in
+            try db.alter(table: "episode") { t in
+                t.add(column: "directURL", .text)
+            }
+        }
+
         return migrator
     }
 

@@ -40,7 +40,13 @@ public actor InMemoryPlaylistRepository: PlaylistRepository {
         storage[index] = playlist
     }
 
+    public func updateExpiration(id: Playlist.ID, expiresAt: Date?) async throws {
+        guard let index = storage.firstIndex(where: { $0.id == id }) else { throw AppError.notFound }
+        storage[index].expiresAt = expiresAt
+    }
+
     public func setActive(id: Playlist.ID) async throws {
+        guard storage.contains(where: { $0.id == id }) else { throw AppError.notFound }
         for index in storage.indices {
             storage[index].isActive = (storage[index].id == id)
         }
@@ -233,48 +239,50 @@ public actor InMemorySeriesRepository: SeriesRepository {
 
 public actor InMemoryEPGRepository: EPGRepository {
 
-    private var storedPrograms: [EPGProgram]
+    private var storedPrograms: [Playlist.ID: [EPGProgram]]
 
-    public init(programs: [EPGProgram] = []) {
-        self.storedPrograms = programs
+    public init(programsByPlaylist: [Playlist.ID: [EPGProgram]] = [:]) {
+        self.storedPrograms = programsByPlaylist
     }
 
-    public func nowPlaying(epgChannelID: String, at date: Date) async throws -> EPGProgram? {
-        storedPrograms.first { $0.epgChannelID == epgChannelID && $0.isOnAir(at: date) }
+    public func nowPlaying(playlistID: Playlist.ID, epgChannelID: String, at date: Date) async throws -> EPGProgram? {
+        storedPrograms[playlistID]?.first { $0.epgChannelID == epgChannelID && $0.isOnAir(at: date) }
     }
 
     public func nowPlaying(
+        playlistID: Playlist.ID,
         epgChannelIDs: [String],
         at date: Date
     ) async throws -> [String: EPGProgram] {
         let wanted = Set(epgChannelIDs)
         var result: [String: EPGProgram] = [:]
-        for program in storedPrograms
+        for program in storedPrograms[playlistID] ?? []
         where wanted.contains(program.epgChannelID) && program.isOnAir(at: date) {
             result[program.epgChannelID] = program
         }
         return result
     }
 
-    public func allNowPlaying(at date: Date) async throws -> [String: EPGProgram] {
+    public func allNowPlaying(playlistID: Playlist.ID, at date: Date) async throws -> [String: EPGProgram] {
         Dictionary(
-            storedPrograms.filter { $0.isOnAir(at: date) }.map { ($0.epgChannelID, $0) },
+            (storedPrograms[playlistID] ?? []).filter { $0.isOnAir(at: date) }.map { ($0.epgChannelID, $0) },
             uniquingKeysWith: { first, _ in first }
         )
     }
 
     public func programs(
+        playlistID: Playlist.ID,
         epgChannelID: String,
         from: Date,
         to: Date
     ) async throws -> [EPGProgram] {
-        storedPrograms
+        (storedPrograms[playlistID] ?? [])
             .filter { $0.epgChannelID == epgChannelID && $0.endDate > from && $0.startDate < to }
             .sorted { $0.startDate < $1.startDate }
     }
 
     public func purgePrograms(before date: Date) async throws {
-        storedPrograms.removeAll { $0.endDate < date }
+        storedPrograms = storedPrograms.mapValues { $0.filter { $0.endDate >= date } }
     }
 }
 

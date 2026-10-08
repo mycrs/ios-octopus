@@ -22,6 +22,8 @@ jobs:
     runs-on: macos-latest
     environment: app-store
     needs: [verify]
+    env:
+      DEVICE_SIGNING_ENABLED: ${{ secrets.OCTOPUS_TEST_DEVICE_UDID != '' && secrets.OCTOPUS_TEST_PACKAGE_PUBLIC_KEY != '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -40,7 +42,7 @@ jobs:
           chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
 
       - name: USB cihazı için imzalamayı hazırla
-        if: inputs.distribution == 'device'
+        if: inputs.distribution == 'device' || env.DEVICE_SIGNING_ENABLED == 'true'
         env:
           API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -90,6 +92,21 @@ jobs:
             -authenticationKeyID "$API_KEY_ID" \
             -authenticationKeyIssuerID "$API_ISSUER_ID"
 
+      - name: Aynı arşivden USB test paketi üret
+        if: inputs.distribution != 'device' && env.DEVICE_SIGNING_ENABLED == 'true'
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Octopus.xcarchive" \
+            -exportPath "$RUNNER_TEMP/device-export" \
+            -exportOptionsPlist "$RUNNER_TEMP/DeviceExportOptions.plist" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8" \
+            -authenticationKeyID "$API_KEY_ID" \
+            -authenticationKeyIssuerID "$API_ISSUER_ID"
+
       - name: IPA'yı TestFlight'a yükle
         if: inputs.distribution != 'device'
         env:
@@ -112,17 +129,22 @@ jobs:
           if-no-files-found: warn
 
       - name: Cihaz paketini doğrula ve şifrele
-        if: inputs.distribution == 'device'
+        if: inputs.distribution == 'device' || env.DEVICE_SIGNING_ENABLED == 'true'
         env:
+          DISTRIBUTION: ${{ inputs.distribution }}
           OCTOPUS_TEST_DEVICE_UDID: ${{ secrets.OCTOPUS_TEST_DEVICE_UDID }}
           OCTOPUS_TEST_PACKAGE_PUBLIC_KEY: ${{ secrets.OCTOPUS_TEST_PACKAGE_PUBLIC_KEY }}
         run: |
           export EXPECTED_BUILD=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$RUNNER_TEMP/Octopus.xcarchive/Products/Applications/Octopus.app/Info.plist")
+          task_device_ipa="$RUNNER_TEMP/export/Octopus.ipa"
+          if [ "$DISTRIBUTION" != device ]; then
+            task_device_ipa="$RUNNER_TEMP/device-export/Octopus.ipa"
+          fi
           "$RUNNER_TEMP/device-build-tools/bin/python" Scripts/seal-device-build.py \
-            "$RUNNER_TEMP/export/Octopus.ipa" "$RUNNER_TEMP/Octopus-device.ipa.sealed"
+            "$task_device_ipa" "$RUNNER_TEMP/Octopus-device.ipa.sealed"
 
       - name: Şifreli cihaz paketini sakla
-        if: inputs.distribution == 'device'
+        if: inputs.distribution == 'device' || env.DEVICE_SIGNING_ENABLED == 'true'
         uses: actions/upload-artifact@v5
         with:
           name: Octopus-device-encrypted

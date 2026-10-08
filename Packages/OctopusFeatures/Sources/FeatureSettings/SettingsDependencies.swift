@@ -16,6 +16,7 @@ public struct SettingsDependencies {
     public let playlistAccess: PlaylistAccessControlling
     public let sourceHealth: SourceHealthReading?
     public let playerDiagnostics: (@MainActor () -> PlaybackDiagnosticSnapshot?)?
+    public let installSampleLibrary: (@MainActor () async throws -> Void)?
     public let activatePlaylist: @MainActor (Playlist.ID, String?) async throws -> Bool
     public let removePlaylistLock: @MainActor (Playlist.ID) async -> Void
     public let notifyPlaylistChanged: @MainActor () async -> Void
@@ -38,7 +39,8 @@ public struct SettingsDependencies {
         activatePlaylist: (@MainActor (Playlist.ID, String?) async throws -> Bool)? = nil,
         removePlaylistLock: @escaping @MainActor (Playlist.ID) async -> Void = { _ in },
         notifyPlaylistChanged: @escaping @MainActor () async -> Void = {},
-        notifyProtectionChanged: @escaping @MainActor () -> Void = {}
+        notifyProtectionChanged: @escaping @MainActor () -> Void = {},
+        installSampleLibrary: (@MainActor () async throws -> Void)? = nil
     ) {
         self.playlists = playlists
         self.sync = sync
@@ -52,6 +54,7 @@ public struct SettingsDependencies {
         self.playlistAccess = playlistAccess
         self.sourceHealth = sourceHealth
         self.playerDiagnostics = playerDiagnostics
+        self.installSampleLibrary = installSampleLibrary
         self.activatePlaylist = activatePlaylist ?? { id, pin in
             if await playlistAccess.isProtected(id),
                !(await playlistAccess.isUnlocked(id)) {

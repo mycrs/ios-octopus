@@ -37,6 +37,7 @@ struct PlaylistRecord: Codable, FetchableRecord, PersistableRecord {
         case m3u
         case m3uLocalFile
         case activationCode
+        case sampleLibrary
     }
 }
 
@@ -74,6 +75,8 @@ extension PlaylistRecord {
         case .activationCode(let code):
             self.kindType = KindType.activationCode.rawValue
             self.activationCode = code
+        case .sampleLibrary:
+            self.kindType = KindType.sampleLibrary.rawValue
         }
     }
 }
@@ -126,6 +129,8 @@ extension PlaylistRecord {
                 throw AppError.storage(reason: "Aktivasyon kaydında kod eksik: \(id)")
             }
             return .activationCode(code: activationCode)
+        case .sampleLibrary:
+            return .sampleLibrary
         }
     }
 }

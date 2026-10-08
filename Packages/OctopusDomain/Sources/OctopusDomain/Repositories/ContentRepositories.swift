@@ -19,10 +19,21 @@ public protocol PlaylistRepository: Sendable {
     /// Kaynağı doğrular ve kaydeder. Parola Keychain'e yazılır, entity'ye girmez.
     func add(_ playlist: Playlist, password: String?) async throws
     func update(_ playlist: Playlist) async throws
+    /// Hesap doğrulama yalnızca bitiş tarihini günceller; eşzamanlı kaynak
+    /// seçimi/düzenlemesindeki diğer alanları eski kopyayla geri yazmaz.
+    func updateExpiration(id: Playlist.ID, expiresAt: Date?) async throws
     func setActive(id: Playlist.ID) async throws
 
     /// Kaynağı ve ona ait TÜM içeriği siler (cascade).
     func delete(id: Playlist.ID) async throws
+}
+
+extension PlaylistRepository {
+    public func updateExpiration(id: Playlist.ID, expiresAt: Date?) async throws {
+        guard var current = try await playlist(id: id) else { throw AppError.notFound }
+        current.expiresAt = expiresAt
+        try await update(current)
+    }
 }
 
 /// Kaynağı **kaydetmeden önce** doğrular.
@@ -138,10 +149,11 @@ public protocol SeriesRepository: Sendable {
 
 public protocol EPGRepository: Sendable {
     /// Belirtilen anda yayında olan program.
-    func nowPlaying(epgChannelID: String, at date: Date) async throws -> EPGProgram?
+    func nowPlaying(playlistID: Playlist.ID, epgChannelID: String, at date: Date) async throws -> EPGProgram?
 
     /// Birden çok kanal için tek seferde — kanal listesinde N+1 sorgusunu önler.
     func nowPlaying(
+        playlistID: Playlist.ID,
         epgChannelIDs: [String],
         at date: Date
     ) async throws -> [String: EPGProgram]
@@ -151,10 +163,11 @@ public protocol EPGRepository: Sendable {
     /// Kanal listesi için: 20.000 kimlik içeren bir `IN` sorgusu yazmak
     /// yerine zaman aralığıyla tek sorgu yapılır. Sonuç kanal sayısı
     /// kadardır (birkaç bin satır), kimlik listesi kadar değil.
-    func allNowPlaying(at date: Date) async throws -> [String: EPGProgram]
+    func allNowPlaying(playlistID: Playlist.ID, at date: Date) async throws -> [String: EPGProgram]
 
     /// Zaman aralığındaki tüm programlar (EPG ızgarası için).
     func programs(
+        playlistID: Playlist.ID,
         epgChannelID: String,
         from: Date,
         to: Date

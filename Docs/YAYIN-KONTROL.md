@@ -1,264 +1,127 @@
-# 🚀 YAYIN KONTROL LİSTESİ
+# Octopus — iOS yayın ve yeniden inceleme kontrolü
 
-> Hazırlanma tarihi: **2026-08-17**. İlk başvuru (`1.0.0`, build `1`).
-> Kodda yapılabilecekler yapıldı ve CI'da doğrulandı. Bu belge **senin
-> yapman gerekenleri** ve **doğrulanamayanları** bırakıyor.
+**8 Ekim 2026.** Ağustos başvurusuna ait eski tamamlandı işaretlerini
+kaldırır. Hedef 4.3(a) reddinden sonra gerçek kullanım değerini ve tam
+inceleme erişimini gösteren, test edilmiş Release'i App Review'a göndermek.
+IPTV oynatıcı amacı korunur; Apple'ın kabul sonucu henüz bilinmez.
 
----
+## Bildiğimiz durum
 
-## 1. KODDA ÇÖZÜLDÜ ✅
+| Kanıt | Durum |
+|---|---|
+| Apple mesajı | 7 Ekim 2026, 1.0 (7), iPad Air 11-inch (M3), 4.3(a); uzatılmış inceleme bildirimi de var. |
+| Önceki sorunlar | 2.3.6 ebeveyn kontrolü için yeni adımlar iletilmiş; 5.6'nın giderildiği 3 Eylül'de belirtilmiş. Yeni ret bunlara otomatik bağlanmaz. |
+| USB build | 1.0.0 (8), binary kaynak commit'i `88fc529`; sonraki commit'ler bu binary'de varsayılmaz. |
+| Mac CI | [37776653115](https://github.com/mycrs/ios-octopus/actions/runs/37776653115) başarılı; Playback 57, Data 264, Features 194 XCTest ve Domain/DesignSystem/iOS işleri geçti. |
+| Cihaz | Build 8 kurulu ve açılıyor; VLC yedeği bağlı. Açılış kaydı oynatma olayı içermedi; yeni UHD görüntüsü doğrulanmadı. |
+| Demo / hedef build 9 | Xtream inceleme hesabı yok; kullanıcı yalnız M3U sağladı. Eski M3U canlı liste import/oynatma içindir. Normal kullanıcıya açık isteğe bağlı örnek kitaplığı film, örnek bölüm ve örnek rehber akışlarını kapsayacak; build 9 uygulama/cihaz testleri henüz kanıtlanmadı. |
+| Lisans ve yaş | ASC'de Standard Apple License Agreement ve 4+ gözlendi. BBB/Sintel örnekleri eklenirse gerçek şiddet/korku/silah içeriğine göre yaş anketi yeniden değerlendirilir; 4+ otomatik taşınmaz. |
+| Yeni App Review | Bu belgeden gönderilmiş sonucu çıkarılmaz; son canlı durum ayrıca kaydedilir. |
 
-Bu ikisi derlemede değil, **App Store Connect'e yüklerken** patlıyordu —
-yani ancak başvuru anında görülecekti.
+## Son Release kontrolü
 
-| Ne | Neden önemliydi | Durum |
+Kutular yalnızca aynı son Release için kanıt bulunduğunda işaretlenir.
+Hata varsa saat, beklenen/gerçek sonuç ve güvenli log klasörü kaydedilir.
+
+| Alan | Kabul ölçütü | Durum |
 |---|---|---|
-| `App/Resources/PrivacyInfo.xcprivacy` | Mayıs 2024'ten beri zorunlu. Eksikse yükleme **ITMS-91053** ile reddedilir | Eklendi, CI paket içinde doğruluyor |
-| `ITSAppUsesNonExemptEncryption` | Yoksa her derleme **"Missing Compliance"** durumunda bekler, TestFlight'a/incelemeye gönderilemez | `false` bildirildi (yalnızca muaf şifreleme: HTTPS + Keychain + CryptoKit SHA-256) |
+| Kaynak ekleme | Xtream/uzak M3U/yerel M3U normal kullanıcıya açık; panel kesintisi tarif edilen yolu gizlemiyor. | [ ] |
+| Kaynak yönetimi | Değiştirme, silme/yenileme ve kaynak PIN'i doğru kaynağa uygulanıyor; eski iş yeniyi ezmiyor. | [ ] |
+| Katalog/istekler | Büyük listede arama/kategori; film/dizi detayları yeniden açılırken gereksiz eşzamanlı istek yok. | [ ] |
+| M3U yenileme | Tek taze indirme; geçersiz kılınan iş eski önbelleği geri yazmıyor. | [ ] |
+| Normal oynatma | İzinli kaynakta görüntü+ses, ilk kare ve kullanılan motor kaydı var. | [ ] |
+| UHD | Eski hatalı kanal aynı cihazda görüntü+ses ve motor loguyla doğrulandı; bilinmeyen codec/container için kesin teşhis yazılmıyor. | [ ] |
+| Geçişler | Hızlı kanal seçimi, çıkıp yeni oynatmaya dönme; eski görüntü/hata/stop yeniyi etkilemiyor. | [ ] |
+| Oynatıcı seçenekleri | Ses/altyazı, mini/tam ekran, arka plan/ön plan; PiP/AirPlay destekleyen motor/formatlarda denendi. | [ ] |
+| İzleme düzeni | Favori/geçmiş/film-bölüm ilerlemesi doğru içerik ve kaynağa ait. | [ ] |
+| Koruma | Kaynak PIN'i ve ebeveyn PIN/kategorileri; arama/favori/ana sayfa/oynatıcı korumayı aşmıyor. | [ ] |
+| Kaynak raporu | Yerel sayılar doğru; URL/parola/içerik adı/PIN/cihaz kimliği yok; kullanıcı kendi paylaşıyor. | [ ] |
+| Gizlilik/destek | Onboarding/Ayarlar linkleri açılıyor; panel bilgisi olmadan uygulama desteğine erişim var. | [ ] |
+| iPad | Kaynak/liste/detay/oynatıcı/Ayarlar/PIN/büyük yazı düzeni doğrulandı. | [ ] |
+| Stabilite | Tekrarlanan crash/hang/çizim uyarısı yok; gerçek test süresi/kapsamı kayıtlı. | [ ] |
+| Reviewer erişimi | Çalışan ve yeterli kapsamda test kaynağı inceleme boyunca geçerli; ilk kurulumdan tam adımlar var. | [ ] |
+| Örnek kitaplığı | Karşılama ve Ayarlar'da tüm kullanıcılara isteğe bağlı; oynatma/favori/ilerleme/örnek bölüm/örnek rehber/kategori koruması aynı Release'te doğrulandı. Gerçek Xtream hesabı veya operatör EPG'si diye sunulmuyor. | [ ] |
+| Hak/atıf | Dosya/görsel/screenshots izinleri doğrulandı; açık lisansın jenerik/atıf şartları uygulandı. | [ ] |
+| Yaş / lisans | Örnek dosyalar gerçek içerikleriyle değerlendirildi; doğru sıklık cevapları kaydedildi; PIN araçları Present, yaş doğrulaması yoksa None; uygulama lisansı seçili Standard Apple EULA ile aynı. | [ ] |
+| Metadata | Gerçek Release'e uygun; rakip benzetmesi, ölçülmemiş hız/uyumluluk garantisi veya unsupported özellik yok. | [ ] |
 
-**Privacy manifest içeriği kod taranarak yazıldı**, tahminle değil:
+Motorun `playing` olayı görüntü kanıtı değildir. Bu tablo bütün sağlayıcıların
+uyumluluğu veya kapsamlı enerji/sızıntı analizi tamamlandı şeklinde sunulmaz.
 
-- `UserDefaults` → 20 çağrı, tek "required reason" API. Sebep kodu `CA92.1`
-- Takip / IDFA / `AppTrackingTransparency` → **yok**
-- `identifierForVendor` veya başka cihaz tanımlayıcısı → **yok**
-- Dosya zaman damgası, disk alanı, açılış zamanı, aktif klavye → **yok**
-- Toplanan veri → **boş**: panele yalnızca aktivasyon kodu gidiyor,
-  IPTV parolası cihazda Keychain'de kalıyor
+## 4.3 hazırlığı
 
-### Ayrıca doğrulandı (sorun çıkmadı)
+Aynı Octopus app/bundle kaydı kullanılır. Küçük ad/ikon değişiklikleri veya
+yeni bundle ID bir ret aşma yöntemi olarak sunulmaz. Kaynak yönetimi,
+izleme düzeni, PIN/kategori koruması ve yerel kaynak kontrolünün birlikte
+kullanımı gerçek ekranlarla gösterilir; ilk/tek uygulama iddiası yapılmaz.
+Reviewer'a saklı ayrı özellik açılmaz. Apple'ın binary/metadata/concept
+mesajı belirli bir SDK veya dosyanın ret nedeni olduğunu kanıtlamaz.
 
-- **İkonlar eksiksiz**, 1024'lük dâhil, hepsi alfa kanalsız RGB
-  (1024 ikonda alfa kanalı doğrudan ret sebebidir)
-- **Launch screen** pakete giriyor (`UILaunchScreen` boş sözlük — kasıtlı)
-- **`InfoPlist.strings` iki dilde tam** (tr + en)
-- **Tüm demo/debug yolları `#if DEBUG` korumalı** — Release'te
-  `-seedDemoData` ve arkadaşları ölü
-- **Panel ulaşılamazsa uygulama açılıyor**: `appConfig?.gate` optional
-  chaining, yapılandırma yoksa kapı kapanmıyor. İnceleyici panel
-  çökmüşken bile uygulamayı kullanabilir
-- **`AppError.reason` kullanıcıya hiç gösterilmiyor** — `userMessage`
-  yalnızca case'e bakıyor. Koddaki "Faz 2'de eklenecek" gibi geliştirici
-  metinleri yalnızca log'da kalıyor, ekrana çıkmıyor
+[Araştırma ve hazırlık](APPLE-INCELEME-HAZIRLIK-2026-10-08.md),
+[yeni metinler ve reviewer bilgisi](APP-STORE-METIN-TASLAKLARI.md).
 
----
+## Gizlilik, ATS ve API
 
-## 2. SENİN YAPMAN GEREKENLER — risk sırasına göre
+- App kökündeki manifest ile üçüncü taraf manifestleri son arşivde gerçekten
+  bulunmalı; gerekli neden API kullanımına göre beyanlar kontrol edilmeli.
+- Mevcut **Data Not Collected** durumu transient işlemden uzun sunucu/SDK
+  saklama kanıtı olmadan tahminle değiştirilmez. Manifest ve «reklam yok»
+  bütün veri yollarının yerine geçmez.
+- Parola Keychain'de saklanır; gerekli Xtream isteklerinde kullanıcının
+  seçtiği sağlayıcıya gönderilir. Optional aktivasyon/web hızlı kurulumun
+  Octopus servisinde işlemesi ayrı anlatılır.
+- User-supplied HTTP hostları için ATS gerekçesi Review Notes'ta bulunur.
+  Yalnızca `NSAllowsArbitraryLoadsForMedia` eklemek URLSession HTTP katalog
+  desteğini korumaz; iOS 10+ alt anahtarların genel istisnayla etkileşimi
+  vardır. [Apple ATS](https://developer.apple.com/documentation/security/preventing-insecure-network-connections)
+- Belgelenmiş `AVURLAssetHTTPUserAgentKey` iOS 16.0'dan itibaren kullanılabilir.
+  [Apple User-Agent option](https://developer.apple.com/documentation/avfoundation/avurlassethttpuseragentkey)
+- Nuke/GRDB/VLCKit binary alt bileşenleri ve lisanslar gerçek arşive göre
+  kontrol edilir. Ortak motor kullanımı tek başına 4.3 kanıtı değildir.
+  [Apple SDK requirements](https://developer.apple.com/support/third-party-SDK-requirements/)
+- `ITSAppUsesNonExemptEncryption=false` mevcut muaf sistem şifrelemesiyle
+  karşılaştırılır; yeni şifreleme eklendiyse eski beyan otomatik taşınmaz.
 
-### 🔴 1. İnceleyiciye çalışan bir kaynak ver (Guideline 2.1)
+## Build ve yükleme
 
-**Bu, bu uygulamanın en olası ret sebebi ve en kolay önlenebilir olanı.**
-
-İnceleyici uygulamayı açtığında karşılama ekranı görüyor ve bir kaynak
-isteniyor. Kaynak yoksa uygulama **boş**. İnceleyici içeriği göremezse
-"could not review" der ve reddeder.
-
-**Karar verildi: demo M3U kullanılacak** (`google-review/test.m3u`) —
-hesap açmaya gerek yok, tam metin `Docs/APP-STORE-METIN-TASLAKLARI.md`
-§6'da hazır, App Review Notes'a olduğu gibi yapıştırılabilir.
-
-- [x] Çalışan bir kaynak: demo M3U linki (aktivasyon kodu yerine)
-- [x] Kaynak kalıcı — kendi sunucumuzdaki statik dosya, süresi dolmaz
-- [x] Adım adım anlatım metne eklendi: *"Kaynak ekle → M3U sekmesi →
-      linki yapıştır → Kaydet ve içeriği getir"*
-
-### 🔴 2. İçerik sahipliğini açıkla (Guideline 5.2.3)
-
-IPTV uygulamaları bu maddeden çok reddediliyor. Review Notes'a:
-
-- [ ] Uygulamanın **yayın sağlamadığını**, kullanıcının **kendi mevcut
-      aboneliğini** oynattığını açıkça yaz (bir medya oynatıcıdır)
-- [ ] Demo hesabında telifli/korsan görünen kanal olmamasına dikkat et —
-      inceleyicinin gördüğü şey senin iddianı desteklemeli
-- [ ] Bayilik modelini kısaca anlat (kod → kendi hesabı)
-
-### 🟠 3. ATS gerekçesi
-
-`NSAllowsArbitraryLoads` açık. `App/Info.plist` içindeki yorumda gerekçe
-zaten yazılı; **aynı metni Review Notes'a da koy**:
-
-> Third-party IPTV providers deliver streams over plain HTTP and are
-> outside our control; the app cannot require HTTPS for user-supplied
-> sources.
-
-### 🟠 4. Yaş derecelendirmesi
-
-Uygulamada yetişkin içerik tespiti var (`AdultContentDetector`), yani
-kaynak yetişkin kategori içeriyorsa gösterilebiliyor.
-
-- [ ] **Parental Controls: Yes / Present** bırak
-- [ ] **Age Assurance: No / None** yap
-- [ ] **Override to Higher Age Rating: None** bırak; elle 17+ seçme
-- [ ] Ebeveyn kilidi **varsayılan açık** geliyor — ama varsayılan PIN
-      `0000`. Review Notes'ta Ayarlar → Ebeveyn Kontrolleri yolunu ve
-      bu ilk kullanım PIN'ini açıkça yaz
-- [ ] Sorulursa: kilit yedi ekranda birden uygulanıyor
-      (bkz. `BRAIN.md` → "İçerik kilidi nerede uygulanır?")
-
-### 🟠 5. App Store Connect zorunlu alanları
-
-- [x] **Gizlilik politikası URL'i** → `https://octopusplayer.com/privacy-policy/`
-- [x] **Destek URL'i** → `https://octopusplayer.com/support/`
-- [ ] **App Privacy** cevapları — kodda toplanan veri yok, ama **panelinin
-      sunucu tarafında** tuttukları (IP kaydı vb.) varsa cevapları ona göre
-      ver. Manifest yalnızca uygulamanın kendisini kapsar. Öneri:
-      `Docs/APP-STORE-METIN-TASLAKLARI.md` §9
-- [x] Ekran görüntüleri: **iPhone 6.9" (1320×2868) + iPad 13" (2064×2752)**
-      — `~/Desktop/AppStoreScreenshots/` altında hazır, gerçek içerikle
-      (`google-review/test.m3u` — Blender Foundation açık lisanslı filmler,
-      telif riski yok) çekildi. Apple'ın istediği çözünürlükle birebir
-      uyuyor, ek kırpma gerekmiyor
-- [x] Açıklama, alt başlık, anahtar kelimeler, review notu taslağı,
-      yaş sınırı ve gizlilik anketi önerileri → `Docs/APP-STORE-METIN-TASLAKLARI.md`
-
----
-
-## 3. DOĞRULAYAMADIKLARIM ⚠️
-
-Windows'ta Swift yok; her şey CI üzerinden doğrulandı. Aşağıdakiler
-**gerçek cihaz/simülatör etkileşimi** gerektiriyor ve MacBook'unda
-10'ar dakika sürer.
-
-### iPad'de hiç bakılmadı
-
-`TARGETED_DEVICE_FAMILY: "1,2"` ile iPad desteği **beyan ediliyor**, yani
-Apple hem iPad ekran görüntüsü isteyecek hem de uygulamanın iPad'de düzgün
-çalışmasını bekleyecek. CI yalnızca iPhone karesi alıyor.
-
-- [ ] iPad simülatöründe bir tur at: ana sayfa, katalog ızgarası, oynatıcı,
-      ayarlar
-- [ ] Bozuksa iki seçenek var: düzelt **veya** `TARGETED_DEVICE_FAMILY`'yi
-      `"1"` yapıp yalnızca iPhone olarak yayınla. İkincisi ret riskini
-      düşürür ve sonradan iPad eklemek serbesttir
-
-### Ayarlar'ın alt boşluğu
-
-Kök ekranlarda `Theme.Layout.tabBarClearance` (56pt) var, **push edilen
-ekranlarda yok** (Ayarlar, detaylar, liste yöneticisi). Ekran görüntüsü
-kaydırma konumunu göstermediği için sekme çubuğunun son satırı örtüp
-örtmediğini çözemedim.
-
-- [ ] Ayarlar'ı **sonuna kadar kaydır**. Son satır sekme çubuğunun altında
-      kalıyorsa o ekranlara da `.padding(.bottom, Theme.Layout.tabBarClearance)`
-      ekle. Kalmıyorsa dokunma
-
-### PiP ve HEVC
-
-PiP ve UHD oynatmayı **gerçek iPhone** üzerinde doğrula. HEVC donanım
-desteği tek başına yeterli değildir: Apple, HLS'teki HEVC için fMP4
-paketleme ister. Kullanıcıdaki UHD yayınlar için otomatik VLC bilinçli
-tercihtir; gerçek yayın uyumluluğu doğrulanana kadar korunur.
-
-- [ ] Gerçek cihazda UHD kanal aç — otomatik VLC ile görüntü/ses ve zap çalışmalı
-- [ ] Native teşhis denemesinde manifest/segment biçimini ve ilk kareyi ölç;
-      HEVC + MPEG-TS'yi native destek varsayımıyla başarılı sayma
-- [ ] PiP düğmesi çıkıyor mu ve çalışıyor mu
-
----
-
-## 4. BİLİNEN AÇIK İŞLER (yayını engellemez)
-
-`BRAIN.md` → "Açık işler" tablosunun özeti:
-
-| # | İş | Etki |
-|---|---|---|
-| 1 | Bayi kodu ucu bağlı değil | DNS yedek listesi ve bayi logosu çekilmiyor |
-| 2 | `DNSFailoverService.reset()` çağrılmıyor | Yedeğe geçildiyse asıl sunucu dönse de oturum boyunca yedekte kalınır |
-| 3 | Eski M3U kaynakları Xtream'e dönüşmüyor | Yalnızca yeni eklemede dönüşüyor |
-| 5 | UHD native uyumluluğu doğrulanmadı | Gerçek yayın codec/container bilgisi ölçülmeli; otomatik VLC korunur. HEVC + MPEG-TS, Apple HLS şartnamesine uymaz |
-
----
-
-## 5. SON DAKİKA KONTROLÜ
-
-Arşivlemeden hemen önce:
+Gerçek iOS derlemesi/XCTest GitHub macOS runner'da çalışır; Windows'ta
+Xcode yok. Yerel mimari denetimi:
 
 ```bash
-xcodegen generate          # .xcodeproj git'te yok, üretilmeli
 bash Scripts/check-architecture.sh
 ```
 
-Sonra Xcode'da **Product → Archive** (Release yapılandırması).
+XcodeGen tanımı `project.yml`; sürüm/build son arşivde kontrol edilir.
+`device` workflow hedefi USB test için cihaz profilli şifreli paket üretir.
+`testflight` hedefi App Store Connect dağıtım arşiv/export/upload yoludur.
+Son kodu içermeyen eski IPA yeni gönderim için kullanılmaz.
 
-⚠️ Arşiv aldıktan sonra, Organizer'da paketi sağ tık → **Show in Finder** →
-paket içeriğini göster ve `PrivacyInfo.xcprivacy` dosyasının **kökte**
-olduğunu gözünle doğrula. CI bunu kontrol ediyor ama arşiv farklı bir
-yapılandırma (Release) ile üretiliyor.
+[İmzalı GitHub yayın yolu](GITHUB-APP-STORE-YAYIN.md),
+[Windows USB log yöntemi](IOS-CIHAZ-LOG.md).
 
----
+## App Store Connect gönderimi
 
-## 6. ARŞİV VE `.ipa` ÜRETİMİ — çalışan yol
+1. Son build'in CI ve Release arşivini doğrula; dağıtım için yükle ve
+   App Store Connect işlemesinin tamamlandığını gör.
+2. Sürüme doğru build'i seç. Privacy/support URL, yaş, export compliance,
+   içerik hakları, screenshots ve bütün lokalizasyonları denetle.
+3. Çalışan reviewer kaynağı/hesabı özel Review Information alanına koy.
+   Test edilen gerçek cihaz/iOS sürümleri ve yeni işlevlerin yolu Notes'ta.
+   Xtream hesabı yoksa varmış gibi yazma. Her normal kullanıcıya açık
+   örnek kitaplığını, M3U'nun ve örneğin ayrı kapsadığı akışları açıkla.
+   Örnek kanal/rehber gerçek televizyon yayıncısı; bağımsız kısa filmler
+   ticari dizi bölümü diye tarif edilmez.
+4. Metadata'yı son işlevlere göre kaydet. Örnek içerik varsa açıkça örnek
+   diye anlat; eski M3U'nun film/dizi/EPG sunduğu söylenmez.
+5. Kullanıcının talebi inceleme/onay olduğundan **Manually release this
+   version** seçeneğiyle inceleme sonrası yayın ayrı tutulabilir.
+6. **Add for Review** ardından gerçek **Submit for Review** adımını tamamla.
+   Yalnızca upload/TestFlight App Review başvurusu değildir.
+   [Apple submit an app](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app/)
+7. Son commit, sürüm/build, CI, cihaz sonuçları, nihai Notes ve canlı
+   `Waiting for Review` kanıtını kaydet. Henüz kabul yoksa onaylandı denmez.
 
-> 2026-08-19'da bu Mac'te uçtan uca çalıştırıldı; aşağıdaki komutlar
-> imzalı bir `.ipa` üretiyor.
-
-### Neden `Product → Archive` doğrudan çalışmıyor
-
-Otomatik imzalamada Xcode **arşivi geliştirme kimliğiyle** imzalar,
-dağıtım kimliğine ancak *dışa aktarma* adımında geçer. Geliştirme profili
-ise takımda **en az bir kayıtlı cihaz** ister. Cihaz kaydı yoksa arşiv
-şu hatayla düşer:
-
-```
-Your team has no devices from which to generate a provisioning profile
-No profiles for 'com.octopus.iptv' were found
-```
-
-⚠️ `CODE_SIGN_IDENTITY`'yi "Apple Distribution" olarak dayatmak **çözüm
-değil**: otomatik imzalama bunu "çakışan, elle belirtilmiş kimlik" sayıp
-reddediyor (*"automatically signed for development, but a conflicting
-code signing identity ... has been manually specified"*).
-
-### Çözüm: imzayı dışa aktarma adımına bırak
-
-App Store profili cihaz kaydı istemez. Arşivi imzasız al, `.ipa`'yı
-dışa aktarırken imzalat:
-
-```bash
-xcodegen generate
-
-xcodebuild archive -scheme Octopus -configuration Release \
-  -destination 'generic/platform=iOS' \
-  -archivePath ~/Desktop/Octopus.xcarchive \
-  CODE_SIGNING_ALLOWED=NO
-
-xcodebuild -exportArchive \
-  -archivePath ~/Desktop/Octopus.xcarchive \
-  -exportPath ~/Desktop/OctopusExport \
-  -exportOptionsPlist ExportOptions.plist \
-  -allowProvisioningUpdates
-```
-
-`ExportOptions.plist`:
-
-```xml
-<key>method</key>            <string>app-store-connect</string>
-<key>teamID</key>            <string>V5ZC6396XD</string>
-<key>signingStyle</key>      <string>automatic</string>
-<key>uploadSymbols</key>     <true/>
-```
-
-### Üretilen paketi doğrula
-
-```bash
-cd $(mktemp -d) && unzip -q ~/Desktop/OctopusExport/Octopus.ipa
-codesign -dv --verbose=2 Payload/Octopus.app
-```
-
-Beklenen:
-
-| Alan | Değer |
-|---|---|
-| `Authority` | `Apple Distribution: …` (Development **değil**) |
-| `TeamIdentifier` | `V5ZC6396XD` |
-| Profil adı | `iOS Team Store Provisioning Profile: com.octopus.iptv` |
-| `get-task-allow` | `false` |
-| `PrivacyInfo.xcprivacy` | `Payload/Octopus.app/` **kökünde** |
-
-### Yükleme
-
-`.ipa` hazır olduktan sonra App Store Connect'te uygulama kaydı **zaten
-oluşturulmuş olmalı**, yoksa yükleme reddedilir. Sonra:
-
-- **Transporter** uygulaması (App Store'dan ücretsiz) ile sürükle-bırak, ya da
-- `xcrun altool`/`notarytool` yerine güncel yol: Xcode Organizer →
-  *Distribute App*
+Kararın yanlış olduğunu düşünüyorsak önce açıklama yanıtı, çözülmezse tek
+ve ilgili kanıta dayalı appeal izlenir. Düzeltilip yeniden gönderilmiş
+başvuru için ayrıca appeal açılması Apple'ın önerdiği yol değildir.
+[Apple appeal](https://developer.apple.com/help/app-review/after-submitting-for-review/appeal-to-the-app-review-board/)

@@ -40,6 +40,7 @@ struct SeriesPosterCell: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("series.card.\(series.id.value)")
         // Hücre tek öğe olarak okunur; favori özel eylem.
         .accessibilityElement(children: .combine)
         .accessibilityAction(

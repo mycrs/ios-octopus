@@ -129,6 +129,7 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         didReachEnd = false
         didRenderVideo = false
+        layerView?.hasRenderedVideo = false
         isAudioOnlyContent = false
         isLiveContent = item.isLive
         audioTracks = []
@@ -138,6 +139,11 @@ public final class AVPlayerEngine: PlaybackEngine {
         selectedAudioTrack = nil
         selectedSubtitleTrack = nil
         transition(to: .loading)
+
+        if let headerFailure = Self.headerFailure(for: item.headers) {
+            fail(with: headerFailure.error, kind: headerFailure.kind)
+            return
+        }
 
         let asset = Self.makeAsset(for: item)
         let playerItem = AVPlayerItem(asset: asset)
@@ -181,11 +187,8 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// ⚠️ IPTV'de başlıklar isteğe bağlı değil: panellerin çoğu
     /// `User-Agent` kontrol eder ve beklenmedik değerde **403** döner.
     ///
-    /// `AVURLAssetHTTPHeaderFieldsKey` Apple tarafından belgelenmemiş bir
-    /// anahtardır (belgelenmiş alternatifi yok; `AVAssetResourceLoaderDelegate`
-    /// ile elle indirmek HLS'te pratik değil). Yaygın kullanımda ve
-    /// App Store'da kabul görüyor. Başlık yoksa anahtar hiç yazılmaz —
-    /// gereksiz yere özel API yüzeyine dokunulmasın.
+    /// iOS 16 exposes a documented User-Agent option. A source that requires
+    /// Referer is routed to the compatible fallback before opening a connection.
     static func makeAsset(for item: PlaybackItem) -> AVURLAsset {
         AVURLAsset(url: item.url, options: assetOptions(for: item))
     }
@@ -193,8 +196,10 @@ public final class AVPlayerEngine: PlaybackEngine {
     /// Seçenek sözlüğü ayrı: `AVURLAsset` kendisine verilen options'ı geri
     /// okutmaz, bu yüzden başlıkların doğru kurulduğu ancak burada test edilebilir.
     static func assetOptions(for item: PlaybackItem) -> [String: Any] {
-        guard !item.headers.isEmpty else { return [:] }
-        return ["AVURLAssetHTTPHeaderFieldsKey": item.headers]
+        guard let userAgent = item.headers.first(where: {
+            $0.key.caseInsensitiveCompare("User-Agent") == .orderedSame
+        })?.value else { return [:] }
+        return [AVURLAssetHTTPUserAgentKey: userAgent]
     }
 
     // MARK: - Denetimler
@@ -410,7 +415,11 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         switch playerItem.status {
         case .failed:
-            fail(with: Self.classify(playerItem))
+            let failure = Self.classifiedFailure(
+                statusCode: playerItem.errorLog()?.events.last?.errorStatusCode ?? 0,
+                error: playerItem.error as NSError?
+            )
+            fail(with: failure.error, kind: failure.kind)
         case .readyToPlay:
             reportVideoReadiness()
             // ⚠️ İz kontrolü **burada da** yapılmalı: `tracks` gözlemi
@@ -453,66 +462,26 @@ public final class AVPlayerEngine: PlaybackEngine {
         }
     }
 
-    /// Açılamama sebebini kullanıcının anlayacağı bir hataya çevirir.
-    ///
-    /// ⚠️ IPTV'de bu ayrım çok önemli: `AVFoundation`'ın kendi metni
-    /// ("The operation could not be completed") kullanıcıya hiçbir şey
-    /// söylemez. Oysa sebep neredeyse her zaman üç şeyden biridir:
-    /// abonelik bitmiş, aynı anda çok fazla cihaz bağlı, ya da yayın
-    /// gerçekten kapanmış. HTTP durum kodu bunları ayırt etmeye yeter.
-    ///
-    /// Durum kodu `errorLog()` üzerinden okunur — `AVPlayerItem.error`
-    /// HTTP katmanını taşımaz.
-    nonisolated static func classify(_ playerItem: AVPlayerItem) -> AppError {
-        let statusCode = playerItem.errorLog()?.events.last?.errorStatusCode ?? 0
-
-        switch statusCode {
-        case 401:
-            return .unauthorized
-
-        case 403:
-            // ⚠️ 403 tek başına `unauthorized` sayılmıyor: o hata
-            // "kaynağı yeniden yapılandır" demek (`requiresReauthentication`)
-            // ve kullanıcıyı gereksizce kurulum ekranına yollardı. Panellerin
-            // çoğu bağlantı sınırında da 403 döner — sebep belirsiz, mesaj
-            // ikisini birden anlatmalı.
-            return .playbackFailed(reason:
-                "Sunucu erişimi reddetti (403). Aboneliğin süresi dolmuş ya da "
-                + "aynı anda izin verilen cihaz sayısı aşılmış olabilir."
-            )
-
-        case 404, 410:
-            return .playbackFailed(reason: "Yayın sunucuda bulunamadı. Kaynağı güncellemeyi dene.")
-
-        case 500...599:
-            return .network(reason: "Sunucu şu an yanıt veremiyor (\(statusCode)).")
-
-        default:
-            let detail = playerItem.error?.localizedDescription
-            // Durum kodu yoksa sorun genelde ağın kendisidir (DNS, zaman aşımı).
-            return .playbackFailed(reason: detail ?? "Yayın açılamadı (bilinmeyen sebep).")
-        }
-    }
-
+    /// A live endpoint ending is an interruption, not a completed programme.
     private func handleReachedEnd() {
         // Canlı yayında "bitti" gelirse bu bir kopmadır, son değil —
         // kullanıcıya "yayın bitti" demek yanıltıcı olur.
         guard !isLiveContent else {
-            fail(with: .playbackFailed(reason: "Canlı yayın kesildi"))
+            fail(with: .playbackFailed(reason: "Canlı yayın kesildi"), kind: .network)
             return
         }
         didReachEnd = true
         transition(to: .ended)
     }
 
-    private func fail(with error: AppError) {
+    private func fail(with error: AppError, kind: PlaybackFailureKind = .unknown) {
         // Aynı içerik için durum, iz listesi ve gözcü peş peşe hata verebilir.
         // Tek başarısızlık olayı, tek yedek motor denemesi üretmeli.
         if case .failed = currentState { return }
         logPlaybackDiagnostics()
         transition(to: .failed(error))
         // Koordinatör bunu görünce yedek motoru (VLC) dener.
-        continuation.yield(.unrecoverableFailure(error))
+        continuation.yield(.unrecoverableFailure(error, kind: kind))
     }
 
     private func transition(to state: PlaybackState) {
@@ -586,10 +555,10 @@ public final class AVPlayerEngine: PlaybackEngine {
         videoWatchdog?.cancel()
         videoWatchdog = nil
 
-        Log.playback.notice("Video izi yok — yedek motora yönlendiriliyor")
+        Log.playback.notice("Video izi yok")
         fail(with: .playbackFailed(reason:
-            "Görüntü çözülemedi (muhtemelen HEVC/H.265). Yedek oynatıcı deneniyor."
-        ))
+            "Görüntü çözülemedi."
+        ), kind: .videoNotRendered)
     }
 
     /// Gözcünün kararı. Ayrı metot: `Task` gövdesinden izole çağrı gerekiyor.
@@ -603,11 +572,11 @@ public final class AVPlayerEngine: PlaybackEngine {
 
         // Ses akışı olduğu doğrulanamayan yayınlar da buraya düşebilir;
         // görüntü gelmemesi tek başına HEVC arızasının kanıtı değildir.
-        Log.playback.notice("Ses var, görüntü yok — yedek motora yönlendiriliyor")
+        Log.playback.notice("Ses var, görüntü yok")
 
         fail(with: .playbackFailed(reason:
-            "Görüntü çözülemedi (muhtemelen HEVC/H.265). Yedek oynatıcı deneniyor."
-        ))
+            "Görüntü çözülemedi."
+        ), kind: .videoNotRendered)
     }
 
     /// Asset'te video izi yoksa siyah ekran hata değildir; bu bir ses/radyo akışıdır.
@@ -643,6 +612,8 @@ public final class AVPlayerEngine: PlaybackEngine {
         else { return }
 
         didRenderVideo = true
+        layerView?.hasRenderedVideo = true
+        continuation.yield(.firstVideoFrameRendered)
         videoWatchdog?.cancel()
         videoWatchdog = nil
         Log.playback.info("AVPlayer ilk görüntü karesi hazır")

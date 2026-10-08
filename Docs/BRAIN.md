@@ -833,3 +833,61 @@ başarı sayılmaz. Octopus adına crash kontrolü tekrar 0 (Jetsam hariç).
 Aktif kayıt yok; kullanıcının UHD/normal kanal denemesinden önce yeniden
 kayıt başlatılmalı. Binary kaynak commit'i `88fc529`; sonraki belge
 commit'leri bu kurulu binary'nin parçası değildir.
+
+### 08.10.2026 — Android referansından iOS build 9 ve yeniden inceleme
+
+Kullanıcı Android referansındaki cihaz/stabilite çalışmalarının iOS'a
+uyarlanmasını ve düzeltmelerden sonra Apple'a tekrar gönderilmesini istedi.
+`octopus--player (2)` salt okunur karşılaştırıldı. Android TV odak, tunneling,
+Realtek ve SurfaceView kuralları iOS'a taşınmaz; ortak ürün davranışları
+iOS yaşam döngüsü ve bellek sınırları üzerinden uygulanır.
+
+- Native HTTP yetki/kaldırılmış içerik hatası VLC tercihini değiştirmez;
+  geçici ağ/5xx için sınırlı aynı-motor toparlanması, decoder/ilk-kare
+  hataları için uyumluluk motoru vardır. Referer gerektiren kaynak doğrudan
+  VLC'ye gider. Belgelenmemiş AVURLAsset header anahtarı kaldırıldı.
+- Sonraki bölüm yalnızca gerçek `.ended` olayından sonra kullanıcı seçimiyle
+  ilerler. Oturumluk otomatik seçim kalıcı tercih değildir; jenerik %95
+  zaman eşiğinde kesilmez. `.playing` ilk-kare ölçümü değildir.
+- Katalog türlerinden biri başarısızsa diğerleri senkronize edilir;
+  başarısız türün mevcut verisi korunur. Tüm türler veya yerel yazım
+  başarısızsa hata gizlenmez. Hesap tarihi atomik güncellenir.
+- Tamamen bozuk ama boş olmayan provider cevabı boş katalog sayılmaz;
+  önceki içerik korunur. Bölüm `direct_source` adresi doğrulanıp nullable
+  v6 migration ile saklanır; eksik uzantı için MP4 varsayımı üretilmez.
+- Rehber satırları, okumaları, kapsamı ve indirme throttle'ı kaynağa
+  ayrılır. v5 migration eski kaynağı bilinmeyen rehberi başka kaynağa
+  atamaz. Rehber adresi hash ile takip edilir; yarım XML başarı sayılmaz.
+- Kaynak değişimi eski oynatıcı/ekranları kapatır; eski arama sonuçları
+  yeni bağlama taşınmaz. Provider kuruluşu ve senkronizasyon ortaklanır.
+  Yeni kaynağın PIN durumu çözülene kadar kök ekran yükleme kapısındadır.
+- Nuke thumbnail decoder tam bitmap oluşmadan boyutu sınırlar; ayrı
+  bellek/disk bütçesi ve indirme eşzamanlılığı kullanılır. Nuke'nin kendi
+  bellek uyarısı temizliğine ikinci gözlemci eklenmez.
+- App Store'da M3U/Xtream girişini panel bayrağı gizleyemez. Gizlilik,
+  destek ve mevcut Standard Apple EULA bağlantıları kurulum ve Ayarlar'dadır.
+
+Kullanıcı Xtream inceleme hesabı sağlayamadı. Yalnız eski M3U'nun bütün
+ekranları kapsadığı iddia edilmez. Herkes için isteğe bağlı `.sampleLibrary`
+kaynağı iki CC BY 3.0 Blender filmi, açıkça örnek olarak açıklanan kayıtlı
+kanal, bölüm seçkisi ve yerel rehber sunar. Kaynak ayrı kaydedilir; kişisel
+listeler silinmez. Atıf/lisans/film ekibi bağlantıları gösterilir; film
+baytları değiştirilmez. Medya oynatma kullanıcı eylemiyle başlar. Archive
+MP4 aynaları kullanılır; resmî Blender MP4 adresleri artık ZIP olduğundan
+doğrudan oynatma için kullanılmaz. Bu örnek gerçek Xtream/EPG/UHD servisi
+uyumluluğunu kanıtlamaz. Örnekler yaş anketinde değerlendirilmelidir.
+
+Hedef build **9**. Yeni ayrı `OctopusReview` şeması Release'i DEBUG tohumu
+kullanmadan herkese açık örnek kurulumundan yürütür; gerçek native kare,
+film/bölüm/ayar/kaynak kontrolü ekranlarını iPhone ve iPad'de kaydeder.
+İmzalı yayın işi tüm CI kapıları sonrası aynı arşivden App Store ve
+yapılandırılmış USB paketi üretir; cihaz IPA'sı şifreli saklanır.
+
+Yerel mimari ve 89 Swift sözdizimi kontrolü temiz; 50 bin sentetik kanal
+SQL kontrolü ve iki dilde tekrar eden anahtar kontrolü geçti. Log aracı
+12, cihaz paketi aracı 8 Python testi doğru bağımlılık ortamında geçti.
+Yeni XCTest'ler ve gerçek Release akışı henüz macOS'ta çalıştırılmadı;
+TestFlight yükleme veya App Review gönderimi henüz tamamlanmadı. Sonuçlar
+CI ve canlı App Store Connect durumuyla ayrıca kaydedilecek. Araştırma ve
+karşılaştırma `APPLE-INCELEME-HAZIRLIK-2026-10-08.md` ve
+`ANDROID-IOS-UYARLAMA-2026-10-08.md` dosyalarında.

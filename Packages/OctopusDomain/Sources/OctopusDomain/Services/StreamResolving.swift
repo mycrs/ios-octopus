@@ -91,6 +91,13 @@ public protocol ContentSyncing: Sendable {
     /// Yalnızca EPG'yi tazeler (ucuz, sık çağrılabilir).
     func syncEPG(playlistID: Playlist.ID) async throws
 
+    /// Kaynak bırakılırken o kaynağa ait ortak indirme/çözümleme işini iptal eder.
+    func cancel(playlistID: Playlist.ID) async
+
     /// İlerleme akışı — onboarding ve ayarlar ekranı dinler.
     func observeProgress(playlistID: Playlist.ID) -> AsyncStream<SyncStage>
+}
+
+extension ContentSyncing {
+    public func cancel(playlistID: Playlist.ID) async {}
 }

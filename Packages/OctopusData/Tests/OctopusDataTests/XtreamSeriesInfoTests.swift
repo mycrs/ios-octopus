@@ -28,7 +28,7 @@ final class XtreamSeriesInfoTests: XCTestCase {
         XCTAssertEqual(result.seasons.first?.name, "1. Sezon")
         XCTAssertEqual(result.episodes.map(\.title), ["İlk", "İkinci"])
         XCTAssertEqual(result.episodes.first?.containerExtension, "mkv")
-        XCTAssertEqual(result.episodes.last?.containerExtension, "mp4", "Varsayılan uzantı")
+        XCTAssertNil(result.episodes.last?.containerExtension, "Eksik medya türü tahmin edilmemeli")
     }
 
     func test_parsesFlatEpisodeArray() throws {

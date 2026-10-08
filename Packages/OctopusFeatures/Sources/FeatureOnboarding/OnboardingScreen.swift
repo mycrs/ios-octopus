@@ -17,6 +17,8 @@ public struct OnboardingDependencies {
     public let sync: ContentSyncing
     /// Kaynağı etkinleştirir ve varsa hızlı kurulum liste PIN'ini güvenli saklar.
     public let activatePlaylist: @MainActor (Playlist.ID, String?) async throws -> Void
+    /// Açık örnek içeriği ayrı bir kaynağa kurar ve etkinleştirir.
+    public let installSampleLibrary: (@MainActor () async throws -> Void)?
 
     /// Panel elle girişe (Xtream/M3U formu) izin veriyor mu?
     ///
@@ -47,7 +49,8 @@ public struct OnboardingDependencies {
         isManualLoginEnabled: @escaping @MainActor () -> Bool = { true },
         onBrandingResolved: @escaping @MainActor (BrandConfiguration) -> Void = { _ in },
         brandName: @escaping @MainActor () -> String? = { nil },
-        brandLogoURL: @escaping @MainActor () -> URL? = { nil }
+        brandLogoURL: @escaping @MainActor () -> URL? = { nil },
+        installSampleLibrary: (@MainActor () async throws -> Void)? = nil
     ) {
         self.brandName = brandName
         self.brandLogoURL = brandLogoURL
@@ -59,6 +62,7 @@ public struct OnboardingDependencies {
         self.activatePlaylist = activatePlaylist ?? { id, _ in
             try await playlists.setActive(id: id)
         }
+        self.installSampleLibrary = installSampleLibrary
         self.isManualLoginEnabled = isManualLoginEnabled
     }
 }
@@ -72,6 +76,7 @@ public struct OnboardingScreen: View {
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var theme: ThemeController
     @State private var showsForm = false
+    @State private var showsSampleLibrary = false
 
     public init(dependencies: OnboardingDependencies) {
         self.dependencies = dependencies
@@ -97,6 +102,16 @@ public struct OnboardingScreen: View {
                 welcome
             }
         }
+        .sheet(isPresented: $showsSampleLibrary) {
+            if let install = dependencies.installSampleLibrary {
+                NavigationStack {
+                    SampleLibraryOnboardingScreen(install: install) {
+                        showsSampleLibrary = false
+                        router.needsOnboarding = false
+                    }
+                }
+            }
+        }
     }
 
     private var welcome: some View {
@@ -115,9 +130,9 @@ public struct OnboardingScreen: View {
                         )
                         OnboardingCapabilities()
                         OnboardingContentDisclaimer()
+                        AppPolicyLinks()
 
                         Spacer(minLength: Theme.Spacing.xl)
-                        startButton
                     }
                     .padding(Theme.Spacing.xl)
                     .frame(maxWidth: 560)
@@ -126,6 +141,28 @@ public struct OnboardingScreen: View {
                 }
             }
         }
+        .safeAreaInset(edge: .bottom) { welcomeActions }
+    }
+
+    private var welcomeActions: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            startButton
+            if dependencies.installSampleLibrary != nil {
+                Button {
+                    showsSampleLibrary = true
+                } label: {
+                    Label("Örnek kütüphaneyi keşfet", systemImage: "books.vertical")
+                        .font(Theme.Typography.rowSubtitle)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .tint(theme.brandColor)
+                .accessibilityIdentifier("sample-library.open")
+            }
+        }
+        .padding(Theme.Spacing.lg)
+        .frame(maxWidth: 560)
+        .frame(maxWidth: .infinity)
+        .background(Theme.Palette.background.opacity(0.96))
     }
 
     private var startButton: some View {

@@ -99,5 +99,6 @@ struct EpisodeRowView: View {
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("episode.card.\(episode.id.value)")
     }
 }

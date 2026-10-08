@@ -38,6 +38,8 @@ struct RootView: View {
                     contact: container.appConfig?.contact ?? .empty,
                     onRetry: { Task { await container.refreshRemoteConfig() } }
                 )
+            } else if container.isResolvingPlaylistAccess {
+                LoadingStateView()
             } else if router.needsOnboarding {
                 OnboardingScreen(dependencies: container.makeOnboardingDependencies())
             } else if container.isActivePlaylistLocked {
@@ -182,6 +184,7 @@ struct RootView: View {
                             Image(systemName: "gearshape")
                         }
                         .accessibilityLabel("Ayarlar")
+                        .accessibilityIdentifier("navigation.settings")
                     }
                 }
         }

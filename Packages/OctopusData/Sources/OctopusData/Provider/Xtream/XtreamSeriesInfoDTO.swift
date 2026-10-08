@@ -63,6 +63,7 @@ struct XtreamEpisodeDTO: Decodable {
     @Lenient var episodeNum: Int?
     @Lenient var title: String?
     @Lenient var containerExtension: String?
+    @Lenient var directSource: String?
     @Lenient var season: Int?
     var info: Info?
 
@@ -84,6 +85,7 @@ struct XtreamEpisodeDTO: Decodable {
         case id, title, season, info
         case episodeNum = "episode_num"
         case containerExtension = "container_extension"
+        case directSource = "direct_source"
     }
 
     func toDomain(seriesID: Series.ID, seasonNumber: Int) -> Episode? {
@@ -99,7 +101,8 @@ struct XtreamEpisodeDTO: Decodable {
             // Başlıksız bölümler yaygın; "Bölüm 7" kullanıcıya boş metinden iyi.
             title: title ?? "Bölüm \(number)",
             streamKey: rawID,
-            containerExtension: containerExtension ?? "mp4",
+            containerExtension: XtreamEpisodeURLPolicy.containerExtension(containerExtension),
+            directURL: XtreamEpisodeURLPolicy.directURL(directSource),
             plot: info?.plot,
             stillURL: info?.movieImage.flatMap { URL(string: $0) },
             durationSeconds: info?.durationSecs,

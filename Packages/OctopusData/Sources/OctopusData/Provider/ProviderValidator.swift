@@ -77,6 +77,8 @@ public struct ProviderValidator: PlaylistValidating {
 
         case .activationCode:
             throw AppError.unknown(reason: "Aktivasyon kodu desteği Faz 4'te eklenecek")
+        case .sampleLibrary:
+            return SampleLibraryContentProvider(playlistID: playlist.id)
         }
     }
 }

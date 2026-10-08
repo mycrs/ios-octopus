@@ -199,11 +199,11 @@ private final class GuideStubEPG: EPGRepository, @unchecked Sendable {
     var programs: [EPGProgram] = []
     private(set) var requestedRanges: [(from: Date, to: Date)] = []
 
-    func nowPlaying(epgChannelID: String, at date: Date) async throws -> EPGProgram? { nil }
-    func nowPlaying(epgChannelIDs: [String], at date: Date) async throws -> [String: EPGProgram] { [:] }
-    func allNowPlaying(at date: Date) async throws -> [String: EPGProgram] { [:] }
+    func nowPlaying(playlistID: Playlist.ID, epgChannelID: String, at date: Date) async throws -> EPGProgram? { nil }
+    func nowPlaying(playlistID: Playlist.ID, epgChannelIDs: [String], at date: Date) async throws -> [String: EPGProgram] { [:] }
+    func allNowPlaying(playlistID: Playlist.ID, at date: Date) async throws -> [String: EPGProgram] { [:] }
 
-    func programs(epgChannelID: String, from: Date, to: Date) async throws -> [EPGProgram] {
+    func programs(playlistID: Playlist.ID, epgChannelID: String, from: Date, to: Date) async throws -> [EPGProgram] {
         requestedRanges.append((from, to))
         return programs
     }

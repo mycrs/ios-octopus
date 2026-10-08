@@ -49,9 +49,15 @@ enum EntityID {
         MediaCategory.ID(compose(playlistID, kind.rawValue, rawID))
     }
 
-    /// EPG programları kaynağa değil XMLTV kanal kimliğine bağlıdır.
+    /// Parser'ın kaynak bağımsız program kimliği; kayıt sırasında scope eklenir.
     static func epgProgram(epgChannelID: String, startDate: Date) -> EPGProgram.ID {
         EPGProgram.ID("\(sanitize(epgChannelID))\(separator)\(Int(startDate.timeIntervalSince1970))")
+    }
+
+    static func scopedEPGProgram(playlistID: Playlist.ID, programID: EPGProgram.ID) -> EPGProgram.ID {
+        // Uzunluk öneki, kaynak veya ham kimlikte ayraç olsa da iki farklı
+        // kaynağın program kimliklerinin birleşerek çakışmasını engeller.
+        EPGProgram.ID("\(playlistID.value.utf8.count):\(playlistID.value):\(programID.value)")
     }
 
     /// Global kimlikten sağlayıcının ham değerini geri çıkarır.

@@ -146,7 +146,7 @@ final class UserDataRepositoryTests: XCTestCase {
         try await insertProgram(id: "e3", channel: "trt1", title: "Eski", start: now.addingTimeInterval(-5_000), end: now.addingTimeInterval(-4_000))
 
         let repository = GRDBEPGRepository(database: database)
-        let result = try await repository.nowPlaying(epgChannelIDs: ["trt1", "atv", "yok"], at: now)
+        let result = try await repository.nowPlaying(playlistID: "p1", epgChannelIDs: ["trt1", "atv", "yok"], at: now)
 
         XCTAssertEqual(result.count, 2)
         XCTAssertEqual(result["trt1"]?.title, "Haber")
@@ -163,6 +163,7 @@ final class UserDataRepositoryTests: XCTestCase {
         try await repository.purgePrograms(before: now)
 
         let remaining = try await repository.programs(
+            playlistID: "p1",
             epgChannelID: "trt1",
             from: now.addingTimeInterval(-10_000),
             to: now.addingTimeInterval(10_000)
@@ -248,7 +249,8 @@ final class UserDataRepositoryTests: XCTestCase {
                     title: title,
                     startDate: start,
                     endDate: end
-                )
+                ),
+                playlistID: "p1"
             ).insert(db)
         }
     }

@@ -62,6 +62,10 @@ final class PlaylistManagerViewModelTests: XCTestCase {
             PlaylistManagerViewModel.detailText(for: .activationCode(code: "X")),
             "Aktivasyon kodu"
         )
+        XCTAssertEqual(
+            PlaylistManagerViewModel.detailText(for: .sampleLibrary),
+            "Örnek kütüphane"
+        )
     }
 
     // MARK: - Zaman ifadesi

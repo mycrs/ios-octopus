@@ -57,6 +57,7 @@ public final class PlayerController: ObservableObject {
     /// Kullanıcının seçtiği oynatma hızı (canlıda kullanılmaz).
     @Published public private(set) var rate: Float = 1.0
     @Published public private(set) var volume: Float = 1.0
+    @Published public private(set) var failureKind: PlaybackFailureKind?
 
     /// Görüntünün çerçeveye yerleşimi.
     ///
@@ -96,6 +97,7 @@ public final class PlayerController: ObservableObject {
     private var decision: PlaybackEngineResolver.Decision = .native
     /// Her açma/kapatma işlemi önceki asenkron yüklemeleri geçersiz kılar.
     private var sessionGeneration = 0
+    private var playbackRequested = false
 
     /// Yedek motora **yalnızca bir kez** düşülür; iki motor da açamıyorsa
     /// hata kullanıcıya gösterilir. Aksi hâlde sonsuz döngü riski var.
@@ -112,10 +114,9 @@ public final class PlayerController: ObservableObject {
 
     /// Açılış ölçümünün başladığı an.
     ///
-    /// Kanal geçiş hızı "hızlı/yavaş" diye tartışılamaz; ölçülür. İlk kare
-    /// geldiğinde geçen süre loglanır, böylece yavaşlığın motorda mı,
-    /// yedeğe düşmede mi, yoksa sunucuda mı olduğu ayrılabilir.
+    /// .playing is the playback-start signal, not proof of a visible frame.
     private var openStartedAt: Date?
+    private var firstFrameStartedAt: Date?
 
     private var lastSavedAt: Date?
     private var didRecordHistory = false
@@ -190,6 +191,7 @@ public final class PlayerController: ObservableObject {
         }
 
         sessionGeneration &+= 1
+        playbackRequested = true
         let session = sessionGeneration
         recoveryTask?.cancel()
         recoveryTask = nil
@@ -200,13 +202,25 @@ public final class PlayerController: ObservableObject {
         reconnectAttempts = 0
         lastSavedAt = nil
         openStartedAt = now()
+        firstFrameStartedAt = openStartedAt
         rate = 1.0
         videoFit = preferences?.videoFit ?? videoFit
         clearMediaMetadata()
+        failureKind = nil
         state = .loading
 
         let prepared = await withResumePosition(requested)
         guard !Task.isCancelled, sessionGeneration == session else { return }
+        if let failure = AVPlayerEngine.headerFailure(for: prepared.headers),
+           failure.kind == .unsupportedHeaders {
+            // Neither engine can honor these headers. Never open a request with
+            // silently discarded authorization requirements.
+            await finish()
+            guard sessionGeneration == session + 1, !Task.isCancelled else { return }
+            failureKind = failure.kind
+            state = .failed(failure.error)
+            return
+        }
         item = prepared
         let allowsFallback = preferences?.useFallbackEngine ?? true
 #if DEBUG
@@ -236,8 +250,11 @@ public final class PlayerController: ObservableObject {
             && resolver.hasFallback
             && HighEfficiencyHint.suggestsFallbackEngine(title: prepared.title)
 
+        let requiresFallbackHeaders = allowsFallback && resolver.hasFallback
+            && AVPlayerEngine.headerFailure(for: prepared.headers)?.kind == .requiresFallbackHeaders
+
         let wanted: PlaybackEngineResolver.Decision =
-            (forcesFallback || isKnownFallbackSource || nameSuggestsFallback)
+            (forcesFallback || isKnownFallbackSource || nameSuggestsFallback || requiresFallbackHeaders)
             ? .fallback
             : resolver.decide(for: prepared.format, allowingFallback: allowsFallback)
 
@@ -287,7 +304,8 @@ public final class PlayerController: ObservableObject {
         guard
             sessionGeneration == session,
             self.engine === engine,
-            item?.url == target.url
+            item?.url == target.url,
+            playbackRequested
         else { return }
         engine.play()
     }
@@ -365,7 +383,8 @@ public final class PlayerController: ObservableObject {
         guard
             sessionGeneration == session,
             engine === newEngine,
-            item?.url == target.url
+            item?.url == target.url,
+            playbackRequested
         else { return }
         newEngine.play()
     }
@@ -374,6 +393,7 @@ public final class PlayerController: ObservableObject {
     public func finish() async {
         let pendingProgress = progressSnapshot(force: true)
         sessionGeneration &+= 1
+        playbackRequested = false
         recoveryTask?.cancel()
         recoveryTask = nil
         stallTask?.cancel()
@@ -396,6 +416,9 @@ public final class PlayerController: ObservableObject {
         rate = 1.0
         volume = 1.0
         state = .idle
+        failureKind = nil
+        openStartedAt = nil
+        firstFrameStartedAt = nil
 
         await saveProgress(pendingProgress)
     }
@@ -403,10 +426,16 @@ public final class PlayerController: ObservableObject {
     // MARK: - Denetimler
 
     public func play() {
+        playbackRequested = true
         engine?.play()
     }
 
     public func pause() {
+        playbackRequested = false
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        stallTask?.cancel()
+        stallTask = nil
         engine?.pause()
         // Duraklatma bilinçli bir andır: konumu hemen yaz, uygulama
         // arka planda öldürülse bile kayıp olmasın.
@@ -525,22 +554,28 @@ public final class PlayerController: ObservableObject {
         case .naturalSizeChanged(let width, let height):
             aspectRatio = height > 0 ? width / height : nil
 
-        case .unrecoverableFailure(let error):
+        case .firstVideoFrameRendered:
+            reportFirstVideoFrameDuration()
+
+        case .unrecoverableFailure(let error, let kind):
+            failureKind = kind
             stallTask?.cancel()
             stallTask = nil
             recoveryTask?.cancel()
             recoveryTask = Task { [weak self] in
-                await self?.handleFailure(error)
+                await self?.handleFailure(error, kind: kind)
             }
         }
     }
 
-    /// Önce yedek motoru dene, o da yoksa canlı yayında yeniden bağlan.
-    private func handleFailure(_ error: AppError) async {
+    /// Decoder failures can switch engines; account and network failures cannot.
+    private func handleFailure(_ error: AppError, kind: PlaybackFailureKind = .unknown) async {
         let session = sessionGeneration
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, playbackRequested else { return }
+        let action = PlaybackRecoveryPolicy.action(for: error, kind: kind)
 
         if
+            action == .tryFallback,
             !didAttemptFallback,
             // Kullanıcı yedek motoru kapattıysa hiç denenmez — teşhis için
             // bilinçli bir seçim (bkz. `PlaybackPreferences.useFallbackEngine`).
@@ -553,8 +588,10 @@ public final class PlayerController: ObservableObject {
             decision = .fallback
             // Bir dahaki açılışta doğrudan yedekle başlanır: kanalın
             // codec'i değişmez, aynı bekleyişi tekrarlatmanın anlamı yok.
-            preferences?.rememberFallbackEngine(for: target.source.storageKey)
-            Log.playback.notice("Native motor açamadı, yedeğe geçiliyor: \(String(describing: error))")
+            if kind.remembersFallback {
+                preferences?.rememberFallbackEngine(for: target.source.storageKey)
+            }
+            Log.playback.notice("Yedek motor deneniyor: \(kind.rawValue, privacy: .public)")
 
             // Kaldığı yer korunur: kullanıcı motor değiştiğini fark etmemeli.
             let resumed = target.resuming(at: time.current > 1 ? time.current : target.resumeAt)
@@ -563,7 +600,11 @@ public final class PlayerController: ObservableObject {
             return
         }
 
-        if await reconnectIfLive() { return }
+        // LibVLC's public error event does not expose an HTTP status. Preserve
+        // bounded reconnects for its unknown live errors, without remembering it
+        // as a decoder preference or opening another engine.
+        if (action == .retryCurrent || (kind == .unknown && decision == .fallback)),
+           await reconnectIfLive() { return }
         guard !Task.isCancelled else { return }
 
         // ⚠️ "Bu kanal yedek ister" işareti burada **silinmiyor**.
@@ -599,7 +640,8 @@ public final class PlayerController: ObservableObject {
         guard
             let target = item, target.isLive,
             reconnectAttempts < maxReconnectAttempts,
-            engine != nil
+            engine != nil,
+            playbackRequested
         else {
             Log.playback.error("Oynatma başarısız, yeniden bağlanılamadı")
             return false
@@ -619,6 +661,7 @@ public final class PlayerController: ObservableObject {
         guard
             !Task.isCancelled,
             sessionGeneration == session,
+            playbackRequested,
             let engine,
             let current = item, current.url == target.url
         else { return true }
@@ -636,7 +679,7 @@ public final class PlayerController: ObservableObject {
         stallTask?.cancel()
         stallTask = nil
 
-        guard newState.showsSpinner, let target = item else { return }
+        guard playbackRequested, newState.showsSpinner, let target = item else { return }
         let timeout = target.isLive ? liveStallTimeout : vodStallTimeout
 
         stallTask = Task { [weak self] in
@@ -670,7 +713,7 @@ public final class PlayerController: ObservableObject {
         canUsePictureInPicture = false
     }
 
-    /// İlk kareye kadar geçen süreyi bir kez yazar.
+    /// Logs engine-reported playback start. VLC .playing alone does not prove video.
     ///
     /// Hangi motorun açtığı da yazılıyor: yedeğe düşülen kanallarda süre
     /// doğal olarak uzundur (önce native denenir), bu ayrım olmadan sayı
@@ -681,8 +724,15 @@ public final class PlayerController: ObservableObject {
 
         let elapsed = Int(now().timeIntervalSince(openStartedAt) * 1000)
         Log.playback.notice(
-            "Açılış: \(elapsed) ms · motor \(self.engineIdentifier, privacy: .public)"
+            "Oynatma başlangıcı: \(elapsed) ms · motor \(self.engineIdentifier, privacy: .public)"
         )
+    }
+
+    private func reportFirstVideoFrameDuration() {
+        guard let startedAt = firstFrameStartedAt else { return }
+        firstFrameStartedAt = nil
+        let elapsed = Int(now().timeIntervalSince(startedAt) * 1000)
+        Log.playback.notice("İlk görüntü karesi: \(elapsed) ms · motor \(self.engineIdentifier, privacy: .public)")
     }
 
     private func refreshNowPlaying() {
@@ -699,9 +749,8 @@ public final class PlayerController: ObservableObject {
         guard !didRecordHistory, let source = item?.source else { return }
         didRecordHistory = true
 
-        // ⚠️ Kayıt anı: **gerçekten oynamaya başladığında**. Adres
-        // çözüldüğünde kaydetmek, açılmayan yayınları da "izlendi"
-        // sayardı ve "kaldığın kanal" kartı yanlış kanalı gösterirdi.
+        // Kayıt motorun oynatma bildiriminde yapılır. Adres çözümü yeterli
+        // değildir; bu bildirim de VLC'de ilk görüntü karesinin kanıtı değildir.
         let recordedAt = now()
         Task { [history] in
             try? await history.record(source, at: recordedAt)

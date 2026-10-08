@@ -108,6 +108,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     /// istek saklanır ve ilk oynatılabilir durumda uygulanır.
     private var pendingSeek: TimeInterval?
     private var loadGeneration = 0
+    private var isPreparingMedia = false
 
     /// - Parameter audioSession: Testlerde sahte oturum verilebilsin diye dışarıdan alınır.
     ///
@@ -141,6 +142,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
 
     public func load(_ item: PlaybackItem) async {
         loadGeneration &+= 1
+        isPreparingMedia = true
         let generation = loadGeneration
         openWatchdog?.cancel()
         didStopManually = false
@@ -164,6 +166,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         await audioSession.activate()
         guard !Task.isCancelled, loadGeneration == generation, !didStopManually else { return }
         player.media = media
+        isPreparingMedia = false
         startOpenWatchdog()
 
         Log.playback.info("VLC yükledi: \(item.format.rawValue, privacy: .public)")
@@ -191,7 +194,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         Log.playback.notice("VLC açılamadı — zaman aşımı")
         fail(with: .playbackFailed(reason:
             "Yayın açılamadı: sunucu yanıt vermiyor. Kanal kapalı olabilir."
-        ))
+        ), kind: .network)
     }
 
     /// VLC'ye verilecek medya seçenekleri.
@@ -199,8 +202,8 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     /// ⚠️ VLC **rastgele HTTP başlığı kabul etmez**; yalnızca bilinen
     /// birkaç seçeneği vardır. IPTV'de kritik olan ikisi karşılanıyor:
     /// `User-Agent` (panellerin çoğu kontrol eder, beklenmedik değerde 403
-    /// döner) ve `Referer`. Diğer başlıklar sessizce düşer — AVPlayer'ın
-    /// `AVURLAssetHTTPHeaderFieldsKey`'i kadar geniş değil, sınır burada.
+    /// döner) ve `Referer`. Desteklenmeyen başka başlıklar controller
+    /// tarafından reddedilir; kimlik doğrulama gereksinimi sessizce atılmaz.
     ///
     /// `network-caching`: doğrudan **kanal geçiş hızıdır** — VLC ilk kareyi
     /// çizmeden önce bu kadar milisaniye tampon doldurur.
@@ -417,6 +420,10 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     /// sürümler arası yeni durum ekleyebilir (`esAdded` böyle geldi).
     /// Kapsamlı `switch` yazmak bir sonraki VLCKit yükseltmesinde derlemeyi kırardı.
     func syncState() {
+        // Hata ardından gelen stopped/playing bildirimleri aynı yüklemeyi
+        // yeniden canlandırmasın veya ikinci bir recovery üretmesin.
+        guard !didStopManually, !isPreparingMedia else { return }
+        if case .failed = currentState { return }
         switch player.state {
         case .opening:
             transition(to: .loading)
@@ -445,7 +452,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
             // PlayerController'ın otomatik yeniden bağlanma zincirini hiç
             // tetiklemiyordu; hata olayı da gönderilmelidir.
             if isLiveContent {
-                fail(with: .playbackFailed(reason: "Canlı yayın kesildi"))
+                fail(with: .playbackFailed(reason: "Canlı yayın kesildi"), kind: .network)
             } else {
                 transition(to: .ended)
             }
@@ -470,9 +477,12 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         player.time = VLCTime(int: Int32(target * 1000))
     }
 
-    private func fail(with error: AppError) {
+    private func fail(with error: AppError, kind: PlaybackFailureKind = .unknown) {
+        if case .failed = currentState { return }
+        openWatchdog?.cancel()
+        openWatchdog = nil
         transition(to: .failed(error))
-        continuation.yield(.unrecoverableFailure(error))
+        continuation.yield(.unrecoverableFailure(error, kind: kind))
     }
 
     private func transition(to state: PlaybackState) {
@@ -484,6 +494,8 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     // MARK: - Zaman ve boyut
 
     func reportTime() {
+        guard !didStopManually, !isPreparingMedia else { return }
+        if case .failed = currentState { return }
         // İlk `.playing` anında medya henüz seek edilebilir olmayabilir.
         // Bekleyen VOD devam konumunu zaman olaylarında da tekrar dene.
         applyPendingSeek()

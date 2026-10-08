@@ -4,10 +4,9 @@ import OctopusDesignSystem
 
 struct NextEpisodeOverlay: View {
     let episode: Episode
-    let countdown: Int
     let onPlay: () -> Void
+    let onAutomaticAdvance: () -> Void
     let onCancel: () -> Void
-    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
@@ -20,25 +19,23 @@ struct NextEpisodeOverlay: View {
                 .foregroundStyle(.white)
                 .lineLimit(2)
 
-            Text(
-                AppLocalization.localized(
-                    "%@ · %ld sn sonra oynatılacak",
-                    locale: locale,
-                    episode.shortLabel,
-                    countdown
-                )
-            )
+            Text(episode.shortLabel)
                 .font(Theme.Typography.caption)
                 .foregroundStyle(.white.opacity(0.68))
 
-            HStack(spacing: Theme.Spacing.xs) {
-                Button("İptal", action: onCancel)
-                    .buttonStyle(.bordered)
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 Button("Şimdi oynat", action: onPlay)
                     .buttonStyle(.borderedProminent)
+                Button("Bir daha sorma · Otomatik geç", action: onAutomaticAdvance)
+                    .buttonStyle(.bordered)
+                Button("İptal", action: onCancel)
+                    .buttonStyle(.bordered)
             }
             .tint(Theme.Palette.accent)
-            .controlSize(.small)
+            .controlSize(.regular)
+            Text("Otomatik geçiş yalnızca bu oynatıcı oturumu için geçerlidir.")
+                .font(Theme.Typography.caption)
+                .foregroundStyle(.white.opacity(0.68))
         }
         .padding(.horizontal, Theme.Spacing.md)
         .padding(.vertical, Theme.Spacing.sm)

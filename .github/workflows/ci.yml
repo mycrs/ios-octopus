@@ -38,6 +38,64 @@ jobs:
       - name: Domain testlerini koş
         run: swift test --package-path Packages/OctopusDomain
 
+  review-journey:
+    name: Release inceleme akışı (iPhone ve iPad)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    needs: [architecture]
+    steps:
+      - uses: actions/checkout@v5
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Telefon ve tablet seç
+        run: |
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/review-devices.json"
+          python3 - <<'PY'
+          import json, os
+          with open(os.environ['RUNNER_TEMP'] + '/review-devices.json') as source:
+              devices = [d for group in json.load(source)['devices'].values() for d in group if d.get('isAvailable')]
+          with open(os.environ['GITHUB_ENV'], 'a') as target:
+              for key, prefix in [('REVIEW_PHONE', 'iPhone'), ('REVIEW_PAD', 'iPad')]:
+                  device = next(d for d in devices if d['name'].startswith(prefix))
+                  target.write(key + '=' + device['udid'] + '\n')
+                  print(key + ': ' + device['name'])
+          PY
+      - name: Release uygulamasını kullanıcı akışıyla dene
+        run: |
+          set -o pipefail
+          mkdir -p review-results
+          xcodebuild test \
+            -scheme OctopusReview -configuration Release \
+            -destination "platform=iOS Simulator,id=$REVIEW_PHONE" \
+            -derivedDataPath ./ReviewDerivedData \
+            -resultBundlePath review-results/iphone.xcresult \
+            -parallel-testing-enabled NO \
+            -skipMacroValidation CODE_SIGNING_ALLOWED=NO
+          xcrun simctl shutdown "$REVIEW_PHONE"
+          xcodebuild test-without-building \
+            -scheme OctopusReview -configuration Release \
+            -destination "platform=iOS Simulator,id=$REVIEW_PAD" \
+            -derivedDataPath ./ReviewDerivedData \
+            -resultBundlePath review-results/ipad.xcresult \
+            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO
+      - name: İnceleme ekranlarını dışa aktar
+        if: always()
+        run: |
+          for task_device in iphone ipad; do
+            if [ -d "review-results/$task_device.xcresult" ]; then
+              xcrun xcresulttool export attachments \
+                --path "review-results/$task_device.xcresult" \
+                --output-path "review-results/$task_device-screens"
+            fi
+          done
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: Release-review-journey
+          path: review-results/
+          retention-days: 7
+          if-no-files-found: warn
+
   # ── 3) Gerçek iOS derlemesi — macOS runner ─────────────────────────
   ios-build:
     name: iOS derleme

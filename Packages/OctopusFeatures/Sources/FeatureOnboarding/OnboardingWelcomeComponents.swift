@@ -104,13 +104,7 @@ struct OnboardingCapabilities: View {
     }
 }
 
-/// Uygulamanın içerik sağlamadığını söyleyen not.
-///
-/// ⚠️ Yalnızca hukuki bir dipnot değil, **App Store incelemesi** için de
-/// gerekli: Apple, IPTV istemcilerini "telifli içeriğe erişimi
-/// kolaylaştırıyor" gerekçesiyle (Guideline 5.2.3) sıkça reddediyor.
-/// Uygulamanın içerik barındırmadığı ve kaynağın kullanıcıya ait olduğu
-/// ilk ekranda açıkça yazılı olmalı — inceleyen kişi bunu görmeli.
+/// Kullanıcının kendi kaynağı ile isteğe bağlı örnek içeriği açıkça ayırır.
 struct OnboardingContentDisclaimer: View {
     @Environment(\.locale) private var locale
 
@@ -125,7 +119,7 @@ struct OnboardingContentDisclaimer: View {
             // yazsaydı beyaz etiketli kurulumlarda yanlış ada işaret ederdi.
             Text(
                 AppLocalization.localized(
-                    "Bu uygulama yalnızca bir oynatıcıdır: içerik sağlamaz ve barındırmaz. Yayınlar eklediğin kendi aboneliğinden gelir.",
+                    "Yasal yayın kaynağını ekleyebilir veya açık lisanslı örnek filmlerle uygulamayı keşfedebilirsin. Kendi kaynaklarının kullanım hakkından sen sorumlusun.",
                     locale: locale
                 )
             )

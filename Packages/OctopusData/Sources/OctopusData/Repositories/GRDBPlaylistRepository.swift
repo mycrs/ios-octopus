@@ -70,12 +70,24 @@ public actor GRDBPlaylistRepository: PlaylistRepository {
         guard updated else { throw AppError.notFound }
     }
 
+    public func updateExpiration(id: Playlist.ID, expiresAt: Date?) async throws {
+        let updated = try await database.write { db -> Bool in
+            try db.execute(
+                sql: "UPDATE playlist SET expiresAt = ? WHERE id = ?",
+                arguments: [expiresAt, id.value]
+            )
+            return db.changesCount > 0
+        }
+        guard updated else { throw AppError.notFound }
+    }
+
     /// Tek kaynak aktif olabilir.
     ///
     /// Referans projede bu işlem tüm kayıtları tek tek güncelliyordu;
     /// burada iki hedefli sorgu yeterli.
     public func setActive(id: Playlist.ID) async throws {
-        try await database.write { db in
+        let selected = try await database.write { db -> Bool in
+            guard try PlaylistRecord.exists(db, key: id.value) else { return false }
             try db.execute(
                 sql: "UPDATE playlist SET isActive = 0 WHERE isActive = 1"
             )
@@ -83,7 +95,9 @@ public actor GRDBPlaylistRepository: PlaylistRepository {
                 sql: "UPDATE playlist SET isActive = 1 WHERE id = ?",
                 arguments: [id.value]
             )
+            return true
         }
+        guard selected else { throw AppError.notFound }
     }
 
     /// Kaynağı ve ona ait tüm içeriği siler.
