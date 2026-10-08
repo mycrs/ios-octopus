@@ -70,6 +70,10 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     /// var, VLC'nin yok — bu yüzden elle konuyor.
     private var openWatchdog: Task<Void, Never>?
 
+    /// Yükleme başına en fazla iki sayısal tanı kaydı; kare görünürlüğü kanıtı değildir.
+    private var videoDiagnosticTask: Task<Void, Never>?
+    private var didStartVideoDiagnostics = false
+
     /// `stop()` biz çağırdık mı?
     ///
     /// ⚠️ VLC durdurulunca `.stopped` yayar ve bu, VOD'da "yayın bitti"
@@ -138,6 +142,10 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         observeInterruptions()
     }
 
+    deinit {
+        videoDiagnosticTask?.cancel()
+    }
+
     // MARK: - Yükleme
 
     public func load(_ item: PlaybackItem) async {
@@ -145,6 +153,8 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         isPreparingMedia = true
         let generation = loadGeneration
         openWatchdog?.cancel()
+        cancelVideoDiagnostics()
+        didStartVideoDiagnostics = false
         didStopManually = false
         isLiveContent = item.isLive
         didPublishTracks = false
@@ -298,6 +308,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     }
 
     public func pause() {
+        cancelVideoDiagnostics()
         // ⚠️ VLC'de `pause()` duraklamışken çağrılınca oynatmayı yeniden
         // başlatabiliyor. `canPause` hem bunu hem de duraklatılamayan
         // canlı akışları kapsıyor (`isPlaying` tamponlama sırasında
@@ -310,6 +321,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         didStopManually = true
         openWatchdog?.cancel()
         openWatchdog = nil
+        cancelVideoDiagnostics()
         player.stop()
         transition(to: .idle)
     }
@@ -384,6 +396,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
         loadGeneration &+= 1
         openWatchdog?.cancel()
         openWatchdog = nil
+        cancelVideoDiagnostics()
         didStopManually = true
         player.delegate = nil
         player.stop()
@@ -439,6 +452,7 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
             openWatchdog = nil
             applyPendingSeek()
             transition(to: .playing)
+            startVideoDiagnosticsIfNeeded()
 
         case .paused:
             transition(to: .paused)
@@ -486,12 +500,49 @@ public final class VLCPlaybackEngine: NSObject, PlaybackEngine {
     }
 
     private func transition(to state: PlaybackState) {
+        switch state {
+        case .idle, .paused, .ended, .failed:
+            cancelVideoDiagnostics()
+        default:
+            break
+        }
         guard state != currentState else { return }
         currentState = state
         continuation.yield(.stateChanged(state))
     }
 
     // MARK: - Zaman ve boyut
+
+    private func startVideoDiagnosticsIfNeeded() {
+        guard !didStartVideoDiagnostics else { return }
+        didStartVideoDiagnostics = true
+        let generation = loadGeneration
+        reportVideoDiagnostics(elapsedSeconds: 0)
+        videoDiagnosticTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled, let self, self.loadGeneration == generation else { return }
+            self.videoDiagnosticTask = nil
+            guard !self.didStopManually, !self.isPreparingMedia,
+                  self.player.state == .playing || self.player.state == .buffering else { return }
+            self.reportVideoDiagnostics(elapsedSeconds: 8)
+        }
+    }
+
+    private func cancelVideoDiagnostics() {
+        videoDiagnosticTask?.cancel()
+        videoDiagnosticTask = nil
+    }
+
+    /// İz/çıkış/yüzey metaverisi sesli siyah ekran tanısına yardım eder.
+    /// Pozitif boyut veya video çıkışı, kullanıcının gördüğü ilk kare anlamına gelmez.
+    /// VLCKit 3.6 istatistik kullanılabilirliğini aktarmadığından sayaçlar kullanılmaz.
+    private func reportVideoDiagnostics(elapsedSeconds: Int) {
+        let videoSize = player.videoSize
+        let surfaceSize = surface?.bounds.size ?? .zero
+        let hasDrawable = player.drawable != nil
+        let hasWindow = surface?.window != nil
+        Log.playback.info("VLC video tanı: generation=\(self.loadGeneration), elapsedSeconds=\(elapsedSeconds), state=\(self.player.state.rawValue), videoTracks=\(self.player.numberOfVideoTracks), selectedVideoTrack=\(self.player.currentVideoTrackIndex), videoOut=\(self.player.hasVideoOut), videoSize=\(Double(videoSize.width))x\(Double(videoSize.height)), drawable=\(hasDrawable), window=\(hasWindow), bounds=\(Double(surfaceSize.width))x\(Double(surfaceSize.height))")
+    }
 
     func reportTime() {
         guard !didStopManually, !isPreparingMedia else { return }

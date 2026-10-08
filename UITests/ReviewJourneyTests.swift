@@ -57,8 +57,7 @@ final class ReviewJourneyTests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [rendered], timeout: 45), .completed,
                        "Oynatma durumu tek başına kare kanıtı değildir; gerçek AVPlayerLayer hazır olmalı")
         capture("06-player")
-        if !close.isHittable { nativeVideo.tap() }
-        close.tap()
+        closePlayer(nativeVideo: nativeVideo)
 
         let series = app.buttons["Series"].firstMatch
         XCTAssertTrue(series.waitForExistence(timeout: 10))
@@ -93,6 +92,28 @@ final class ReviewJourneyTests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func closePlayer(nativeVideo: XCUIElement) {
+        // Denetimler oynarken 3.5 saniyede gizlenir. AX/screenshot işlemleri
+        // bu süreyi aşabilir; arka plandaki sekmeler yine exists döndürür.
+        for _ in 0..<3 {
+            if !nativeVideo.exists { return }
+            let close = app.buttons["player.close"]
+            if !close.isHittable { nativeVideo.tap() }
+            let visible = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == true AND hittable == true"), object: close
+            )
+            if XCTWaiter.wait(for: [visible], timeout: 2) == .completed {
+                close.tap()
+            }
+            let dismissed = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == false"), object: nativeVideo
+            )
+            if XCTWaiter.wait(for: [dismissed], timeout: 3) == .completed { return }
+        }
+        capture("player-close-failed")
+        XCTFail("Sekme değiştirilmeden önce tam ekran oynatıcı kapanmalı")
     }
 
     private func scrollTo(_ element: XCUIElement) {

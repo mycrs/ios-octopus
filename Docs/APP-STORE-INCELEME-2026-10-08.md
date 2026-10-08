@@ -201,3 +201,34 @@ AppContainer logu VLC yedek motorunu doğruladı. Oynatma olayı yok; bu
 sunulamaz. Octopus adına crash sayısı tekrar 0 (Jetsam hariç).
 
 Cihaz aracı komutları ve sınırlamalar: [IOS-CIHAZ-LOG.md](IOS-CIHAZ-LOG.md).
+
+## Son kaynak için Release doğrulaması
+
+`b861665` kaynağının [37802826802 numaralı CI çalışmasında](https://github.com/mycrs/ios-octopus/actions/runs/37802826802)
+694 Swift testi geçti: Domain 84, Features 219, Data 295, Playback 71,
+DesignSystem 11 ve uygulama 14. Yeni ana sayfa regresyonları, ilk M3U
+kaynağının geçmiş olmadan gösterilmesini, tarihsiz film/dizi kataloglarını,
+ebeveyn filtresini ve kaynak değişirken eski sonuçların reddedilmesini kapsar.
+Katalog sorguları yerel veritabanında sayfalanır; bu raflar ağ isteği eklemez.
+
+iPhone Release inceleme akışı tamamlandı ve gerçek `AVPlayerLayer`
+hazır durumu ile video görüntüsü doğrulandı. iPad'de de gerçek film karesi
+görüldü; sonraki dizi adımı başarısız oldu. Hata anındaki erişilebilirlik
+ağacı ve video kaydı, tam ekran oynatıcının kapanmadığını gösterdi:
+testin kapatma dokunuşu, 3,5 saniyelik otomatik denetim gizlenmesiyle yarıştı.
+Bu nedenle dizi düğmesi görünse de tam ekran video hâlâ dokunmayı kaplıyordu.
+Test, gerçek denetimleri açıp oynatıcı yüzeyinin kaybolduğunu doğrulayacak
+şekilde düzeltildi; üç sınırlı deneme sonrası açık hata verir. Video karesi
+kontrolü korunur. Bu değişiklik Mac'te yeniden çalıştırılmalıdır.
+
+Bu çalışma başarısız kabul edilir; build 9 yükleme işi çalışmadı.
+Önceki `9111266` kaynağında her iki Release akışı geçmişti, ancak son ana
+sayfa düzeltmesini içermediğinden o paketin yüklemesi iptal edildi.
+Yeni fiziksel cihaz UHD denemesi ve Apple'a son gönderim henüz doğrulanmadı.
+
+Son UHD denemesini tanılamak için VLC motoruna yükleme başına en fazla
+iki sayısal kayıt eklendi: ilk `.playing` olayı ve sekiz saniye sonrası.
+Video izi/seçimi, video çıkışı/boyutu ve yüzeyin pencere/ölçü durumu
+kaydedilir; adres veya hesap bilgisi yazılmaz. Bekleyen kayıt yükleme
+nesliyle korunur ve duraklatma/durdurma/hata sırasında iptal edilir.
+Bu metaveri görünür kare kanıtı değildir ve oynatma/fallback kararını değiştirmez.
