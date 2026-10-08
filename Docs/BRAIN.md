@@ -806,3 +806,8 @@ Bu hata düzeltildi. Data'da 264 testten yalnızca M3U somut nesne üzerinde
 sync aktör metodu yerine seçilebiliyordu. M3U metodu açıkça async yapıldı.
 Device export araçlarının 8 testi ve mevcut log aracının 12 testi yerelde
 geçti. Güncel kaynak için yeniden macOS CI/imzalama gerekiyor.
+
+Reusable CI'da elle başlatılan turlar aynı concurrency kilidine takıldı:
+yeni tur, eski turda tamamlanmış mimari işi için bekliyor görünüyordu.
+Elle başlatılan turların grup adına run ID eklendi; otomatik push/PR
+turlarında önceki işi iptal etme davranışı korundu.

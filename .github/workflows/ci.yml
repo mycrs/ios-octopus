@@ -8,7 +8,9 @@ on:
   workflow_call:       # İmzalı yayından önce aynı derleme/test kapısı
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Elle çağrılan/reusable testleri eski bir yayın turunun kilidi bekletmesin.
+  # Push/PR doğrulamalarında önceki otomatik tur yine iptal edilebilir.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'automatic' }}
   cancel-in-progress: true
 
 jobs:
