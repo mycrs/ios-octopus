@@ -10,12 +10,13 @@ final class LandscapePlayerHostingController: UIHostingController<AnyView> {
     private weak var playerWindow: UIWindow?
     private let sceneID: ObjectIdentifier
     private var lease: UUID?
+    private var isClosing = false
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation { .landscapeRight }
 
     @available(iOS 26.0, *)
-    override var prefersInterfaceOrientationLocked: Bool { lease != nil }
+    override var prefersInterfaceOrientationLocked: Bool { lease != nil && !isClosing }
 
     init(playerID: String, content: AnyView, window: UIWindow, scene: UIWindowScene) {
         self.playerID = playerID
@@ -37,10 +38,22 @@ final class LandscapePlayerHostingController: UIHostingController<AnyView> {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        guard let scene = playerScene, lease != nil else { return }
+        guard let scene = playerScene, lease != nil, !isClosing else { return }
         setNeedsUpdateOfSupportedInterfaceOrientations()
         if #available(iOS 26.0, *) { setNeedsUpdateOfPrefersInterfaceOrientationLocked() }
         Self.request(.landscape, scene: scene, window: playerWindow)
+    }
+
+    /// Drop the visible controller's lock preference before UIKit dismisses it.
+    /// Keep its scene lease and supported mask until actual dismissal completes.
+    func prepareForDismissal() {
+        guard !isClosing else { return }
+        isClosing = true
+        if #available(iOS 26.0, *) { setNeedsUpdateOfPrefersInterfaceOrientationLocked() }
+    }
+
+    func recordDismissalDiagnostics() {
+        PlayerDismissalDiagnostics.schedule(window: playerWindow)
     }
 
     /// Call only after actual dismissal. Another player's lease wins over this

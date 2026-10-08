@@ -149,6 +149,7 @@ final class PlayerFullscreenPresenterController: UIViewController, UIAdaptivePre
     }
     private func dismissOwned(_ controller: LandscapePlayerHostingController, animated: Bool) {
         guard host === controller else { return }
+        controller.prepareForDismissal()
         guard controller.presentingViewController != nil else { completeDismissal(controller); return }
         controller.dismiss(animated: animated) { [self, controller] in
             completeDismissal(controller)
@@ -156,6 +157,7 @@ final class PlayerFullscreenPresenterController: UIViewController, UIAdaptivePre
     }
     private func completeDismissal(_ controller: LandscapePlayerHostingController) {
         guard host === controller else { return }
+        controller.recordDismissalDiagnostics()
         host = nil
         state.didDismiss(controller.playerID)
         if state.desiredID == controller.playerID { state.request(nil); content = nil }
