@@ -41,7 +41,7 @@ final class DatabaseSchemaTests: XCTestCase {
     func test_epgSourceMigrationPreservesLegacyGuideAndUserCatalog() async throws {
         let queue = try DatabaseQueue(configuration: AppDatabase.makeConfiguration())
         try AppDatabase.migrator.migrate(queue, upTo: "v4_panel_sirasi")
-        try queue.write { db in
+        try await queue.write { db in
             try db.execute(sql: "INSERT INTO playlist (id, name, kindType, createdAt, isActive) VALUES ('p1', 'Kaynak', 'm3u', '2026-01-01', 1)")
             try db.execute(sql: "INSERT INTO channel (id, playlistId, name, streamKey, sortOrder, isAdult) VALUES ('p1#live#1', 'p1', 'Kanal', '1', 0, 0)")
             try db.execute(sql: "INSERT INTO favorite (itemKey, addedAt) VALUES ('live:p1#live#1', '2026-01-01')")

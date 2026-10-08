@@ -155,7 +155,7 @@ public struct OnboardingScreen: View {
                         .font(Theme.Typography.rowSubtitle)
                         .frame(maxWidth: .infinity, minHeight: 48)
                 }
-                .tint(theme.brandColor)
+                .tint(theme.accent)
                 .accessibilityIdentifier("sample-library.open")
             }
         }
