@@ -16,8 +16,16 @@ import OctopusNavigation
 @MainActor
 final class AppSmokeTests: XCTestCase {
 
-    private func makeContainer() throws -> AppContainer {
-        AppContainer(database: try AppDatabase.makeInMemory())
+    private func makeContainer(database: AppDatabase? = nil) throws -> AppContainer {
+        let storage: AppDatabase
+        if let database { storage = database }
+        else { storage = try AppDatabase.makeInMemory() }
+        // Composition testleri CI'ın imzasız simülatör Keychain haklarına
+        // bağlı değildir; gerçek PIN kuralları bellek deposuyla korunur.
+        return AppContainer(
+            database: storage,
+            playlistAccessOverride: KeychainPlaylistAccessControl(secrets: KeychainlessSecretStore())
+        )
     }
 
     func test_container_buildsWithWorkingStorage() throws {
@@ -69,7 +77,7 @@ final class AppSmokeTests: XCTestCase {
             password: nil
         )
 
-        let container = AppContainer(database: database)
+        let container = try makeContainer(database: database)
         await container.bootstrap()
 
         XCTAssertFalse(
@@ -85,7 +93,7 @@ final class AppSmokeTests: XCTestCase {
         let second = Playlist(id: "p2", name: "Second", kind: .m3u(url: URL(string: "https://example.com/second.m3u")!), createdAt: Date())
         try await repository.add(first, password: nil)
         try await repository.add(second, password: nil)
-        let container = AppContainer(database: database)
+        let container = try makeContainer(database: database)
         let settings = container.makeSettingsDependencies()
         await settings.notifyPlaylistChanged()
         let revision = container.contentProtectionRevision
@@ -96,7 +104,7 @@ final class AppSmokeTests: XCTestCase {
         await settings.notifyPlaylistChanged()
 
         XCTAssertGreaterThan(container.contentProtectionRevision, revision)
-        XCTAssertTrue(container.router.paths.isEmpty)
+        XCTAssertTrue(container.router.paths.values.allSatisfy { $0.isEmpty })
         XCTAssertNil(container.router.player)
         XCTAssertEqual(container.activePlaylistName, "Second")
         XCTAssertFalse(container.router.needsOnboarding)
@@ -106,7 +114,7 @@ final class AppSmokeTests: XCTestCase {
         let database = try AppDatabase.makeInMemory()
         let repository = GRDBPlaylistRepository(database: database, secrets: KeychainlessSecretStore())
         try await repository.add(Playlist(id: "only", name: "Only", kind: .m3u(url: URL(string: "https://example.com/list.m3u")!), createdAt: Date(), isActive: true), password: nil)
-        let container = AppContainer(database: database)
+        let container = try makeContainer(database: database)
         let settings = container.makeSettingsDependencies()
         await settings.notifyPlaylistChanged()
         try await repository.delete(id: "only")
@@ -122,7 +130,7 @@ final class AppSmokeTests: XCTestCase {
         let database = try AppDatabase.makeInMemory()
         let repository = GRDBPlaylistRepository(database: database, secrets: KeychainlessSecretStore())
         try await repository.add(Playlist(id: "personal", name: "Personal", kind: .m3u(url: URL(string: "https://example.com/list.m3u")!), createdAt: Date(), isActive: true), password: nil)
-        let container = AppContainer(database: database)
+        let container = try makeContainer(database: database)
         let settings = container.makeSettingsDependencies()
         await settings.notifyPlaylistChanged()
         let install = try XCTUnwrap(settings.installSampleLibrary)

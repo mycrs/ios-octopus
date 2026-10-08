@@ -83,7 +83,6 @@ public struct PlayerScreen: View {
             Color.black.ignoresSafeArea()
             content
         }
-        .accessibilityIdentifier("player.screen")
         // Oynatıcı her zaman koyu; sistem teması burada geçersiz.
         .preferredColorScheme(.dark)
         // Tam ekran videoda sistem çubuğu dikkati dağıtır ve VLC katmanıyla

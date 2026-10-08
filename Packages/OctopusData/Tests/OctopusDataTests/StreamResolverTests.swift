@@ -1,4 +1,5 @@
 import XCTest
+import OctopusCore
 import OctopusDomain
 @testable import OctopusData
 
@@ -263,12 +264,12 @@ final class StreamResolverTests: XCTestCase {
         XCTAssertEqual(after.epgSourceURL, edited.epgURL)
     }
 
-    func test_concurrentProviderConstructionSharesOneHostResolutionAndInstance() async throws {
+    func test_concurrentProviderConstructionSharesOneBuildAndCachedConfiguration() async throws {
         let started = expectation(description: "Sunucu çözümlemesi başladı")
         let duplicate = expectation(description: "Tekrarlı sunucu çözümlemesi")
         duplicate.isInverted = true
         let gate = SyncTestGate(started: started, duplicate: duplicate)
-        let secrets = FakeSecretStore()
+        let secrets = ReadCountingSecretStore(base: FakeSecretStore())
         try secrets.save("parola", for: "playlist.xtream1")
         let coalescingFactory = DefaultContentProviderFactory(
             httpClient: StubHTTPClient { _ in Data() }, secrets: secrets,
@@ -283,12 +284,22 @@ final class StreamResolverTests: XCTestCase {
         await gate.open()
 
         let provider = try await first.value
+        let channel = Channel(id: "xtream1#live#123", playlistID: playlist.id,
+                              name: "Test", streamKey: "123")
+        let expectedURL = try XCTUnwrap(provider.streamURL(for: channel))
         for request in others {
             let same = try await request.value
-            XCTAssertTrue((provider as AnyObject) === (same as AnyObject))
+            // Xtream bir değer tipidir; AnyObject köprü kutularının kimliği
+            // paylaşılmış kurulumun kanıtı değildir. Dönen yapılandırma eşittir.
+            XCTAssertEqual(same.streamURL(for: channel), expectedURL)
+            XCTAssertEqual(same.streamHeaders, provider.streamHeaders)
+            XCTAssertEqual(same.epgSourceURL, provider.epgSourceURL)
         }
+        let cached = try await coalescingFactory.makeProvider(for: playlist)
+        XCTAssertEqual(cached.streamURL(for: channel), expectedURL)
         let calls = await gate.calls
         XCTAssertEqual(calls, 1, "Actor await sırasında aynı sunucuyu tekrar yoklamamalı")
+        XCTAssertEqual(secrets.readCount, 1, "Eşzamanlı ve önbellek çağrıları yeni kurulum/Keychain okuması başlatmamalı")
     }
 
     func test_activationCodeSource_reportsUnsupportedForNow() async throws {
@@ -320,4 +331,27 @@ private struct GatedHostResolver: HostResolving {
         await gate.wait()
         return current
     }
+}
+
+private final class ReadCountingSecretStore: SecretStore, @unchecked Sendable {
+    private let base: any SecretStore
+    private let lock = NSLock()
+    private var reads = 0
+
+    init(base: any SecretStore) { self.base = base }
+
+    var readCount: Int {
+        lock.lock(); defer { lock.unlock() }
+        return reads
+    }
+
+    func read(for key: String) throws -> String? {
+        lock.lock()
+        reads += 1
+        lock.unlock()
+        return try base.read(for: key)
+    }
+
+    func save(_ secret: String, for key: String) throws { try base.save(secret, for: key) }
+    func delete(for key: String) throws { try base.delete(for: key) }
 }

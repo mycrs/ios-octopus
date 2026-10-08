@@ -23,7 +23,6 @@ struct SampleLibrarySettingsScreen: View {
         .background(Theme.Palette.background.ignoresSafeArea())
         .navigationTitle("Örnek kütüphane")
         .navigationBarTitleDisplayMode(.inline)
-        .accessibilityIdentifier("sample-library.screen")
     }
 
     private var installAction: some View {

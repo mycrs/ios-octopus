@@ -70,14 +70,14 @@ jobs:
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/iphone.xcresult \
             -parallel-testing-enabled NO \
-            -skipMacroValidation CODE_SIGNING_ALLOWED=NO
+            -skipMacroValidation CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
           xcrun simctl shutdown "$REVIEW_PHONE"
           xcodebuild test-without-building \
             -scheme OctopusReview -configuration Release \
             -destination "platform=iOS Simulator,id=$REVIEW_PAD" \
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/ipad.xcresult \
-            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO
+            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
       - name: İnceleme ekranlarını dışa aktar
         if: always()
         run: |

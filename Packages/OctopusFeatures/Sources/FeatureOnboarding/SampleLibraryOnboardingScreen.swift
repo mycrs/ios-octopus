@@ -28,7 +28,6 @@ struct SampleLibraryOnboardingScreen: View {
         .background(Theme.Palette.background.ignoresSafeArea())
         .navigationTitle("Örnek kütüphane")
         .navigationBarTitleDisplayMode(.inline)
-        .accessibilityIdentifier("sample-library.screen")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Kapat") { dismiss() }
