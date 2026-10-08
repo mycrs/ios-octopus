@@ -117,7 +117,7 @@ struct PlayerLivePanel: View {
         let playing = channel.id == currentSource
         return Button { onSelect(channel) } label: {
             HStack(spacing: Theme.Spacing.xs) {
-                Text(String(channel.number ?? channel.sortOrder + 1))
+                Text(displayNumber(for: channel))
                     .font(Theme.Typography.caption.weight(.semibold))
                     .foregroundStyle(Theme.Palette.accent)
                     .frame(width: 32, alignment: .leading)
@@ -162,8 +162,12 @@ struct PlayerLivePanel: View {
         return channels.filter { channel in
             (showsAllChannels || categoryID == nil || channel.categoryID == categoryID)
                 && (query.isEmpty || channel.name.localizedCaseInsensitiveContains(query)
-                    || channel.number.map { String($0) } == query)
+                    || displayNumber(for: channel) == query)
         }
+    }
+
+    private func displayNumber(for channel: Channel) -> String {
+        String(channel.number ?? channel.sortOrder + 1)
     }
 
     private func scrollToCurrent(_ proxy: ScrollViewProxy) {
