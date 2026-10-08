@@ -1076,12 +1076,12 @@ de istek reddedilmiştir; erken portrait kilidi tek başına açıklama değildi
 `appMask` UIApplication'ın varsayılan Info.plist getter'ıdır; özel
 AppDelegate/policy lease sonucunu ölçmez ve lease arızasını kanıtlamaz.
 
-Sıradaki aday ilk geometry isteğini gerçek UIKit sunum completion'ına
+Dokuzuncu turdan sonra hazırlanan aday ilk geometry isteğini gerçek UIKit sunum completion'ına
 taşır; current host/desired ID eşleşmesi ve invalidation/kapanış guard'ı
 korunur. Bekleyen → kilitli → kapanan durumları ile beş regresyon testi
 kalır; geç callback kapanışı yeniden kilitleyemez. Timer/retry eklenmez,
-UI assertion zayıflatılmaz. Henüz yeni Mac sonucu yok.
-`UIRequiresFullScreen` eklenmedi; deprecated public uyumluluk optout'u
+UI assertion zayıflatılmaz. Onuncu turun gerçek sonucu aşağıdadır.
+Bu dokuzuncu/onuncu kaynaklarda `UIRequiresFullScreen` eklenmemişti; deprecated public uyumluluk optout'u
 araştırılmış fallback'tir, iPad çoklu görevini kısıtlar ve SDK 27+ için
 migration gerektirir. Çözüm garantisi değildir. [Apple TN3192](https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key)
 Dokuzuncu turun imzalı işi skipped; imzalı build 10/Apple yüklemesi/USB
@@ -1089,3 +1089,42 @@ kurulumu ve başarılı yeni görsel takımı yok. Build 9 mağaza kayıtları,
 kaynak pinleri, M3U/Xtream kapsamı ve bekleyen gizlilik eşleştirmesi korunur.
 Kanıt `.artifacts/release10-attempt9-failure-qa.json` ve `build10-attempt9-small`
 altında tutulur; başarısız kaynak görselleri mağazaya gönderilmez.
+
+Build 10 onuncu kaynak adayı `b96b195744cbb1331e519a94b9ae56488be40da0`,
+[onuncu tur 37851820087](https://github.com/mycrs/ios-octopus/actions/runs/37851820087):
+**728 Swift testi / 1 hata**; mimari ve iOS uygulama derlemesi geçti.
+Tek birim hatası, tuzlu SHA-256 özetinde PIN rakamlarının tesadüfen
+geçmesini yasaklayan `ParentalControlTests` kontrolüdür. Üretim PIN
+saklaması değiştirilmeden testin tam özet/tuz sözleşmesi doğrulandı;
+bu yerel düzeltme henüz Mac'te çalışmadı.
+
+iPhone Release akışının tamamı **260,500 saniyede geçti**. Özgün 06-player
+PNG'si SHA/CRC doğrulandı; eXIf 6, etkili 2622×1206, gerçek video karesi
+ve okunur kontroller görüldü. iPad native kare aşamasını geçse de ilk
+filmde portrede kaldı; `ReviewJourneyTests.swift:140` yatay kontrolü
+başarısız, akış **140,261 saniyede başarısız**. İstek UIKit sunum completion'ında:
+`requested=24`, `orientation=1`, `locked=0`, `defaultAppMask=30`,
+`policyMask=24`, `rootMask=30`, `presentedMask=24`, `beingPresented=0`,
+`coordinator=1`, 1032×1376; ardından **101**, `reportedSupported=-1`.
+Coordinator'ın varlığı tek başına aktif animasyon kanıtı değildir;
+desteklenen ret maskesi ayrıştırılamadı. Zamanlamayı completion'a taşımak
+bu iPad arızasını çözmedi; varsayılan getter policy lease arızasını kanıtlamaz.
+26 özgün ek SHA/CRC ile doğrulandı. iPad native kaydı 2064×2752,
+133,972 saniye, dönüş metadatası yok; 126,017 saniyedeki BBB karesi
+gerçek 0:09 ilerlemeye rağmen dikey letterbox gösterir. Video SHA-256
+`20eb691342bc60e05e44ac590a542377639ae8a923df71cb5fb7fd5a7b2209d7`.
+Filtreli özgün UI logu SHA-256 `86c2593448349063795d78132616ceb8f33acb3bb13b03c8d707baed263ba55c`.
+
+Sıradaki yerel aday `App/Info.plist` içinde public `UIRequiresFullScreen=YES`
+uyumluluk ayarını dener. Dört iPad yönü, uyarlanır yerleşim, mevcut dinamik
+lease/kapanış korumaları ve aynı UI assertion'ları korunur. Bu ayar uygulama
+genelinde iPad pencere davranışını etkiler; Windowed Apps/Stage Manager'da
+yalnız mantıksal scene yönü seçimi fiziksel görüntü dönüşünü kanıtlamaz.
+Apple deprecated uyumluluk davranışını SDK 27+ için değiştirmiştir;
+yeni native görüntülerle doğrulanmadan çözüm veya gelecek SDK uyumluluğu
+iddia edilmez. [Apple TN3192](https://developer.apple.com/documentation/technotes/tn3192-migrating-your-app-from-the-deprecated-uirequiresfullscreen-key)
+Onuncu turun imzalı işi skipped; build 10 Apple'a yüklenmedi veya telefona
+kurulmadı. Mağazadaki build 9 ve eski görsel yerleşimleri korunur.
+Kanıt `.artifacts/release10-attempt10-unit-evidence` ve
+`.artifacts/build10-attempt10-small/ipad-player-ui.log` altında tutulur.
+Bekleyen canlı backend gizlilik eşleştirmesi ve gerçek başvuru ayrı adımlardır.

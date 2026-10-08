@@ -1,4 +1,5 @@
 import XCTest
+import CryptoKit
 import OctopusDomain
 @testable import OctopusData
 
@@ -29,15 +30,22 @@ final class ParentalControlTests: XCTestCase {
 
     func test_pinIsNeverStoredInPlainText() async throws {
         // ⚠️ EN KRİTİK DAVRANIŞ: PIN düz metin olarak hiçbir yere yazılmamalı.
-        try await control.setPIN("1234")
+        let pin = "1234"
+        try await control.setPIN(pin)
 
-        let storedHash = try secrets.read(for: "parental.pin.hash")
-        let storedSalt = try secrets.read(for: "parental.pin.salt")
+        let storedHash = try XCTUnwrap(secrets.read(for: "parental.pin.hash"))
+        let storedSalt = try XCTUnwrap(secrets.read(for: "parental.pin.salt"))
+        let saltBytes = try XCTUnwrap(Data(base64Encoded: storedSalt))
 
-        XCTAssertNotNil(storedHash)
-        XCTAssertNotNil(storedSalt)
-        XCTAssertNotEqual(storedHash, "1234")
-        XCTAssertFalse(storedHash?.contains("1234") ?? true, "PIN özet içinde görünmemeli")
+        XCTAssertNotEqual(storedHash, pin)
+        XCTAssertNotEqual(storedSalt, pin)
+        XCTAssertGreaterThanOrEqual(saltBytes.count, 32)
+        XCTAssertEqual(storedHash.count, 64)
+        XCTAssertTrue(storedHash.allSatisfy { "0123456789abcdef".contains($0) })
+        // Rastgele hex özet PIN rakamlarını tesadüfen içerebilir; tam kayıt doğrulanır.
+        let expectedHash = SHA256.hash(data: Data((storedSalt + pin).utf8))
+            .map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(storedHash, expectedHash, "Yalnızca tuzlu SHA-256 özeti saklanmalı")
     }
 
     func test_sameePINProducesDifferentHashesAcrossSetups() async throws {

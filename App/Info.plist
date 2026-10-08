@@ -79,6 +79,14 @@
 	</array>
 
 	<!--
+	  iPadOS 26 uyumluluk modu: oynatıcının dinamik yatay yön maskesi.
+	  Dört iPad yönü ve uyarlanır yerleşim korunur. Bu anahtar SDK 27+
+	  için yön seçiminin yerine geçmez; TN3192 geçişi ayrıca doğrulanmalı.
+	-->
+	<key>UIRequiresFullScreen</key>
+	<true/>
+
+	<!--
 	  ⚠️ Bu sözlük BOŞ olmalı, ama var olmalı.
 	  Geçersiz bir içerik (ör. boş UIColorName) iOS'un launch screen'i
 	  bulamamasına yol açar ve uygulama küçük bir ekran boyutunda,
