@@ -137,7 +137,7 @@ def review_detail_query():
         "fields[appStoreVersions]": "platform,versionString"})
 
 
-def read_store(apple, expected_hash, upload_window):
+def read_store(apple, expected_hash, upload_window, *, record=None):
     version_response = apple.request("GET", shared.query(VERSION_PATH, {
         "include": "app,build", "fields[appStoreVersions]":
         "platform,versionString,appVersionState,appStoreState,releaseType,reviewType,app,build",
@@ -179,6 +179,12 @@ def read_store(apple, expected_hash, upload_window):
             prerelease.get("attributes", {}).get("platform") != "IOS":
         raise SafeError("Build " + BUILD + " does not belong to the reviewed iOS prerelease version")
     uploaded = timestamp(build_attrs.get("uploadedDate"))
+    if record is not None:
+        record({"event": "build_upload_window_observed", "build_id": build["id"], "build_number": BUILD,
+                "uploaded_date_utc": uploaded.astimezone(timezone.utc).isoformat(),
+                "signed_job_started_at_utc": upload_window[0].astimezone(timezone.utc).isoformat(),
+                "signed_job_completed_at_utc": upload_window[1].astimezone(timezone.utc).isoformat(),
+                "within_window": upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2)})
     if not (upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2)):
         raise SafeError("Build " + BUILD + " upload time does not match the pinned signed source job")
 
@@ -317,7 +323,7 @@ def main():
         apple = shared.AppleAPI(args.key_path)
         if args.operation == "inspect":
             record({"event": "inspection_verified", "store": public_store(
-                read_store(apple, args.expected_notes_sha256, window)), "mutated": False})
+                read_store(apple, args.expected_notes_sha256, window, record=record)), "mutated": False})
         else:
             prepare(apple, args.expected_notes_sha256, window, record)
         report["status"] = "success"

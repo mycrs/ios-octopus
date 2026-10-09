@@ -2610,3 +2610,26 @@ prepare/submit hedefi12, önceki mağaza seçimi9; aynı cihaz10->12 Upgrade
 kanıtı ve bütün gizlilik/görsel/CI koşulları korunur.59public hazırlık/
 gönderim testi geçti. Yeni12paketi, native görseller ve fiziksel testler
 yeni kaynakla doğrulanmadan önceki43başarısı son sürüm kanıtı sayılamaz.
+
+### 9 Ekim — Build 12 başarı ve mağaza zaman tanısı
+
+Binary kaynağı Source44 d46d7cffaeb00ac1ae05a7ff2c5eed06d873280c,
+run37971367071 sabit kalır. 785 birim testi/0 hata; Release113958644334
+başarılı, gerçek iPhone UI testi206.473sn ve iPad354.435sn. Signed113970051852
+başarılı, TestFlight yükleme18:44:52–18:46:01UTC. Şifreli USB paketi indirildi;
+cihaz görünmediği için kurulmadı. Fiziksel UHD/kod ekleme/abonelik testi bekliyor.
+
+Root yeni12özgünPNG'yi gördü; iki cihazda İngilizce sezon/bölüm özeti düzeldi.
+Görsel yükleme37976195262 başarılı: 6iPhone+6iPad ACTIVE, özgün sıra ve
+12hazır görselden sonra eski yerleşim değişimi doğrulandı.21eski kitaplık
+görseli korunur. Bu işlem inceleme göndermedi. Site ZIP'i henüz yüklenmedi.
+
+GET-only inceleme37976463159 kaynak kapılarını geçti fakat Apple Build12
+uploadedDate, Signed iş zaman aralığı±2dk ile eşleşmedi. Bu rapor gerçek
+tarihi içermediğinden neden henüz bilinmiyor; derleme seçimi/notlar değişmedi.
+Yalnız metadata hazırlık aracına isteğe bağlı kayıt callback'i eklendi:
+inspect, katı app/build/prerelease kontrollerinden sonra UTC yükleme tarihi
+ve çalışma zamanındaki Signed sınırlarını kaydeder; mevcut±2dk reddi aynıdır.
+prepare/submit ve uygulama paketi değişmez.26prepare testi dahil91ilgili
+test geçti. Yeni tanı çalışması ayrı işlem kaydı kullanacak; başarısız ilk
+inceleme kanıtı ve Source44binarypinleri korunacak.

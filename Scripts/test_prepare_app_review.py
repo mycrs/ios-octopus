@@ -1,5 +1,5 @@
 import copy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import importlib.util
 import json
 from pathlib import Path
@@ -152,6 +152,81 @@ class PreparationTests(unittest.TestCase):
             self.assertNotIn(private, serialized)
         self.assertEqual(safe["notes"]["suffix_characters"], 337)
         self.assertEqual(safe["notes"]["final_characters"], 3829)
+
+    def test_upload_diagnostic_normalizes_dates_and_runtime_window_to_utc(self):
+        self.apple.builds[0]["attributes"]["uploadedDate"] = "2026-10-08T22:20:00+02:00"
+        window = (datetime(2026, 10, 8, 23, 0, tzinfo=timezone(timedelta(hours=3))),
+                  datetime(2026, 10, 8, 23, 30, tzinfo=timezone(timedelta(hours=3))))
+        default = review.read_store(self.apple, ORIGINAL_HASH, window)
+        observed = review.read_store(self.apple, ORIGINAL_HASH, window, record=self.events.append)
+        self.assertEqual(observed, default)  # Existing direct callers keep the same result.
+        self.assertEqual(self.events, [{"event": "build_upload_window_observed", "build_id": "build12",
+            "build_number": "12", "uploaded_date_utc": "2026-10-08T20:20:00+00:00",
+            "signed_job_started_at_utc": "2026-10-08T20:00:00+00:00",
+            "signed_job_completed_at_utc": "2026-10-08T20:30:00+00:00", "within_window": True}])
+        self.assertFalse(self.apple.mutations())
+
+    def test_upload_diagnostic_preserves_exact_two_minute_acceptance_boundaries(self):
+        for uploaded, accepted in (("2026-10-08T19:58:00Z", True), ("2026-10-08T20:32:00Z", True),
+                                   ("2026-10-08T19:57:59.999999Z", False), ("2026-10-08T20:32:00.000001Z", False)):
+            self.apple, self.events = FakeApple(), []
+            self.apple.builds[0]["attributes"]["uploadedDate"] = uploaded
+            with self.subTest(uploaded=uploaded):
+                if accepted:
+                    review.read_store(self.apple, ORIGINAL_HASH, WINDOW, record=self.events.append)
+                else:
+                    with self.assertRaisesRegex(review.SafeError, "upload time does not match the pinned signed source job"):
+                        review.read_store(self.apple, ORIGINAL_HASH, WINDOW, record=self.events.append)
+                    with self.assertRaises(review.SafeError): review.read_store(self.apple, ORIGINAL_HASH, WINDOW)
+                self.assertEqual(len(self.events), 1)
+                self.assertIs(self.events[0]["within_window"], accepted)
+                self.assertFalse(self.apple.mutations())
+
+    def test_upload_diagnostic_is_not_emitted_for_invalid_target_prerelease_or_timestamp(self):
+        changes = (lambda apple: apple.builds[0]["attributes"].update(processingState="PROCESSING"),
+                   lambda apple: apple.builds[0]["attributes"].update(version="11"),
+                   lambda apple: apple.builds[0]["relationships"].update(app=link("apps", "other-app")),
+                   lambda apple: apple.prerelease["attributes"].update(version="2.0"),
+                   lambda apple: apple.prerelease["attributes"].update(platform="MAC_OS"),
+                   lambda apple: apple.builds[0]["attributes"].update(uploadedDate="2026-10-08T20:20:00"),
+                   lambda apple: apple.builds[0]["attributes"].update(uploadedDate="invalid-date"))
+        for index, change in enumerate(changes):
+            self.apple, self.events = FakeApple(), []
+            change(self.apple)
+            with self.subTest(index=index), self.assertRaises(review.SafeError):
+                review.read_store(self.apple, ORIGINAL_HASH, WINDOW, record=self.events.append)
+            self.assertFalse(self.events); self.assertFalse(self.apple.mutations())
+
+    def test_cli_inspect_persists_upload_drift_before_stopping_without_patch_or_pii(self):
+        self.apple.builds[0]["attributes"].update(uploadedDate="2026-10-08T23:33:00+03:00",
+            contactEmail="private-build-contact@example.invalid", providerURL="https://private-build.invalid/token")
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "report.json"
+            argv = ["prepare-app-review.py", "--operation", "inspect", "--source-run", str(RUN),
+                    "--source-sha", SHA, "--expected-notes-sha256", ORIGINAL_HASH,
+                    "--key-path", "unused-private-key", "--report", str(report_path)]
+            with patch.object(review.shared, "GitHubAPI", return_value=FakeGitHub()), \
+                 patch.object(review.shared, "AppleAPI", return_value=self.apple), \
+                 patch.dict("os.environ", {"GITHUB_TOKEN": "unused-private-token"}), \
+                 patch("sys.argv", argv), patch("builtins.print"):
+                self.assertEqual(review.main(), 1)
+            raw = report_path.read_text(encoding="utf-8")
+            report = json.loads(raw)
+        self.assertEqual(report["status"], "stopped"); self.assertFalse(report["submitted"])
+        self.assertEqual([event["event"] for event in report["events"]],
+                         ["source_verified", "build_upload_window_observed"])
+        diagnostic = report["events"][-1]
+        self.assertEqual(set(diagnostic), {"event", "build_id", "build_number", "uploaded_date_utc",
+                                         "signed_job_started_at_utc", "signed_job_completed_at_utc", "within_window"})
+        self.assertEqual(diagnostic["uploaded_date_utc"], "2026-10-08T20:33:00+00:00")
+        self.assertEqual(diagnostic["signed_job_started_at_utc"], "2026-10-08T20:00:00+00:00")
+        self.assertEqual(diagnostic["signed_job_completed_at_utc"], "2026-10-08T20:30:00+00:00")
+        self.assertFalse(diagnostic["within_window"]); self.assertFalse(self.apple.mutations())
+        self.assertEqual(self.apple.version["relationships"]["build"], link("builds", "build9"))
+        self.assertFalse(any(call[1] == review.VERSION_PATH + "/appStoreReviewDetail" for call in self.apple.calls))
+        for private in (PRIVATE_NOTES, "private-contact@example.invalid", "private-demo-password", "unused-private-key",
+                        "unused-private-token", "private-build-contact@example.invalid", "https://private-build.invalid/token"):
+            self.assertNotIn(private, raw)
 
     def test_build12_target_preserves_reviewed_build9_and_exact_notes_append(self):
         self.assertEqual(review.BUILD, "12")
@@ -398,6 +473,9 @@ class PreparationTests(unittest.TestCase):
                               "unused-private-key", "unused-private-token"):
                     self.assertNotIn(value, report)
                 self.assertFalse(json.loads(report)["submitted"])
+                diagnostics = [event for event in json.loads(report)["events"]
+                               if event["event"] == "build_upload_window_observed"]
+                self.assertEqual(len(diagnostics), 1 if operation == "inspect" else 0)
                 if operation == "inspect": self.assertFalse(self.apple.mutations())
 
 
