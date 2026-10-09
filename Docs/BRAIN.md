@@ -2575,3 +2575,38 @@ https://github.com/actions/upload-artifact/blob/v5/README.md#upload-using-multip
 7iPad,7Watch olmak üzere21ACTIVE yerleşim ve22kitaplık görseli kayıtlıdır.
 Bu kontrol yeni binary/cihaz/görsel QA veya gönderim başarısı değildir.
 Kullanıcı site ZIP'ini henüz yüklemedi; canlı politika bekleniyor.
+
+
+### 9 Ekim — Source 43 tam başarı, Build 12 yerelleştirme düzeltmesi
+
+Source43 0db8abcfb2ada60459af05212e36fab506242929 / run37966160025:
+783 birim testi / 0 hata. Release113941004585 başarılı: iPhone gerçek UI
+testi325.656s, iPad280.244s; yatay kilit, native kare, kanal paneli/arama,
+aynı Sintel mini yüzeyine dönüş ve tekrar açma koşulları geçti.
+Signed113951605631 ve bütün workflow başarılı; Build11 TestFlight'a yüklendi.
+Release logSHA256 4874dcf2bfa1634baa0983b0ad7ba2532e64bf4b38c7d5506b2fdee6a79d7aba.
+Özgün20PNG+2manifest ZIP'i26830089bayt; SHA256
+272fcd40b82351444b3690d664ba7513b037ce8820e929decb3e6c8d3a41f7cb.
+Şifreli cihaz paketi52348567bayt indirildi; telefona kurulmadı.
+USB kontrolü0cihaz; telefonun bilinen son sürümü Build10. Kullanıcıya
+yeniden bağlama sorusu açık; site ZIP'i de kullanıcı tarafından henüz yüklenmedi.
+
+Root mağaza için seçilen12özgün görseli görüntüledi.10görsel uygun, iki
+08-episodes görseli İngilizce arayüzde Türkçe sezon/bölüm sayacı içeriyor.
+Bu, iki dilli örnek içerik başlığı değil, SeriesDetailViewModel'in sabit
+Türkçe UI özeti. Görseller düzenlenmedi veya mağazaya yüklenmedi; tam QA
+onayı verilmedi. Ayrı GET-only envanter37969958668 mağaza durumunu okudu,
+hiçbir Apple görseli/sürüm ilişkisi veya inceleme durumu değiştirilmedi.
+
+Source44 dar düzeltmesi özet sayımlarını ve isimsiz sezonun yedek etiketini
+seçili locale ile render sırasında çevirir. Dil değişiminde katalog tekrar
+istenmez; sağlayıcının sezon adı ve Domain S01B01 sözleşmesi korunur.
+EN tekil season/episode anahtarları eklendi; iki regresyon mevcut gerçek
+EN tablosuyla sayıları, EN-TR-EN değişimini ve sağlayıcı adı korunmasını
+denetler. AppLocalization'ın bundle bağımlılığı varsayılan .main kalır.
+
+Build11 yükleme numarası kullanıldığından son aday Build12'dir. Public
+prepare/submit hedefi12, önceki mağaza seçimi9; aynı cihaz10->12 Upgrade
+kanıtı ve bütün gizlilik/görsel/CI koşulları korunur.59public hazırlık/
+gönderim testi geçti. Yeni12paketi, native görseller ve fiziksel testler
+yeni kaynakla doğrulanmadan önceki43başarısı son sürüm kanıtı sayılamaz.

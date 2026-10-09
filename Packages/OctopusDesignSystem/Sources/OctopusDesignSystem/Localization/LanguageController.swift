@@ -36,7 +36,8 @@ public enum AppLocalization {
     public static func localized(
         _ key: String,
         locale: Locale,
-        arguments: [CVarArg]
+        arguments: [CVarArg],
+        bundle: Bundle = .main
     ) -> String {
         let isTurkish = locale.identifier.lowercased().hasPrefix("tr")
         let format: String
@@ -44,7 +45,7 @@ public enum AppLocalization {
         if isTurkish {
             format = key
         } else if
-            let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
+            let path = bundle.path(forResource: "en", ofType: "lproj"),
             let bundle = Bundle(path: path)
         {
             let resolved = bundle.localizedString(forKey: key, value: key, table: nil)

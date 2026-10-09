@@ -143,13 +143,19 @@ public final class SeriesDetailViewModel: ObservableObject {
         return fraction > 0.01 ? "\(episode.shortLabel) — devam et" : "\(episode.shortLabel) oynat"
     }
 
-    /// "3 sezon · 42 bölüm" biçiminde alt başlık.
-    public var seasonSummary: String? {
+    /// Seçili uygulama dilinde sayım; dil değişimi katalog yüklemeyi gerektirmez.
+    public func seasonSummary(locale: Locale, bundle: Bundle = .main) -> String? {
         guard !seasons.isEmpty else { return nil }
 
         let episodeCount = seasons.reduce(0) { $0 + $1.episodeCount }
-        var parts = ["\(seasons.count) sezon"]
-        if episodeCount > 0 { parts.append("\(episodeCount) bölüm") }
+        var parts = [AppLocalization.localized(
+            "\(seasons.count) sezon", locale: locale, arguments: [], bundle: bundle
+        )]
+        if episodeCount > 0 {
+            parts.append(AppLocalization.localized(
+                "\(episodeCount) bölüm", locale: locale, arguments: [], bundle: bundle
+            ))
+        }
         return parts.joined(separator: " · ")
     }
 

@@ -243,6 +243,8 @@
 "%ld sa %ld dk" = "%ld hr %ld min";
 "%ld bölüm" = "%ld episodes";
 "%ld sezon" = "%ld seasons";
+"1 bölüm" = "1 episode";
+"1 sezon" = "1 season";
 "%ld. Sezon" = "Season %ld";
 "Ses %ld" = "Audio %ld";
 "Altyazı %ld" = "Subtitle %ld";

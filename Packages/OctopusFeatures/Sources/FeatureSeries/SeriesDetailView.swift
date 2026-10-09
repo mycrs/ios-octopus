@@ -104,7 +104,7 @@ public struct SeriesDetailView: View {
             backdropURL: series.backdropURL,
             posterURL: series.posterURL,
             title: series.title,
-            subtitle: viewModel.seasonSummary,
+            subtitle: viewModel.seasonSummary(locale: locale),
             chips: viewModel.chips
         ) {
             actions

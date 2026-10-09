@@ -1,5 +1,6 @@
 import XCTest
 import OctopusDomain
+import OctopusDesignSystem
 @testable import FeatureSeries
 
 /// Dizi detayı: sezon seçimi, bölüm listesi, "devam et" mantığı.
@@ -97,6 +98,70 @@ final class SeriesDetailViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.seasons.isEmpty)
         XCTAssertEqual(viewModel.state, .loaded(0))
+    }
+
+    func test_seasonSummaryUsesCurrentLanguageAndCatalogCounts() async throws {
+        let bundle = try makeLocalizationBundle()
+        defer { try? FileManager.default.removeItem(at: bundle.bundleURL) }
+        let english = Locale(identifier: "en_US")
+        let turkish = Locale(identifier: "tr_TR")
+        let viewModel = makeViewModel()
+        XCTAssertNil(viewModel.seasonSummary(locale: english, bundle: bundle))
+
+        series.seasonList = [Season(
+            id: "s-1", seriesID: seriesID, number: 1, episodeCount: 2
+        )]
+        await viewModel.load()
+        XCTAssertEqual(viewModel.seasonSummary(locale: english, bundle: bundle), "1 season · 2 episodes")
+        XCTAssertEqual(viewModel.seasonSummary(locale: turkish, bundle: bundle), "1 sezon · 2 bölüm")
+        XCTAssertEqual(viewModel.seasonSummary(locale: english, bundle: bundle), "1 season · 2 episodes")
+        XCTAssertEqual(series.loadDetailsCount, 1, "Dil değişimi katalog isteği gerektirmez")
+
+        series.seasonList = [
+            Season(id: "s-1", seriesID: seriesID, number: 1, episodeCount: 12),
+            Season(id: "s-2", seriesID: seriesID, number: 2, episodeCount: 24)
+        ]
+        await viewModel.load()
+        XCTAssertEqual(viewModel.seasonSummary(locale: english, bundle: bundle), "2 seasons · 36 episodes")
+        XCTAssertEqual(viewModel.seasonSummary(locale: turkish, bundle: bundle), "2 sezon · 36 bölüm")
+
+        series.seasonList = [Season(id: "s-1", seriesID: seriesID, number: 1, episodeCount: 1)]
+        await viewModel.load()
+        XCTAssertEqual(viewModel.seasonSummary(locale: english, bundle: bundle), "1 season · 1 episode")
+        series.seasonList = [makeSeason(1)]
+        await viewModel.load()
+        XCTAssertEqual(viewModel.seasonSummary(locale: english, bundle: bundle), "1 season")
+    }
+
+    func test_seasonFallbackUsesCurrentLanguageAndPreservesProviderName() throws {
+        let bundle = try makeLocalizationBundle()
+        defer { try? FileManager.default.removeItem(at: bundle.bundleURL) }
+        let english = Locale(identifier: "en_US")
+        let turkish = Locale(identifier: "tr_TR")
+        let unnamed = makeSeason(12)
+        XCTAssertEqual(SeasonPickerView.title(for: unnamed, locale: english, bundle: bundle), "Season 12")
+        XCTAssertEqual(SeasonPickerView.title(for: unnamed, locale: turkish, bundle: bundle), "12. Sezon")
+        XCTAssertEqual(SeasonPickerView.title(for: unnamed, locale: english, bundle: bundle), "Season 12")
+
+        let named = Season(id: "s-3", seriesID: seriesID, number: 3, name: "3. Sezon")
+        XCTAssertEqual(SeasonPickerView.title(for: named, locale: english, bundle: bundle), "3. Sezon")
+    }
+
+    /// Paket testinde Bundle.main uygulama kaynaklarını içermez; gerçek EN
+    /// tablosunu geçici bundle'a taşırız. Üretim anahtarları da sınanır.
+    private func makeLocalizationBundle() throws -> Bundle {
+        var repository = URL(fileURLWithPath: #filePath)
+        for _ in 0..<5 { repository.deleteLastPathComponent() }
+        let source = repository.appendingPathComponent("App/Resources/en.lproj/Localizable.strings")
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("series-localization-\(UUID().uuidString).bundle", isDirectory: true)
+        let english = directory.appendingPathComponent("en.lproj", isDirectory: true)
+        try FileManager.default.createDirectory(at: english, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: source, to: english.appendingPathComponent("Localizable.strings"))
+        let info = ["CFBundleIdentifier": "com.octopus.tests.series", "CFBundleDevelopmentRegion": "en"]
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+            .write(to: directory.appendingPathComponent("Info.plist"))
+        return try XCTUnwrap(Bundle(url: directory))
     }
 
     // MARK: - Devam et

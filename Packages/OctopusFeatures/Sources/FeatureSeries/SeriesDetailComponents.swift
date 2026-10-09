@@ -5,6 +5,8 @@ import OctopusDesignSystem
 /// Sezon seçici. Tek sezonlu dizilerde hiç gösterilmez.
 struct SeasonPickerView: View {
 
+    @Environment(\.locale) private var locale
+
     let seasons: [Season]
     let selectedNumber: Int?
     let onSelect: (Int) -> Void
@@ -16,7 +18,7 @@ struct SeasonPickerView: View {
                     Button {
                         onSelect(season.number)
                     } label: {
-                        Text(season.name ?? "\(season.number). Sezon")
+                        Text(Self.title(for: season, locale: locale))
                             .font(Theme.Typography.caption)
                             .lineLimit(1)
                             .padding(.horizontal, Theme.Spacing.md)
@@ -36,6 +38,13 @@ struct SeasonPickerView: View {
                 }
             }
         }
+    }
+
+    static func title(for season: Season, locale: Locale, bundle: Bundle = .main) -> String {
+        if let name = season.name { return name }
+        return AppLocalization.localized(
+            "\(season.number). Sezon", locale: locale, arguments: [], bundle: bundle
+        )
     }
 }
 

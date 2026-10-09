@@ -90,7 +90,7 @@ def validate_attestation(text, expected_hash, run, sha, notes_hash, now=None):
                     "player_channel_panel_verified", "no_home_or_orphan_audio_verified")
     exact_keys(device, ("receipt_sha256", "source_association", "install_completion", *device_flags))
     hash_value(device["receipt_sha256"])
-    require(device["source_association"] == "verified_same_device_build10_to11_upgrade_chain" and
+    require(device["source_association"] == "verified_same_device_build10_to12_upgrade_chain" and
             device["install_completion"] == "Complete" and
             all(device[key] is True for key in device_flags), "Actual source-associated device and playback checks are required")
     privacy = proof["privacy"]

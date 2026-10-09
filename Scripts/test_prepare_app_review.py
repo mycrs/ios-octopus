@@ -57,8 +57,8 @@ class FakeApple:
                            "releaseType": "AFTER_APPROVAL", "reviewType": "APP_STORE"},
             "relationships": {"app": link("apps", review.APP_ID), "build": link("builds", "build9")}}
         self.prior_build = {"type": "builds", "id": "build9", "attributes": {"version": "9"}}
-        self.builds = [{"type": "builds", "id": "build11", "attributes": {
-            "version": "11", "processingState": "VALID", "expired": False,
+        self.builds = [{"type": "builds", "id": "build12", "attributes": {
+            "version": "12", "processingState": "VALID", "expired": False,
             "buildAudienceType": "APP_STORE_ELIGIBLE", "uploadedDate": "2026-10-08T20:20:00Z"},
             "relationships": {"app": link("apps", review.APP_ID),
                               "preReleaseVersion": link("preReleaseVersions", "prerelease")}}]
@@ -81,7 +81,7 @@ class FakeApple:
         if method == "GET":
             if route == review.VERSION_PATH: data = self.version
             elif route == review.VERSION_PATH + "/relationships/build": data = self.version["relationships"]["build"]["data"]
-            elif route == "/v1/builds/build11/preReleaseVersion": data = self.prerelease
+            elif route == "/v1/builds/build12/preReleaseVersion": data = self.prerelease
             elif route == review.SUBMISSION_PATH: data = self.submission
             elif route == review.VERSION_PATH + "/appStoreReviewDetail": data = self.detail
             else: raise AssertionError("Unexpected read")
@@ -153,20 +153,20 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(safe["notes"]["suffix_characters"], 337)
         self.assertEqual(safe["notes"]["final_characters"], 3829)
 
-    def test_build11_target_preserves_reviewed_build9_and_exact_notes_append(self):
-        self.assertEqual(review.BUILD, "11")
+    def test_build12_target_preserves_reviewed_build9_and_exact_notes_append(self):
+        self.assertEqual(review.BUILD, "12")
         self.assertEqual(review.PRIOR_SELECTED_BUILD, "9")
         self.assertEqual(self.apple.version["relationships"]["build"], link("builds", "build9"))
         self.assertEqual(review.BASE_NOTES_LENGTH + len(review.NOTES_SUFFIX), 3829)
         self.assertEqual(review.digest(review.NOTES_SUFFIX),
                          "545f3dc7e14a453eef4ba6ff2718b2cea72484ce5a6b8b074c0addefbdbaf3f9")
         self.prepare()
-        self.assertEqual(self.apple.version["relationships"]["build"], link("builds", "build11"))
+        self.assertEqual(self.apple.version["relationships"]["build"], link("builds", "build12"))
         queries = [query for route, query in self.apple.collection_queries if route == "/v1/builds"]
-        self.assertTrue(all(query["filter[version]"] == ["11"] for query in queries))
+        self.assertTrue(all(query["filter[version]"] == ["12"] for query in queries))
 
     def test_other_missing_or_unknown_prior_selection_blocks_before_mutations(self):
-        for number in ("10", "8", "11", None):
+        for number in ("10", "8", "11", "12", None):
             self.apple = FakeApple()
             self.apple.prior_build["attributes"]["version"] = number
             with self.subTest(number=number), self.assertRaises(review.SafeError): self.prepare()
@@ -236,7 +236,7 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(self.apple.detail["attributes"]["notes"].count(review.NOTES_SUFFIX), 1)
 
     def test_partially_prepared_build_resumes_with_notes_patch_only(self):
-        self.apple.version["relationships"]["build"] = link("builds", "build11")
+        self.apple.version["relationships"]["build"] = link("builds", "build12")
         self.prepare()
         self.assertEqual([call[1] for call in self.apple.mutations()], ["/v1/appStoreReviewDetails/detail"])
 
@@ -251,7 +251,7 @@ class PreparationTests(unittest.TestCase):
 
     def test_invalid_build_states_identity_and_upload_provenance_block_mutations(self):
         cases = (("processingState", "PROCESSING"), ("expired", True), ("expired", None),
-                 ("buildAudienceType", "INTERNAL_ONLY"), ("version", "10"),
+                 ("buildAudienceType", "INTERNAL_ONLY"), ("version", "10"), ("version", "11"),
                  ("uploadedDate", "2026-10-07T20:20:00Z"), ("uploadedDate", "2026-10-08T20:20:00"))
         for key, value in cases:
             with self.subTest(key=key, value=value):
@@ -348,7 +348,7 @@ class PreparationTests(unittest.TestCase):
                 ("/v1/reviewSubmissionItems/rejected-item", {"data": {"attributes": {"resolved": True}}}),
                 ("/v1/appStoreReviewDetails/detail", {"data": {"type": "appStoreReviewDetails", "id": "detail",
                  "attributes": {"contactEmail": "changed@example.invalid", "notes": "changed"}}}),
-                (review.VERSION_PATH + "/relationships/build", {"data": {"type": "builds", "id": "build11", "attributes": {}}})):
+                (review.VERSION_PATH + "/relationships/build", {"data": {"type": "builds", "id": "build12", "attributes": {}}})):
             with self.assertRaises(review.SafeError):
                 review.patch_once(self.apple, path, body, lambda: True, self.events.append)
             self.assertFalse(self.apple.mutations())
