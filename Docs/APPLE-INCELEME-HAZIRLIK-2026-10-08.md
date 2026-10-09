@@ -6,7 +6,41 @@ olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tut
 Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
 build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
-Son Mac'te denenen build 10 kaynağı `359873a3077f4ea3deb90bfefad70e33affc6e3d`,
+Son Mac'te denenen build 10 kaynağı `803248d30f6df0b86ed1a4639a6cfe064cedb99f`,
+[on dördüncü tur 37863231559](https://github.com/mycrs/ios-octopus/actions/runs/37863231559):
+**733 gerçek Swift testi / 1 hata**; Domain 84/0, Playback 75/1, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Beş basılma regresyonu, PIN ve
+uygulama yön/sunum testleri geçti; App job da başarılı tamamlandı.
+Playback'te `test_finish_duringLoad_doesNotRestartReleasedEngine` 0 yerine
+1 play çağrısı gördü. Test motoru yüklemeyi 100ms sonra kendiliğinden
+bitiriyordu; 15,451s süren test, play'in finish'ten sonra olduğunu kanıtlamaz.
+Production attach/reload guard'ları kapanışta senkron geçersiz kılınır.
+Yeni yerel test, gerçek yüklemeyi continuation ile finish sonrasına kadar
+askıda tutar; giriş XCTest expectation ile sınırlıdır. Aynı 0-play/idle/
+teardown assertion'ları ve ayrı kanal reload kapanışı korunur. Bu yeni
+testler henüz Mac'te çalışmadı; production bu test hatası için değiştirilmedi.
+
+iPhone **bütün Release akışını 172,895 saniyede geçti**: dik tutulan
+cihazda yatay video/native kare, film duraklatma ve aynı detaya dönüş,
+Canlı TV mini→tam ekran, sol panel/geçerli kanala tekrar dokunma/Sintel
+arama ve seçim, aynı dikey Sintel mini oynatıcıya dönüş ve ikinci canlı
+kapanışta **4s gerçek basılı tutma** başarılıdır. Önceki panel gecikmesinin
+kesin mekanizması hâlâ çıkarım olarak ayrılır; yeni referans kaydıyla bu
+somut kullanıcı akışı doğrulanmıştır.
+
+iPad **Octopus açılmadan önce** public Settings preflight'ta 152,806s
+sonunda `settings-navigation-not-ready` ile başarısız oldu. Hemen sonraki
+tanı eki kategori, arama alanı ve tanınan sidebar'ın hazır/hittable olduğunu
+gösterir; ilk geniş mode AX sorgusu yaklaşık 9,17s tüketmiştir. Sonraki
+yerel hazırlık düzeltmesi kategori/arama/sidebar'ı önce kontrol eder ve
+süre bitiminde koşulu bir kez taze okur; süreler ve gerçek Full Screen Apps
+seçili doğrulaması korunur. iPad oynatıcı/yön assertion'ları çalışmadı.
+Bu turdaki collector runtime kaydı bulmadı; sabit player logları başarılı
+akışın kanıtı olarak gösterilmez. Whole run **failure**, imzalı job
+**skipped**: yeni IPA, TestFlight yüklemesi, telefon kurulumu, yeni mağaza
+görsel ilişkisi veya App Review gönderimi yok. Build 9 kanıtı ayrı kalır.
+
+Önceki on üçüncü build 10 kaynağı `359873a3077f4ea3deb90bfefad70e33affc6e3d`,
 [on üçüncü tur 37861193556](https://github.com/mycrs/ios-octopus/actions/runs/37861193556):
 **733 gerçek Swift testi / 0 hata**; beş yeni basılma regresyonu dahil
 Features **237/0**, App **31/0** tamamlanmış loglardan doğrulandı. App

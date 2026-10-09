@@ -432,18 +432,46 @@ final class PlayerControllerTests: XCTestCase {
     }
 
     func test_finish_duringLoad_doesNotRestartReleasedEngine() async {
-        let native = TestEngine(identifier: "native", loadDelay: .milliseconds(100))
+        let native = TestEngine(identifier: "native")
+        let gate = SuspendedLoad()
+        native.beforeLoad = { await gate.suspend() }
         let controller = makeController(native: native)
 
         let opening = Task { await controller.start(makeItem()) }
-        _ = await waitUntil { !native.loadedItems.isEmpty }
+        await fulfillment(of: [gate.entered], timeout: 30)
+        XCTAssertEqual(native.loadedItems.count, 1)
+        XCTAssertEqual(native.playCount, 0, "Load must remain pending until explicitly released")
 
         await controller.finish()
+        gate.release()
         await opening.value
 
         XCTAssertTrue(native.didTeardown)
         XCTAssertEqual(native.playCount, 0, "Kapanan ekranın yüklemesi motoru yeniden oynatmamalı")
         XCTAssertEqual(controller.state, .idle)
+        XCTAssertNil(controller.session)
+    }
+
+    func test_finish_duringReload_doesNotRestartReleasedEngine() async {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+        await controller.start(channelItem("a"))
+        let gate = SuspendedLoad()
+        native.beforeLoad = { await gate.suspend() }
+
+        let opening = Task { await controller.start(channelItem("b")) }
+        await fulfillment(of: [gate.entered], timeout: 30)
+        XCTAssertEqual(native.loadedItems.count, 2)
+        XCTAssertEqual(native.playCount, 1)
+
+        await controller.finish()
+        gate.release()
+        await opening.value
+
+        XCTAssertTrue(native.didTeardown)
+        XCTAssertEqual(native.playCount, 1, "A released engine must not play after its pending reload")
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertNil(controller.session)
     }
 
     func test_finish_duringProgressSave_doesNotReleaseNewSession() async {

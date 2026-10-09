@@ -60,13 +60,12 @@ final class TestEngine: PlaybackEngine {
     private(set) var requestedRates: [Float] = []
     private(set) var requestedVolumes: [Float] = []
     private(set) var videoFit: VideoFit = .fit
-    private let loadDelay: Duration?
+    var beforeLoad: (@MainActor () async -> Void)?
 
     private let continuation: AsyncStream<PlaybackEvent>.Continuation
 
-    init(identifier: String, loadDelay: Duration? = nil) {
+    init(identifier: String) {
         self.identifier = identifier
-        self.loadDelay = loadDelay
         var captured: AsyncStream<PlaybackEvent>.Continuation!
         self.events = AsyncStream { captured = $0 }
         self.continuation = captured
@@ -79,7 +78,7 @@ final class TestEngine: PlaybackEngine {
 
     func load(_ item: PlaybackItem) async {
         loadedItems.append(item)
-        if let loadDelay { try? await Task.sleep(for: loadDelay) }
+        await beforeLoad?()
     }
     func play() { playCount += 1 }
     func pause() { pauseCount += 1 }

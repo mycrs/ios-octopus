@@ -47,10 +47,14 @@ enum IPadFullScreenAppsPreflight {
     }
 
     private static func openModePage(_ settings: XCUIApplication) throws {
-        guard waitUntil(settings, timeout: 10, {
-            modePageExists(settings) || categoryRow(in: settings) != nil
-                || settings.searchFields.firstMatch.isHittable || settingsSidebar(in: settings) != nil
-        }) else {
+        let navigationReady = {
+            categoryRow(in: settings) != nil
+                || (settings.searchFields.firstMatch.exists && settings.searchFields.firstMatch.isHittable)
+                || settingsSidebar(in: settings) != nil || modePageExists(settings)
+        }
+        // A cold Settings AX snapshot can consume the waiter deadline before its
+        // next snapshot becomes ready. Recheck once without extending the wait.
+        guard waitUntil(settings, timeout: 10, navigationReady) || navigationReady() else {
             throw Failure(stage: "settings-navigation-not-ready")
         }
         if modePageExists(settings) { return }
