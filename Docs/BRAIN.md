@@ -2465,3 +2465,39 @@ Kaynak: https://developer.apple.com/documentation/xcode/build-settings-reference
 Güncellenmiş site ZIP'i kullanıcıya teslim edildi. Kullanıcı henüz canlıya
 yüklemediğini bildirdi; yükleme kullanıcıya ait. Canlı gizlilik metni
 doğrulanmış sayılmaz ve yeni App Review gönderimi yapılmadı.
+
+
+### 9 Ekim — Source 40 gerçek UI hatası ve Source 41 hazırlığı
+
+Source40 44941343b50c79f425f142dfa2d55b7d2470b9f8 / run37954616169:
+altı birim/uygulama işi yine783/0. Release113901944769 build-for-testing
+11m06s ile geçti; tek mimari/preboot derleme bu turda30dk engelini aştı.
+Telefon readiness geçti: cache272ms, boot8872ms, bootstatus235302ms.
+XCTest başlangıcına ayrıca yaklaşık4m26s geçti. Gerçek test160.394s
+sonunda satır310 snapshot hatası verdi;15dk adım sınırı dolmadı.
+Pad skipped, whole failure, Signed113914016981 skipped; Build11 yok.
+LogSHA256 fed033d5fdb88d11250eda648c2556e3ffc6747789d823ad624c4800defef34c.
+
+Sample Library kuruldu; native AVPlayerLayer ready ve yatay/tam pencere
+koşulları geçildi. Pause merkezine gerçek dokunma veya tamamlanmış
+duraklatma kanıtı yok. Hata playerActionCompleted içindeki ayrı global
+button.exists/isEnabled/label sorguları arasında oluştu. Bu frame okuma
+hatası değildir; varlık kontrolünden sonra düğme AX ağacından kayboldu.
+Kayıt fiziksel görünürlüğün kaybını tek başına açıklamaz. Intel'de arka
+plan koordinat dokunuşlarının her biri birkaç saniyelik AX çözümlemesi
+içeriyor;3.5sn otomatik gizlenmeyle test zamanlaması yarışabilir.
+
+Source41 yalnız Pause ön-kontrolünü mevcut tek ContentWindow.snapshot
+üzerinden okur. Unique enabled button ve geçerli pencere içi frame
+mevcut helper ile, Play etiketi aynı snapshot ile doğrulanır. Eksik veya
+belirsiz ağaç başarı değildir. Gerçek tap, çağıranın10sn Play/enabled
+beklentisi,2sn hidden-snapshot sınırı,3 deneme,4sn hold ve bütün native/
+yön/mini/panel koşulları korunur; üretim Swift ve gizlenme süresi değişmez.
+
+Release UI host'u önceki gerçek UI başarılarının bulunduğu ARM
+macos-latest/arch=arm64'e döner.40'ın ONLY_ACTIVE_ARCH, simülatörü açmadan
+derleme, seçili runtime cache hazırlığı,300sn bootstatus ve ayrı adım
+bütçeleri korunur. Önceki ARM açılış hataları bu yeni birleşik yolu
+kullanmamıştı; yeni ARM açılışı/latansı veya UI başarısı henüz kanıtlanmadı.
+Yerel mimari, Swift parse, YAML ve gömülü shell/Python denetimi geçti;
+Swift parse Mac derlemesi veya çalışma kanıtı değildir.

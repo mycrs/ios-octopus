@@ -306,8 +306,12 @@ final class ReviewJourneyTests: XCTestCase {
     private func playerActionCompleted(_ identifier: String, window: ContentWindow? = nil) -> Bool {
         switch identifier {
         case "player.playPause":
-            let button = app.buttons[identifier]
-            return button.exists && button.isEnabled && button.label == "Play"
+            // Controls can disappear between independent AX queries. Read the
+            // enabled control and its label from the same observed window tree.
+            guard let window = window ?? observedContentWindow(in: app),
+                  observedPlayerButtonFrame(identifier, window: window) != nil,
+                  let button = uniqueDescendant(identifier, in: window.snapshot) else { return false }
+            return button.label == "Play"
         case "player.channels.open":
             return app.buttons["player.channels.close"].exists
         case "player.close":

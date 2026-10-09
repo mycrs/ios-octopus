@@ -62,10 +62,9 @@ jobs:
     # Only a real boolean true from the device caller skips this job. Missing
     # inputs on push/PR/manual CI preserve the full release journey.
     if: ${{ toJSON(inputs.device_validation_only) != 'true' }}
-    # Keep the UI host explicit. This standard runner has 14 GB RAM; the
-    # 7 GB ARM host stalled during simulator startup before application tests.
-    # App/unit jobs and the signed device archive continue to run on ARM.
-    runs-on: macos-26-intel
+    # Use native Apple silicon for the UI driver, as in earlier journey runs.
+    # Build before booting, then prepare the selected runtime cache.
+    runs-on: macos-latest
     # Includes setup and result export in addition to the bounded phases below.
     timeout-minutes: 65
     needs: [architecture]
@@ -95,10 +94,10 @@ jobs:
         timeout-minutes: 30
         run: |
           # Build before booting so an idle Simulator does not share the cold
-          # compiler's resources. Both test destinations run on this Intel host.
+          # compiler's resources. Both test destinations use the native ARM host.
           xcodebuild build-for-testing \
             -scheme OctopusReview -configuration Release \
-            -destination "platform=iOS Simulator,id=$REVIEW_PHONE,arch=x86_64" \
+            -destination "platform=iOS Simulator,id=$REVIEW_PHONE,arch=arm64" \
             -derivedDataPath ./ReviewDerivedData \
             -parallel-testing-enabled NO \
             -skipMacroValidation ONLY_ACTIVE_ARCH=YES \
@@ -111,7 +110,7 @@ jobs:
           python3 Scripts/prepare-review-simulator.py "$REVIEW_PHONE"
           xcodebuild test-without-building \
             -scheme OctopusReview -configuration Release \
-            -destination "platform=iOS Simulator,id=$REVIEW_PHONE,arch=x86_64" \
+            -destination "platform=iOS Simulator,id=$REVIEW_PHONE,arch=arm64" \
             -testLanguage en -testRegion US \
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/iphone.xcresult \
@@ -142,7 +141,7 @@ jobs:
           python3 Scripts/prepare-review-simulator.py "$REVIEW_PAD"
           xcodebuild test-without-building \
             -scheme OctopusReview -configuration Release \
-            -destination "platform=iOS Simulator,id=$REVIEW_PAD,arch=x86_64" \
+            -destination "platform=iOS Simulator,id=$REVIEW_PAD,arch=arm64" \
             -testLanguage en -testRegion US \
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/ipad.xcresult \
