@@ -4,7 +4,11 @@ import os
 
 
 def validate_mode(device_validation_only, *, distribution, caller, event):
-    if device_validation_only is not None and type(device_validation_only) is not bool:
+    # Missing context properties can serialize as an empty JSON string on
+    # ordinary push/PR/manual CI events. They keep the full validation path.
+    if device_validation_only is None or (type(device_validation_only) is str and device_validation_only == ''):
+        return 'full_release_validation'
+    if type(device_validation_only) is not bool:
         raise ValueError('CI validation input must be a boolean')
     if device_validation_only is True:
         if (distribution, caller, event) != ('device', 'App Store Release', 'workflow_dispatch'):

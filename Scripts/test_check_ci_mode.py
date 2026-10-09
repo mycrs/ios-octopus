@@ -17,7 +17,7 @@ spec.loader.exec_module(mode)
 class CIValidationModeTests(unittest.TestCase):
     def test_ordinary_events_and_missing_input_keep_full_release_validation(self):
         for event in ('push', 'pull_request', 'workflow_dispatch'):
-            for selected in (None, False):
+            for selected in (None, '', False):
                 with self.subTest(event=event, selected=selected):
                     self.assertEqual(mode.validate_mode(selected, distribution='', caller='CI', event=event),
                                      'full_release_validation')
@@ -51,6 +51,16 @@ class CIValidationModeTests(unittest.TestCase):
             result = subprocess.run([sys.executable, str(ROOT / 'Scripts/check-ci-mode.py')],
                                     env=env, capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, expected)
+
+    def test_cli_accepts_all_absent_input_serializations_as_full_validation(self):
+        for raw in ('', 'null', '""', 'false'):
+            with self.subTest(raw=raw):
+                env = {**os.environ, 'DEVICE_VALIDATION_ONLY': raw, 'DISTRIBUTION': '',
+                       'CALLER_WORKFLOW': 'CI', 'EVENT_NAME': 'push'}
+                result = subprocess.run([sys.executable, str(ROOT / 'Scripts/check-ci-mode.py')],
+                                        env=env, capture_output=True, text=True, timeout=5)
+                self.assertEqual(result.returncode, 0)
+                self.assertIn('full_release_validation', result.stdout)
 
     def test_actual_package_mode_guard_rejects_empty_and_conflicting_operations(self):
         release = (ROOT / '.github/workflows/app-store-release.yml').read_text(encoding='utf-8')

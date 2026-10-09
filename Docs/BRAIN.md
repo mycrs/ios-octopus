@@ -2155,3 +2155,13 @@ ve ham IPA artifact adımı device modunda skipped kalır. Mağaza yayınının
 sekiz gerçek CI kapısı, başarılı journey ve yükleme koşulları gevşetilmedi.
 Kullanıcının son yönlendirmesiyle mağaza görselleri ertelendi; önce cihazda
 oynatıcı/geri dönüş/UHD ve kayıtlı veriler doğrulanacak.
+
+
+USB tanısı `37926665779`, kaynak `cae2b8480bd3ab2337243ccff4b083e9c941304a`
+olarak tek sefer başlatıldı; ayrı current/frozen pin kullanır. Devamındaki
+yerel CI kontrolünde GitHub'ın eksik context özelliğini boş JSON string
+olarak da döndürebildiği saptandı. Guard'a bu normal full-validation yolu
+ve gerçek CLI regresyonu eklendi; sekiz test geçti. Boolean olmayan
+`true`/`false` string ve sayılar hâlâ reddedilir. Bu takip yalnız CI Python
+araçlarını değiştirir; çalışan USB binary kaynağı yukarıdaki SHA olarak
+kalır, Swift/ürün kodu değişmez. Cihaz testi mağaza yayın kanıtı değildir.
