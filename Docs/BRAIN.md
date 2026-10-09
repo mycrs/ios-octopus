@@ -1590,3 +1590,53 @@ yoktur; sonraki adayın beklenen 738 test sayısı yeni kanıt sayılmaz.
 Whole run ve Release **failure**, Signed 113667637792 **skipped**.
 Build 10 IPA, TestFlight yüklemesi, telefon kurulumu veya review gönderimi
 yoktur. 21. turun iki cihaz tam PASS sonucu ayrı geçmiş kanıttır.
+
+
+## 9 Ekim 2026 — yirmi üçüncü aday: gerçek video ve aynı snapshot geometrisi
+
+Mac'te denenen build 10 kaynağı `4c28e803b6b7d905edace8959ae0784f05b76b14`,
+[yirmi üçüncü tur 37883860616](https://github.com/mycrs/ios-octopus/actions/runs/37883860616):
+**738 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 80/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı gerçek job, ham log/hash ve
+loading/buffering/pause/eventsiz resume regresyonları bağımsız doğrulandı.
+
+İlk filmde native-ready, dik/ters cihazda yatay kilit, native 1pt sınır,
+Pause ardından zorunlu Play+enabled, özgün kontrol ekranı ve aynı film
+detayına dönüş geçti. Canlı panel, mevcut kanala restart olmadan dokunma,
+Sintel seçimi, ilk portrait miniye dönüş, ikinci açılışta gerçek 4s basılı
+Kapat ve aynı miniye hazır native video/1pt dönüş de geçti. Düğmenin tek
+snapshot frame'ini gerçek dokunuşa taşıyan dar test bu işlemlerde çalıştı.
+
+Üçüncü gerçek mini dokunuşu ardından landscape orientation ve native-ready
+geçti; `ReviewJourneyTests.swift:133` tam ekran geometri koşulu 10s içinde
+sağlanmadı. iPhone testi **204,043s** ile FAIL; iPad başlamadı. Bağımsız
+pencere 874×402 iken global firstMatch AX yüzeyi 402×874 ve üst öğeleri
+finite olmayan/boş bounds gösterdi. UIKit geometry callback code2 yalnız
+sayısal olarak kaydedilir; domain/requestID olmadığı için en yakın üçüncü
+isteğin nedeni olduğu kanıtlanmaz ve üretim layout hatası çıkarılmaz.
+
+Tek özgün MP4 435.139.226 bayt, CRC `e459d203`, SHA256
+`2a006a4e282fee9e8bf076bacb54d2669d1b4528e3c1eb1cc199d70379f6a848`
+ile bağımsız doğrulandı. Native-ready ve hata sonuna yakın gerçek kareler,
+sabit portrait kayıt canvasında sideways landscape filmi tüm kullanılabilir
+alanda ve ilerleyen sahnelerle gösterir; son karede kalan mini/yarım siyah
+çizim alanı yoktur. Bu gözlem XCTest 1pt başarısı yerine geçmez. Seek hedefi
+kesin PTS sayılmaz. İki küçük XCElementSnapshot bplist piksel içermez.
+
+Sonraki dar UITest, video ölçüsüne bakmadan seçilen gerçek content Window'ın
+aynı public snapshot alt ağacından native-video ready/frame okur. Tek hazır
+yüzey, finite/pozitif bounds, landscape ve dört <=1pt fark koşulu korunur;
+10s timeout, gerçek üçüncü dokunuş ve ardından aynı miniye Kapat değişmez.
+Üretim oynatıcı kodu bu AX gözlemi nedeniyle değiştirilmez; yeni Mac sonucu
+beklenir. Önceki iki cihaz tam PASS sonucu ayrı tarihsel kanıttır.
+
+Whole run ve Release **failure**, Signed 113674097908 **skipped**.
+Build 10 IPA, TestFlight yüklemesi, telefon kurulumu ve review gönderimi yok.
+
+Apple hedefinin ayrı salt okunur denemeleri eski başarılı build9 kaynağını
+kullanır; build10 doğrulaması veya mağaza değişikliği sayılmaz. İki okuma
+denemesi sayısal/UUID varsayımına uymayan reviewSubmissionItems kimliğinde
+durdu. Güvenli diagnostic gerçek kimliğin 64 ASCII harf/rakam olduğunu
+belirledi; ham notlar, iletişim verileri veya kimlik içeriği dışa aktarılmadı.
+Yeni dar kabul kuralı yalnız bu resource türünü kapsar; hazırlık/gönderim
+kapıları ve diğer resource kimliği doğrulamaları korunur.

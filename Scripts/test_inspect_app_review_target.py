@@ -20,6 +20,7 @@ OTHER_ITEM = "22222222-2222-2222-2222-222222222222"
 OTHER_VERSION = "33333333-3333-3333-3333-333333333333"
 DETAIL = "44444444-4444-4444-4444-444444444444"
 BUILD9 = "99999999-9999-9999-9999-999999999999"
+OPAQUE_ITEM = "AbCdEfGhIjKlMnOpQrStUvWxYz" * 2 + "aBc123456789"
 PRIVATE = "private-contact@example.invalid"
 PRIVATE_NOTES = "Private provider https://example.invalid/?password=private-demo-password"
 
@@ -178,6 +179,28 @@ class TargetInspectionTests(unittest.TestCase):
         self.assertEqual(report["version"]["selected_build"]["id"], "92000019")
         self.assertEqual(report["target_item"]["id"], "123456789")
         self.assertEqual(report["review_detail"]["id"], "987654321")
+
+    def test_observed_64_ascii_alphanumeric_item_shape_is_preserved_as_an_opaque_identifier(self):
+        self.assertEqual(len(OPAQUE_ITEM), 64)
+        self.assertEqual(sum("0" <= character <= "9" for character in OPAQUE_ITEM), 9)
+        apple = FakeApple()
+        apple.items[0]["id"] = OPAQUE_ITEM
+        report = target.inspect_target(apple)
+        self.assertEqual(report["target_item"], {"match_count": 1, "unique": True, "id": OPAQUE_ITEM})
+        self.assertEqual(report["items"][0]["id"], OPAQUE_ITEM)
+        self.assertTrue(all(method == "GET" for method, _ in apple.calls))
+        self.assertFalse(any(OPAQUE_ITEM in path for _, path in apple.calls))
+
+    def test_opaque_item_shape_does_not_expand_other_resource_kind_identifiers(self):
+        for kind in ("apps", "appStoreVersions", "reviewSubmissions", "appStoreReviewDetails", "builds"):
+            with self.assertRaises(target.ResourceIdentifierError):
+                target.resource({"data": {"type": kind, "id": OPAQUE_ITEM}}, kind, phase="items")
+        for identifier in (None, 64, True, [OPAQUE_ITEM], {"id": OPAQUE_ITEM},
+                OPAQUE_ITEM[:-1], OPAQUE_ITEM + "a", "_" + OPAQUE_ITEM[1:],
+                "-" + OPAQUE_ITEM[1:], "\u00e9" + OPAQUE_ITEM[1:], "https://example.invalid/" + OPAQUE_ITEM):
+            with self.assertRaises(target.ResourceIdentifierError):
+                target.resource({"data": {"type": "reviewSubmissionItems", "id": identifier}},
+                                "reviewSubmissionItems", phase="items")
 
     def test_optional_review_type_missing_null_and_valid_are_not_coerced(self):
         for presence in ("missing", "null", "valid"):

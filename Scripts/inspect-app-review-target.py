@@ -46,6 +46,7 @@ READ_QUERIES = {
 }
 UUID = r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"
 RESOURCE_ID = rf"(?:{UUID}|[1-9][0-9]{{0,39}})"
+REVIEW_ITEM_ID = rf"(?:{RESOURCE_ID}|[A-Za-z0-9]{{64}})"
 ROUTE_PHASES = {APP_PATH: "app", VERSION_PATH: "version", SUBMISSION_PATH: "submission",
                 ITEMS_PATH: "items", DETAIL_PATH: "review_detail"}
 RESOURCE_KINDS = {"apps", "appStoreVersions", "reviewSubmissions", "reviewSubmissionItems",
@@ -165,7 +166,8 @@ def resource(response, kind, expected_id=None, phase=None):
     if expected_id is not None:
         if value != expected_id:
             raise SafeError("Apple resource differs from the fixed target")
-    elif not isinstance(value, str) or not re.fullmatch(RESOURCE_ID, value):
+    elif not isinstance(value, str) or not re.fullmatch(
+            REVIEW_ITEM_ID if kind == "reviewSubmissionItems" else RESOURCE_ID, value):
         raise ResourceIdentifierError(value, kind, phase)
     return data
 
