@@ -146,6 +146,30 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(safe["notes"]["suffix_characters"], 337)
         self.assertEqual(safe["notes"]["final_characters"], 3829)
 
+    def test_detail_read_and_notes_proof_explicitly_include_the_version_relationship(self):
+        class SparseDetailApple(FakeApple):
+            def __init__(self):
+                super().__init__()
+                self.detail_queries = []
+
+            def request(self, method, path, body=None):
+                response = super().request(method, path, body)
+                if method == "GET" and urlsplit(path).path == review.VERSION_PATH + "/appStoreReviewDetail":
+                    query = parse_qs(urlsplit(path).query)
+                    self.detail_queries.append(query)
+                    if query.get("include") != ["appStoreVersion"]:
+                        response["data"].pop("relationships", None)
+                return response
+
+        self.apple = SparseDetailApple()
+        self.prepare()
+        self.assertGreaterEqual(len(self.apple.detail_queries), 5)
+        for query in self.apple.detail_queries:
+            self.assertEqual(query, {"include": ["appStoreVersion"],
+                "fields[appStoreReviewDetails]": ["notes,appStoreVersion"],
+                "fields[appStoreVersions]": ["platform,versionString"]})
+        self.assertEqual(self.events[-1]["event"], "preparation_verified")
+
     def test_store_version_and_binary_prerelease_version_are_distinct(self):
         # Actual archived/installed Build 9 is 1.0.0; its App Store draft is 1.0.
         self.assertEqual(self.apple.version["attributes"]["versionString"], "1.0")

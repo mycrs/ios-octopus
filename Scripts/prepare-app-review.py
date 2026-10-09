@@ -130,6 +130,12 @@ def notes_plan(notes, expected_hash):
                    "final_characters": len(final), "suffix_characters": len(NOTES_SUFFIX)}
 
 
+def review_detail_query():
+    return shared.query(VERSION_PATH + "/appStoreReviewDetail", {
+        "include": "appStoreVersion", "fields[appStoreReviewDetails]": "notes,appStoreVersion",
+        "fields[appStoreVersions]": "platform,versionString"})
+
+
 def read_store(apple, expected_hash, upload_window):
     version = resource(apple.request("GET", shared.query(VERSION_PATH, {
         "include": "app,build", "fields[appStoreVersions]":
@@ -181,8 +187,7 @@ def read_store(apple, expected_hash, upload_window):
             item.get("attributes", {}).get("state") != "REJECTED"):
         raise SafeError("The reviewed version item is no longer rejected")
 
-    detail = resource(apple.request("GET", shared.query(VERSION_PATH + "/appStoreReviewDetail", {
-        "fields[appStoreReviewDetails]": "notes,appStoreVersion"})), "appStoreReviewDetails")
+    detail = resource(apple.request("GET", review_detail_query()), "appStoreReviewDetails")
     if relationship(detail, "appStoreVersion", "appStoreVersions") != VERSION_ID:
         raise SafeError("Review notes belong to another app version")
     final_notes, notes = notes_plan(detail.get("attributes", {}).get("notes"), expected_hash)
@@ -251,8 +256,7 @@ def prepare(apple, expected_hash, upload_window, record):
     if current["notes"]["current_sha256"] != current["notes"]["final_sha256"]:
         detail_id, final_hash = current["detail_id"], current["notes"]["final_sha256"]
         def notes_proof():
-            detail = resource(apple.request("GET", shared.query(VERSION_PATH + "/appStoreReviewDetail", {
-                "fields[appStoreReviewDetails]": "notes,appStoreVersion"})), "appStoreReviewDetails", detail_id)
+            detail = resource(apple.request("GET", review_detail_query()), "appStoreReviewDetails", detail_id)
             value = detail.get("attributes", {}).get("notes")
             if not isinstance(value, str):
                 raise SafeError("Review notes read proof is unavailable")
