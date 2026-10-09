@@ -276,6 +276,43 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertTrue(switched, "Yanıt vermeyen motor sonsuza kadar spinner'da kalmamalı")
     }
 
+    func test_resumeWhileBuffering_recoversWithoutAnotherEngineStateEvent() async {
+        let native = TestEngine(identifier: "native")
+        let fallback = TestEngine(identifier: "fallback")
+        let controller = makeController(
+            native: native,
+            fallback: fallback,
+            vodStallTimeout: .milliseconds(25)
+        )
+        await controller.start(makeItem())
+        controller.pause()
+
+        // A delayed engine callback can still report buffering after pause.
+        // No watchdog is armed while the user's play request is cancelled.
+        native.emit(.stateChanged(.buffering))
+        let buffering = await waitUntil { controller.state == .buffering }
+        XCTAssertTrue(buffering)
+        guard buffering else {
+            await controller.finish()
+            return
+        }
+
+        controller.play()
+        // Neither TestEngine.play() nor this test publishes a new state.
+        let recovered = await waitUntil {
+            controller.engineIdentifier == "fallback" && fallback.playCount == 1
+        }
+
+        XCTAssertTrue(recovered, "Resume must restore bounded recovery even if the engine deduplicates buffering")
+        XCTAssertEqual(native.pauseCount, 1)
+        XCTAssertEqual(native.playCount, 2)
+        XCTAssertEqual(native.loadedItems.count, 1)
+        XCTAssertTrue(native.didTeardown)
+        XCTAssertEqual(fallback.loadedItems.count, 1)
+        XCTAssertEqual(fallback.playCount, 1)
+        await controller.finish()
+    }
+
     // MARK: - İzleme geçmişi
 
     func test_authorizationFailureDoesNotSwapOrReconnectLiveEngine() async {

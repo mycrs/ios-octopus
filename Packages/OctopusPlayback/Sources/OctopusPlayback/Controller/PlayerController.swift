@@ -466,6 +466,11 @@ public final class PlayerController: ObservableObject {
 
     public func play() {
         playbackRequested = true
+        // Engines may deduplicate a resumed loading/buffering state. Re-arm
+        // the cancelled watchdog without depending on another state event.
+        if state.showsSpinner {
+            updateStallWatchdog(for: state)
+        }
         engine?.play()
     }
 

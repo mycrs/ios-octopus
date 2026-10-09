@@ -5,7 +5,35 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
-Son Mac'te denenen build 10 kaynağı `faf7793e9c410c74e100ff2e7ffcc4a8def1cda5`,
+Son Mac'te denenen build 10 kaynağı `7065ff3ea4af8f38cb5eeea0eed3ffacbc9ef3cc`,
+[yirmi birinci tur 37880087650](https://github.com/mycrs/ios-octopus/actions/runs/37880087650):
+**737 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 79/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı unit job ve bağımsız ham log/hash
+incelemesi başarılıdır. Üç loading/buffering/pause regresyonu gerçekten geçti.
+
+Release işi başarılıdır. iPhone tüm akışı **194,384s**, iPad **292,393s** ile
+geçti: native-ready, dik ve ters cihazda yatay tam ekran, 1pt video sınırları,
+Pause/Play, filmden aynı detaya dönüş, kanal paneli ve aynı kanala yeniden
+dokunmada restart olmaması, Sintel seçimi, aynı portrait miniye kapanış,
+4s gerçek basılı kapanış ve üçüncü gerçek mini dokunuşuyla yeniden tam ekran.
+iPad ayarları preflight da geçti. Özgün görseller ayrı teşhis kanıtıdır;
+bu simülatör sonucu fiziksel cihazdaki VLC/UHD için kanıt sayılmaz.
+
+Son bağımsız kod denetimi resume sırasında iptal edilmiş stall watchdog'un,
+motor aynı loading/buffering state olayını tekrar yayınlamazsa kurulmadığını
+buldu. `play()` mevcut spinner durumunda mevcut policy watchdog'unu yeniden
+kurar; yeni retry döngüsü eklenmez. Tek deterministik regresyon pause sonrası
+gecikmiş buffering olayı, resume ve başka motor state olayı olmadan fallback
+load/play sonucu ister. Bu yeni düzeltmenin gerçek Mac sonucu henüz yoktur;
+beklenen Playback 80 / toplam 738 yalnız beklentidir.
+
+Bu son düzeltmeyi pakete almak için 21. tur arşiv sırasında bir kez iptal
+edildi. Taze GitHub sonucu whole run ve Signed **cancelled**, IPA üretimi,
+TestFlight yüklemesi ve cihaz şifreleme adımları **skipped** doğrulandı.
+Build 10 yüklenmedi veya telefona kurulmadı; App Review gönderimi yoktur.
+Önceki 20. tur pause kanıtı ve daha eski sonuçlar aşağıda korunur.
+
+Önceki yirminci build 10 kaynağı `faf7793e9c410c74e100ff2e7ffcc4a8def1cda5`,
 [yirminci tur 37877568288](https://github.com/mycrs/ios-octopus/actions/runs/37877568288):
 **734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
 Data 295/0, Features 237/0, App 31/0. Altı unit job başarılıdır; ham log
