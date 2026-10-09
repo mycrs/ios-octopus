@@ -5,7 +5,37 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
-Son Mac'te denenen build 10 kaynağı `7065ff3ea4af8f38cb5eeea0eed3ffacbc9ef3cc`,
+Son Mac'te denenen build 10 kaynağı `748d630355badd655515a692167f1815f2323db0`,
+[yirmi ikinci tur 37882065473](https://github.com/mycrs/ios-octopus/actions/runs/37882065473):
+**738 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 80/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı unit job ve bağımsız ham log/hash
+incelemesi başarılıdır. Yeni eventsiz buffering resume testi gerçek Mac'te
+0,308s ile geçti; üretim watchdog düzeltmesi bu testlerde doğrulandı.
+
+iPhone ekran testi **141,055s** sonunda `ReviewJourneyTests.swift:343`
+`player.close` isHittable sorgusunda geçersiz activation point hatası verdi.
+Film native-ready/yatay/1pt, gerçek Pause ve Play+enabled, film kapanışı ve
+aynı detaya dönüş geçti. Canlı BBB mini/tam ekran, kanal paneli, aynı kanala
+restart olmadan dokunma ve Sintel seçimi/native-ready de geçti. İlk canlı
+Kapat dokunuşu hiç gönderilmedi; safe UIKit logunda bu basış yoktur.
+Son AX hiyerarşisi landscape Main 874×402 ve hazır native video gösterir;
+kontrol düğmeleri yoktur. İkinci reveal sonrası exists/readiness sorguları
+3,5s auto-hide süresini aşar. Bu zamanlama bir test sorgusu yarışıyla
+uyumludur; üretim Kapat işlevinin bozuk olduğunu kanıtlamaz. iPad başlamadı.
+
+Üretimde gizli kontroller showsControls dalından çıkarılır. Yeni dar test
+aynı düğmenin tek snapshot'ından enabled ve gerçek pencere içindeki finite,
+pozitif frame'i gözler; bu frame'i gerçek coordinate tap/4s basışa taşır.
+Geometri tekbaşına aksiyon başarısı değildir: mevcut Play+enabled, panel,
+portrait/aynı mini, hazır native 1pt ve üçüncü gerçek dokunuş şartları korunur.
+Timeout/retry/üretim kodu değişmez. Bu test düzenlemesinin Mac sonucu henüz
+yoktur; sonraki adayın beklenen 738 test sayısı yeni kanıt sayılmaz.
+
+Whole run ve Release **failure**, Signed 113667637792 **skipped**.
+Build 10 IPA, TestFlight yüklemesi, telefon kurulumu veya review gönderimi
+yoktur. 21. turun iki cihaz tam PASS sonucu ayrı geçmiş kanıttır.
+
+Önceki yirmi birinci build 10 kaynağı `7065ff3ea4af8f38cb5eeea0eed3ffacbc9ef3cc`,
 [yirmi birinci tur 37880087650](https://github.com/mycrs/ios-octopus/actions/runs/37880087650):
 **737 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 79/0, Design 11/0,
 Data 295/0, Features 237/0, App 31/0. Altı unit job ve bağımsız ham log/hash

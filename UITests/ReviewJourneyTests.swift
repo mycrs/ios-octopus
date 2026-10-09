@@ -220,7 +220,7 @@ final class ReviewJourneyTests: XCTestCase {
         // A containing SwiftUI AX element may have no computed activation point.
         // Prove the returned preview accepts a real touch and owns the video again.
         let returnedWindow = try XCTUnwrap(observedContentWindow(in: app))
-        XCTAssertTrue(tapObservedPlayerButton(mini, window: returnedWindow.element,
+        XCTAssertTrue(tapObservedPlayerButton(mini.frame, window: returnedWindow.element,
                                              windowFrame: returnedWindow.frame))
         assertWindowOrientation(isLandscape: true)
         waitForNativeFrame()
@@ -270,9 +270,9 @@ final class ReviewJourneyTests: XCTestCase {
         for _ in 0..<3 {
             if playerActionCompleted(identifier) { return }
             guard let window = observedContentWindow(in: app) else { continue }
-            refreshPlayerControls(button, surface: surface)
-            if playerButtonIsReady(button),
-               tapObservedPlayerButton(button, window: window.element, windowFrame: window.frame,
+            let observed = refreshPlayerControls(button, surface: surface, windowFrame: window.frame)
+            if let frame = playerButtonFrame(button, windowFrame: window.frame, observed: observed),
+               tapObservedPlayerButton(frame, window: window.element, windowFrame: window.frame,
                                        pressDuration: pressDuration) {
                 if identifier == "player.playPause" {
                     // Tap delivery is not action completion. The caller's mandatory
@@ -316,9 +316,9 @@ final class ReviewJourneyTests: XCTestCase {
             if !nativeVideo.exists { return }
             let close = app.buttons["player.close"]
             guard let window = observedContentWindow(in: app) else { continue }
-            refreshPlayerControls(close, surface: nativeVideo)
-            if playerButtonIsReady(close) {
-                _ = tapObservedPlayerButton(close, window: window.element, windowFrame: window.frame)
+            let observed = refreshPlayerControls(close, surface: nativeVideo, windowFrame: window.frame)
+            if let frame = playerButtonFrame(close, windowFrame: window.frame, observed: observed) {
+                _ = tapObservedPlayerButton(frame, window: window.element, windowFrame: window.frame)
             }
             let dismissed = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == false"), object: nativeVideo
@@ -329,32 +329,46 @@ final class ReviewJourneyTests: XCTestCase {
         XCTFail("Sekme değiştirilmeden önce tam ekran oynatıcı kapanmalı")
     }
 
-    /// A visible control can be tapped immediately. Only reveal missing controls;
-    /// a forced hide can race auto-hide and turn into another reveal.
-    private func refreshPlayerControls(_ button: XCUIElement, surface: XCUIElement) {
-        if !button.exists || !button.isHittable {
-            surface.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
-        }
+    /// Hidden controls are structurally removed. Observe an enabled in-window
+    /// button once; an activation-point query can fail while auto-hide removes it.
+    private func refreshPlayerControls(
+        _ button: XCUIElement, surface: XCUIElement, windowFrame: CGRect
+    ) -> CGRect? {
+        if let frame = observedPlayerButtonFrame(button, windowFrame: windowFrame) { return frame }
+        surface.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
+        return nil
     }
 
-    /// A waiter schedules its first predicate check later even when the control
-    /// is already ready. Preserve that observation before its inactivity timeout.
-    private func playerButtonIsReady(_ button: XCUIElement) -> Bool {
-        if button.exists && button.isHittable { return true }
+    /// Carry the same snapshot geometry into the real tap. Only the unchanged
+    /// action/native/orientation assertions establish completion.
+    private func playerButtonFrame(
+        _ button: XCUIElement, windowFrame: CGRect, observed: CGRect?
+    ) -> CGRect? {
+        if let observed { return observed }
+        if let frame = observedPlayerButtonFrame(button, windowFrame: windowFrame) { return frame }
+        var frame: CGRect?
         let visible = XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "exists == true AND hittable == true"), object: button
+            predicate: NSPredicate { [self] _, _ in
+                frame = observedPlayerButtonFrame(button, windowFrame: windowFrame)
+                return frame != nil
+            }, object: button
         )
-        return XCTWaiter.wait(for: [visible], timeout: 2) == .completed
+        return XCTWaiter.wait(for: [visible], timeout: 2) == .completed ? frame : nil
     }
 
-    /// Element.tap re-resolves and scrolls the transient control after its
-    /// visible/hittable check. Tap the observed in-window center instead;
-    /// panel, selection and dismissal assertions still verify the outcome.
+    private func observedPlayerButtonFrame(_ button: XCUIElement, windowFrame: CGRect) -> CGRect? {
+        guard button.exists, let snapshot = try? button.snapshot(), snapshot.isEnabled else { return nil }
+        let frame = snapshot.frame
+        guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
+              frame.width > 0, frame.height > 0, windowFrame.contains(frame) else { return nil }
+        return frame
+    }
+
+    /// Tap the observed in-window center without re-resolving a transient button.
     private func tapObservedPlayerButton(
-        _ button: XCUIElement, window: XCUIElement, windowFrame: CGRect,
+        _ frame: CGRect, window: XCUIElement, windowFrame: CGRect,
         pressDuration: TimeInterval = 0
     ) -> Bool {
-        let frame = button.frame
         let center = CGPoint(x: frame.midX, y: frame.midY)
         guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
               frame.width > 0, frame.height > 0, windowFrame.contains(center) else { return false }
