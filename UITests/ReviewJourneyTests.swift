@@ -278,13 +278,11 @@ final class ReviewJourneyTests: XCTestCase {
     }
 
     private func revealAndTapPlayerButton(_ identifier: String, pressDuration: TimeInterval = 0) {
-        let button = app.buttons[identifier]
-        let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
         for _ in 0..<3 {
             if playerActionCompleted(identifier) { return }
             guard let window = observedContentWindow(in: app) else { continue }
-            let observed = refreshPlayerControls(button, surface: surface, windowFrame: window.frame)
-            if let frame = playerButtonFrame(button, windowFrame: window.frame, observed: observed),
+            let observed = refreshPlayerControls(identifier, window: window)
+            if let frame = playerButtonFrame(identifier, window: window, observed: observed),
                tapObservedPlayerButton(frame, window: window.element, windowFrame: window.frame,
                                        pressDuration: pressDuration) {
                 if identifier == "player.playPause" {
@@ -327,10 +325,9 @@ final class ReviewJourneyTests: XCTestCase {
         // bu süreyi aşabilir; arka plandaki sekmeler yine exists döndürür.
         for _ in 0..<3 {
             if !nativeVideo.exists { return }
-            let close = app.buttons["player.close"]
             guard let window = observedContentWindow(in: app) else { continue }
-            let observed = refreshPlayerControls(close, surface: nativeVideo, windowFrame: window.frame)
-            if let frame = playerButtonFrame(close, windowFrame: window.frame, observed: observed) {
+            let observed = refreshPlayerControls("player.close", window: window)
+            if let frame = playerButtonFrame("player.close", window: window, observed: observed) {
                 _ = tapObservedPlayerButton(frame, window: window.element, windowFrame: window.frame)
             }
             let dismissed = XCTNSPredicateExpectation(
@@ -342,38 +339,55 @@ final class ReviewJourneyTests: XCTestCase {
         XCTFail("Sekme değiştirilmeden önce tam ekran oynatıcı kapanmalı")
     }
 
-    /// Hidden controls are structurally removed. Observe an enabled in-window
-    /// button once; an activation-point query can fail while auto-hide removes it.
+    /// Read the current window's snapshot, then reveal using its coordinate space.
+    /// A retained global query can miss controls that the physical video shows.
     private func refreshPlayerControls(
-        _ button: XCUIElement, surface: XCUIElement, windowFrame: CGRect
+        _ identifier: String, window: ContentWindow
     ) -> CGRect? {
-        if let frame = observedPlayerButtonFrame(button, windowFrame: windowFrame) { return frame }
-        surface.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
+        if let frame = observedPlayerButtonFrame(identifier, window: window) { return frame }
+        window.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
         return nil
     }
 
     /// Carry the same snapshot geometry into the real tap. Only the unchanged
     /// action/native/orientation assertions establish completion.
     private func playerButtonFrame(
-        _ button: XCUIElement, windowFrame: CGRect, observed: CGRect?
+        _ identifier: String, window: ContentWindow, observed: CGRect?
     ) -> CGRect? {
         if let observed { return observed }
-        if let frame = observedPlayerButtonFrame(button, windowFrame: windowFrame) { return frame }
+        if let frame = refreshedPlayerButtonFrame(identifier, window: window) { return frame }
         var frame: CGRect?
         let visible = XCTNSPredicateExpectation(
             predicate: NSPredicate { [self] _, _ in
-                frame = observedPlayerButtonFrame(button, windowFrame: windowFrame)
+                frame = refreshedPlayerButtonFrame(identifier, window: window)
                 return frame != nil
-            }, object: button
+            }, object: window.element
         )
         return XCTWaiter.wait(for: [visible], timeout: 2) == .completed ? frame : nil
     }
 
-    private func observedPlayerButtonFrame(_ button: XCUIElement, windowFrame: CGRect) -> CGRect? {
-        guard button.exists, let snapshot = try? button.snapshot(), snapshot.isEnabled else { return nil }
+    private func refreshedPlayerButtonFrame(_ identifier: String, window: ContentWindow) -> CGRect? {
+        guard let snapshot = try? window.element.snapshot() else { return nil }
         let frame = snapshot.frame
+        guard abs(frame.minX - window.frame.minX) <= 1, abs(frame.minY - window.frame.minY) <= 1,
+              abs(frame.width - window.frame.width) <= 1, abs(frame.height - window.frame.height) <= 1 else { return nil }
+        return observedPlayerButtonFrame(identifier, window: (window.element, frame, snapshot))
+    }
+
+    private func observedPlayerButtonFrame(_ identifier: String, window: ContentWindow) -> CGRect? {
+        var pending = window.snapshot.children
+        var button: (any XCUIElementSnapshot)?
+        while let child = pending.popLast() {
+            if child.elementType == .button, child.identifier == identifier {
+                guard button == nil else { return nil }
+                button = child
+            }
+            pending.append(contentsOf: child.children)
+        }
+        guard let button, button.isEnabled else { return nil }
+        let frame = button.frame
         guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
-              frame.width > 0, frame.height > 0, windowFrame.contains(frame) else { return nil }
+              frame.width > 0, frame.height > 0, window.frame.contains(frame) else { return nil }
         return frame
     }
 

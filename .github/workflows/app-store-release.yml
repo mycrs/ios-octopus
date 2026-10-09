@@ -26,9 +26,9 @@ on:
         type: string
         default: ''
       review_operation:
-        description: target-inspect salt okunur keşif; inspect/prepare başarılı imzalı kaynak ister; paket none olmalı; göndermez
+        description: target-inspect salt okunur; inspect/prepare hazırlar; submit tüm gerçek kanıtlarla mevcut incelemeyi gönderir; paket none olmalı
         type: choice
-        options: [none, target-inspect, inspect, prepare]
+        options: [none, target-inspect, inspect, prepare, submit]
         default: none
       review_source_run:
         description: Kaynak Actions run ID; target-inspect erken okuyabilir, inspect/prepare başarılı imzalı kaynak ister
@@ -39,7 +39,15 @@ on:
         type: string
         default: ''
       review_expected_notes_sha256:
-        description: Yalnız inspect/prepare için incelenmiş notların SHA-256 değeri; target-inspect için boş bırakın
+        description: inspect/prepare özgün not SHA; submit hazırlanmış 3829 karakter not SHA; target-inspect boş
+        type: string
+        default: ''
+      review_prerequisites:
+        description: Yalnız submit için gerçek kaynak/cihaz/gizlilik/hazırlık/12 görsel kanıtı JSON; ham kimlik/metin/URL içermez
+        type: string
+        default: ''
+      review_prerequisites_sha256:
+        description: Yalnız submit için incelenmiş gerçek kanıt JSON UTF-8 baytlarının SHA-256 değeri
         type: string
         default: ''
 
@@ -59,14 +67,29 @@ jobs:
           REVIEW_SOURCE_RUN: ${{ inputs.review_source_run }}
           REVIEW_SOURCE_SHA: ${{ inputs.review_source_sha }}
           REVIEW_EXPECTED_NOTES_SHA256: ${{ inputs.review_expected_notes_sha256 }}
+          REVIEW_PREREQUISITES_JSON: ${{ inputs.review_prerequisites }}
+          REVIEW_PREREQUISITES_SHA256: ${{ inputs.review_prerequisites_sha256 }}
         run: |
           python3 - <<'PY'
-          import os, re
+          import hashlib, json, os, re
           distribution = os.environ.get('DISTRIBUTION') or 'testflight'
           screenshots = os.environ.get('SCREENSHOT_OPERATION') or 'none'
           review = os.environ.get('REVIEW_OPERATION') or 'none'
-          if distribution not in ('testflight', 'device', 'none') or screenshots not in ('none', 'inspect', 'upload') or review not in ('none', 'target-inspect', 'inspect', 'prepare'):
+          if distribution not in ('testflight', 'device', 'none') or screenshots not in ('none', 'inspect', 'upload') or review not in ('none', 'target-inspect', 'inspect', 'prepare', 'submit'):
               raise SystemExit('Unsupported operation mode')
+          proof = os.environ.get('REVIEW_PREREQUISITES_JSON', '')
+          proof_hash = os.environ.get('REVIEW_PREREQUISITES_SHA256', '')
+          if review == 'submit':
+              if not proof or len(proof.encode('utf-8')) > 20000 or not re.fullmatch(r'[a-f0-9]{64}', proof_hash) or hashlib.sha256(proof.encode('utf-8')).hexdigest() != proof_hash:
+                  raise SystemExit('Final submission requires the reviewed prerequisite JSON and matching hash')
+              try:
+                  parsed_proof = json.loads(proof)
+              except (ValueError, TypeError):
+                  raise SystemExit('Invalid prerequisite JSON') from None
+              if not isinstance(parsed_proof, dict):
+                  raise SystemExit('Prerequisite JSON must be an object')
+          elif proof or proof_hash:
+              raise SystemExit('Prerequisite inputs are exclusive to final submission')
           if review != 'none':
               if distribution != 'none' or screenshots != 'none':
                   raise SystemExit('Review preparation requires distribution=none and screenshot_operation=none')
@@ -361,3 +384,86 @@ jobs:
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+
+  review-submission:
+    name: Apple incelemesine gönderim (kanıt kapılı)
+    if: inputs.review_operation == 'submit'
+    needs: [validate-modes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: app-store
+    permissions:
+      contents: read
+      actions: read
+    concurrency:
+      group: octopus-app-review-preparation
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Son gönderim ve gizlilik sınırlarını sahte yanıtlarla doğrula
+        run: |
+          python3 -m venv "$RUNNER_TEMP/review-submit-tools"
+          "$RUNNER_TEMP/review-submit-tools/bin/python" -m pip install -r Scripts/device-build-requirements.txt
+          "$RUNNER_TEMP/review-submit-tools/bin/python" -m unittest discover -s Scripts -p test_submit_app_review.py
+
+      - name: Apple anahtarına erişmeden gerçek kanıtları ve başarılı kaynak kapılarını doğrula
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_SOURCE_RUN: ${{ inputs.review_source_run }}
+          REVIEW_SOURCE_SHA: ${{ inputs.review_source_sha }}
+          REVIEW_EXPECTED_NOTES_SHA256: ${{ inputs.review_expected_notes_sha256 }}
+          REVIEW_PREREQUISITES_JSON: ${{ inputs.review_prerequisites }}
+          REVIEW_PREREQUISITES_SHA256: ${{ inputs.review_prerequisites_sha256 }}
+        run: |
+          umask 077
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          Path(os.environ['RUNNER_TEMP'], 'review-submit-prerequisites.json').write_bytes(os.environ['REVIEW_PREREQUISITES_JSON'].encode('utf-8'))
+          PY
+          "$RUNNER_TEMP/review-submit-tools/bin/python" Scripts/submit-app-review.py \
+            --source-only \
+            --source-run "$REVIEW_SOURCE_RUN" \
+            --source-sha "$REVIEW_SOURCE_SHA" \
+            --expected-notes-sha256 "$REVIEW_EXPECTED_NOTES_SHA256" \
+            --attestation "$RUNNER_TEMP/review-submit-prerequisites.json" \
+            --attestation-sha256 "$REVIEW_PREREQUISITES_SHA256" \
+            --report "$RUNNER_TEMP/app-review-submission-source-proof.json"
+
+      - name: Taze Apple kanıtından sonra aynı öğeyi çöz ve aynı incelemeyi bir kez gönder
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_SOURCE_RUN: ${{ inputs.review_source_run }}
+          REVIEW_SOURCE_SHA: ${{ inputs.review_source_sha }}
+          REVIEW_EXPECTED_NOTES_SHA256: ${{ inputs.review_expected_notes_sha256 }}
+          REVIEW_PREREQUISITES_SHA256: ${{ inputs.review_prerequisites_sha256 }}
+        run: |
+          test -n "$API_KEY_ID" && test -n "$API_ISSUER_ID" && test -n "$API_PRIVATE_KEY"
+          task_key_path="$RUNNER_TEMP/review-submit-AuthKey.p8"
+          trap 'rm -f "$task_key_path" "$RUNNER_TEMP/review-submit-prerequisites.json"' EXIT
+          umask 077
+          printf '%s' "$API_PRIVATE_KEY" > "$task_key_path"
+          unset API_PRIVATE_KEY
+          "$RUNNER_TEMP/review-submit-tools/bin/python" Scripts/submit-app-review.py \
+            --source-run "$REVIEW_SOURCE_RUN" \
+            --source-sha "$REVIEW_SOURCE_SHA" \
+            --expected-notes-sha256 "$REVIEW_EXPECTED_NOTES_SHA256" \
+            --attestation "$RUNNER_TEMP/review-submit-prerequisites.json" \
+            --attestation-sha256 "$REVIEW_PREREQUISITES_SHA256" \
+            --key-path "$task_key_path" \
+            --report "$RUNNER_TEMP/app-review-submission-report.json"
+
+      - name: Yalnız güvenli kaynak ve tek PATCH günlüğünü sakla
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: App-review-submission-report
+          path: |
+            ${{ runner.temp }}/app-review-submission-source-proof.json
+            ${{ runner.temp }}/app-review-submission-report.json
+          retention-days: 7
+          if-no-files-found: warn

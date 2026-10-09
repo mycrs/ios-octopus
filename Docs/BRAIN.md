@@ -1684,3 +1684,54 @@ exact sürüm ilişkisini explicit include ve sparse alanlarla ister; strict
 kaynak/hedef/not/PATCH kapıları değişmez. Bu aracın 19 testi ve hedef okumasının
 28 testi yerelde geçti; önce eksik ilişkiyi modelleyen regresyon RED görülüp
 GET düzeltmesiyle GREEN doğrulandı. Apple mutasyonu henüz yapılmadı.
+
+
+## 9 Ekim 2026 — yirmi beşinci aday: görünür kanal denetimi ve AX sorgusu
+
+Kaynak `c7308f26676877683bd972d1f911bb0b5e5c74ce`,
+[37888722089](https://github.com/mycrs/ios-octopus/actions/runs/37888722089):
+altı gerçek Swift unit işi **738/0** (84/80/11/295/237/31); özgün log,
+source/job pinleri ve hash/suite sayımı bağımsız doğrulandı. Filmde gerçek
+native-ready, aynı Window snapshot'ında unique native/dört <=1pt sınır,
+dik cihazda yatay kilit, gerçek Pause ardından zorunlu Play+enabled,
+özgün kontrol PNG'si ve aynı film detayına Kapat dönüşü geçti. Canlı BBB
+hazır mini/gerçek açılış/yatay pencere ve aynı snapshot native1pt de geçti.
+
+Phone **169,600s** ile bounded `player.channels.open` adımında FAIL verdi.
+Üç video reveal dokunuşu yapıldı; Channels düğmesine gerçek tap hiç
+gönderilmedi. Küçük AX örnekleri boş query chain/Application root gösterir.
+Tek özgün MP4 370.015.106 bayt, CRC `e00e567d`, SHA256
+`7c4b8e44c2e73d8f1f9f712dbec3e398b5ff01ff33127c3aab0ffb9a4d83d715`
+bağımsız doğrulandı. İlk reveal çevresindeki gerçek karelerde Channels
+dahil kontroller ve ilerleyen video görülürken global button sorgusu boş
+döner. Fiziksel düğme render'ının yokluğu bu ilk aralıkta elenir; zaman
+eşlemesi kesin dokunma anı veya handler başarısı yerine geçmez. Üç pasif
+1903 bayt event kaydındaki dönüşmüş pointer noktaları landscape/portrait
+koordinatlarıyla tutarlıdır; yanlış dokunma uzayı kanıtlanmaz. Film PNG'si
+blur/perde yerine okunaklı düz kontrol plakalarını gösterir.
+
+Sonraki dar UITest düğmeyi bağımsız content Window'ın aynı public snapshot
+alt ağacında arar: tek .button, exact identifier, enabled, finite/positive
+ve pencere içindeki frame gerçek tap/4s basışa taşınır. Reveal aynı Window
+üzerinden yapılır; tekrarlanan global button/native sorguları azaltılır.
+Yenilemede pencere sınırı <=1pt korunur; 3 deneme/2s, zorunlu Play+enabled,
+panel/kanal seçimi, aynı miniye dönüş, native1pt/yön ve üçüncü gerçek mini
+dokunuşu değişmez. Üretim kodu değişmedi. Statik syntax/architecture ve
+bağımsız diff incelemesi başarılı; yeni Mac sonucu henüz yoktur.
+
+Whole run/Release **failure**, Signed 113688356111 **skipped**; iPad başlamadı.
+Build10 paketi, TestFlight yüklemesi, telefon kurulumu ve review gönderimi yok.
+Başarısız adayın görüntüleri mağaza için uygun sayılmaz. Ayrı salt okunur
+metadata kontrolü mevcut eski21 screenshot association'ının değişmediğini
+gösterdi; görsel yükleme veya kaldırma yapılmadı.
+
+Ayrı final-submit aracı ve metadata job'u mevcut exact review item/submission
+için yalnız resolved=true ardından submitted=true PATCH'lerini kapsar.
+36 sahte yanıtlı davranış/gizlilik testi geçti; bu Apple mutasyonu kanıtı
+değildir. Gerçek source-bound cihaz/privacy/metadata/12 native görsel kanıtı
+ve SHA/UTC kontrolü, bütün başarılı kaynak CI+Signed upload kapıları Apple
+anahtar adımından önce zorunludur. Hazırlanmış Build10/notlar ve mevcut12
+association fresh GET ile tekrar doğrulanır. Belirsiz PATCH retry edilmez;
+yalnız bounded GET ile gözlenen exact queued/date proof gerçek gönderilmiş
+durumu kaydeder. AFTER_APPROVAL korunur. Gerçek prerequisite attestation
+henüz yoktur; final job dispatch veya Apple gönderimi yapılmadı.
