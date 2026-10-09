@@ -1970,7 +1970,7 @@ Timer/throttle, engine policy, gesture, UI assertion/timeouts ve hold
 teslim şartları değişmez. Mac runtime sonucu henüz yoktur.
 
 
-Yeni filtreli gözlem34satır; LiveScreen controller'ı yeniden üretmez,
+Yeni filtreli gözlem32satır; LiveScreen controller'ı yeniden üretmez,
 aynı AppContainer örneğini komutlar için tutar. Altı yeni FeatureLive testi
 gerçek PlayerController+kontrollü AsyncStream motoruyla başlangıç snapshot,
 64time olayı/0UI yayını, duplicate-state filtreleme/spinner, kanal oturum
@@ -1981,3 +1981,66 @@ Root ve bağımsız parity diff incelemesi,5Swift syntax parse ve mimari
 denetim geçti. IUO kaldırıldı; fallback testi gerçek playing event'ini de
 bekler. Aynı-native kanal değişimi controller'ın mevcut reload yoludur;
 teardown varsayımı geri çekildi. Üretim scope yalnız FeatureLive gözlemidir.
+
+
+## 9 Ekim 2026 — otuzuncu aday: canlı gözlem ve iPhone geçti; Ayarlar yüklenemedi
+
+Kaynak `2163d923a4c94364dad362daa6bf10acf1ae1ecf`,
+[37911221219](https://github.com/mycrs/ios-octopus/actions/runs/37911221219):
+altı gerçek unit işi **744/0** (84/80/11/295/243/31). Özgün altı frozen job,
+logSHA/index/pin ve9Features suite7/20/43/19/46/14/16/49/29 root ve
+bağımsız offline doğrulandı. Yeni altı LivePlaybackObservation testi her
+biri tam1PASS;64time olayı UI projection yayını üretmez, state/session/
+same-ID fallback surfaceGeneration ve observer release/shared playback
+korunur. Playback6 yaşam döngüsü, press5 ve31unique App case geçti.
+
+iPhone tüm Release journey **230,547s / 0 fail**. Movie upright landscape,
+unique ready-native fullWindow dört<=1pt, gerçek Pause→enabledPlay,
+aynı detay dönüşü; sol kanal paneli/seçili BBB/arama/Sintel; ilk normal,
+yeni hide/reveal ardından gerçek4s Close ve son portrait aynı-Sintel
+mini dönüşleri, üç unique mini/scoped-native ready/four1pt ve gerçek
+yeniden açılışlar; dizi/kaynak sağlığı geçti. Source29 hold dalı bu kez
+çalıştı. Bu, yeni fiziksel telefonda UHD testi değildir; süre farkının
+tamamını projection optimizasyonuna bağlayan ölçüm yapılmadı.
+
+iPad **142,598s** sonunda setup'ta `IPadFullScreenAppsPreflight.swift:103`
+Settings categoryRow cells.containing(...).allElementsBoundByIndex
+sorgusu timeout verdi. Octopus iPad journey başlamadı. Settings launch
+t6,19→66,42 idle bildirimi gelmedi; ilk navigation aramaları öğe bulmadı;
+t79,61 category sorgusu yaklaşık t131'e kadar timeout'a ulaştı.
+
+4 küçük özgün dosya2.453.748 bayt CRC/SHA bağımsız doğrulandı; Pad0PNG,
+yalnız59B query-chain TXT, Settings AX ağacı/safeUI yok. Phone06 özgünPNG
+BBB/Play/Close/Lock/Fill/Speed okunur düz zeminleri ve blur olmadığını
+gösterir. Sonra yalnız özgün Pad MP4 alındı:196.053 bayt,CRC `924d352b`,
+SHA256 `9eb638c92802d00661294f5f8993a18966ef47268cbe58c2480118b53fc64869`.
+Root bağımsız hash geçti. Önceki4 report bytes immutable yedeklendi;
+5unique toplam2.649.801 bayt. Whole ZIP/PhoneMP4/başka medya alınmadı;
+tüm30 ağ işi tamamlandı.
+
+Kayıt manifeststart09:46:15.541Z,duration130,133333s ve43sparse frame.
+Root'un gördüğü nativePTS6,338333 ve104,975 kareleri boş açık gri
+Ayarlar,statusbar ve sağaltspinner gösterir; kategori/sidebar/search
+yoktur, hesap/PII görülmez. Son encoded frame104,975;79s seek hedefi
+bu kareye atlar. Kesin query-failure anının görüntüsü iddia edilmez.
+Bu kanıt yalnız selector hatası varsayımını desteklemez; Settings UI
+örneklerde yüklenememiştir. Ürün/iPad oynatıcı hatası kanıtı yoktur.
+
+Release113756634046/whole **failure**, Signed113765279061 **skipped**;
+Build10 IPA/TestFlight/telefon kurulumu/review submit main yoktur.
+Read-only screens inspect37911685941/job113758129647SUCCESS,2064BZIP/
+11014Breport yalnız source_verified/target_inspected/completed: eski21
+7x3placement/22library image değişmedi. Kullanıcı görsel işini sonraya
+bıraktı; yeni gallery/upload/promotion yapılmaz, oynatıcı/test/kurulum
+önceliği korunur. Chrome artık authenticated; mevcut AppPrivacy NoData
+Collected beyanı görüldü, QuickSetup canlı deployment eşliği bilinmiyor.
+Sürüm bağlantısı Prepare for Submission gösterir; kullanıcının gördüğü
+gönderildi bildirimi yeni Build10 gönderim kanıtı sayılmaz.
+
+Sonraki dar UITest yalnız iPad26sim Settings public launch lifecycle'ını
+hazırlar: ilk launch/foreground15 doğrulaması ardından terminate ve tek
+yeni launch/aynıforeground15; soğuk yükleyicide hierarchy sorgusu yok.
+Mevcut mode navigation, gerçek Full Screen Apps seçimi ve diğer iki
+modun seçili olmaması, tüm player/4s hold/upright/unique-native1pt
+şartları korunur. Assertion hatasından sonra test retry veya private
+quiescence/timer/timeout artışı yoktur. Yeni Mac sonucu henüz yoktur.

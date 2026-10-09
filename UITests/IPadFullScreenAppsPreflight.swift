@@ -13,11 +13,19 @@ enum IPadFullScreenAppsPreflight {
         guard #available(iOS 26.0, *) else { return }
 
         let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
-        var stage = "launch-settings"
+        var stage = "warm-settings"
         defer {
             if settings.state != .notRunning { settings.terminate() }
         }
         do {
+            settings.launch()
+            guard settings.wait(for: .runningForeground, timeout: 15) else {
+                throw Failure(stage: stage)
+            }
+            // A cold simulator Settings launch can remain in its loading view.
+            // Warm its lifecycle once before querying any named navigation control.
+            settings.terminate()
+            stage = "launch-settings"
             settings.launch()
             guard settings.wait(for: .runningForeground, timeout: 15) else {
                 throw Failure(stage: stage)
