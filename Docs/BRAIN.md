@@ -1225,3 +1225,47 @@ PlayerScreen yaşam döngüsü ayrı uzantıya taşındı; ana View 170 satırd�
 [Apple düğme durumu](https://developer.apple.com/documentation/swiftui/buttonstyleconfiguration),
 [public XCTest basılı tutma](https://developer.apple.com/documentation/xcuiautomation/xcuicoordinate/press%28forduration%3A%29).
 Canlı backend gizlilik eşleştirmesi ve gerçek App Review gönderimi bekliyor.
+
+
+## 9 Ekim 2026 — on üçüncü aday ve basılma kaydı ömrü
+
+Son Mac'te denenen build 10 kaynağı `359873a3077f4ea3deb90bfefad70e33affc6e3d`,
+[on üçüncü tur 37861193556](https://github.com/mycrs/ios-octopus/actions/runs/37861193556):
+**733 gerçek Swift testi / 0 hata**; beş yeni basılma regresyonu dahil
+Features **237/0**, App **31/0** tamamlanmış loglardan doğrulandı. App
+job'un iptali unit adımı sonrasındadır; bütün CI gate'leri geçti denmez. iPhone Release **173,867 saniyede başarısız**;
+film duraklatma/kapanış/aynı detay ve Canlı TV mini→yatay tam ekran/native
+kare geçti. İlk `player.channels.open` eylemi line 237'de tamamlanmadı.
+23:54:20.714 dokunuş ve 20.772 synth sonrası 21.130 idle isteğinden ilk
+sonuç sorgusuna **30,64s**, ardından AX snapshot'a **30s** bekleme vardır.
+Son snapshot'lar yalnız Application içerir. Kanal merkezi (480,167;340)
+ve fiziksel dönüşümü doğru; bu kanıt tek başına main-thread döngüsünü
+kanıtlamaz. İkinci canlı 4s basılı kapatma ve iPad/Settings preflight
+**çalıştırılmadı**. 19 küçük özgün ek ve tek 307.520.539 baytlık native MP4
+CRC/SHA ile doğrulandı. Video SHA-256
+`7c505bcd7878c55239862825e1a315c41cb6e07b96d473725c79cf1679135e56`.
+Dokunma ekinin 108,405 video saniyesi çevresinde denetimler görünmez;
+110–125s içinde denetimler tekrar görünürken video ilerler ama denetim
+süresi 0:11'de kalır. Son 170,872s karesinde kanal paneli BBB seçili ve
+Sintel satırıyla görünür. İlk panel geçişi 140,048–140,310s aralığında,
+yani dokunma ekinden yaklaşık 31,6–31,9s sonradır; ilk AX retry/snapshot
+23:54:53.017 zamanı bu sınırla eşleşir. Crash/SpringBoard/yükleniyor
+kesintisi görünmez. Bu nedenle panelin hiç açılmadığı veya yalnız
+kaçırılmış dokunma olduğu sonucu çıkarılmaz; belirgin UI/AX gecikmesi
+vardır, kesin mekanizma doğrulanmadı. Başarılı 20 PNG paketi yok.
+
+Release zaten başarısızken kalan DEBUG görsel adımı 9 Ekim 03:03 TR'de
+iptal edildi; App unit adımı daha önce başarılıydı. Run/App görsel gate
+ve imzalı iş **cancelled**, Release **failure**; tamamı geçti denmez.
+Yeni IPA, TestFlight yüklemesi, telefon kurulumu veya App Review gönderimi yok.
+
+Yeni yerel düzeltme, basılma kayıtlarını non-Observable bir referansta
+korur. `@State` içindeki Set değerine her disappearance cleanup'ta
+mutating writeback ile dış PlayerScreen'i yeniden çizdirme kaldırıldı;
+UUID/süre/örtüşen basılma ve son release sözleşmesi aynıdır. Hosted overlay
+snapshot'ıyla gereksiz yeniden çizim geri besleme riski kodda somuttur;
+bunun son native takılmanın kesin nedeni olduğu henüz söylenemez.
+Denetim basılması ile panel request/appear/scroll begin/end için yalnız
+altı sabit, kullanıcı içeriği içermeyen log eklendi. Collector fullmatch
+şeması ve **28 privacy testi** geçti; adres/başlık/token/ID suffix'leri
+reddedilir. Bu referans düzeltmesi henüz Mac'te denenmedi.

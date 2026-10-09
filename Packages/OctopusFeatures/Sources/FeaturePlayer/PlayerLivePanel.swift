@@ -1,6 +1,7 @@
 import SwiftUI
 import OctopusDomain
 import OctopusDesignSystem
+import OctopusCore
 
 /// Yerel, ebeveyn filtresinden geçmiş kanal listesini video üstünde gösterir.
 struct PlayerLivePanel: View {
@@ -29,6 +30,7 @@ struct PlayerLivePanel: View {
             RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.12), lineWidth: 0.5)
         }
         .tint(Theme.Palette.accent)
+        .onAppear { Log.ui.info("Player channel panel appeared") }
     }
 
     private var header: some View {
@@ -173,7 +175,9 @@ struct PlayerLivePanel: View {
     private func scrollToCurrent(_ proxy: ScrollViewProxy) {
         guard searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let currentSource, filteredChannels.contains(where: { $0.id == currentSource }) else { return }
+        Log.ui.info("Player channel panel scroll begin")
         proxy.scrollTo(currentSource, anchor: .center)
+        Log.ui.info("Player channel panel scroll end")
     }
 
     private func nextProgramSummary(_ program: EPGProgram) -> some View {

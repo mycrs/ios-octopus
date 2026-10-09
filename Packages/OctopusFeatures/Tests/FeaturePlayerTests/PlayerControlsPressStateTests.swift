@@ -4,7 +4,7 @@ import XCTest
 
 final class PlayerControlsPressStateTests: XCTestCase {
     func test_buttonReleaseRestartsTimerOnlyAfterAnActualPress() {
-        var state = PlayerControlsPressState()
+        let state = PlayerControlsPressState()
         let id = UUID()
         XCTAssertFalse(state.isPressed)
         XCTAssertFalse(state.end(id))
@@ -15,7 +15,7 @@ final class PlayerControlsPressStateTests: XCTestCase {
     }
 
     func test_overlappingControlsRemainProtectedUntilBothRelease() {
-        var state = PlayerControlsPressState()
+        let state = PlayerControlsPressState()
         let close = UUID(), playback = UUID()
         state.begin(close)
         state.begin(playback)
@@ -26,7 +26,7 @@ final class PlayerControlsPressStateTests: XCTestCase {
     }
 
     func test_repeatedPressNotificationsDoNotRequireMultipleReleases() {
-        var state = PlayerControlsPressState()
+        let state = PlayerControlsPressState()
         let id = UUID()
         state.begin(id)
         state.begin(id)
@@ -36,7 +36,7 @@ final class PlayerControlsPressStateTests: XCTestCase {
     }
 
     func test_disappearanceOfAnUnpressedControlCannotReleaseAnotherPress() {
-        var state = PlayerControlsPressState()
+        let state = PlayerControlsPressState()
         let held = UUID()
         state.begin(held)
         XCTAssertFalse(state.end(UUID()))
@@ -45,7 +45,7 @@ final class PlayerControlsPressStateTests: XCTestCase {
     }
 
     func test_lateReleaseFromOldControlCannotEndItsReplacement() {
-        var state = PlayerControlsPressState()
+        let state = PlayerControlsPressState()
         let old = UUID(), replacement = UUID()
         state.begin(old)
         XCTAssertTrue(state.end(old))

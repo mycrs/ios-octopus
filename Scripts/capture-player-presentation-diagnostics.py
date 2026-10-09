@@ -11,7 +11,8 @@ import time
 
 PREFIXES = ("Player dismissal +2s", "Player dismissal tabSelection",
             "Player orientation request failed", "Player orientation request state",
-            "Player orientation rejection state")
+            "Player orientation rejection state", "Player controls pressed=",
+            "Player channel panel")
 PREDICATE = ('process == "Octopus" AND subsystem == "com.octopus.iptv" '
              'AND category == "ui" AND (' + ' OR '.join(
                  f'eventMessage BEGINSWITH "{prefix}"' for prefix in PREFIXES) + ')')
@@ -25,6 +26,8 @@ PROPERTIES = ("position", "bounds", "bounds.origin", "bounds.size", "opacity", "
               "transform.scale", "transform.rotation", "backgroundColor", "cornerRadius", "path")
 PROPERTY = "(?:" + "|".join(re.escape(value) for value in PROPERTIES) + ")"
 MESSAGES = tuple(re.compile(pattern) for pattern in (
+    r"Player controls pressed=[01]",
+    r"Player channel panel (?:requested|appeared|scroll begin|scroll end)",
     r"Player dismissal tabSelection from=-?\d+ to=-?\d+",
     r"Player orientation request failed; code=-?\d+",
     r"Player dismissal \+2s phoneHit=none",

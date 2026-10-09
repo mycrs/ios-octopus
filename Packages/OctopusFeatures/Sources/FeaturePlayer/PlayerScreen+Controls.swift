@@ -2,6 +2,7 @@ import SwiftUI
 import OctopusDomain
 import OctopusDesignSystem
 import OctopusPlayback
+import OctopusCore
 
 /// Oynatıcı denetimlerinin bağlanması ve görünürlüğü.
 ///
@@ -87,6 +88,7 @@ extension PlayerScreen {
                         showsControls = false
                     },
                     onShowLivePanel: {
+                        Log.ui.info("Player channel panel requested")
                         hideControlsTask?.cancel()
                         showsControls = false
                         isShowingLivePanel = true
@@ -126,10 +128,13 @@ extension PlayerScreen {
         if isPressed {
             controlsPressState.begin(id)
             hideControlsTask?.cancel()
-        } else if controlsPressState.end(id), showsControls,
-                  isCurrentPlayerPresentation, !isControlsLocked,
-                  !isShowingLivePanel, trackPickerFocus == nil {
-            scheduleControlsHide()
+            Log.ui.info("Player controls pressed=1")
+        } else if controlsPressState.end(id) {
+            Log.ui.info("Player controls pressed=0")
+            if showsControls, isCurrentPlayerPresentation, !isControlsLocked,
+               !isShowingLivePanel, trackPickerFocus == nil {
+                scheduleControlsHide()
+            }
         }
     }
 

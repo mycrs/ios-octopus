@@ -154,6 +154,50 @@ class DiagnosticTests(unittest.TestCase):
                     "Player dismissal tabSelection from=-1 to=3"]
         self.assertEqual(len(collector.filtered_lines("".join(event(value) for value in messages))), 6)
 
+    def test_fixed_press_and_panel_stages_are_retained_exactly(self):
+        messages = ["Player controls pressed=0", "Player controls pressed=1",
+                    "Player channel panel requested", "Player channel panel appeared",
+                    "Player channel panel scroll begin", "Player channel panel scroll end"]
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in messages)),
+                         ["2026-10-08 14:10:20.123 " + value for value in messages])
+
+    def test_press_and_panel_stages_reject_dynamic_suffixes_and_unapproved_values(self):
+        messages = ["Player controls pressed=0", "Player controls pressed=1",
+                    "Player channel panel requested", "Player channel panel appeared",
+                    "Player channel panel scroll begin", "Player channel panel scroll end"]
+        invalid = [message + suffix for message in messages for suffix in
+                   (" ", " id=private-id", " title=Private channel", " token=secret",
+                    " url=https://provider/user/password/stream.ts", " pressed=0")]
+        invalid.extend("Player controls pressed=" + value for value in
+                       ("2", "-1", "true", "false", "01", "1.0", "١", "NaN"))
+        invalid.extend(["Player channel panel selected", "Player channel panel scroll",
+                        "Player channel panel Scroll begin", "Player channel panel appeared=1",
+                        "Player channel panel https://provider/user/password"])
+        self.assertEqual(collector.filtered_lines("".join(event(value) for value in invalid)), [])
+
+    def test_press_and_panel_stages_reject_other_process_and_category(self):
+        messages = ["Player controls pressed=1", "Player channel panel appeared"]
+        invalid = "".join(event(value, process="OtherApp") + event(value, category="network")
+                          for value in messages)
+        self.assertEqual(collector.filtered_lines(invalid), [])
+
+    def test_archive_recovery_keeps_only_fixed_press_panel_messages(self):
+        messages = ["Player controls pressed=0", "Player controls pressed=1",
+                    "Player channel panel requested", "Player channel panel appeared",
+                    "Player channel panel scroll begin", "Player channel panel scroll end"]
+        self.log = "".join(event(value) + event(value + " id=https://provider/user/password")
+                           for value in messages)
+        self.collect()
+        expected = sorted("2026-10-08 14:10:20.123 " + value for value in messages)
+        self.assertEqual(self.output.read_text(encoding="utf-8"), "\n".join(expected) + "\n")
+        calls = [call for call in self.calls if "--archive" in call]
+        self.assertEqual(len(calls), 1)
+        predicate = calls[0][calls[0].index("--predicate") + 1]
+        self.assertIn('eventMessage BEGINSWITH "Player controls pressed="', predicate)
+        self.assertIn('eventMessage BEGINSWITH "Player channel panel"', predicate)
+        self.assertFalse(any(path.exists() for path in self.exported))
+        self.assertEqual(list(self.output.parent.iterdir()), [self.output])
+
     def test_orientation_state_retains_only_complete_ordered_numeric_records(self):
         messages = [
             "Player orientation request state requested=24 orientation=1 locked=0 appMask=24 rootMask=30 presentedMask=24 width=1032.000000 height=1376.000000",
