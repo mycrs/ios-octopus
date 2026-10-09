@@ -279,11 +279,12 @@ final class ReviewJourneyTests: XCTestCase {
 
     private func revealAndTapPlayerButton(_ identifier: String, pressDuration: TimeInterval = 0) {
         for _ in 0..<3 {
-            if playerActionCompleted(identifier) { return }
             guard let window = observedContentWindow(in: app) else { continue }
-            let observed = refreshPlayerControls(identifier, window: window)
-            if let frame = playerButtonFrame(identifier, window: window, observed: observed),
-               tapObservedPlayerButton(frame, window: window.element, windowFrame: window.frame,
+            if playerActionCompleted(identifier, window: window) { return }
+            guard let controlWindow = windowForPlayerControlPress(window, pressDuration: pressDuration) else { continue }
+            let observed = refreshPlayerControls(identifier, window: controlWindow)
+            if let frame = playerButtonFrame(identifier, window: controlWindow, observed: observed),
+               tapObservedPlayerButton(frame, window: controlWindow.element, windowFrame: controlWindow.frame,
                                        pressDuration: pressDuration) {
                 if identifier == "player.playPause" {
                     // Tap delivery is not action completion. The caller's mandatory
@@ -299,7 +300,7 @@ final class ReviewJourneyTests: XCTestCase {
         XCTFail("Oynatıcı denetiminin işlemi tamamlanmalı: \(identifier)")
     }
 
-    private func playerActionCompleted(_ identifier: String) -> Bool {
+    private func playerActionCompleted(_ identifier: String, window: ContentWindow? = nil) -> Bool {
         switch identifier {
         case "player.playPause":
             let button = app.buttons[identifier]
@@ -307,7 +308,7 @@ final class ReviewJourneyTests: XCTestCase {
         case "player.channels.open":
             return app.buttons["player.channels.close"].exists
         case "player.close":
-            guard let frame = observedContentWindow(in: app)?.frame else { return false }
+            guard let frame = (window ?? observedContentWindow(in: app))?.frame else { return false }
             let mini = app.descendants(matching: .any)
                 .matching(identifier: "live.miniPlayer").firstMatch
             guard frame.height > frame.width, mini.exists else { return false }
@@ -347,6 +348,18 @@ final class ReviewJourneyTests: XCTestCase {
         if let frame = observedPlayerButtonFrame(identifier, window: window) { return frame }
         window.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
         return nil
+    }
+
+    private func windowForPlayerControlPress(
+        _ window: ContentWindow, pressDuration: TimeInterval
+    ) -> ContentWindow? {
+        guard pressDuration > 0 else { return window }
+        // Expansion's controls may expire while XCTest reads geometry. Use a
+        // real background touch before the hold, then observe the current window.
+        // If that touch hid the controls, refreshPlayerControls reveals them.
+        // Delivery still needs the unchanged action and native-return assertions.
+        window.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
+        return observedContentWindow(in: app)
     }
 
     /// Carry the same snapshot geometry into the real tap. Only the unchanged

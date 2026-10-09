@@ -1735,3 +1735,63 @@ association fresh GET ile tekrar doğrulanır. Belirsiz PATCH retry edilmez;
 yalnız bounded GET ile gözlenen exact queued/date proof gerçek gönderilmiş
 durumu kaydeder. AFTER_APPROVAL korunur. Gerçek prerequisite attestation
 henüz yoktur; final job dispatch veya Apple gönderimi yapılmadı.
+
+
+## 9 Ekim 2026 — yirmi altıncı aday: iPhone geçti, iPad uzun basış tanısı
+
+Kaynak `5e2731f7bf90eb259237824c3ee933916da2c3a3`,
+[37891820602](https://github.com/mycrs/ios-octopus/actions/runs/37891820602):
+altı gerçek unit işi **738/0** (84/80/11/295/237/31), frozen job kimlikleri,
+özgün log SHA ve dokuz Features suite sayımı bağımsız doğrulandı.
+Üretim kodu değişmedi; aynı content Window snapshot'ında denetim arayan
+UITest gerçek Mac Release derlemesinde çalıştı.
+
+iPhone inceleme akışı **311,352s / 0 fail**: film native-ready/aynı Window
+<=1pt sınırlar, dik cihazda zorunlu yatay, gerçek Pause ardından Play+enabled,
+aynı film detayına Kapat dönüşü; canlı sol kanal paneli/seçili BBB/arama ve
+Sintel'e geçiş, ilk Kapat ile aynı miniye dönüş, ikinci 4s gerçek basış,
+mini native <=1pt/üçüncü gerçek mini dokunuşu ve son Kapat; dizi ve kaynak
+sağlığı adımları geçti. Bu simülatör sonucu yeni fiziksel UHD testinin
+yerine geçmez.
+
+iPad **259,872s** ile `ReviewJourneyTests.swift:299` bounded `player.close`
+action outcome hatası verdi. Public Settings ön kontrolü Full Screen Apps'i
+doğruladı. Film ve ilk canlı panel/kanal geçişi, ilk Kapat/portrait/aynı
+Sintel mini native-ready geçti. İkinci açılışta Window1376x1032/native-ready
+geçti; 4s basışın ilk event sentezi t217,90s, ikincisi t233,17s. İkinci
+gözlenen hazır denetimden event sentezine >3,5s gecikme vardır. Bu kayıt
+tek başına görünür Kapat düğmesine dokunulduğunu veya handler hatasını
+kanıtlamaz. Üçüncü reveal sonrasında gerçek üçüncü Close basışı yoktur.
+
+16 küçük özgün dosyanın CRC/SHA'sı doğrulandı. İki cihazın movie06-player
+PNG'si bağımsız görsel okumada native video ve okunaklı düz kontrol
+plakaları gösterir; blur görülmez. Bunlar failing Live basışından öncedir.
+Son AX kaydı yalnız Application root; safe UIKit logu ilk başarılı
+dismissal ve ikinci landscape request'i gösterir. Tek özgün iPad MP4
+429.025.914 bayt; CRC `20d6182d`, SHA256
+`5c97df1e5a6fc31a951821bdf967138aa671cf5a366cb45da867885c3b086783`
+bağımsız doğrulandı. İlk basış çevresinde bütün overlay PTS216,428333'te
+görünür, 216,49'da birlikte solar ve 216,761667'de yoktur. Manifest başlangıcına
+göre eşlenen event-synthesis PTS216,483599 bu sınırdadır; teslim edilmiş
+Close button-down kanıtlanmaz. İkinci basışta overlay PTS231,178333'te,
+eşlenen synthesis231,752879'dan önce zaten yoktur. Film ilerler, dismissal
+yoktur. Üretim handler hatası bu görüntülerden kurulamaz. Tüm26 ağ işi
+tamamlandı; whole ZIP veya iPhone MP4 indirilmedi.
+
+Whole run/Release **failure**, Signed113700756566 **skipped**. Build10
+paketi, TestFlight yüklemesi, telefon kurulumu ve review gönderimi yoktur.
+Başarısız kaynağın görselleri mağazaya taşınmadı. Ayrı özel final dispatch
+controller'ın 20 sahte yanıtlı testi ve bağımsız root incelemesi geçti;
+gerçek prerequisite belgesi, token/API/USB veya dispatch çalıştırılmadı.
+
+
+Sonraki dar UITest yalnız 4s basış dalında güvenli Window(.65,.24) noktasına
+gerçek dokunur ve taze bağımsız current Window snapshot'ı alır. Denetim
+yoksa mevcut gerçek reveal yolu çalışır; unique/enabled/finite/in-window
+frame aynı Window uzayında gerçek 4s basışa taşınır. İlk Close outcome
+okuması aynı başlangıçWindow'u kullanır, fazladan AX turu azalır. 3 deneme,
+2s readiness/outcome, gerçek 4s basış, same-mini/native1pt/portrait/üçüncü
+gerçek mini dokunuşu zorunludur. Üretim timer'ı, pause davranışı, private
+driver ayarı ve timeout değişmedi. Statik Swift syntax ve mimari kontrol,
+iki bağımsız diff/plan incelemesi geçti; yeni Mac sonucu henüz yoktur.
+Driver'ın sonradan yine gecikmesi bu düzeltmeyle garanti olarak elenmez.
