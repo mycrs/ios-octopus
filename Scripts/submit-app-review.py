@@ -76,7 +76,7 @@ def validate_attestation(text, expected_hash, run, sha, notes_hash, now=None):
             "The reviewed prerequisite attestation hash differs")
     proof = json.loads(text, object_pairs_hook=unique_json_fields)
     exact_keys(proof, ("schema", "source_run", "source_sha", "build", "verified_at_utc", "device", "privacy", "preparation", "screenshots"))
-    require(type(proof["schema"]) is int and proof["schema"] == 1 and
+    require(type(proof["schema"]) is int and proof["schema"] in {1, 2} and
             type(proof["source_run"]) is int and proof["source_run"] == run and
             proof["source_sha"] == sha and proof["build"] == prep.BUILD, "Prerequisite attestation belongs to another source or build")
     verified = prep.timestamp(proof["verified_at_utc"])
@@ -88,11 +88,22 @@ def validate_attestation(text, expected_hash, run, sha, notes_hash, now=None):
     device_flags = ("installed_build_verified", "uhd_picture_audio_verified", "normal_picture_audio_verified",
                     "fullscreen_return_verified", "saved_data_preserved_verified", "upright_landscape_verified",
                     "player_channel_panel_verified", "no_home_or_orphan_audio_verified")
-    exact_keys(device, ("receipt_sha256", "source_association", "install_completion", *device_flags))
-    hash_value(device["receipt_sha256"])
-    require(device["source_association"] == "verified_same_device_build10_to12_upgrade_chain" and
-            device["install_completion"] == "Complete" and
-            all(device[key] is True for key in device_flags), "Actual source-associated device and playback checks are required")
+    if proof["schema"] == 1:
+        exact_keys(device, ("receipt_sha256", "source_association", "install_completion", *device_flags))
+        hash_value(device["receipt_sha256"])
+        require(device["source_association"] == "verified_same_device_build10_to12_upgrade_chain" and
+                device["install_completion"] == "Complete" and
+                all(device[key] is True for key in device_flags), "Actual source-associated device and playback checks are required")
+    else:
+        exact_keys(device, ("mode", "physical_device_tested", "user_waived_physical_device_tests", "automated_ci"))
+        require(device["mode"] == "automated_ci_with_explicit_user_waiver" and
+                device["physical_device_tested"] is False and device["user_waived_physical_device_tests"] is True,
+                "Physical device tests require an explicit user waiver and an honest untested state")
+        automated = device["automated_ci"]
+        exact_keys(automated, ("run_id", "sha", "required_jobs_passed", "testflight_upload_passed"))
+        require(type(automated["run_id"]) is int and automated["run_id"] == run and automated["sha"] == sha and
+                type(automated["required_jobs_passed"]) is int and automated["required_jobs_passed"] == len(shared.REQUIRED_JOBS) + 1 and
+                automated["testflight_upload_passed"] is True, "Waived device tests require the exact successful automated CI source")
     privacy = proof["privacy"]
     exact_keys(privacy, ("evidence_sha256", "deployment_equivalence_verified", "store_disclosures_verified"))
     hash_value(privacy["evidence_sha256"])
@@ -471,6 +482,15 @@ def main():
             args.source_run, args.source_sha, args.expected_notes_sha256)
         source, window = verify_source(shared.GitHubAPI(os.environ["GITHUB_TOKEN"]), args.source_run, args.source_sha)
         require(prep.timestamp(attestation["verified_at_utc"]) >= window[1], "Actual prerequisite verification must follow the signed source upload")
+        if attestation["schema"] == 2:
+            automated = attestation["device"]["automated_ci"]
+            require(automated == {key: source[key] for key in automated},
+                    "Waived device tests differ from freshly verified automated CI evidence")
+            report["device_validation"] = {"mode": "automated_ci_with_explicit_user_waiver",
+                "physical_device_tested": False, "user_waived_physical_device_tests": True, "automated_ci": automated}
+        else:
+            report["device_validation"] = {"mode": "physical_device_tested", "physical_device_tested": True,
+                                           "user_waived_physical_device_tests": False}
         report["source"], report["attestation_sha256"] = source, args.attestation_sha256
         record({"event": "real_prerequisites_and_source_verified", "utc": utc_now().isoformat()})
         if args.source_only:

@@ -2650,3 +2650,34 @@ ve normalized uploadedDate eşleşmezse reddedilir. Bu bir root inceleme
 kaydının kullanımıdır; çalışma anında log hash'i doğrulandığı iddia edilmez.
 Diğer yayınlar ve receiptsiz çağrılar önceki±2dk kuralında kalır. Hiçbir cihaz,
 gizlilik, görsel veya nihai inceleme kapısı bu eşleme nedeniyle atlanmaz.
+
+
+### 9 Ekim — Build 12 Apple incelemesine yeniden gönderildi
+
+Kullanıcı son mesajında canlı cihaz testi istemediğini açıkça bildirdi ve
+gönderimi istedi. Build12 fiziksel telefona kurulmadı/yeniden test edilmedi.
+785 birim testi ve iPhone/iPad simülatör inceleme akışları başarılı Source44
+d46d7cffaeb00ac1ae05a7ff2c5eed06d873280c / run37971367071 kullanıldı.
+submit-app-review schema2 açık kullanıcı test feragatini physical_device_tested=false
+olarak kaydeder; aynı kaynak CI başarısı taze doğrulanır. Schema1 fiziksel
+kanıt yolu ve gizlilik/görsel/metadata koşulları korunur.44gönderim testi,
+mimari, derleme/saf import ve bağımsız dar inceleme başarılıdır.
+
+Kullanıcının yüklediği canlı gizlilik sayfası HTTP200 /23056bayt ve SHA256
+7a01c357874dbdaad239f802de422966c7629c24be760f3c14080992f2b49505 ile
+yerel dist'e birebir eşleşir. App Store gizlilik etiketlerinin yayınlandığı
+UI tekrar görüldü. Önceki 'henüz yüklenmedi' kayıtları tarihsel kalır.
+
+Kullanıcının boş gördüğü mağaza alanı, 12ekran görüntüsünden ayrı yeni
+Header alanıdır. 3840x1646 özgün marka başlığı mevcut Octopus logosu ve
+SVG düzeniyle üretildi, Apple'a yüklendi, 1/1 ve ürün sayfası önizlemesinde
+görüldü. Kaynak/PNG .artifacts/store-header12 içinde; önizleme
+.artifacts/app-store-header12-preview.jpg.6iPhone+6iPad nativegörsel korundu.
+
+App Store Connect UI: Update Review → Build12 Ready for Review → tek
+Resubmit to App Review.9Ekim22:45Europe/Istanbul'da aynı inceleme
+c9a07540-8d84-4832-8000-d1b6c632a343 ve 1.0.0(12) WAITING_FOR_REVIEW
+görüldü. Otomatik onay sonrası yayın ayarı korundu. Onay henüz yoktur.
+Yeni API gönderim workflow'u çalıştırılmadı; tekrar gönderim gerekmiyor.
+Kanıtlar: .artifacts/review12-ui-submission-prerequisites.json,
+review12-ui-submission-events.json ve app-store-build12-waiting-for-review.jpg.

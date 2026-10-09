@@ -52,6 +52,15 @@ def attestation():
             "screenshots": {"inspection_report_sha256": "e" * 64, "images": images}}
 
 
+def waived_attestation(proof=None):
+    proof = copy.deepcopy(proof or attestation())
+    proof["schema"] = 2
+    proof["device"] = {"mode": "automated_ci_with_explicit_user_waiver", "physical_device_tested": False,
+        "user_waived_physical_device_tests": True, "automated_ci": {"run_id": proof["source_run"], "sha": proof["source_sha"],
+        "required_jobs_passed": 9, "testflight_upload_passed": True}}
+    return proof
+
+
 def catalog():
     shared = review.shared
     result = {"features": [{"featureId": "APP_STORE_VERSIONS", "placementPolicies": [{"placementType": "APP_SCREENSHOT",
@@ -174,6 +183,34 @@ class AttestationTests(unittest.TestCase):
 
     def test_exact_synthetic_proof_accepts_all_real_device_requirements(self):
         self.assertEqual(self.validate(attestation()), attestation())
+
+    def test_explicit_waiver_accepts_honest_untested_state_bound_to_exact_automated_source(self):
+        proof = waived_attestation()
+        self.assertEqual(self.validate(proof), proof)
+        self.assertFalse(proof["device"]["physical_device_tested"])
+        self.assertTrue(set(FLAGS).isdisjoint(proof["device"]))
+        for mutation in (lambda p: p.update(schema=1), lambda p: p["device"].update(physical_device_tested=True),
+                         lambda p: p["device"].update(physical_device_tested=0),
+                         lambda p: p["device"].update(user_waived_physical_device_tests=False),
+                         lambda p: p["device"].update(user_waived_physical_device_tests=1),
+                         lambda p: p["device"].update(installed_build_verified=True),
+                         lambda p: p["device"]["automated_ci"].update(run_id=RUN + 1),
+                         lambda p: p["device"]["automated_ci"].update(sha="f" * 40),
+                         lambda p: p["device"]["automated_ci"].update(required_jobs_passed=8),
+                         lambda p: p["device"]["automated_ci"].update(required_jobs_passed=9.0),
+                         lambda p: p["device"]["automated_ci"].update(testflight_upload_passed=1)):
+            proof = waived_attestation(); mutation(proof)
+            with self.assertRaises(review.SafeError): self.validate(proof)
+
+    def test_waiver_does_not_replace_privacy_preparation_native_screenshot_or_freshness_proof(self):
+        for mutation in (lambda p: p["privacy"].update(store_disclosures_verified=False),
+                         lambda p: p["privacy"].update(deployment_equivalence_verified=False),
+                         lambda p: p["preparation"].update(metadata_verified=False),
+                         lambda p: p["preparation"].update(export_compliance_verified=False),
+                         lambda p: p["screenshots"]["images"].pop(),
+                         lambda p: p.update(verified_at_utc="2026-10-06T20:45:00Z")):
+            proof = waived_attestation(); mutation(proof)
+            with self.assertRaises(review.SafeError): self.validate(proof)
 
     def test_build12_requires_new_same_device_upgrade_and_explicit_complete(self):
         self.assertEqual(review.prep.BUILD, "12")
@@ -505,6 +542,46 @@ class SubmissionTests(unittest.TestCase):
 
 
 class MainGateTests(unittest.TestCase):
+    def test_waiver_main_checks_fresh_ci_before_apple_and_durably_records_honest_state(self):
+        for outcome in ("success", "failed-ci", "mismatched-live-proof"):
+            proof, apple, window, receipt = reviewed_submission(); proof = waived_attestation(proof)
+            github = fixtures.reviewed_github()
+            github.jobs.append({"name": "İşlem modlarını doğrula", "run_id": proof["source_run"], "head_sha": proof["source_sha"],
+                                "status": "completed", "conclusion": "success"})
+            if outcome == "failed-ci": github.jobs[0]["conclusion"] = "failure"
+            original_verify = review.verify_source
+            def verify(api, run, sha):
+                source, current_window = original_verify(api, run, sha)
+                if outcome == "mismatched-live-proof": source["required_jobs_passed"] = 8
+                return source, current_window
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); text = json.dumps(proof); (root / "proof.json").write_text(text)
+                args = ["tool", "--source-run", str(proof["source_run"]), "--source-sha", proof["source_sha"],
+                        "--expected-notes-sha256", NOTES_HASH, "--attestation", str(root / "proof.json"),
+                        "--attestation-sha256", review.digest(text), "--key-path", str(root / "never-read.p8"), "--report", str(root / "report.json")]
+                def before_mutation(route):
+                    durable = json.loads((root / "report.json").read_text())["device_validation"]
+                    self.assertFalse(durable["physical_device_tested"])
+                    self.assertTrue(durable["user_waived_physical_device_tests"])
+                    self.assertTrue(set(FLAGS).isdisjoint(durable))
+                apple.on_mutation = before_mutation
+                with patch("sys.argv", args), patch.dict(os.environ, {"GITHUB_TOKEN": "unused-private-token"}), \
+                     patch.object(review, "utc_now", return_value=datetime(2026, 10, 9, 20, tzinfo=timezone.utc)), \
+                     patch.object(review, "ORIGINAL_NOTES_SHA256", fixtures.ORIGINAL_HASH), \
+                     patch.object(review, "verify_source", side_effect=verify), \
+                     patch.object(review.shared, "GitHubAPI", return_value=github), \
+                     patch.object(review, "SubmissionAppleAPI", return_value=apple) as constructor, patch("sys.stdout", new=io.StringIO()):
+                    self.assertEqual(review.main(), 0 if outcome == "success" else 1)
+                result = json.loads((root / "report.json").read_text())
+            if outcome == "success":
+                constructor.assert_called_once()
+                self.assertTrue(result["submitted"])
+                self.assertFalse(result["device_validation"]["physical_device_tested"])
+                self.assertEqual(len(apple.mutations()), 2)
+            else:
+                constructor.assert_not_called(); self.assertFalse(result["submitted"])
+                self.assertFalse(apple.mutations())
+
     def test_main_routes_reviewed_receipt_from_live_source_without_accepting_a_receipt_input(self):
         proof, apple, window, receipt = reviewed_submission()
         github = fixtures.reviewed_github()
