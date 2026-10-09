@@ -21,6 +21,69 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(controller.engineIdentifier, "native")
     }
 
+    // MARK: - Oynatma niyeti
+
+    func test_toggleWhileBuffering_pausesActiveRequestAndCanResume() async {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+        await controller.start(makeItem())
+        native.emit(.stateChanged(.playing))
+        native.emit(.stateChanged(.buffering))
+        let buffering = await waitUntil { controller.state == .buffering }
+        XCTAssertTrue(buffering)
+
+        await controller.togglePlayPause()
+
+        XCTAssertEqual(native.pauseCount, 1, "Buffering must not turn a pause request into another play")
+        XCTAssertEqual(native.playCount, 1)
+
+        // The engine may still report buffering before its pause event arrives.
+        // A second explicit toggle now resumes the cancelled request.
+        await controller.togglePlayPause()
+
+        XCTAssertEqual(native.pauseCount, 1)
+        XCTAssertEqual(native.playCount, 2)
+        await controller.finish()
+    }
+
+    func test_toggleWhileLoading_preventsPendingLoadFromStartingPlayback() async {
+        let native = TestEngine(identifier: "native")
+        let gate = SuspendedLoad()
+        defer { gate.release() }
+        native.beforeLoad = { await gate.suspend() }
+        let controller = makeController(native: native)
+        let opening = Task { await controller.start(makeItem()) }
+        await fulfillment(of: [gate.entered], timeout: 30)
+        XCTAssertEqual(controller.state, .loading)
+        XCTAssertEqual(native.loadedItems.count, 1)
+
+        await controller.togglePlayPause()
+
+        XCTAssertEqual(native.pauseCount, 1)
+        XCTAssertEqual(native.playCount, 0)
+        gate.release()
+        await opening.value
+        XCTAssertEqual(native.playCount, 0, "A cancelled play request must remain cancelled when load completes")
+        await controller.finish()
+    }
+
+    func test_toggleWhilePaused_resumesWithoutReloading() async {
+        let native = TestEngine(identifier: "native")
+        let controller = makeController(native: native)
+        await controller.start(makeItem())
+        controller.pause()
+        native.emit(.stateChanged(.paused))
+        let paused = await waitUntil { controller.state == .paused }
+        XCTAssertTrue(paused)
+
+        await controller.togglePlayPause()
+
+        XCTAssertEqual(native.pauseCount, 1)
+        XCTAssertEqual(native.playCount, 2)
+        XCTAssertEqual(native.loadedItems.count, 1)
+        await controller.finish()
+    }
+
     // MARK: - Kaldığı yerden devam
 
     func test_start_appliesSavedPosition() async {

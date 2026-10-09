@@ -494,7 +494,9 @@ public final class PlayerController: ObservableObject {
             return
         }
 
-        if state == .playing {
+        // Buffering/loading may still own a pending play request. A toggle
+        // cancels it so readiness cannot restart playback after the pause.
+        if state == .playing || (state.showsSpinner && playbackRequested) {
             pause()
         } else {
             play()

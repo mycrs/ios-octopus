@@ -1485,3 +1485,44 @@ hatası için değiştirilmez.
 Release **failure**; Build 10 IPA, TestFlight yüklemesi, telefon kurulumu
 veya App Review gönderimi yok. Yeni test kaynağı Mac doğrulaması bekler;
 gerçek tam iPhone PASS ve kısmi iPad kanıtı ayrı ayrı korunur.
+
+
+## 9 Ekim 2026 — yirminci aday: gerçek pause görüntüsü ve bağımsız buffering yarışı
+
+Son Mac'te denenen build 10 kaynağı `faf7793e9c410c74e100ff2e7ffcc4a8def1cda5`,
+[yirminci tur 37877568288](https://github.com/mycrs/ios-octopus/actions/runs/37877568288):
+**734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı unit job başarılıdır; ham log
+sayımı, tam kaynak/job kimlikleri ve hash indeksi bağımsız doğrulandı.
+
+iPhone native-ready, dik cihazda yatay kilit ve native 1pt tam ekran
+sınırlarını geçti. Test **78,787s** sonunda `ReviewJourneyTests.swift:283`
+satırında `player.playPause` sonucunu okuyamadı. Gerçek düğme merkezine
+dokunuldu ve UIKit logunda 63ms pressed=1→0 kaydı var. Son iki AX dump
+yalnız boş Application içerir; görünür Play veya enabled bu AX'dan çıkmaz.
+CRC/SHA doğrulanmış tek özgün MP4 (82.251.479 bayt) son görüntülerde
+**Play üçgeni ve 0:17** gösterir. Görsel duraklama gerçekleşmiştir; bu,
+başarısız XCTest assertion'ını PASS yapmaz. Kayıt 57,935s ile biter ve
+son PTS kümesinde kısa geri gidiş vardır; seek hedefi kesin kare zamanı
+sayılmaz. Sonraki +1/+3/+8/+12s görüntü, enabled değeri veya uzun süreli
+pause bu kayıtta kanıtlanmadı. Film kapanışı, canlı mini ve iPad çalışmadı.
+Window.snapshot API derlendi ve erişilen geometri kontrollerini geçti;
+iPad'deki kaybolan Window yarışını çözdüğü bu turda henüz doğrulanmadı.
+
+Yeni dar test düzenlemesi gerçek Pause dokunuşundan sonra çağıranın
+mevcut 10s `Play + enabled` assertion'ını çalıştırır. Kanal/kapanış,
+4s gerçek basılı tutma, mini native-ready/1pt, üçüncü gerçek mini dokunuşu
+ve bütün orientation koşulları korunur; gerçek yeni Mac sonucu beklenir.
+
+Bağımsız kod denetimi, aktif loading/buffering sırasında toggle'ın yeniden
+play çağırabildiğini buldu. Üretim düzeltmesi bu durumda bekleyen oynatma
+isteğini pause ile iptal eder; paused resume ve ended VOD yeniden başlatma
+korunur. Üç deterministik regresyon eklendi: buffering pause/resume,
+askıdaki load bitince otomatik play'in önlenmesi ve paused resume.
+Bu yeni testlerin Mac sonucu henüz yoktur; beklenen sayı Playback 79 ve
+toplam 737'dir. Bu ayrı yarış, 20. turdaki görsel olarak gerçekleşmiş
+pause'un kök nedeni olarak sunulmaz.
+
+Whole run ve Release **failure**, imzalı job **skipped**. Build 10 IPA,
+TestFlight yüklemesi, telefon kurulumu veya App Review gönderimi yok.
+19. turun tam iPhone PASS ve kısmi iPad kanıtı aşağıda korunur.

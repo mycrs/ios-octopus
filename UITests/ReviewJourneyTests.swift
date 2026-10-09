@@ -274,6 +274,11 @@ final class ReviewJourneyTests: XCTestCase {
             if playerButtonIsReady(button),
                tapObservedPlayerButton(button, window: window.element, windowFrame: window.frame,
                                        pressDuration: pressDuration) {
+                if identifier == "player.playPause" {
+                    // Tap delivery is not action completion. The caller's mandatory
+                    // 10s Play + enabled predicate proves pause without toggling it again.
+                    return
+                }
                 let completed = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
                     self.playerActionCompleted(identifier)
                 }, object: app)
