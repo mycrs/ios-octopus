@@ -12,6 +12,8 @@ extension AppError {
         switch self {
         case .network: return "Bağlantı yok"
         case .unauthorized: return "Giriş yapılamadı"
+        case .subscriptionUnavailable(let block):
+            return block.status == .expired ? "Abonelik süresi doldu" : "Abonelik kullanılamıyor"
         case .connectionLimitReached: return "Bağlantı sınırı doldu"
         case .invalidResponse: return "İçerik okunamadı"
         case .storage: return "Kaydedilemedi"
@@ -27,6 +29,8 @@ extension AppError {
             return "İnternet bağlantını kontrol edip tekrar dene."
         case .unauthorized:
             return "Kullanıcı adı veya parola hatalı. Aboneliğinin süresi dolmuş olabilir."
+        case .subscriptionUnavailable:
+            return "Bu kaynağın aboneliği kullanılamıyor. Hizmet sağlayıcınla iletişime geç veya başka bir kaynak seç."
         case .connectionLimitReached:
             return "Bu hesapla aynı anda izin verilen cihaz sayısına ulaşıldı. Başka bir cihazda açık olan yayını kapat."
         case .invalidResponse:
@@ -46,6 +50,7 @@ extension AppError {
         switch self {
         case .network: return "wifi.slash"
         case .unauthorized: return "person.crop.circle.badge.exclamationmark"
+        case .subscriptionUnavailable: return "calendar.badge.exclamationmark"
         case .connectionLimitReached: return "person.2.slash"
         case .invalidResponse: return "doc.text.magnifyingglass"
         case .storage: return "internaldrive"

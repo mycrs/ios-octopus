@@ -127,6 +127,13 @@ extension AppDatabase {
             }
         }
 
+        // Eski hesaplar bilinmeyen durumda kalır; katalog veya kullanıcı verisi yeniden yazılmaz.
+        migrator.registerMigration("v7_abonelik_erisim") { db in
+            try db.alter(table: "playlist") { t in
+                t.add(column: "subscriptionStatus", .text)
+            }
+        }
+
         return migrator
     }
 

@@ -47,7 +47,18 @@ struct XtreamUserInfo: Decodable {
     var isAuthenticated: Bool {
         if let auth, auth == 0 { return false }
         guard let status else { return true }
-        return status.caseInsensitiveCompare("Active") == .orderedSame
+        return Self.parseStatus(status) == .active
+    }
+
+    private static func parseStatus(_ raw: String) -> SubscriptionStatus? {
+        switch raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "active": return .active
+        case "expired": return .expired
+        case "inactive": return .inactive
+        case "disabled", "blocked": return .disabled
+        case "banned": return .banned
+        default: return nil
+        }
     }
 
     func toDomain() -> ProviderAccount {
@@ -56,7 +67,8 @@ struct XtreamUserInfo: Decodable {
             expiresAt: XtreamDate.fromEpoch(expDate),
             isTrial: isTrial ?? false,
             maxConnections: maxConnections ?? 1,
-            activeConnections: activeCons ?? 0
+            activeConnections: activeCons ?? 0,
+            subscriptionStatus: status.flatMap(Self.parseStatus)
         )
     }
 }

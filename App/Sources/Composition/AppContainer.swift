@@ -84,6 +84,12 @@ final class AppContainer: ObservableObject {
     @Published private(set) var isActivePlaylistLocked = false
     @Published private(set) var isResolvingPlaylistAccess = true
     @Published private(set) var activePlaylistName: String?
+    @Published private(set) var subscriptionState = PlaylistSubscriptionMonitor.State()
+    private lazy var subscriptionMonitor = PlaylistSubscriptionMonitor(
+        playlists: playlists, validator: validator,
+        password: { [secrets] playlist in try secrets.read(for: playlist.credentialKey) },
+        onChange: { [weak self] state in self?.subscriptionDidChange(state) }
+    )
     private var activePlaylistID: Playlist.ID?
     private var playlistTransitionGeneration = 0
     private var playlistActivationGeneration = 0
@@ -117,6 +123,22 @@ final class AppContainer: ObservableObject {
     func contentProtectionDidChange() {
         contentProtectionRevision &+= 1
         router.clearOpenScreens()
+    }
+
+    func refreshSubscription(force: Bool = false) async {
+        await subscriptionMonitor.refresh(force: force)
+    }
+
+    private func subscriptionDidChange(_ state: PlaylistSubscriptionMonitor.State) {
+        let previous = subscriptionState
+        subscriptionState = state
+        guard state.block != nil else { return }
+        if let session = playbackController.session {
+            playbackController.stop(ifCurrent: session)
+        }
+        if previous.block != state.block || previous.playlistID != state.playlistID {
+            router.clearOpenScreens()
+        }
     }
 
     /// Uygulama görünürlüğünü kaybedince geçici erişim sona erer.
@@ -361,6 +383,7 @@ final class AppContainer: ObservableObject {
         }
 
         await refreshRemoteConfig()
+        Task { [weak self] in await self?.refreshSubscription() }
 
         #if DEBUG
         // CI görsel denetimi: panelin kırmızı marka rengi seçtiği durumu
@@ -723,6 +746,7 @@ final class AppContainer: ObservableObject {
             active = try? await playlists.activePlaylist()
         }
         guard generation == activeAccessGeneration, active?.id == activePlaylistID else { return }
+        subscriptionMonitor.select(active)
         guard let active else {
             activePlaylistName = nil
             isActivePlaylistLocked = false

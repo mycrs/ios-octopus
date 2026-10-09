@@ -41,14 +41,11 @@ public struct HomeAccount: Equatable, Sendable {
         self.expiresAt = playlist.expiresAt
         self.remainingDays = playlist.remainingDays(from: now)
 
-        switch remainingDays {
-        case .none:
-            urgency = .normal
-        case .some(0):
+        if let expiresAt = playlist.expiresAt, expiresAt <= now {
             urgency = .expired
-        case .some(let days) where days <= Self.warningThresholdDays:
+        } else if let remainingDays, remainingDays <= Self.warningThresholdDays {
             urgency = .soon
-        default:
+        } else {
             urgency = .normal
         }
     }
@@ -84,7 +81,7 @@ public struct HomeAccount: Equatable, Sendable {
 
         switch remainingDays {
         case 0 where urgency == .expired: return "Aboneliğin süresi doldu"
-        case 0: return "Bugün bitiyor"
+        case 0: return "1 günden az kaldı"
         case 1: return "1 gün kaldı"
         default: return "\(remainingDays) gün kaldı"
         }

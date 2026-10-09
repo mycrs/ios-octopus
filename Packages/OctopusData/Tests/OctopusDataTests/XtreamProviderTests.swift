@@ -67,7 +67,9 @@ final class XtreamProviderTests: XCTestCase {
             _ = try await provider.authenticate()
             XCTFail("Süresi dolmuş hesap reddedilmeliydi")
         } catch {
-            XCTAssertEqual(error as? AppError, .unauthorized)
+            XCTAssertEqual(error as? AppError, .subscriptionUnavailable(
+                SubscriptionAccessBlock(status: .expired, expiresAt: nil)
+            ))
         }
     }
 

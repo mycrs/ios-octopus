@@ -139,11 +139,16 @@ public final class AddPlaylistViewModel: ObservableObject {
     // MARK: - Akış
 
     public func submit() async {
+        guard !step.isBusy else { return }
         errorMessage = nil
+        step = .validating
 
         // 1. Erişim bilgilerini elde et.
         //    Kod ile girişte bunlar panelden gelir; diğerlerinde kullanıcı yazar.
-        guard let resolved = await resolveCredentials() else { return }
+        guard let resolved = await resolveCredentials() else {
+            step = .form
+            return
+        }
         // Doğrulama başka bir sunucuda tutabilir; liste değişebilir olmalı.
         var playlist = resolved.0
         let password = resolved.1
@@ -157,6 +162,12 @@ public final class AddPlaylistViewModel: ObservableObject {
             account = try await dependencies.validator.validate(playlist, password: password)
         } catch {
             let validationError = AppError.wrap(error)
+            // A provider's explicit subscription denial must survive M3U fallback.
+            if case .subscriptionUnavailable = validationError {
+                step = .form
+                errorMessage = validationError.userMessage
+                return
+            }
 
             // M3U bağlantısı Xtream'e çevrilmişti ama panel kabul etmedi:
             // düz M3U olarak yeniden denenir.
@@ -175,6 +186,11 @@ public final class AddPlaylistViewModel: ObservableObject {
                 return
             }
         }
+
+        // Persist the validated account before activation; the first catalog
+        // sync can fail without losing an already-known subscription deadline.
+        playlist.expiresAt = account?.expiresAt
+        playlist.subscriptionStatus = account?.subscriptionStatus
 
         // 3. Kayıt ve etkinleştirme.
         do {

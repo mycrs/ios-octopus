@@ -15,15 +15,18 @@ public struct ProviderStreamResolver: StreamResolving {
     private let playlists: PlaylistRepository
     private let providerFactory: ContentProviderFactory
     private let progress: PlaybackProgressRepository
+    private let now: @Sendable () -> Date
 
     public init(
         playlists: PlaylistRepository,
         providerFactory: ContentProviderFactory,
-        progress: PlaybackProgressRepository
+        progress: PlaybackProgressRepository,
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.playlists = playlists
         self.providerFactory = providerFactory
         self.progress = progress
+        self.now = now
     }
 
     // MARK: - Canlı yayın
@@ -53,7 +56,8 @@ public struct ProviderStreamResolver: StreamResolving {
     // MARK: - Film
 
     public func playbackItem(for movie: Movie) async throws -> PlaybackItem {
-        let provider = try await providerContext(for: movie.playlistID).provider
+        let context = try await providerContext(for: movie.playlistID)
+        let provider = context.provider
 
         guard let url = provider.streamURL(for: movie) else {
             throw AppError.playbackFailed(reason: "Film adresi kurulamadı")
@@ -63,6 +67,7 @@ public struct ProviderStreamResolver: StreamResolving {
         let source = PlaybackItem.Source.movie(movie.id)
         let stored = try? await progress.progress(for: source)
         let resumeAt = (stored?.isFinished == false) ? stored?.positionSeconds : nil
+        try ensureSubscriptionIsAvailable(context.playlist)
 
         return PlaybackItem(
             source: source,
@@ -79,7 +84,8 @@ public struct ProviderStreamResolver: StreamResolving {
     // MARK: - Dizi bölümü
 
     public func playbackItem(for episode: Episode, in series: Series) async throws -> PlaybackItem {
-        let provider = try await providerContext(for: series.playlistID).provider
+        let context = try await providerContext(for: series.playlistID)
+        let provider = context.provider
 
         guard let url = provider.streamURL(for: episode) else {
             throw AppError.playbackFailed(reason: "Bölüm adresi kurulamadı")
@@ -88,6 +94,7 @@ public struct ProviderStreamResolver: StreamResolving {
         let source = PlaybackItem.Source.episode(episode.id)
         let stored = try? await progress.progress(for: source)
         let resumeAt = (stored?.isFinished == false) ? stored?.positionSeconds : nil
+        try ensureSubscriptionIsAvailable(context.playlist)
 
         return PlaybackItem(
             source: source,
@@ -109,7 +116,17 @@ public struct ProviderStreamResolver: StreamResolving {
             // Kaynak silinmiş ama ekran hâlâ açık olabilir.
             throw AppError.notFound
         }
-        return (try await providerFactory.makeProvider(for: playlist), playlist)
+        try ensureSubscriptionIsAvailable(playlist)
+        let provider = try await providerFactory.makeProvider(for: playlist)
+        // DNS/sağlayıcı kurulumu beklerken gerçek bitiş anı geçmiş olabilir.
+        try ensureSubscriptionIsAvailable(playlist)
+        return (provider, playlist)
+    }
+
+    private func ensureSubscriptionIsAvailable(_ playlist: Playlist) throws {
+        if let block = playlist.subscriptionBlock(at: now()) {
+            throw AppError.subscriptionUnavailable(block)
+        }
     }
 }
 

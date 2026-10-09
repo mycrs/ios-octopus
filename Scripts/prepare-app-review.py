@@ -28,7 +28,8 @@ VERSION_ID = "c8518d53-de58-474a-bce8-b3782caae358"
 SUBMISSION_ID = "c9a07540-8d84-4832-8000-d1b6c632a343"
 STORE_VERSION = "1.0"
 BINARY_VERSION = "1.0.0"
-BUILD = "10"
+BUILD = "11"
+PRIOR_SELECTED_BUILD = "9"
 BASE_NOTES_LENGTH = 3492
 NOTES_SUFFIX = (
     "\n\nPlayback check: In Live TV, select a sample channel to open its preview, then tap the preview "
@@ -137,39 +138,49 @@ def review_detail_query():
 
 
 def read_store(apple, expected_hash, upload_window):
-    version = resource(apple.request("GET", shared.query(VERSION_PATH, {
+    version_response = apple.request("GET", shared.query(VERSION_PATH, {
         "include": "app,build", "fields[appStoreVersions]":
-        "platform,versionString,appVersionState,appStoreState,releaseType,reviewType,app,build"})),
-        "appStoreVersions", VERSION_ID)
+        "platform,versionString,appVersionState,appStoreState,releaseType,reviewType,app,build",
+        "fields[builds]": "version"}))
+    version = resource(version_response, "appStoreVersions", VERSION_ID)
     attrs = version.get("attributes", {})
     state = attrs.get("appVersionState") or attrs.get("appStoreState")
     if (relationship(version, "app", "apps") != APP_ID or attrs.get("platform") != "IOS" or
             attrs.get("versionString") != STORE_VERSION or state not in EDITABLE_STATES or
             attrs.get("releaseType") != "AFTER_APPROVAL" or attrs.get("reviewType") != "APP_STORE"):
         raise SafeError("The reviewed app version, editable state or release settings changed")
-    current_build = version.get("relationships", {}).get("build", {}).get("data")
-    if current_build is not None:
-        current_build = relationship(version, "build", "builds")
+    current_build = relationship(version, "build", "builds")
+    included = version_response.get("included")
+    if not isinstance(included, list):
+        raise SafeError("The current selected build number is unavailable")
+    selected = shared.one(included, lambda entry: isinstance(entry, dict) and
+                          entry.get("type") == "builds" and entry.get("id") == current_build,
+                          "current selected build")
+    selected = resource({"data": selected}, "builds", current_build)
+    selected_number = selected.get("attributes", {}).get("version")
 
     builds = apple.collection(shared.query("/v1/builds", {"filter[app]": APP_ID,
         "filter[version]": BUILD, "filter[preReleaseVersion.version]": BINARY_VERSION,
         "filter[preReleaseVersion.platform]": "IOS", "include": "app,preReleaseVersion",
         "fields[builds]": "version,processingState,expired,buildAudienceType,uploadedDate,app,preReleaseVersion"}))
-    build = shared.one(builds, lambda _: True, "processed Build 10")
+    build = shared.one(builds, lambda _: True, "processed Build " + BUILD)
     build = resource({"data": build}, "builds")
     build_attrs = build.get("attributes", {})
     if (relationship(build, "app", "apps") != APP_ID or build_attrs.get("version") != BUILD or
             build_attrs.get("processingState") != "VALID" or build_attrs.get("expired") is not False or
             build_attrs.get("buildAudienceType") != "APP_STORE_ELIGIBLE"):
-        raise SafeError("Build 10 is not the reviewed valid unexpired App Store eligible build")
+        raise SafeError("Build " + BUILD + " is not the reviewed valid unexpired App Store eligible build")
+    if ((current_build == build["id"] and selected_number != BUILD) or
+            (current_build != build["id"] and selected_number != PRIOR_SELECTED_BUILD)):
+        raise SafeError("The current selection is neither reviewed Build 9 nor the exact prepared Build " + BUILD)
     prerelease = resource(apple.request("GET", "/v1/builds/" + build["id"] + "/preReleaseVersion"),
                           "preReleaseVersions", relationship(build, "preReleaseVersion", "preReleaseVersions"))
     if prerelease.get("attributes", {}).get("version") != BINARY_VERSION or \
             prerelease.get("attributes", {}).get("platform") != "IOS":
-        raise SafeError("Build 10 does not belong to the reviewed iOS prerelease version")
+        raise SafeError("Build " + BUILD + " does not belong to the reviewed iOS prerelease version")
     uploaded = timestamp(build_attrs.get("uploadedDate"))
     if not (upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2)):
-        raise SafeError("Build 10 upload time does not match the pinned signed source job")
+        raise SafeError("Build " + BUILD + " upload time does not match the pinned signed source job")
 
     submission = resource(apple.request("GET", shared.query(SUBMISSION_PATH, {
         "include": "app,appStoreVersionForReview", "fields[reviewSubmissions]":

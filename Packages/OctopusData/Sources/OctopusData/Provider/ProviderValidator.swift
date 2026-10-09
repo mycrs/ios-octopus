@@ -13,14 +13,20 @@ import OctopusDomain
 public struct ProviderValidator: PlaylistValidating {
 
     private let httpClient: HTTPClient
+    private let now: @Sendable () -> Date
 
-    public init(session: URLSession = .octopusDefault) {
+    public init(
+        session: URLSession = .octopusDefault,
+        now: @escaping @Sendable () -> Date = { Date() }
+    ) {
         self.httpClient = URLSessionHTTPClient(session: session, retryPolicy: .single)
+        self.now = now
     }
 
     /// Test enjeksiyonu için.
-    init(httpClient: HTTPClient) {
+    init(httpClient: HTTPClient, now: @escaping @Sendable () -> Date = { Date() }) {
         self.httpClient = httpClient
+        self.now = now
     }
 
     public func validate(
@@ -32,8 +38,8 @@ public struct ProviderValidator: PlaylistValidating {
 
         // Abonelik süresi dolmuşsa bağlantı kurulsa bile kaynak kullanılamaz;
         // kullanıcı bunu kaydettikten sonra değil, şimdi öğrenmeli.
-        if account.isExpired(at: Date()) {
-            throw AppError.unauthorized
+        if let block = account.subscriptionBlock(at: now()) {
+            throw AppError.subscriptionUnavailable(block)
         }
 
         Log.network.info("Kaynak doğrulandı: \(account.username)")
@@ -55,7 +61,8 @@ public struct ProviderValidator: PlaylistValidating {
                 username: username,
                 password: password,
                 playlistID: playlist.id,
-                httpClient: httpClient
+                httpClient: httpClient,
+                now: now
             )
 
         case .m3u(let url):

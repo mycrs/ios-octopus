@@ -17,13 +17,8 @@ extension RootView {
                         dependencies: container.makePlayerDependencies()
                     )
                     .id(presentation.id)
-                    .environmentObject(router)
-                    .environmentObject(container.themeController)
-                    .environmentObject(container.playbackPreferences)
-                    .environment(\.locale, language.locale)
+                    .modifier(presentationEnvironment)
                     .environment(\.scenePhase, scenePhase)
-                    .environment(\.brandColor, container.themeController.accent)
-                    .tint(container.themeController.accent)
                 )
             },
             onDismiss: playerPresentationDidDismiss

@@ -43,6 +43,12 @@ struct RootView: View {
                 LoadingStateView()
             } else if router.needsOnboarding {
                 OnboardingScreen(dependencies: container.makeOnboardingDependencies())
+            } else if container.subscriptionState.block != nil {
+                PlaylistSubscriptionGateView(
+                    state: container.subscriptionState,
+                    onRetry: { Task { await container.refreshSubscription(force: true) } },
+                    onManageSources: { router.present(.playlistManager) }
+                )
             } else if container.isActivePlaylistLocked {
                 PlaylistAccessGateView(
                     playlistName: container.activePlaylistName,
@@ -56,16 +62,7 @@ struct RootView: View {
                     .id(container.contentProtectionRevision)
             }
         }
-        // Marka rengi: kullanıcı seçimi > bayi paneli > uygulama varsayılanı.
-        .tint(container.themeController.accent)
-        .environment(\.brandColor, container.themeController.accent)
-        // Sistem dili varsayılandır; Ayarlar'daki seçim bütün açık ekranlara
-        // yeniden başlatma gerektirmeden yayılır.
-        .environment(\.locale, language.locale)
-        // Ayarlar ekranı renk seçimini buradan okur ve değiştirir.
-        .environmentObject(container.themeController)
-        // Oynatıcı tercihleri de aynı yoldan: Ayarlar düzenler, motorlar okur.
-        .environmentObject(container.playbackPreferences)
+        .modifier(presentationEnvironment)
         // Sunulan UIKit denetleyicisi yön kilidini kendisi taşır; iPad
         // arka plandaki bir SwiftUI alt denetleyicisinin tercihini kullanmaz.
         .background {
@@ -74,11 +71,13 @@ struct RootView: View {
         }
         .sheet(item: $router.sheet, onDismiss: { playerPresentationRevision &+= 1 }) { sheet in
             sheetContent(for: sheet)
-                .environmentObject(router)
+                .modifier(presentationEnvironment)
         }
         .onChange(of: scenePhase) { phase in
-            guard phase != .active else { return }
-            Task { await container.lockProtectedContent() }
+            Task {
+                if phase == .active { await container.refreshSubscription() }
+                else { await container.lockProtectedContent() }
+            }
         }
     }
 

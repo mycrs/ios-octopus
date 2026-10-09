@@ -42,12 +42,12 @@ def attestation():
             images.append({"device": device, "name": name, "sha256": review.digest(device + name),
                            "width": dims[0], "height": dims[1], "group": device.upper() + "_NATIVE",
                            "image_id": device + "-image-" + str(index), "placement_id": device + "-placement-" + str(index)})
-    return {"schema": 1, "source_run": RUN, "source_sha": SHA, "build": "10",
+    return {"schema": 1, "source_run": RUN, "source_sha": SHA, "build": "11",
             "verified_at_utc": "2026-10-08T20:45:00Z",
-            "device": {"receipt_sha256": "b" * 64, "source_association": "verified_same_device_build9_to10_upgrade_chain",
+            "device": {"receipt_sha256": "b" * 64, "source_association": "verified_same_device_build10_to11_upgrade_chain", "install_completion": "Complete",
                        **dict.fromkeys(FLAGS, True)},
             "privacy": {"evidence_sha256": "c" * 64, "deployment_equivalence_verified": True, "store_disclosures_verified": True},
-            "preparation": {"report_sha256": "d" * 64, "notes_sha256": NOTES_HASH, "build_id": "build10",
+            "preparation": {"report_sha256": "d" * 64, "notes_sha256": NOTES_HASH, "build_id": "build11",
                             "metadata_verified": True, "export_compliance_verified": True},
             "screenshots": {"inspection_report_sha256": "e" * 64, "images": images}}
 
@@ -80,7 +80,7 @@ class FakeGitHub(fixtures.FakeGitHub):
 class FakeApple(fixtures.FakeApple):
     def __init__(self, proof):
         super().__init__()
-        self.version["relationships"]["build"] = fixtures.link("builds", "build10")
+        self.version["relationships"]["build"] = fixtures.link("builds", "build11")
         self.submission["attributes"]["platform"] = "IOS"
         self.submission["attributes"]["submittedDate"] = "2026-10-07T20:00:00Z"
         self.items[0]["id"] = ITEM
@@ -157,6 +157,25 @@ class AttestationTests(unittest.TestCase):
 
     def test_exact_synthetic_proof_accepts_all_real_device_requirements(self):
         self.assertEqual(self.validate(attestation()), attestation())
+
+    def test_build11_requires_new_same_device_upgrade_and_explicit_complete(self):
+        self.assertEqual(review.prep.BUILD, "11")
+        self.assertEqual(review.FINAL_NOTES_LENGTH, 3829)
+        self.assertEqual(review.ORIGINAL_NOTES_SHA256,
+                         "d5a90136ad3f942909ec3cf51776cf91244e65ec798baf333a08d9c66c7b2262")
+        self.assertEqual(review.read_profile("/v1/builds")["filter[version]"], "11")
+        for build in ("9", "10", "12"):
+            proof = attestation(); proof["build"] = build
+            with self.subTest(build=build), self.assertRaises(review.SafeError): self.validate(proof)
+        for association in ("verified_same_device_build9_to10_upgrade_chain", "observed_installed_build11",
+                            "verified_different_device_build10_to11_upgrade_chain", None):
+            proof = attestation(); proof["device"]["source_association"] = association
+            with self.subTest(association=association), self.assertRaises(review.SafeError): self.validate(proof)
+        for completion in ("complete", "package_uploaded", "progress_100", "uncertain", True, None):
+            proof = attestation(); proof["device"]["install_completion"] = completion
+            with self.subTest(completion=completion), self.assertRaises(review.SafeError): self.validate(proof)
+        proof = attestation(); del proof["device"]["install_completion"]
+        with self.assertRaises(review.SafeError): self.validate(proof)
 
     def test_duplicate_json_fields_are_not_coerced_into_a_valid_proof(self):
         text = json.dumps(attestation()).replace('"schema": 1,', '"schema": 0, "schema": 1,', 1)
@@ -321,7 +340,7 @@ class SubmissionTests(unittest.TestCase):
             self.assertFalse(self.apple.mutations())
 
     def test_invalid_build_provenance_or_modified_final_notes_prevents_mutation(self):
-        for field, value in (("version", "9"), ("processingState", "PROCESSING"), ("expired", True),
+        for field, value in (("version", "9"), ("version", "10"), ("processingState", "PROCESSING"), ("expired", True),
                              ("buildAudienceType", "INTERNAL_ONLY"), ("uploadedDate", "2026-10-07T20:00:00Z")):
             self.apple = FakeApple(self.proof); self.apple.builds[0]["attributes"][field] = value
             with self.assertRaises(review.SafeError): self.submit()

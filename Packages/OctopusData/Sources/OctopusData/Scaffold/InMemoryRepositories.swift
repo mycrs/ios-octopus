@@ -45,6 +45,14 @@ public actor InMemoryPlaylistRepository: PlaylistRepository {
         storage[index].expiresAt = expiresAt
     }
 
+    public func updateSubscription(
+        id: Playlist.ID, status: SubscriptionStatus?, expiresAt: Date?
+    ) async throws {
+        guard let index = storage.firstIndex(where: { $0.id == id }) else { throw AppError.notFound }
+        storage[index].subscriptionStatus = status
+        storage[index].expiresAt = expiresAt
+    }
+
     public func setActive(id: Playlist.ID) async throws {
         guard storage.contains(where: { $0.id == id }) else { throw AppError.notFound }
         for index in storage.indices {

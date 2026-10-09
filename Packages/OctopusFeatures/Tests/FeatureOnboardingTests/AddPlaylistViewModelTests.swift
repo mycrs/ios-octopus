@@ -226,6 +226,95 @@ final class AddPlaylistViewModelTests: XCTestCase {
         XCTAssertEqual(validator.callCount, 1, "Kod ile girişte de sunucu doğrulanmalı")
     }
 
+    func test_validatedSubscriptionIsStoredEvenWhenInitialSyncFails() async {
+        let deadline = Date(timeIntervalSince1970: 2_000_000_000)
+        validator.result = .success(ProviderAccount(
+            username: "u", expiresAt: deadline, isTrial: false,
+            maxConnections: 1, activeConnections: 0, subscriptionStatus: .active
+        ))
+        sync.error = AppError.network(reason: "offline")
+        let model = makeViewModel()
+        model.sourceKind = .xtream
+        model.host = "https://example.com"
+        model.username = "u"
+        model.password = "p"
+
+        await model.submit()
+
+        XCTAssertEqual(playlists.addedPlaylists.first?.expiresAt, deadline)
+        XCTAssertEqual(playlists.addedPlaylists.first?.subscriptionStatus, .active)
+        XCTAssertEqual(model.step, .done)
+        XCTAssertNotNil(model.errorMessage)
+    }
+
+    func test_expiredSubscriptionIsNotStoredOrActivated() async {
+        validator.result = .failure(AppError.subscriptionUnavailable(
+            SubscriptionAccessBlock(status: .expired, expiresAt: Date(timeIntervalSince1970: 0))
+        ))
+        let model = makeViewModel()
+        model.sourceKind = .xtream
+        model.host = "https://example.com"
+        model.username = "u"
+        model.password = "p"
+
+        await model.submit()
+
+        XCTAssertTrue(playlists.addedPlaylists.isEmpty)
+        XCTAssertTrue(playlists.activatedIDs.isEmpty)
+        XCTAssertTrue(sync.syncedIDs.isEmpty)
+        XCTAssertEqual(model.step, .form)
+        XCTAssertNotNil(model.errorMessage)
+    }
+
+    func test_convertedM3USubscriptionDenialCannotFallBackToAnUnrestrictedPlaylist() async {
+        validator.queuedResults = [
+            .failure(AppError.subscriptionUnavailable(
+                SubscriptionAccessBlock(status: .expired, expiresAt: Date(timeIntervalSince1970: 0))
+            )),
+            .success(validator.successAccount)
+        ]
+        let model = makeViewModel()
+        model.sourceKind = .m3u
+        model.m3uURL = "https://example.com/get.php?username=u&password=p&type=m3u_plus"
+
+        await model.submit()
+
+        XCTAssertEqual(validator.callCount, 1, "Known subscription denial must not retry as plain M3U")
+        XCTAssertTrue(playlists.addedPlaylists.isEmpty)
+        XCTAssertTrue(playlists.activatedIDs.isEmpty)
+        XCTAssertTrue(sync.syncedIDs.isEmpty)
+        XCTAssertEqual(model.step, .form)
+        XCTAssertNotNil(model.errorMessage)
+    }
+
+    func test_repeatedSubmitWhileRedeemingUsesCodeOnlyOnce() async {
+        let started = expectation(description: "Code redemption started")
+        var resume: CheckedContinuation<Void, Never>?
+        activation.onRedeem = {
+            await withCheckedContinuation { continuation in
+                resume = continuation
+                started.fulfill()
+            }
+        }
+        activation.result = .success(ActivationResult(
+            kind: .m3u(url: URL(string: "https://example.com/list.m3u")!),
+            password: nil, displayName: "Test"
+        ))
+        let model = makeViewModel()
+        model.sourceKind = .activationCode
+        model.activationCode = "TEST-1234"
+        let first = Task { await model.submit() }
+        await fulfillment(of: [started], timeout: 2)
+
+        await model.submit()
+        XCTAssertEqual(activation.receivedCodes.count, 1)
+        resume?.resume()
+        await first.value
+
+        XCTAssertEqual(playlists.addedPlaylists.count, 1)
+        XCTAssertEqual(sync.syncedIDs.count, 1)
+    }
+
     func test_protectedActivationConfiguresPlaylistPIN() async {
         activation.result = .success(
             ActivationResult(
@@ -365,9 +454,11 @@ private final class StubActivation: ActivationRedeeming, @unchecked Sendable {
 
     var result: Result<ActivationResult, Error> = .failure(ActivationError.notFound)
     private(set) var receivedCodes: [String] = []
+    var onRedeem: (@MainActor () async -> Void)?
 
     func redeem(code: String) async throws -> ActivationResult {
         receivedCodes.append(code)
+        await onRedeem?()
         return try result.get()
     }
 }

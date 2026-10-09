@@ -35,7 +35,7 @@ struct PlaybackRecoveryPolicy {
             return .tryFallback
         case .unknown:
             switch error {
-            case .unauthorized, .connectionLimitReached, .notFound, .storage:
+            case .unauthorized, .subscriptionUnavailable, .connectionLimitReached, .notFound, .storage:
                 return .stop
             case .network:
                 return .retryCurrent

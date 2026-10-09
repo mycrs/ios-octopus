@@ -428,9 +428,11 @@ actor FakeProvider: ContentProvider {
     /// `nonisolated` erişim için `let`: sağlayıcı kurulduktan sonra değişmez.
     private let epgURL: URL?
     private let accountExpiration: Date?
+    private let accountStatus: SubscriptionStatus?
     private let beforeAuthenticate: (@Sendable () async -> Void)?
 
     private(set) var authenticateCount = 0
+    private(set) var catalogRequestCount = 0
 
     init(
         channels: [Channel],
@@ -444,6 +446,7 @@ actor FakeProvider: ContentProvider {
         seriesError: Error? = nil,
         epgURL: URL? = nil,
         accountExpiration: Date? = nil,
+        accountStatus: SubscriptionStatus? = nil,
         beforeAuthenticate: (@Sendable () async -> Void)? = nil
     ) {
         self.channels = channels
@@ -457,6 +460,7 @@ actor FakeProvider: ContentProvider {
         self.seriesError = seriesError
         self.epgURL = epgURL
         self.accountExpiration = accountExpiration
+        self.accountStatus = accountStatus
         self.beforeAuthenticate = beforeAuthenticate
     }
 
@@ -472,11 +476,12 @@ actor FakeProvider: ContentProvider {
         if let authError { throw authError }
         return ProviderAccount(
             username: "u", expiresAt: accountExpiration, isTrial: false,
-            maxConnections: 1, activeConnections: 0
+            maxConnections: 1, activeConnections: 0, subscriptionStatus: accountStatus
         )
     }
 
     func fetchCategories(kind: MediaCategory.Kind) async throws -> [MediaCategory] {
+        catalogRequestCount += 1
         switch kind {
         case .live: if let liveError { throw liveError }; return liveCategories
         case .movie: if let movieError { throw movieError }; return []

@@ -46,6 +46,8 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
     /// Kullanıcı için en değerli tek veri bu: "kaç günüm kaldı". M3U
     /// kaynaklarda böyle bir kavram yok, `nil` kalır.
     public var expiresAt: Date?
+    /// Son başarılı/engellenmiş sağlayıcı doğrulamasının durumu; ağ hatası değiştirmez.
+    public var subscriptionStatus: SubscriptionStatus?
 
     public init(
         id: ID,
@@ -55,7 +57,8 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
         createdAt: Date,
         lastSyncedAt: Date? = nil,
         isActive: Bool = false,
-        expiresAt: Date? = nil
+        expiresAt: Date? = nil,
+        subscriptionStatus: SubscriptionStatus? = nil
     ) {
         self.id = id
         self.name = name
@@ -65,6 +68,7 @@ public struct Playlist: Identifiable, Hashable, Codable, Sendable {
         self.lastSyncedAt = lastSyncedAt
         self.isActive = isActive
         self.expiresAt = expiresAt
+        self.subscriptionStatus = subscriptionStatus
     }
 
     /// Abonelik bitişine kalan tam gün sayısı. Süresi dolmuşsa `0`.
@@ -91,23 +95,26 @@ public struct ProviderAccount: Hashable, Codable, Sendable {
     public let isTrial: Bool
     public let maxConnections: Int
     public let activeConnections: Int
+    public let subscriptionStatus: SubscriptionStatus?
 
     public init(
         username: String,
         expiresAt: Date?,
         isTrial: Bool,
         maxConnections: Int,
-        activeConnections: Int
+        activeConnections: Int,
+        subscriptionStatus: SubscriptionStatus? = nil
     ) {
         self.username = username
         self.expiresAt = expiresAt
         self.isTrial = isTrial
         self.maxConnections = maxConnections
         self.activeConnections = activeConnections
+        self.subscriptionStatus = subscriptionStatus
     }
 
     public func isExpired(at date: Date) -> Bool {
         guard let expiresAt else { return false }
-        return expiresAt < date
+        return expiresAt <= date
     }
 }

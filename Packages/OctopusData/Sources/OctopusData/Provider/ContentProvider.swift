@@ -15,7 +15,8 @@ public protocol ContentProvider: Sendable {
     /// Yeni senkronizasyonda sağlayıcının bellekteki kataloğunu tazeler.
     func invalidateCache() async
 
-    /// Hesabı doğrular. Başarısızsa `AppError.unauthorized` fırlatır.
+    /// Hesabı doğrular. Kimlik hatası unauthorized, hesap erişim reddi
+    /// subscriptionUnavailable taşır; ağ hatası abonelik durumunu değiştirmez.
     func authenticate() async throws -> ProviderAccount
 
     func fetchCategories(kind: MediaCategory.Kind) async throws -> [MediaCategory]

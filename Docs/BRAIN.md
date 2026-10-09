@@ -2229,3 +2229,55 @@ values üzerinden eşitlik kontrollü projection; raw time yalnız görünür, k
 VOD scrub child'ında latest-value seed ve hide'da cancellation ile izlenebilir.
 Engine time/progress/watchdog/resume/seek akışı değiştirilmemeli. Bu inceleme
 üretim değişikliği veya yeni CI başlatmadı; cihazdaki Source 34 sabit kaldı.
+
+
+### 9 Ekim — Build 11 hazırlığı: kaynak ekleme çökmesi ve IPTV aboneliği
+
+Kullanıcı süre sorununu IPTV sağlayıcı aboneliği olarak netleştirdi. Build 10
+cihazından 16:03:21 ve 16:03:34 (+03) iki gerçek EXC_BREAKPOINT/SIGTRAP raporu
+alındı; ana stack SwiftUI EnvironmentObject.error içeriyor. Kod incelemesinde
+AddPlaylistView yalnız busy durumda ThemeController okuyor, sunulan sheet ise
+sadece router enjekte ediyordu. Ortak AppPresentationEnvironment artık kök,
+sheet ve ayrı UIKit player ağacına aynı theme/language/router/playback nesnelerini
+verir. Bu güçlü kod eşleşmesidir; dSYM ile adres sembolleştirme yapılmadı.
+
+Domain SubscriptionAccess tek status/tarih kuralını kullanır: açık provider redleri
+ve expiresAt <= now engeller; nil/0 (sınırsız) tarih erken süre sonu değildir.
+Xtream DTO, doğrulama, senkronizasyon ve playback resolver aynı kuralı uygular;
+M3U'ya dönüşmüş Xtream bağlantısındaki bilinen abonelik reddi düz M3U fallback ile
+unutulmaz. v7 migration yalnız nullable status ekler; hesap alanlarının atomik SQL
+güncellemesi kaynak adı, seçim, içerik ve favorileri korur. Hesap süresi ilk
+senkronizasyon başarısız olsa da doğrulama sonrası eklemede saklanır. Kod çözümleme
+başlamadan busy kurulur; aynı aktivasyon kodu eşzamanlı tekrar gönderilemez.
+
+Composition monitor yerel son tarihi en fazla 60 saniyelik disk kontrolüyle ve
+bilinen deadline anında izler; her tick ağ isteği yoktur. Foreground account
+istekleri paylaşılır ve 5 dakika aralıklanır; açık yenileme düğmesi bu aralığı
+beklemez. Eski kaynak yanıtı yeni seçime uygulanmaz. Bilinen deadline disk okuma
+hatasında da işler; doğrulanmış provider reddi yazma başarısızlığında bellekte
+korunur. Ağ kesintisi kendi başına süresi dolmuş sayılmaz. Blokta aktif engine
+hemen kapanır, eski yollar temizlenir, seçili sekme ve ayrı PIN koruması kalır.
+Kullanıcı uygulamadan zorla çıkarılmaz; yenileme veya başka kaynak seçimi sunulur.
+Düz M3U sağlayıcısı hesap süresi bildirmiyorsa tarih uydurulmaz.
+
+Home'da gelecekteki son 24 saatin floor(remainingDays)=0 olması artık yanlış
+"süresi doldu" üretmez; gerçek timestamp ve "1 günden az kaldı" kullanılır.
+EN/TR metinleri eklendi. Yeni domain/data/onboarding/home/hosted-environment/
+monitor/composition regresyonları hazır; bu kayıt anında Mac derleme ve cihaz
+doğrulaması henüz yapılmadı. project.yml Build 11; eski Build 10 telefon sonucu
+bu sürümün başarı kanıtı olarak kullanılamaz.
+
+Canlı App Store Connect salt okunur kontrolünde seçili binary hâlâ Build 9 ve
+1.0 Prepare for Submission / önceki 4.3 retli durumdadır. iPad sekmesinde 7 gerçek
+ekran görseli, iPhone'da 7 inherited existing asset görünür. Boş Header and Search
+Results alanı bu screenshot setlerinin silindiği anlamına gelmez. Kullanıcının
+son talebiyle görseller artık ertelenmiyor; doğrulanmış yeni full-release native
+phone/pad screenshot'ları hazırlanacak. Mevcut asset'ler yenileri READY olmadan
+kaldırılmayacak. Yeni build/metadata/görsel veya inceleme gönderimi henüz yok.
+
+İnceleme araçları Build 11 ve gerçek aynı cihaz 10→11 Complete/Lookup zincirine
+geçirildi; seçili başlangıç 9 veya idempotent hazırlanmış tam 11 olmalı. Tam CI,
+Release journey, imzalı TestFlight upload, sekiz gerçek cihaz kontrolü, 12 READY
+görsel ve doğrulanmış canlı gizlilik beyanı koşulları korunur. Yerel 87 review
+script regresyonu geçti. Canlı backend/veri saklama eşdeğerliği hâlâ doğrulanmadı;
+Data Not Collected beyanı bu belirsizlikle onaylanmış sayılmayacak.

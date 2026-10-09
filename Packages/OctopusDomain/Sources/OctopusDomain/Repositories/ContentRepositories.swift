@@ -22,6 +22,8 @@ public protocol PlaylistRepository: Sendable {
     /// Hesap doğrulama yalnızca bitiş tarihini günceller; eşzamanlı kaynak
     /// seçimi/düzenlemesindeki diğer alanları eski kopyayla geri yazmaz.
     func updateExpiration(id: Playlist.ID, expiresAt: Date?) async throws
+    /// Yalnızca hesap metadata'sını birlikte yazar; aktif kaynak/düzenlemeyi geri almaz.
+    func updateSubscription(id: Playlist.ID, status: SubscriptionStatus?, expiresAt: Date?) async throws
     func setActive(id: Playlist.ID) async throws
 
     /// Kaynağı ve ona ait TÜM içeriği siler (cascade).
@@ -29,6 +31,15 @@ public protocol PlaylistRepository: Sendable {
 }
 
 extension PlaylistRepository {
+    public func updateSubscription(
+        id: Playlist.ID, status: SubscriptionStatus?, expiresAt: Date?
+    ) async throws {
+        guard var current = try await playlist(id: id) else { throw AppError.notFound }
+        current.subscriptionStatus = status
+        current.expiresAt = expiresAt
+        try await update(current)
+    }
+
     public func updateExpiration(id: Playlist.ID, expiresAt: Date?) async throws {
         guard var current = try await playlist(id: id) else { throw AppError.notFound }
         current.expiresAt = expiresAt

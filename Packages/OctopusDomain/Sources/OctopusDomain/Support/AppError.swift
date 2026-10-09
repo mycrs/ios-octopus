@@ -18,6 +18,9 @@ public enum AppError: Error, Hashable, Sendable {
     /// Kaynak kimlik doğrulamayı reddetti (yanlış parola, süresi dolmuş abonelik).
     case unauthorized
 
+    /// Sağlayıcı aboneliği bitmiş veya hesap devre dışı; yeniden kontrol yenilemeyi açabilir.
+    case subscriptionUnavailable(SubscriptionAccessBlock)
+
     /// Aynı anda izin verilen bağlantı sayısı aşıldı — IPTV'de çok sık görülür.
     case connectionLimitReached
 
@@ -41,7 +44,7 @@ public enum AppError: Error, Hashable, Sendable {
         switch self {
         case .network, .invalidResponse, .playbackFailed, .connectionLimitReached, .unknown:
             return true
-        case .unauthorized, .storage, .notFound:
+        case .unauthorized, .subscriptionUnavailable, .storage, .notFound:
             return false
         }
     }

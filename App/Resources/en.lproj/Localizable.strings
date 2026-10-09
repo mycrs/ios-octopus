@@ -504,3 +504,9 @@
 "Tüm kanallar" = "All channels";
 "Kanal bulunamadı" = "No channels found";
 "Kanal listesini kapat" = "Close channel list";
+"Abonelik süresi doldu" = "Subscription expired";
+"1 günden az kaldı" = "Less than 1 day left";
+"Abonelik kullanılamıyor" = "Subscription unavailable";
+"Bu kaynağın erişimini hizmet sağlayıcınla kontrol et. Yenilediysen tekrar kontrol edebilir veya başka bir kaynak kullanabilirsin." = "Check access to this source with your provider. If you renewed it, check again or use another source.";
+"Aboneliği tekrar kontrol et" = "Check subscription again";
+"Bu kaynağın aboneliği kullanılamıyor. Hizmet sağlayıcınla iletişime geç veya başka bir kaynak seç." = "This source's subscription is unavailable. Contact your provider or choose another source.";

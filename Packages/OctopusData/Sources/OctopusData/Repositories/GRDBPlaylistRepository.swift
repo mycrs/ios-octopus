@@ -81,6 +81,19 @@ public actor GRDBPlaylistRepository: PlaylistRepository {
         guard updated else { throw AppError.notFound }
     }
 
+    public func updateSubscription(
+        id: Playlist.ID, status: SubscriptionStatus?, expiresAt: Date?
+    ) async throws {
+        let updated = try await database.write { db -> Bool in
+            try db.execute(
+                sql: "UPDATE playlist SET subscriptionStatus = ?, expiresAt = ? WHERE id = ?",
+                arguments: [status?.rawValue, expiresAt, id.value]
+            )
+            return db.changesCount > 0
+        }
+        guard updated else { throw AppError.notFound }
+    }
+
     /// Tek kaynak aktif olabilir.
     ///
     /// Referans projede bu işlem tüm kayıtları tek tek güncelliyordu;

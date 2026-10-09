@@ -36,7 +36,7 @@ public struct PlaybackDiagnosticSnapshot: Codable, Equatable, Sendable {
         if case .failed(let error) = state {
             switch error {
             case .network: self.failure = .network
-            case .unauthorized: self.failure = .unauthorized
+            case .unauthorized, .subscriptionUnavailable: self.failure = .unauthorized
             case .connectionLimitReached: self.failure = .connectionLimit
             case .invalidResponse: self.failure = .invalidResponse
             case .storage: self.failure = .storage

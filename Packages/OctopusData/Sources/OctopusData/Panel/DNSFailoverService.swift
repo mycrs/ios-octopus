@@ -95,7 +95,7 @@ public actor DNSFailoverService: HostResolving {
             // 401/404 sunucunun AYAKTA olduğunu gösterir: yalnızca istek
             // reddedilmiştir. Ölü sunucu ağ hatası verir.
             switch error {
-            case .unauthorized, .notFound, .invalidResponse:
+            case .unauthorized, .subscriptionUnavailable, .notFound, .invalidResponse:
                 return true
             default:
                 return false

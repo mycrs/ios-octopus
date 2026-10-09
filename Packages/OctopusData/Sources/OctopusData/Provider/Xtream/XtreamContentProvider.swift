@@ -23,6 +23,7 @@ public struct XtreamContentProvider: ContentProvider {
     private let playlistID: Playlist.ID
     private let httpClient: HTTPClient
     private let liveFormat: LiveFormat
+    private let now: @Sendable () -> Date
     private let decoder = JSONDecoder()
 
     public init(
@@ -31,7 +32,8 @@ public struct XtreamContentProvider: ContentProvider {
         password: String,
         playlistID: Playlist.ID,
         httpClient: HTTPClient,
-        liveFormat: LiveFormat = .hls
+        liveFormat: LiveFormat = .hls,
+        now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.baseURL = baseURL
         self.username = username
@@ -39,6 +41,7 @@ public struct XtreamContentProvider: ContentProvider {
         self.playlistID = playlistID
         self.httpClient = httpClient
         self.liveFormat = liveFormat
+        self.now = now
     }
 
     public var streamHeaders: [String: String] {
@@ -55,13 +58,18 @@ public struct XtreamContentProvider: ContentProvider {
             throw AppError.invalidResponse(reason: "Hesap bilgisi alınamadı")
         }
 
+        let account = userInfo.toDomain()
+        if let block = account.subscriptionBlock(at: now()) {
+            throw AppError.subscriptionUnavailable(block)
+        }
+
         // ⚠️ Paneller geçersiz girişte de HTTP 200 döner; `auth: 0` veya
         // `status != Active` alanına bakmadan başarı varsayılamaz.
         guard userInfo.isAuthenticated else {
             throw AppError.unauthorized
         }
 
-        return userInfo.toDomain()
+        return account
     }
 
     // MARK: - Kategoriler

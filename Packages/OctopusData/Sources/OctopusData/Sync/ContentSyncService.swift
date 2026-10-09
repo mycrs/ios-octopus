@@ -98,15 +98,34 @@ public actor ContentSyncService: ContentSyncing {
         var firstCatalogError: AppError?
 
         publish(.authenticating, for: playlistID)
-        let account = try await provider.authenticate()
+        let account: ProviderAccount
+        do {
+            // Eski bitiş tarihi doğrulamayı engellemez: yenilenmiş hesap açılabilmeli.
+            account = try await provider.authenticate()
+        } catch let error as AppError {
+            if case .subscriptionUnavailable(let block) = error {
+                // Yazım hatası doğrulanmış erişim reddini genel ağ hatasına çevirmesin.
+                try? await playlists.updateSubscription(
+                    id: playlistID, status: block.status, expiresAt: block.expiresAt
+                )
+            }
+            throw error
+        }
         try Task.checkCancellation()
 
-        // ⚠️ Abonelik bitişi **atılmıyor** artık: bu çağrı zaten yapılıyordu
-        // ve dönen bilgi kullanıcı için en değerli veri ("kaç günüm kaldı").
-        // Kayıt başarısız olursa senkronizasyon durmaz — katalog, abonelik
-        // rozetinden önemlidir.
-        if playlist.expiresAt != account.expiresAt {
-            try? await playlists.updateExpiration(id: playlistID, expiresAt: account.expiresAt)
+        let block = account.subscriptionBlock(at: now())
+        if let block {
+            // A provider may return a denied account instead of throwing.
+            // Preserve that denial even when its local metadata cannot be saved.
+            try? await playlists.updateSubscription(
+                id: playlistID, status: block.status, expiresAt: block.expiresAt
+            )
+            throw AppError.subscriptionUnavailable(block)
+        }
+        if playlist.expiresAt != account.expiresAt || playlist.subscriptionStatus != account.subscriptionStatus {
+            try await playlists.updateSubscription(
+                id: playlistID, status: account.subscriptionStatus, expiresAt: account.expiresAt
+            )
         }
 
         // Kataloglar bağımsızdır: canlı ucu olmayan bir film hesabı da çalışır.

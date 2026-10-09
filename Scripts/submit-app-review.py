@@ -78,7 +78,7 @@ def validate_attestation(text, expected_hash, run, sha, notes_hash, now=None):
     exact_keys(proof, ("schema", "source_run", "source_sha", "build", "verified_at_utc", "device", "privacy", "preparation", "screenshots"))
     require(type(proof["schema"]) is int and proof["schema"] == 1 and
             type(proof["source_run"]) is int and proof["source_run"] == run and
-            proof["source_sha"] == sha and proof["build"] == "10", "Prerequisite attestation belongs to another source or build")
+            proof["source_sha"] == sha and proof["build"] == prep.BUILD, "Prerequisite attestation belongs to another source or build")
     verified = prep.timestamp(proof["verified_at_utc"])
     require(isinstance(proof["verified_at_utc"], str) and
             proof["verified_at_utc"].endswith(("Z", "+00:00")) and
@@ -88,9 +88,10 @@ def validate_attestation(text, expected_hash, run, sha, notes_hash, now=None):
     device_flags = ("installed_build_verified", "uhd_picture_audio_verified", "normal_picture_audio_verified",
                     "fullscreen_return_verified", "saved_data_preserved_verified", "upright_landscape_verified",
                     "player_channel_panel_verified", "no_home_or_orphan_audio_verified")
-    exact_keys(device, ("receipt_sha256", "source_association", *device_flags))
+    exact_keys(device, ("receipt_sha256", "source_association", "install_completion", *device_flags))
     hash_value(device["receipt_sha256"])
-    require(device["source_association"] == "verified_same_device_build9_to10_upgrade_chain" and
+    require(device["source_association"] == "verified_same_device_build10_to11_upgrade_chain" and
+            device["install_completion"] == "Complete" and
             all(device[key] is True for key in device_flags), "Actual source-associated device and playback checks are required")
     privacy = proof["privacy"]
     exact_keys(privacy, ("evidence_sha256", "deployment_equivalence_verified", "store_disclosures_verified"))
@@ -149,7 +150,7 @@ def read_profile(path):
     if path == VERSION_PATH:
         return {"include": "app,build", "fields[appStoreVersions]": "platform,versionString,appVersionState,appStoreState,releaseType,reviewType,app,build", "fields[apps]": "primaryLocale", "fields[builds]": "version"}
     if path == "/v1/builds":
-        return {"filter[app]": APP_ID, "filter[version]": "10", "filter[preReleaseVersion.version]": "1.0.0", "filter[preReleaseVersion.platform]": "IOS", "include": "app,preReleaseVersion", "fields[builds]": "version,processingState,expired,buildAudienceType,uploadedDate,app,preReleaseVersion", "fields[apps]": "primaryLocale", "fields[preReleaseVersions]": "version,platform"}
+        return {"filter[app]": APP_ID, "filter[version]": prep.BUILD, "filter[preReleaseVersion.version]": "1.0.0", "filter[preReleaseVersion.platform]": "IOS", "include": "app,preReleaseVersion", "fields[builds]": "version,processingState,expired,buildAudienceType,uploadedDate,app,preReleaseVersion", "fields[apps]": "primaryLocale", "fields[preReleaseVersions]": "version,platform"}
     if re.fullmatch(r"/v1/builds/" + ID + "/preReleaseVersion", path):
         return {"fields[preReleaseVersions]": "version,platform"}
     if path == SUBMISSION_PATH:
@@ -288,16 +289,16 @@ def read_target(apple, attestation, upload_window, after=False):
             attrs.get("versionString") == "1.0" and attrs.get("releaseType") == "AFTER_APPROVAL" and
             attrs.get("reviewType") == "APP_STORE" and version_state in (QUEUED if after else VERSION_BEFORE | QUEUED),
             "The exact version, review type, release preference or state changed")
-    build = shared.one(apple.collection(get_path("/v1/builds")), lambda _: True, "exact processed source Build 10")
+    build = shared.one(apple.collection(get_path("/v1/builds")), lambda _: True, "exact processed source Build " + prep.BUILD)
     build = prep.resource({"data": build}, "builds", attestation["preparation"]["build_id"])
     b = build.get("attributes", {})
     require(prep.relationship(version, "build", "builds") == build["id"] and
-            prep.relationship(build, "app", "apps") == APP_ID and b.get("version") == "10" and
+            prep.relationship(build, "app", "apps") == APP_ID and b.get("version") == prep.BUILD and
             b.get("processingState") == "VALID" and b.get("expired") is False and
-            b.get("buildAudienceType") == "APP_STORE_ELIGIBLE", "Selected Build 10 must be prepared, valid and App Store eligible")
+            b.get("buildAudienceType") == "APP_STORE_ELIGIBLE", "Selected Build " + prep.BUILD + " must be prepared, valid and App Store eligible")
     uploaded = prep.timestamp(b.get("uploadedDate"))
     require(upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2),
-            "Selected Build 10 does not match the exact source upload window")
+            "Selected Build " + prep.BUILD + " does not match the exact source upload window")
     prerelease = prep.resource(apple.request("GET", get_path("/v1/builds/" + build["id"] + "/preReleaseVersion")),
                               "preReleaseVersions", prep.relationship(build, "preReleaseVersion", "preReleaseVersions"))
     require(prerelease.get("attributes", {}).get("version") == "1.0.0" and

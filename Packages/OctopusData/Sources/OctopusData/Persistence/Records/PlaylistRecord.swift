@@ -29,6 +29,7 @@ struct PlaylistRecord: Codable, FetchableRecord, PersistableRecord {
     var isActive: Bool
     /// Abonelik bitişi (yalnızca Xtream'de dolu).
     var expiresAt: Date?
+    var subscriptionStatus: String?
 
     /// `kindType` kolonunun alabileceği değerler.
     /// Ham dizgi yerine bu tip kullanılır ki yazım hatası derlenmesin.
@@ -53,6 +54,7 @@ extension PlaylistRecord {
         self.lastSyncedAt = playlist.lastSyncedAt
         self.isActive = playlist.isActive
         self.expiresAt = playlist.expiresAt
+        self.subscriptionStatus = playlist.subscriptionStatus?.rawValue
 
         // Kullanılmayan alanlar nil kalır; tür ayrımı `kindType` ile yapılır.
         self.host = nil
@@ -96,7 +98,8 @@ extension PlaylistRecord {
             createdAt: createdAt,
             lastSyncedAt: lastSyncedAt,
             isActive: isActive,
-            expiresAt: expiresAt
+            expiresAt: expiresAt,
+            subscriptionStatus: subscriptionStatus.flatMap(SubscriptionStatus.init(rawValue:))
         )
     }
 
