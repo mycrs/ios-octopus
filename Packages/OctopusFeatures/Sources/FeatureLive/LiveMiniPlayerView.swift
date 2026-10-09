@@ -134,19 +134,21 @@ struct LiveMiniPlayerView: View {
     private var info: some View {
         HStack(alignment: .bottom, spacing: Theme.Spacing.sm) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                HStack(spacing: Theme.Spacing.xs) {
-                    Circle()
-                        .fill(Theme.Palette.live)
-                        .frame(width: 6, height: 6)
-                    Text(
-                        AppLocalization.localized(
-                            channel == nil ? "KALDIĞIN KANAL" : "CANLI",
-                            locale: locale
+                if channel == nil || controller.currentItem?.isLive == true {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        Circle()
+                            .fill(Theme.Palette.live)
+                            .frame(width: 6, height: 6)
+                        Text(
+                            AppLocalization.localized(
+                                channel == nil ? "KALDIĞIN KANAL" : "CANLI",
+                                locale: locale
+                            )
                         )
-                    )
-                        .font(Theme.Typography.badge)
-                        .kerning(1.5)
-                        .foregroundColor(.white.opacity(0.85))
+                            .font(Theme.Typography.badge)
+                            .kerning(1.5)
+                            .foregroundColor(.white.opacity(0.85))
+                    }
                 }
 
                 if let name = (channel ?? placeholderChannel)?.name {

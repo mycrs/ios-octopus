@@ -6,7 +6,38 @@ olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tut
 Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
 build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
-Son Mac'te denenen build 10 kaynağı `a76e5e29256ba6b2a9c8f44e84d451bd6bf73244`,
+Son Mac'te denenen build 10 kaynağı `a13057e227dab618c50a5d9bbbf234ece47bff2a`,
+[on sekizinci tur 37872902093](https://github.com/mycrs/ios-octopus/actions/runs/37872902093):
+**734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı unit job başarılıdır.
+
+iPhone kullanıcı testi **90,442s** sonunda `ReviewJourneyTests.swift:373`
+satırında AX identity ile bağlı eski Window'un frame okumasında başarısız
+oldu: `No matches found for Identity Binding`; mevcut snapshot'ta Main
+Window vardı. Film kapatma dokunuşu 79,33s, interface Portrait gözlemi
+86,11s idi. Pencerenin AX kimliği yön/sunum geçişinde kalıcı olmadı.
+Bu tur canlı mini helper'ına veya 4s kapanışa ulaşmadı; iPad çalışmadı.
+Sonuç uygulamada görüntü kaybı ya da ana sayfaya atma kanıtı değildir.
+
+Sonraki dar test düzeltmesi Window öğelerini `allElementsBoundByIndex`
+ile sorgular; Window `isHittable` geri eklenmez. Sıfır auxiliary pencereler
+finite/pozitif bağımsız geometri ile elenir ve en büyük geçerli pencere
+gözlenir. Beklenen yön veya video geometrisi pencere seçiminde kullanılmaz.
+Mini içinde native-ready/1pt sınır, gerçek yeniden açma dokunuşu, aynı
+kanala portre dönüşü ve 4s basılı tutma koşulları korunur. Timeout artmaz;
+yeni sorgunun gerçek Mac/XCTest sonucu henüz doğrulanmamıştır.
+
+Özgün video denetimi ayrıca kayıtlı örnek kanalda yanlış LIVE rozeti
+buldu. Provider örnek kanalı `isLive=false` olarak verir; onboarding ve
+rehber bunu kayıtlı film diye açıklar. Mini rozet artık controller'ın
+gerçek `currentItem.isLive` değerini kullanır: kayıtlı örnekte LIVE gizlenir,
+gerçek canlı kanalda ve son kanal placeholder'ında mevcut davranış korunur.
+
+Release **failure**, imzalı job **skipped**. Build 10 IPA, TestFlight
+yüklemesi, telefon kurulumu veya App Review gönderimi yok. Yeni test ve
+rozet kaynağı Mac doğrulaması bekler; geçmiş gerçek PASS sonuçları korunur.
+
+Önceki on yedinci build 10 kaynağı `a76e5e29256ba6b2a9c8f44e84d451bd6bf73244`,
 [on yedinci tur 37870292518](https://github.com/mycrs/ios-octopus/actions/runs/37870292518):
 **734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
 Data 295/0, Features 237/0, App 31/0. Altı unit job başarılıdır.
