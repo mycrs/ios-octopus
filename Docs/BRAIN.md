@@ -2361,3 +2361,33 @@ Nihai policy 23056 bayt SHA7a01c357874dbdaad239f802de422966c7629c24be760f3c14080
 Kaynak/dist/ZIP birebir doğrulandı. Kullanıcı canlı yüklemeyi üstlendi.
 Henüz canlı metin değişti denmez. İşletmeci 10 dk saklama beyanı bağımsız
 silme işi denetimi değildir.
+
+
+### 9 Ekim — Source 37 sonucu ve Source 38 hazırlığı
+
+Source37 0b9a9144435e6a3256848eecc10051b832232940 / run37943956535:
+altı gerçek birim/uygulama işi yeniden 783 test / 0 hata ile tamamlandı.
+Release113865337155 uygulama testinden önce durdu; Signed113871613649
+skipped ve whole run failure. IPA, TestFlight veya Build11 cihaz kurulumu yok.
+
+Yeni aşama tanısı sorunu ayırdı: inventory-before218ms, boot3978ms,
+bootstatus141521ms SUCCESS; yalnız sonraki inventory-after 30sn bütçesinde
+36177ms sonra timeout. LogSHA256
+ffa2605b08ca7d9cd7800c0d1d9616f2947653da3fe72da55057ae6c5dc26f25.
+Xcode26.6/macOS26 Intel 4CPU/14GiB üzerinde gerçekleşti; uygulama veya
+oynatıcı çökmesi diye yorumlanmaz, Release ekran/görsel kanıtı üretilmedi.
+
+Source38 yalnız başarılı bootstatus sonrasındaki gereksiz ikinci bütün
+envanter sorgusunu kaldırır. Başlangıçta tek ve kullanılabilir UUID kontrolü,
+Shutdown/Booted durum sınırı, tek boot, 180sn bootstatus ve komut hata/timeout
+durumunda durma korunur. Üretim Swift ve gerçek Release XCTest açılış,
+video, yön, kanal paneli ve geri dönüş koşulları değişmez. Bu hazırlık,
+cihazın hazır olduğuna dair yeni bir çalıştırma sonucu değildir.
+
+DEBUG36 ekranları kod ekleme/yükleme/PIN yüzeylerini gösterdi. PIN ile
+kilitlenmiş bazı DEBUG önizlemeleri katalog/ayar çizimi kanıtı değildir;
+başlangıç bayraklarıyla açık kanal paneli de normal açılış davranışı yerine
+kullanılmaz. Mağaza görselleri başarılı gerçek Release akışından alınacak.
+
+Source38 yerel 11 readiness testi, mimari ve diff denetimi gecti;
+Mac Release/cihaz sonucu henuz yok.

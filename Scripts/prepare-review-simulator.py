@@ -72,8 +72,8 @@ def prepare(udid, *, run=subprocess.run, report=emit_progress, clock=time.monoto
     # Booted alone does not mean SpringBoard and the simulator services are ready.
     invoke('bootstatus', ['xcrun', 'simctl', 'bootstatus', udid, '-b'],
            180, run, report, clock)
-    if selected_state(udid, 'inventory-after', run, report, clock) != 'Booted':
-        raise ReadinessError('simulator_not_booted_after_readiness')
+    # Its successful exit is the readiness result; a second full inventory
+    # can block even after the selected device has finished booting.
 
 
 def main():

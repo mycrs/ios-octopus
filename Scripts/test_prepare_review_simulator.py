@@ -33,19 +33,19 @@ class SimulatorCommands:
 
 
 class ReviewSimulatorReadinessTests(unittest.TestCase):
-    def test_cold_device_boots_once_then_blocks_for_readiness_and_rechecks(self):
-        commands = SimulatorCommands(['Shutdown', 'Booted'])
+    def test_cold_device_boots_once_then_blocks_for_readiness(self):
+        commands = SimulatorCommands(['Shutdown'])
         readiness.prepare(UDID, run=commands, report=lambda _: None)
-        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'boot', 'bootstatus', 'list'])
+        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'boot', 'bootstatus'])
         self.assertEqual(commands.calls[1][0], ['xcrun', 'simctl', 'boot', UDID])
         self.assertEqual(commands.calls[2][0], ['xcrun', 'simctl', 'bootstatus', UDID, '-b'])
-        self.assertEqual([call[1]['timeout'] for call in commands.calls], [30, 30, 180, 30])
+        self.assertEqual([call[1]['timeout'] for call in commands.calls], [30, 30, 180])
         self.assertTrue(all(call[1]['check'] for call in commands.calls))
 
     def test_booted_device_still_requires_readiness_without_second_boot(self):
-        commands = SimulatorCommands(['Booted', 'Booted'])
+        commands = SimulatorCommands(['Booted'])
         readiness.prepare(UDID, run=commands, report=lambda _: None)
-        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'bootstatus', 'list'])
+        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'bootstatus'])
 
     def test_missing_duplicate_unavailable_and_transitional_devices_stop_before_boot(self):
         device = {'udid': UDID, 'state': 'Shutdown', 'isAvailable': True}
@@ -72,11 +72,13 @@ class ReviewSimulatorReadinessTests(unittest.TestCase):
             readiness.prepare(UDID, run=commands, report=lambda _: None)
         self.assertEqual([call[0][2] for call in commands.calls], ['list', 'boot', 'bootstatus'])
 
-    def test_successful_bootstatus_requires_fresh_booted_state(self):
-        commands = SimulatorCommands(['Shutdown', 'Shutdown'])
-        with self.assertRaisesRegex(readiness.ReadinessError, '^simulator_not_booted_after_readiness$'):
+    def test_nonzero_bootstatus_stops_without_post_inventory_or_retry(self):
+        commands = SimulatorCommands(['Shutdown'], fail_command='bootstatus',
+                                     failure=subprocess.CalledProcessError(1, 'simctl'))
+        with self.assertRaises(subprocess.CalledProcessError):
             readiness.prepare(UDID, run=commands, report=lambda _: None)
-        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'boot', 'bootstatus', 'list'])
+        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'boot', 'bootstatus'])
+        self.assertTrue(commands.calls[-1][1]['check'])
 
     def test_invalid_identifier_stops_before_any_command(self):
         commands = SimulatorCommands([])
@@ -86,17 +88,17 @@ class ReviewSimulatorReadinessTests(unittest.TestCase):
         self.assertEqual(commands.calls, [])
 
     def test_progress_records_ordered_fixed_phases_and_monotonic_elapsed(self):
-        commands = SimulatorCommands(['Shutdown', 'Booted'])
+        commands = SimulatorCommands(['Shutdown'])
         events = []
-        ticks = iter([10, 10.125, 20, 21.5, 30, 34, 40, 40.25])
+        ticks = iter([10, 10.125, 20, 21.5, 30, 34])
         readiness.prepare(UDID, run=commands, report=events.append, clock=lambda: next(ticks))
         self.assertEqual([(event['simulator_readiness_phase'], event['event']) for event in events],
-                         [(phase, event) for phase in ['inventory-before', 'boot', 'bootstatus', 'inventory-after']
+                         [(phase, event) for phase in ['inventory-before', 'boot', 'bootstatus']
                           for event in ['begin', 'done']])
         self.assertEqual([event['elapsed_ms'] for event in events if event['event'] == 'done'],
-                         [125, 1500, 4000, 250])
+                         [125, 1500, 4000])
         self.assertEqual([event['budget_seconds'] for event in events if event['event'] == 'begin'],
-                         [30, 30, 180, 30])
+                         [30, 30, 180])
         self.assertNotIn(UDID, json.dumps(events))
 
     def test_timeout_identifies_each_actual_command_without_output_or_retry(self):
@@ -131,24 +133,20 @@ class ReviewSimulatorReadinessTests(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(readiness.command_phase(command), 'unknown')
 
-    def test_final_inventory_timeout_is_distinct_from_successful_bootstatus(self):
+    def test_successful_readiness_does_not_reenumerate_all_devices(self):
         commands = SimulatorCommands(['Shutdown'])
         events = []
 
-        def final_inventory_times_out(command, **options):
-            if command[2] == 'list' and len(commands.calls) == 3:
+        def post_boot_inventory_times_out(command, **options):
+            if command[2] == 'list' and commands.calls:
                 commands.calls.append((command, options))
                 raise subprocess.TimeoutExpired(command, 30)
             return commands(command, **options)
 
-        with self.assertRaises(subprocess.TimeoutExpired):
-            readiness.prepare(UDID, run=final_inventory_times_out, report=events.append)
-        self.assertEqual(events[-3]['simulator_readiness_phase'], 'bootstatus')
-        self.assertEqual(events[-3]['event'], 'done')
-        self.assertEqual(events[-1]['simulator_readiness_phase'], 'inventory-after')
-        self.assertEqual(events[-1]['command_phase'], 'inventory')
-        self.assertEqual(events[-1]['event'], 'timeout')
-        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'boot', 'bootstatus', 'list'])
+        readiness.prepare(UDID, run=post_boot_inventory_times_out, report=events.append)
+        self.assertEqual(events[-1]['simulator_readiness_phase'], 'bootstatus')
+        self.assertEqual(events[-1]['event'], 'done')
+        self.assertEqual([call[0][2] for call in commands.calls], ['list', 'boot', 'bootstatus'])
 
 
 if __name__ == '__main__':
