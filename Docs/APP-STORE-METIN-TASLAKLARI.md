@@ -196,11 +196,32 @@ App Store Connect'te özel EULA yoksa Apple'ın standart lisansı uygulanır;
 uygulama içindeki lisans bağlantısı bu seçime uyar.
 [Apple standard license](https://developer.apple.com/help/app-store-connect/manage-app-information/provide-a-custom-license-agreement/)
 
-Mevcut App Store etiketi **Data Not Collected**. Kodda reklam/analitik/IDFA
-entegrasyonu gözlenmedi; sunucu kayıtlarının saklanmadığı yalnızca koddan
-kanıtlanamaz. Transient istek aktarımı tek başına etiketi değiştirme nedeni
-sayılmaz; gerçek uzun süreli sunucu/SDK saklaması varsa tür ve amaçları
-değerlendirilir. [Apple App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/)
+9 Ekim'de işletmeci iOS sunucu verisinin şifreli biçimde en fazla 10 dakika
+saklandığını belirtti. Sunucunun okuyabildiği işlem sonrası kayıt, yalnız
+şifreli veya kısa süreli olduğu için Data Not Collected sayılmaz. Build 11
+manifesti User ID (kaynağı bulan aktivasyon kodu), Other Data Types (güvenlik
+IP'si), Performance Data (istek süresi) ve Other Diagnostic Data (teknik istek
+kaydı) bildirir. Amaç yalnız App Functionality; tracking yok, anonimleştirme
+doğrulanmadığından linked=true. Otomatik iOS crash raporu, reklam kimliği,
+konum veya manuel sağlayıcı parolasının Octopus'a gönderilmesi eklenmedi.
+App Store etiketinin güncellenmesi ve canlı politika eşleşmesi henüz bekliyor.
+[Apple App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/)
+
+Canlı gizlilik politikasına eklenecek iOS açıklaması:
+
+> iOS service requests use a temporary Quick Setup code to retrieve the source
+> account you selected. Octopus services temporarily retain the code and related
+> security and technical request information, including the IP address, request
+> endpoint, timestamp, status and duration. These records are encrypted, retained
+> for no more than 10 minutes, and used only to provide Quick Setup, prevent abuse
+> and keep the service working. They are not used for advertising or tracking.
+> Encryption does not make these records anonymous. Manually entered provider
+> credentials are stored in the iOS Keychain and sent directly to your selected
+> provider; they are not copied to Octopus servers. The iOS app does not send the
+> Android app's automatic diagnostic reports.
+
+Bu paragraf işletmecinin beyanına dayanır; canlı 10 dakika silme işi bağımsız
+sunucu incelemesiyle doğrulanmış gibi sunulmaz. Site erişimi beklenmektedir.
 
 Parental Controls, PIN/kategori araçları son Release'te bulunabiliyor ve
 çalışıyorsa **Present**; yaş doğrulama mekanizması yoksa Age Assurance

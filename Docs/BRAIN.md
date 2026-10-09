@@ -2281,3 +2281,48 @@ Release journey, imzalı TestFlight upload, sekiz gerçek cihaz kontrolü, 12 RE
 görsel ve doğrulanmış canlı gizlilik beyanı koşulları korunur. Yerel 87 review
 script regresyonu geçti. Canlı backend/veri saklama eşdeğerliği hâlâ doğrulanmadı;
 Data Not Collected beyanı bu belirsizlikle onaylanmış sayılmayacak.
+
+
+### 9 Ekim — Source 35 sonucu ve Source 36 hazırlığı
+
+Source35 `33b1960b84b48dcc099b02889d0e8d8acc20fed6`,
+run `37937730106`: altı gerçek birim/uygulama işi **783 test / 0 hata**
+(88/80/11/312/250/42). Yeni 39 regresyon ve 11 App testinin gerçek Mac geçişi
+bağımsız log/ID/hash kontrolüyle doğrulandı. Release job `113844009908` ise
+ReviewJourneyTests.swift:13 app.launch sırasında Xcode timeout ile durdu;
+oynatıcı/Pause/iPad aşamalarına ulaşılmadı. Test 74.649s, runnerın bitiş onayı
+22.23s gecikti. LLDB version uyarısı eski başarılı turda da bulunduğundan
+özel neden kanıtı değildir. Yeni subscription monitor boş kaynakta ağ/timer
+açmaz; üretim değişikliğiyle bu launch timeout arasında somut bağ bulunmadı.
+
+Release artifact `11620855767` 60.232.895 bayt, API/ZIP SHA256
+`98a34f43a92429ab4e6b3cbc37c173b11f8536d840b3bda32d430ffac40465fb`.
+Tek özgün MP4 SHA256 `101e6bab3b9031f58fbb8b5ef108a71696711469b1e6cb5f92d43e601e07a82f`;
+64.705s kaydın iki encoded karesi (PTS0/34.555) SpringBoard gösterir. Octopus
+arayüzü/splash görünmez; bu süreç hiç başlamadı veya crash oldu diye kesin
+kanıt değildir. Whole run failure, Signed `113851485395` skipped. Yeni IPA,
+TestFlight yüklemesi veya telefon kurulumu yok. Source35 kanıtları kapatıldı.
+
+CI inceleme akışında seçilen simulator önceden hazır edilmiyordu. Source36
+hazırlığı bir state kontrollü boot + sınırlı bootstatus -b + fresh Booted
+kontrolünü PHONE testinden ve PHONE kapandıktan sonraki PAD testinden önce
+çalıştırır. Üretim Swift, UI assertion'ları veya test retry davranışı değişmez.
+7 offline readiness testi geçti; gerçek Mac turu henüz başlamadı.
+
+İşletmeci önce yalnız Android'in veri aldığını, iOS IP/erişim günlükleri ayrıca
+sorulunca şifreli biçimde yalnız 10 dakika saklandığını bildirdi. iOS gerçekten
+Android diagnostic-report endpoint'ini çağırmaz; ortak config/DNS/activation
+servislerine gider. Bu yanıt canlı saklama bilgisinin kaynağıdır, uzaktan kaynak
+hash'i veya silme job'ı doğrulaması değildir. Backend eşitliği iddiası yapılmaz.
+Sunucu activation code'u okuyup kaynak hesabını bulabildiğinden E2E varsayılmaz.
+
+Build11 manifesti ve mevcut yayın belgeleri dört veri sınıfıyla güncellendi:
+User ID (tek kullanımlık hesap bulma kodu), Other Data Types (güvenlik IP'si),
+Performance Data (istek süresi), Other Diagnostic Data (teknik kayıt metadata'sı).
+Dördü App Functionality / linked=true / tracking=false. Şifreleme veya kısa süre
+anonimleştirme değildir. Konum, DeviceID, iOS crash telemetry veya kullanıcı
+parolasının Octopus'a gönderimi uydurulmadı. Apple'ın güncel data collection,
+User ID, IP ve manifest dokümanlarıyla eşlendi. App Store UI etiketi hâlâ eski
+Data Not Collected; güncelleme yapılacak. Canlı public politika aynı eski metin;
+iOS ek paragrafı APP-STORE-METIN-TASLAKLARI içinde hazır, site erişimi bekleniyor.
+Beyan/mağaza/politika eşleşmesi tamamlanmadan privacy kanıtı üretilmeyecek.

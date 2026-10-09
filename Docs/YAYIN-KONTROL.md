@@ -67,9 +67,14 @@ mesajı belirli bir SDK veya dosyanın ret nedeni olduğunu kanıtlamaz.
 
 - App kökündeki manifest ile üçüncü taraf manifestleri son arşivde gerçekten
   bulunmalı; gerekli neden API kullanımına göre beyanlar kontrol edilmeli.
-- Mevcut **Data Not Collected** durumu transient işlemden uzun sunucu/SDK
-  saklama kanıtı olmadan tahminle değiştirilmez. Manifest ve «reklam yok»
-  bütün veri yollarının yerine geçmez.
+- 9 Ekim işletmeci yanıtı: iOS sunucu verisi şifreli olarak en fazla 10 dakika
+  saklanır. Bu, yalnız istek süresince işlemeyle aynı değildir. Build 11 manifesti
+  aktivasyon kodu için User ID, güvenlik IP'si için Other Data Types, istek süresi
+  için Performance Data ve teknik kayıt için Other Diagnostic Data içerir.
+  Dört tür de App Functionality / linked / tracking yok olarak açıklanır.
+  App Store'daki eski Data Not Collected etiketi ve canlı politika bu kayıtla
+  eşleştirilmeden gizlilik adımı tamamlanmış sayılmaz. Android'e özel tanılama
+  raporu iOS'ta yoktur; server verisiyle karıştırılmaz.
 - Parola Keychain'de saklanır; gerekli Xtream isteklerinde kullanıcının
   seçtiği sağlayıcıya gönderilir. Optional aktivasyon/web hızlı kurulumun
   Octopus servisinde işlemesi ayrı anlatılır.

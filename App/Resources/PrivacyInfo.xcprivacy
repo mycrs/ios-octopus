@@ -13,14 +13,16 @@
     · Cihaz tanımlayıcı → YOK (identifierForVendor kullanılmıyor)
     · Dosya zaman damgası / disk alanı / açılış zamanı / aktif klavye → YOK
 
-  `NSPrivacyCollectedDataTypes` şu anda boş. IPTV hesap parolası cihazda
-  Keychain'de saklanır; katalog ve oynatma için gerekli isteklerde yalnızca
-  kullanıcının seçtiği sağlayıcıya gönderilir. İsteğe bağlı aktivasyon kodu
-  Octopus aktivasyon servisine iletilir. Cihaz dışına gerekli bir isteğin
-  gönderilmesi, tek başına isteği servis etmekten daha uzun süre veri
-  saklandığı anlamına gelmez. Sunucu/SDK saklama davranışları değişirse bu
-  manifest ve App Store Connect'teki App Privacy cevapları gerçek veri
-  türleri ve amaçlara göre yeniden değerlendirilmelidir.
+  iOS Android'in tanılama raporunu göndermez. Ortak Octopus servislerindeki
+  geçici aktivasyon kodu, IP/güvenlik kaydı, istek süresi ve teknik istek
+  metadata'sı yalnızca uygulama işlevi için açıklanır. İşletmeci 9 Ekim 2026'da
+  iOS sunucu verisinin şifreli olarak en fazla 10 dakika saklandığını bildirdi.
+  Şifreleme/süre sınırı anonimlik veya uçtan uca şifreleme kanıtı değildir;
+  kimlikten ayrıştırma doğrulanmadığı için linked=true kullanılır.
+  Reklam/takip, iOS cihaz kimliği veya otomatik crash raporu toplanmaz.
+  Sağlayıcı parolası Keychain'dedir; manuel sağlayıcıya doğrudan gönderilen
+  bilgiler Octopus sunucusuna kopyalanmaz. Sunucu uygulaması değişirse
+  bu manifest, App Store etiketi ve gizlilik politikası birlikte güncellenir.
 -->
 <plist version="1.0">
 <dict>
@@ -31,7 +33,57 @@
 	<array/>
 
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<!-- Tek kullanımlık aktivasyon kodu kaynak hesabını bulur. -->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherDataTypes</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePerformanceData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
