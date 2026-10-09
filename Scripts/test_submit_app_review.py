@@ -150,6 +150,23 @@ class FakeApple(fixtures.FakeApple):
         raise AssertionError("Unexpected collection")
 
 
+def reviewed_submission():
+    source, window = fixtures.reviewed_source()
+    proof = attestation()
+    proof.update(source_run=source["run_id"], source_sha=source["sha"], verified_at_utc="2026-10-09T19:45:00Z")
+    proof["preparation"]["build_id"] = source["signed_delivery_receipt"]["delivery_id"]
+    apple = fixtures.reviewed_apple(FakeApple(proof))
+    apple.version["relationships"]["build"] = fixtures.link("builds", proof["preparation"]["build_id"])
+    for image in apple.images.values():
+        image["attributes"]["referenceName"] = image["attributes"]["referenceName"].replace(SHA, source["sha"])
+    queued = apple.set_queued
+    def set_queued():
+        queued()
+        apple.submission["attributes"]["submittedDate"] = "2026-10-09T20:00:01Z"
+    apple.set_queued = set_queued
+    return proof, apple, window, source["signed_delivery_receipt"]
+
+
 class AttestationTests(unittest.TestCase):
     def validate(self, proof):
         text = json.dumps(proof)
@@ -296,6 +313,43 @@ class SubmissionTests(unittest.TestCase):
 
     def submit(self):
         review.submit_review(self.apple, self.proof, WINDOW, self.events.append)
+
+    def test_reviewed_late_delivery_passes_every_submit_read_and_keeps_exact_two_patch_scope(self):
+        proof, apple, window, receipt = reviewed_submission()
+        with self.assertRaises(review.SafeError): review.submit_review(apple, proof, window, self.events.append)
+        self.assertFalse(apple.mutations())
+        with patch.object(review, "utc_now", return_value=datetime(2026, 10, 9, 20, tzinfo=timezone.utc)):
+            review.submit_review(apple, proof, window, self.events.append, build_receipt=receipt)
+        self.assertEqual([call[1] for call in apple.mutations()], ["/v1/reviewSubmissionItems/" + ITEM, review.SUBMISSION_PATH])
+        self.assertTrue(self.events[-1]["submitted"])
+        self.assertEqual(apple.detail["attributes"]["notes"], NOTES)
+        for private in (fixtures.PRIVATE_NOTES, "private-contact@example.invalid", "private-demo-password", "private-delivery.invalid"):
+            self.assertNotIn(private, json.dumps(self.events))
+
+    def test_reviewed_receipt_cannot_bypass_attestation_source_date_notes_or_twelve_ready_images(self):
+        for change in (lambda p, a: p.update(source_run=p["source_run"] + 1),
+                       lambda p, a: a.builds[0]["attributes"].update(uploadedDate="2026-10-09T18:52:50Z"),
+                       lambda p, a: a.detail["attributes"].update(notes=NOTES + "changed"),
+                       lambda p, a: a.images["iphone-image-0"]["attributes"].update(state="UPLOAD_COMPLETE")):
+            proof, apple, window, receipt = reviewed_submission(); change(proof, apple)
+            with self.assertRaises(review.SafeError): review.submit_review(apple, proof, window, self.events.append, build_receipt=receipt)
+            self.assertFalse(apple.mutations())
+        # A supplied empty/altered receipt never falls back to the otherwise valid ±2 minute path.
+        for invalid in ({}, {**receipt, "runtime_log_verified": True}):
+            apple = FakeApple(self.proof)
+            with self.assertRaises(review.SafeError): review.submit_review(apple, self.proof, WINDOW, self.events.append, build_receipt=invalid)
+            self.assertFalse(apple.mutations())
+
+    def test_reviewed_receipt_reconciliation_keeps_uncertain_patch_stop_and_no_retry(self):
+        for path, submitted, count in (("/v1/reviewSubmissionItems/" + ITEM, False, 1), (review.SUBMISSION_PATH, True, 2)):
+            proof, apple, window, receipt = reviewed_submission(); events = []
+            apple.failure = (path, "after", TimeoutError())
+            with patch.object(review, "utc_now", return_value=datetime(2026, 10, 9, 20, tzinfo=timezone.utc)), self.assertRaises(review.SafeError):
+                review.submit_review(apple, proof, window, events.append, build_receipt=receipt)
+            self.assertEqual(len(apple.mutations()), count)
+            self.assertTrue(events[-1]["read_proof_applied"])
+            self.assertIs(events[-1]["submitted"], submitted)
+            self.assertFalse(events[-1]["automatic_retry"])
 
     def test_success_resolves_existing_opaque_item_then_submits_exact_target_once(self):
         self.submit()
@@ -451,6 +505,28 @@ class SubmissionTests(unittest.TestCase):
 
 
 class MainGateTests(unittest.TestCase):
+    def test_main_routes_reviewed_receipt_from_live_source_without_accepting_a_receipt_input(self):
+        proof, apple, window, receipt = reviewed_submission()
+        github = fixtures.reviewed_github()
+        github.jobs.append({"name": "İşlem modlarını doğrula", "run_id": proof["source_run"], "head_sha": proof["source_sha"],
+                            "status": "completed", "conclusion": "success"})
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); text = json.dumps(proof); (root / "proof.json").write_text(text)
+            args = ["tool", "--source-run", str(proof["source_run"]), "--source-sha", proof["source_sha"],
+                    "--expected-notes-sha256", NOTES_HASH, "--attestation", str(root / "proof.json"),
+                    "--attestation-sha256", review.digest(text), "--key-path", str(root / "never-read.p8"), "--report", str(root / "report.json")]
+            with patch("sys.argv", args), patch.dict(os.environ, {"GITHUB_TOKEN": "unused-private-token"}), \
+                 patch.object(review, "utc_now", return_value=datetime(2026, 10, 9, 20, tzinfo=timezone.utc)), \
+                 patch.object(review, "ORIGINAL_NOTES_SHA256", fixtures.ORIGINAL_HASH), \
+                 patch.object(review.shared, "GitHubAPI", return_value=github), \
+                 patch.object(review, "SubmissionAppleAPI", return_value=apple), patch("sys.stdout", new=io.StringIO()):
+                self.assertEqual(review.main(), 0)
+            raw = (root / "report.json").read_text(); result = json.loads(raw)
+        self.assertEqual(result["status"], "success"); self.assertTrue(result["submitted"])
+        self.assertEqual(len(apple.mutations()), 2)
+        for private in (fixtures.PRIVATE_NOTES, "private-contact@example.invalid", "private-demo-password", "private-delivery.invalid", "unused-private-token"):
+            self.assertNotIn(private, raw)
+
     def test_missing_real_proof_or_failed_source_never_constructs_apple_api(self):
         for invalid in ("missing-proof", "failed-source"):
             with tempfile.TemporaryDirectory() as directory:

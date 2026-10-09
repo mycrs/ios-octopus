@@ -48,6 +48,28 @@ class FakeGitHub:
         return copy.deepcopy(self.jobs)
 
 
+def reviewed_github():
+    github = FakeGitHub()
+    github.run.update(id=37971367071, head_sha="d46d7cffaeb00ac1ae05a7ff2c5eed06d873280c", event="workflow_dispatch")
+    for job in github.jobs:
+        job.update(run_id=github.run["id"], head_sha=github.run["head_sha"])
+    github.jobs[-1].update(id=113970051852, started_at="2026-10-09T18:39:05Z", completed_at="2026-10-09T18:46:14Z")
+    github.jobs[-1]["steps"][0].update(started_at="2026-10-09T18:44:52Z", completed_at="2026-10-09T18:46:01Z")
+    return github
+
+
+def reviewed_source():
+    github = reviewed_github()
+    return review.verify_source(github, github.run["id"], github.run["head_sha"])
+
+
+def reviewed_apple(apple=None):
+    apple = apple or FakeApple()
+    apple.builds[0]["id"] = "da9a9c81-1ef7-4f43-a566-9cf7e98eafa3"
+    apple.builds[0]["attributes"]["uploadedDate"] = "2026-10-09T18:52:49Z"
+    return apple
+
+
 class FakeApple:
     def __init__(self):
         self.calls, self.collection_queries, self.fail_after_apply, self.fail_before_apply = [], [], None, None
@@ -81,7 +103,7 @@ class FakeApple:
         if method == "GET":
             if route == review.VERSION_PATH: data = self.version
             elif route == review.VERSION_PATH + "/relationships/build": data = self.version["relationships"]["build"]["data"]
-            elif route == "/v1/builds/build12/preReleaseVersion": data = self.prerelease
+            elif any(route == "/v1/builds/" + build["id"] + "/preReleaseVersion" for build in self.builds): data = self.prerelease
             elif route == review.SUBMISSION_PATH: data = self.submission
             elif route == review.VERSION_PATH + "/appStoreReviewDetail": data = self.detail
             else: raise AssertionError("Unexpected read")
@@ -129,6 +151,71 @@ class PreparationTests(unittest.TestCase):
 
     def prepare(self):
         review.prepare(self.apple, ORIGINAL_HASH, WINDOW, self.events.append)
+
+    def test_reviewed_receipt_is_exposed_only_after_fresh_exact_ci_signed_and_upload_gates(self):
+        source, window = reviewed_source()
+        self.assertIs(type(window), tuple)
+        self.assertEqual(window[1].isoformat(), "2026-10-09T18:46:14+00:00")
+        self.assertFalse(source["signed_delivery_receipt"]["runtime_log_verified"])
+        self.assertNotIn("signed_delivery_receipt", review.verify_source(FakeGitHub(), RUN, SHA)[0])
+        for index in range(9):
+            github = reviewed_github(); github.jobs[index]["conclusion"] = "failure"
+            with self.assertRaises(review.SafeError): review.verify_source(github, github.run["id"], github.run["head_sha"])
+        github = reviewed_github(); github.jobs[-1]["id"] += 1
+        with self.assertRaises(review.SafeError): review.verify_source(github, github.run["id"], github.run["head_sha"])
+
+    def test_reviewed_late_delivery_preparation_retains_notes_patch_scope_and_reconciliation(self):
+        source, window = reviewed_source(); self.apple = reviewed_apple()
+        with self.assertRaises(review.SafeError): review.prepare(self.apple, ORIGINAL_HASH, window, self.events.append)
+        self.assertFalse(self.apple.mutations())
+        receipt = source["signed_delivery_receipt"]
+        review.prepare(self.apple, ORIGINAL_HASH, window, self.events.append, build_receipt=receipt)
+        self.assertEqual([call[1] for call in self.apple.mutations()],
+                         [review.VERSION_PATH + "/relationships/build", "/v1/appStoreReviewDetails/detail"])
+        self.assertEqual(self.apple.detail["attributes"]["notes"], PRIVATE_NOTES + review.NOTES_SUFFIX)
+        self.assertFalse(self.events[-1]["submitted"])
+        self.apple.calls = []
+        review.prepare(self.apple, ORIGINAL_HASH, window, self.events.append, build_receipt=receipt)
+        self.assertFalse(self.apple.mutations())
+        for private in (PRIVATE_NOTES, "private-contact@example.invalid", "private-demo-password"):
+            self.assertNotIn(private, json.dumps(self.events))
+
+    def test_receipt_mismatch_cannot_fall_back_to_old_window_or_bypass_notes_and_target_gates(self):
+        source, window = reviewed_source(); receipt = source["signed_delivery_receipt"]
+        for change in (lambda a: a.builds[0].update(id="other-build"),
+                       lambda a: a.builds[0]["attributes"].update(uploadedDate="2026-10-09T18:52:50Z"),
+                       lambda a: a.prerelease["attributes"].update(version="2.0"),
+                       lambda a: a.detail["attributes"].update(notes=PRIVATE_NOTES + "changed")):
+            apple = reviewed_apple(); change(apple)
+            with self.assertRaises(review.SafeError): review.prepare(apple, ORIGINAL_HASH, window, self.events.append, build_receipt=receipt)
+            self.assertFalse(apple.mutations())
+        for invalid in ({}, {**receipt, "signed_log_sha256": "f" * 64}):
+            apple = FakeApple()  # This timestamp passes the original window rule.
+            with self.assertRaises(review.SafeError): review.prepare(apple, ORIGINAL_HASH, WINDOW, self.events.append, build_receipt=invalid)
+            self.assertFalse(apple.mutations())
+
+    def test_cli_routes_only_fresh_reviewed_receipt_for_inspect_and_prepare_with_safe_reports(self):
+        for operation in ("inspect", "prepare"):
+            github = reviewed_github(); apple = reviewed_apple()
+            with tempfile.TemporaryDirectory() as directory:
+                report_path = Path(directory) / "report.json"
+                argv = ["tool", "--operation", operation, "--source-run", str(github.run["id"]),
+                        "--source-sha", github.run["head_sha"], "--expected-notes-sha256", ORIGINAL_HASH,
+                        "--key-path", "unused-private-key", "--report", str(report_path)]
+                with patch.object(review.shared, "GitHubAPI", return_value=github), \
+                     patch.object(review.shared, "AppleAPI", return_value=apple), \
+                     patch.dict("os.environ", {"GITHUB_TOKEN": "unused-private-token"}), \
+                     patch("sys.argv", argv), patch("builtins.print"):
+                    self.assertEqual(review.main(), 0)
+                raw = report_path.read_text(encoding="utf-8"); result = json.loads(raw)
+            self.assertEqual(result["status"], "success"); self.assertFalse(result["submitted"])
+            self.assertFalse(result["source"]["signed_delivery_receipt"]["runtime_log_verified"])
+            if operation == "inspect":
+                self.assertFalse(apple.mutations())
+                self.assertFalse(result["events"][1]["within_window"])
+            else: self.assertEqual(len(apple.mutations()), 2)
+            for private in (PRIVATE_NOTES, "private-contact@example.invalid", "private-demo-password", "unused-private-key", "unused-private-token"):
+                self.assertNotIn(private, raw)
 
     def test_success_changes_only_build_and_notes_and_never_submits(self):
         before_contacts = copy.deepcopy(self.apple.detail["attributes"])

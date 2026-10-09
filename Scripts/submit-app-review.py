@@ -281,7 +281,7 @@ def screenshot_proof(apple, attestation, after=False):
     return safe
 
 
-def read_target(apple, attestation, upload_window, after=False):
+def read_target(apple, attestation, upload_window, after=False, *, build_receipt=None):
     version = prep.resource(apple.request("GET", get_path(VERSION_PATH)), "appStoreVersions", VERSION_ID)
     attrs = version.get("attributes", {})
     version_state = attrs.get("appVersionState") or attrs.get("appStoreState")
@@ -297,8 +297,12 @@ def read_target(apple, attestation, upload_window, after=False):
             b.get("processingState") == "VALID" and b.get("expired") is False and
             b.get("buildAudienceType") == "APP_STORE_ELIGIBLE", "Selected Build " + prep.BUILD + " must be prepared, valid and App Store eligible")
     uploaded = prep.timestamp(b.get("uploadedDate"))
-    require(upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2),
-            "Selected Build " + prep.BUILD + " does not match the exact source upload window")
+    if build_receipt is not None:
+        prep.validate_build_receipt(build_receipt, build["id"], uploaded, upload_window,
+                                    (attestation.get("source_run"), attestation.get("source_sha")))
+    else:
+        require(upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2),
+                "Selected Build " + prep.BUILD + " does not match the exact source upload window")
     prerelease = prep.resource(apple.request("GET", get_path("/v1/builds/" + build["id"] + "/preReleaseVersion")),
                               "preReleaseVersions", prep.relationship(build, "preReleaseVersion", "preReleaseVersions"))
     require(prerelease.get("attributes", {}).get("version") == "1.0.0" and
@@ -400,8 +404,8 @@ def patch_once(apple, path, body, item_id, before, read_proof, record):
     require(applied is True, "The one final PATCH was not confirmed by bounded fresh GETs; no retry was made")
 
 
-def submit_review(apple, attestation, upload_window, record):
-    initial = read_target(apple, attestation, upload_window)
+def submit_review(apple, attestation, upload_window, record, *, build_receipt=None):
+    initial = read_target(apple, attestation, upload_window, build_receipt=build_receipt)
     record({"event": "prepared_submission_snapshot", "utc": utc_now().isoformat(), "target": initial})
     if initial["submission_state"] in QUEUED:
         date = prep.timestamp(initial["submitted_date"])
@@ -413,18 +417,18 @@ def submit_review(apple, attestation, upload_window, record):
     require(initial["item_state"] in {"REJECTED", "READY_FOR_REVIEW"}, "Only the existing rejected or freshly ready item can proceed")
     if initial["item_state"] == "REJECTED":
         require(initial["submission_state"] == "UNRESOLVED_ISSUES", "The rejected item is outside its unresolved submission")
-        fresh = read_target(apple, attestation, upload_window)
+        fresh = read_target(apple, attestation, upload_window, build_receipt=build_receipt)
         require(same_prepared_target(fresh, initial) and fresh["item_state"] == "REJECTED" and
                 fresh["submission_state"] == "UNRESOLVED_ISSUES", "The target changed before resolving the existing item")
         apple.item_id = initial["item_id"]
         def resolved():
-            current = read_target(apple, attestation, upload_window)
+            current = read_target(apple, attestation, upload_window, build_receipt=build_receipt)
             return (same_prepared_target(current, initial) and current["item_state"] == "READY_FOR_REVIEW" and
                     current["submission_state"] in {"UNRESOLVED_ISSUES", "READY_FOR_REVIEW"})
         patch_once(apple, "/v1/reviewSubmissionItems/" + initial["item_id"], {"data": {
             "type": "reviewSubmissionItems", "id": initial["item_id"], "attributes": {"resolved": True}}},
             initial["item_id"], fresh, resolved, record)
-    fresh = read_target(apple, attestation, upload_window)
+    fresh = read_target(apple, attestation, upload_window, build_receipt=build_receipt)
     require(same_prepared_target(fresh, initial) and fresh["item_state"] == "READY_FOR_REVIEW" and
             fresh["submission_state"] in {"UNRESOLVED_ISSUES", "READY_FOR_REVIEW"} and
             fresh["version_state"] in VERSION_READY,
@@ -433,7 +437,7 @@ def submit_review(apple, attestation, upload_window, record):
     final = None
     def submitted():
         nonlocal final
-        current = read_target(apple, attestation, upload_window, after=True)
+        current = read_target(apple, attestation, upload_window, after=True, build_receipt=build_receipt)
         if queued_proof(current, fresh, intent):
             final = current
             return True
@@ -473,7 +477,8 @@ def main():
             report["status"] = "source_verified"
         else:
             require(args.key_path is not None, "The existing protected Apple key path is required after source checks")
-            submit_review(SubmissionAppleAPI(args.key_path), attestation, window, record)
+            submit_review(SubmissionAppleAPI(args.key_path), attestation, window, record,
+                          build_receipt=source.get("signed_delivery_receipt"))
             report["status"] = "success"
     except SafeError as error:
         report["status"], report["error"] = "stopped", str(error)

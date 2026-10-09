@@ -2633,3 +2633,20 @@ ve çalışma zamanındaki Signed sınırlarını kaydeder; mevcut±2dk reddi ay
 prepare/submit ve uygulama paketi değişmez.26prepare testi dahil91ilgili
 test geçti. Yeni tanı çalışması ayrı işlem kaydı kullanacak; başarısız ilk
 inceleme kanıtı ve Source44binarypinleri korunacak.
+
+İkinci salt-okunur tanı37977892934, metadata b8eabf529d8f83eacfbaad22f1a6e0dcdc91ae98:
+Apple Build12 kimliği da9a9c81-1ef7-4f43-a566-9cf7e98eafa3; uploadedDate
+18:52:49UTC. Signed işi18:39:05–18:46:14UTC; Apple tarihi bitişten6dk35sn
+sonradır. Özgün kimlik doğrulamalı Signed logda aynı Delivery UUID ve tek
+UPLOAD SUCCEEDED18:46:01.509026UTC görülür. Log1552122bayt, SHA256
+a2fbdf5d99f4d3425fd3de321a97c0d87d1219388091d1a080a01078cdbd0295.
+Root bu özgün logu ve hash/CRC/origin doğrulanmış Apple tanı raporunu inceledi.
+
+Bu sabit yayın için signed-upload-provenance.py, manuel doğrulanmış teslim
+kaydını exact Source44run/SHA/Signedjob/app/build/UUID/loghash/teslim tarihi
+ve Apple'ın gözlenen yükleme tarihi ile bağlar. Güncel başarılı Signed işi
+ve tek başarılı upload adımı bu teslim zamanını içermelidir. Apple buildID
+ve normalized uploadedDate eşleşmezse reddedilir. Bu bir root inceleme
+kaydının kullanımıdır; çalışma anında log hash'i doğrulandığı iddia edilmez.
+Diğer yayınlar ve receiptsiz çağrılar önceki±2dk kuralında kalır. Hiçbir cihaz,
+gizlilik, görsel veya nihai inceleme kapısı bu eşleme nedeniyle atlanmaz.

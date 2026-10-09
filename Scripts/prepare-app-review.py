@@ -22,6 +22,10 @@ _spec = importlib.util.spec_from_file_location(
 shared = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(shared)
 SafeError = shared.SafeError
+_delivery_spec = importlib.util.spec_from_file_location(
+    "octopus_reviewed_delivery", Path(__file__).with_name("signed-upload-provenance.py"))
+delivery = importlib.util.module_from_spec(_delivery_spec)
+_delivery_spec.loader.exec_module(delivery)
 
 APP_ID = "6802840384"
 VERSION_ID = "c8518d53-de58-474a-bce8-b3782caae358"
@@ -107,8 +111,22 @@ def verify_source(github, run_id, sha):
     started, completed = timestamp(signed.get("started_at")), timestamp(signed.get("completed_at"))
     if completed < started:
         raise SafeError("Unexpected signed source job timestamps")
-    return {"run_id": run_id, "sha": sha, "required_jobs_passed": len(verified),
-            "testflight_upload_passed": True}, (started, completed)
+    source = {"run_id": run_id, "sha": sha, "required_jobs_passed": len(verified),
+              "testflight_upload_passed": True}
+    try:
+        receipt = delivery.source_receipt(run_id, sha, signed, APP_ID, BUILD)
+    except delivery.ProvenanceError as error:
+        raise SafeError(str(error)) from None
+    if receipt is not None:
+        source["signed_delivery_receipt"] = receipt
+    return source, (started, completed)
+
+
+def validate_build_receipt(receipt, build_id, uploaded, window, expected_source=None):
+    try:
+        delivery.validate_receipt(receipt, APP_ID, BUILD, build_id, uploaded, window, expected_source)
+    except delivery.ProvenanceError as error:
+        raise SafeError(str(error)) from None
 
 
 def notes_plan(notes, expected_hash):
@@ -137,7 +155,7 @@ def review_detail_query():
         "fields[appStoreVersions]": "platform,versionString"})
 
 
-def read_store(apple, expected_hash, upload_window, *, record=None):
+def read_store(apple, expected_hash, upload_window, *, record=None, build_receipt=None):
     version_response = apple.request("GET", shared.query(VERSION_PATH, {
         "include": "app,build", "fields[appStoreVersions]":
         "platform,versionString,appVersionState,appStoreState,releaseType,reviewType,app,build",
@@ -185,7 +203,9 @@ def read_store(apple, expected_hash, upload_window, *, record=None):
                 "signed_job_started_at_utc": upload_window[0].astimezone(timezone.utc).isoformat(),
                 "signed_job_completed_at_utc": upload_window[1].astimezone(timezone.utc).isoformat(),
                 "within_window": upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2)})
-    if not (upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2)):
+    if build_receipt is not None:
+        validate_build_receipt(build_receipt, build["id"], uploaded, upload_window)
+    elif not (upload_window[0] - timedelta(minutes=2) <= uploaded <= upload_window[1] + timedelta(minutes=2)):
         raise SafeError("Build " + BUILD + " upload time does not match the pinned signed source job")
 
     submission = resource(apple.request("GET", shared.query(SUBMISSION_PATH, {
@@ -250,12 +270,12 @@ def patch_once(apple, path, body, proof, record):
     record({"event": "mutation_read_proof_passed", "path": path})
 
 
-def prepare(apple, expected_hash, upload_window, record):
-    initial = read_store(apple, expected_hash, upload_window)
+def prepare(apple, expected_hash, upload_window, record, *, build_receipt=None):
+    initial = read_store(apple, expected_hash, upload_window, build_receipt=build_receipt)
     record({"event": "preparation_snapshot", "store": public_store(initial)})
     build_id = initial["build_id"]
     if initial["current_build_id"] != build_id:
-        fresh = read_store(apple, expected_hash, upload_window)
+        fresh = read_store(apple, expected_hash, upload_window, build_receipt=build_receipt)
         if fresh["current_build_id"] != initial["current_build_id"] or fresh["build_id"] != build_id:
             raise SafeError("The selected build changed during preparation")
         def build_proof():
@@ -266,7 +286,7 @@ def prepare(apple, expected_hash, upload_window, record):
     else:
         record({"event": "build_already_prepared", "build_id": build_id})
 
-    current = read_store(apple, expected_hash, upload_window)
+    current = read_store(apple, expected_hash, upload_window, build_receipt=build_receipt)
     if current["build_id"] != build_id or current["current_build_id"] != build_id or \
             current["detail_id"] != initial["detail_id"] or current["item_id"] != initial["item_id"]:
         raise SafeError("The reviewed target changed before updating review notes")
@@ -283,7 +303,7 @@ def prepare(apple, expected_hash, upload_window, record):
                              "attributes": {"notes": current["final_notes"]}}}, notes_proof, record)
     else:
         record({"event": "notes_already_prepared", "notes": current["notes"]})
-    final = read_store(apple, expected_hash, upload_window)
+    final = read_store(apple, expected_hash, upload_window, build_receipt=build_receipt)
     if final["current_build_id"] != build_id or \
             final["notes"]["current_sha256"] != final["notes"]["final_sha256"]:
         raise SafeError("Final preparation read does not match the reviewed build and notes")
@@ -323,9 +343,10 @@ def main():
         apple = shared.AppleAPI(args.key_path)
         if args.operation == "inspect":
             record({"event": "inspection_verified", "store": public_store(
-                read_store(apple, args.expected_notes_sha256, window, record=record)), "mutated": False})
+                read_store(apple, args.expected_notes_sha256, window, record=record,
+                           build_receipt=source.get("signed_delivery_receipt"))), "mutated": False})
         else:
-            prepare(apple, args.expected_notes_sha256, window, record)
+            prepare(apple, args.expected_notes_sha256, window, record, build_receipt=source.get("signed_delivery_receipt"))
         report["status"] = "success"
     except SafeError as error:
         report["status"], report["error"] = "stopped", str(error)
