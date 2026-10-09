@@ -72,8 +72,10 @@ mesajı belirli bir SDK veya dosyanın ret nedeni olduğunu kanıtlamaz.
   aktivasyon kodu için User ID, güvenlik IP'si için Other Data Types, istek süresi
   için Performance Data ve teknik kayıt için Other Diagnostic Data içerir.
   Dört tür de App Functionality / linked / tracking yok olarak açıklanır.
-  App Store'daki eski Data Not Collected etiketi ve canlı politika bu kayıtla
-  eşleştirilmeden gizlilik adımı tamamlanmış sayılmaz. Android'e özel tanılama
+  App Store etiketi 9 Ekim'de bu dört tür için kaydedilip yayımlandı.
+  EN/TR site paketi kullanıcıya teslim edildi; canlı yüklemeyi kullanıcı yapar.
+  Canlı politika bu kayıtla eşleştirilmeden gizlilik adımı tamamlanmış sayılmaz.
+  Android'e özel tanılama
   raporu iOS'ta yoktur; server verisiyle karıştırılmaz.
 - Parola Keychain'de saklanır; gerekli Xtream isteklerinde kullanıcının
   seçtiği sağlayıcıya gönderilir. Optional aktivasyon/web hızlı kurulumun

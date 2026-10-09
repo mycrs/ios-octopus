@@ -204,13 +204,16 @@ IP'si), Performance Data (istek süresi) ve Other Diagnostic Data (teknik istek
 kaydı) bildirir. Amaç yalnız App Functionality; tracking yok, anonimleştirme
 doğrulanmadığından linked=true. Otomatik iOS crash raporu, reklam kimliği,
 konum veya manuel sağlayıcı parolasının Octopus'a gönderilmesi eklenmedi.
-App Store etiketinin güncellenmesi ve canlı politika eşleşmesi henüz bekliyor.
+9 Ekim'de App Store etiketi bu dört tür için kaydedilip yayımlandı; tümü
+App Functionality, kimlikle bağlantılı ve takip dışı olarak doğrulandı.
+Canlı sitedeki politika eşleşmesi henüz bekliyor.
 [Apple App Privacy Details](https://developer.apple.com/app-store/app-privacy-details/)
 
 Canlı gizlilik politikasına eklenecek iOS açıklaması:
 
-> iOS service requests use a temporary Quick Setup code to retrieve the source
-> account you selected. Octopus services temporarily retain the code and related
+> Quick Setup on iOS sends a temporary code to retrieve the selected source
+> account. For Quick Setup and service configuration requests, Octopus services
+> temporarily retain the code, where used, and related
 > security and technical request information, including the IP address, request
 > endpoint, timestamp, status and duration. These records are encrypted, retained
 > for no more than 10 minutes, and used only to provide Quick Setup, prevent abuse
@@ -221,7 +224,11 @@ Canlı gizlilik politikasına eklenecek iOS açıklaması:
 > Android app's automatic diagnostic reports.
 
 Bu paragraf işletmecinin beyanına dayanır; canlı 10 dakika silme işi bağımsız
-sunucu incelemesiyle doğrulanmış gibi sunulmaz. Site erişimi beklenmektedir.
+sunucu incelemesiyle doğrulanmış gibi sunulmaz. Kullanıcının gösterdiği
+`C:\qruze_player\octopus-public-site\privacy-policy\index.html` EN/TR
+metni güncellendi; `dist\octopusplayer-public` ve ZIP'i hazırlandı.
+Kullanıcı canlı yüklemeyi kendisinin yapacağını belirtti. Yerel paket,
+canlı sitede yeni metnin bulunduğuna dair kanıt yerine kullanılmaz.
 
 Parental Controls, PIN/kategori araçları son Release'te bulunabiliyor ve
 çalışıyorsa **Present**; yaş doğrulama mekanizması yoksa Age Assurance

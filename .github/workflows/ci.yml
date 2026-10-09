@@ -62,11 +62,19 @@ jobs:
     # Only a real boolean true from the device caller skips this job. Missing
     # inputs on push/PR/manual CI preserve the full release journey.
     if: ${{ toJSON(inputs.device_validation_only) != 'true' }}
-    runs-on: macos-latest
+    # Keep the UI host explicit. This standard runner has 14 GB RAM; the
+    # 7 GB ARM host stalled during simulator startup before application tests.
+    # App/unit jobs and the signed device archive continue to run on ARM.
+    runs-on: macos-26-intel
     timeout-minutes: 30
     needs: [architecture]
     steps:
       - uses: actions/checkout@v5
+      - name: İnceleme test ortamını kaydet
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          sysctl -n hw.ncpu hw.memsize
       - run: brew install xcodegen
       - run: xcodegen generate
       - name: Telefon ve tablet seç

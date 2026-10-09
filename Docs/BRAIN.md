@@ -2326,3 +2326,38 @@ User ID, IP ve manifest dokümanlarıyla eşlendi. App Store UI etiketi hâlâ e
 Data Not Collected; güncelleme yapılacak. Canlı public politika aynı eski metin;
 iOS ek paragrafı APP-STORE-METIN-TASLAKLARI içinde hazır, site erişimi bekleniyor.
 Beyan/mağaza/politika eşleşmesi tamamlanmadan privacy kanıtı üretilmeyecek.
+
+
+### 9 Ekim — Source 36 simülatör sonucu, gizlilik ve Source 37 hazırlığı
+
+Source36 dca8794779fd5b53f817d56164533e0153143ef9 / run37941819247
+Release job113857959087, ilk iPhone prepare-review-simulator adımında
+simulator_readiness_timeout ile durdu. xcodebuild/test hiç başlamadı;
+xcresult/görsel/artifact yok. 153 saniyelik toplamdan hangi alt komutun
+timeout olduğu belirlenemez; bootstatus180 sınırının aşıldığı iddia edilmez.
+Log SHA25673bba140e33bf61c4ba06cf410b91b62a0013e7c1aff71a245db72367bb0fbd9.
+
+Sonraki aday yalnız Release UI işinde macos-26-intel standart runnerını
+kullanır: GitHub belgelerine göre 4 CPU/14 GB; önceki macos-latest ARM 3 CPU/7 GB.
+Bellek yetersizliği ölçülmedi; bu sınırlı bir ortam değişikliğidir. Diğer
+birim/App ve imzalı cihaz derlemesi ARM üzerinde kalır. Xcode/SDK/CPU/RAM
+CI çıktısına eklenir; sabit aşama/süre tanısı raw argv/log/UDID yazdırmaz.
+Üretim Swift, UI assertion, test retry ve readiness süre bütçeleri korunur.
+11 yerel readiness testi, pycompile, mimari ve diff denetimi geçti.
+Kaynak: https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+
+App Store Privacy UI 9 Ekim'de dört türün tamamı için yayımlandı:
+User ID / Performance Data / Other Diagnostic Data / Other Data Types.
+Hepsi yalnız App Functionality, linked=true, tracking=false. Son sayfada
+pending setup uyarısı yok; .artifacts/app-store-privacy-20261009-overview.jpg
+kanıtı saklandı. Bu App Review submission değildir; seçili build hâlâ 9.
+
+Kullanıcı site kaynağını C:\qruze_player olarak gösterdi; gerçek EN/TR kaynak
+octopus-public-site/privacy-policy/index.html güncellendi ve
+dist/octopusplayer-public ile ZIP'i hazırlandı. Manuel credentials/Android
+metni korunur; iOS kod+IP+teknik kayıt 10 dk, no tracking, isteğe bağlı açık
+lisanslı örnek kitaplığı ve kişisel veri kapsamı net anlatılır.
+Nihai policy 23056 bayt SHA7a01c357874dbdaad239f802de422966c7629c24be760f3c14080992f2b49505.
+Kaynak/dist/ZIP birebir doğrulandı. Kullanıcı canlı yüklemeyi üstlendi.
+Henüz canlı metin değişti denmez. İşletmeci 10 dk saklama beyanı bağımsız
+silme işi denetimi değildir.

@@ -3,15 +3,50 @@ import argparse
 import json
 import re
 import subprocess
+import time
+
+UDID_PATTERN = r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}'
 
 
 class ReadinessError(RuntimeError):
     """Only fixed diagnostic codes reach CI output."""
 
 
-def selected_state(udid, run):
-    response = run(['xcrun', 'simctl', 'list', 'devices', '-j'],
-                   check=True, capture_output=True, text=True, timeout=30)
+def command_phase(command):
+    if not isinstance(command, (list, tuple)):
+        return 'unknown'
+    if list(command) == ['xcrun', 'simctl', 'list', 'devices', '-j']:
+        return 'inventory'
+    if len(command) >= 4 and command[:2] in (['xcrun', 'simctl'], ('xcrun', 'simctl')):
+        if isinstance(command[3], str) and re.fullmatch(UDID_PATTERN, command[3]):
+            if len(command) == 4 and command[2] == 'boot':
+                return 'boot'
+            if len(command) == 5 and command[2] == 'bootstatus' and command[4] == '-b':
+                return 'bootstatus'
+    return 'unknown'
+
+
+def emit_progress(event):
+    print(json.dumps(event), flush=True)
+
+
+def invoke(phase, arguments, budget, run, report, clock):
+    started = clock()
+    event = {'simulator_readiness_phase': phase, 'budget_seconds': budget}
+    report({**event, 'event': 'begin', 'elapsed_ms': 0})
+    try:
+        response = run(arguments, check=True, capture_output=True, text=True, timeout=budget)
+    except subprocess.TimeoutExpired as error:
+        report({**event, 'event': 'timeout', 'elapsed_ms': max(0, round((clock() - started) * 1000)),
+                'command_phase': command_phase(error.cmd)})
+        raise
+    report({**event, 'event': 'done', 'elapsed_ms': max(0, round((clock() - started) * 1000))})
+    return response
+
+
+def selected_state(udid, phase, run, report, clock):
+    response = invoke(phase, ['xcrun', 'simctl', 'list', 'devices', '-j'],
+                      30, run, report, clock)
     try:
         inventory = json.loads(response.stdout)
         groups = inventory['devices']
@@ -29,17 +64,15 @@ def selected_state(udid, run):
     return state
 
 
-def prepare(udid, *, run=subprocess.run):
-    if not isinstance(udid, str) or not re.fullmatch(
-            r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}', udid):
+def prepare(udid, *, run=subprocess.run, report=emit_progress, clock=time.monotonic):
+    if not isinstance(udid, str) or not re.fullmatch(UDID_PATTERN, udid):
         raise ReadinessError('invalid_selected_simulator')
-    if selected_state(udid, run) == 'Shutdown':
-        run(['xcrun', 'simctl', 'boot', udid], check=True,
-            capture_output=True, text=True, timeout=30)
+    if selected_state(udid, 'inventory-before', run, report, clock) == 'Shutdown':
+        invoke('boot', ['xcrun', 'simctl', 'boot', udid], 30, run, report, clock)
     # Booted alone does not mean SpringBoard and the simulator services are ready.
-    run(['xcrun', 'simctl', 'bootstatus', udid, '-b'], check=True,
-        capture_output=True, text=True, timeout=180)
-    if selected_state(udid, run) != 'Booted':
+    invoke('bootstatus', ['xcrun', 'simctl', 'bootstatus', udid, '-b'],
+           180, run, report, clock)
+    if selected_state(udid, 'inventory-after', run, report, clock) != 'Booted':
         raise ReadinessError('simulator_not_booted_after_readiness')
 
 
