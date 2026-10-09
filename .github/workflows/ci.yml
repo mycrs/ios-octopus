@@ -66,7 +66,8 @@ jobs:
     # 7 GB ARM host stalled during simulator startup before application tests.
     # App/unit jobs and the signed device archive continue to run on ARM.
     runs-on: macos-26-intel
-    timeout-minutes: 30
+    # Includes setup and result export in addition to the bounded phases below.
+    timeout-minutes: 65
     needs: [architecture]
     steps:
       - uses: actions/checkout@v5
@@ -90,19 +91,32 @@ jobs:
                   target.write(key + '=' + device['udid'] + '\n')
                   print(key + ': ' + device['name'])
           PY
-      - name: Release uygulamasını kullanıcı akışıyla dene
+      - name: Release test paketini etkin simülatör mimarisi için derle
+        timeout-minutes: 30
+        run: |
+          # Build before booting so an idle Simulator does not share the cold
+          # compiler's resources. Both test destinations run on this Intel host.
+          xcodebuild build-for-testing \
+            -scheme OctopusReview -configuration Release \
+            -destination "platform=iOS Simulator,id=$REVIEW_PHONE,arch=x86_64" \
+            -derivedDataPath ./ReviewDerivedData \
+            -parallel-testing-enabled NO \
+            -skipMacroValidation ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
+      - name: Release iPhone kullanıcı akışını dene
+        timeout-minutes: 15
         run: |
           set -o pipefail
           mkdir -p review-results
           python3 Scripts/prepare-review-simulator.py "$REVIEW_PHONE"
-          xcodebuild test \
+          xcodebuild test-without-building \
             -scheme OctopusReview -configuration Release \
-            -destination "platform=iOS Simulator,id=$REVIEW_PHONE" \
+            -destination "platform=iOS Simulator,id=$REVIEW_PHONE,arch=x86_64" \
             -testLanguage en -testRegion US \
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/iphone.xcresult \
             -parallel-testing-enabled NO \
-            -skipMacroValidation CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
+            ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
           bash Scripts/capture-player-presentation-diagnostics.sh \
             "$REVIEW_PHONE" review-results/iphone-player-ui.log review-results/iphone.xcresult
           python3 - <<'PY'
@@ -122,14 +136,18 @@ jobs:
           elif phone['state'] != 'Shutdown':
               raise RuntimeError('Unexpected phone simulator state: ' + phone['state'])
           PY
+      - name: Release iPad kullanıcı akışını dene
+        timeout-minutes: 15
+        run: |
           python3 Scripts/prepare-review-simulator.py "$REVIEW_PAD"
           xcodebuild test-without-building \
             -scheme OctopusReview -configuration Release \
-            -destination "platform=iOS Simulator,id=$REVIEW_PAD" \
+            -destination "platform=iOS Simulator,id=$REVIEW_PAD,arch=x86_64" \
             -testLanguage en -testRegion US \
             -derivedDataPath ./ReviewDerivedData \
             -resultBundlePath review-results/ipad.xcresult \
-            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
+            -parallel-testing-enabled NO \
+            ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=-
       - name: Oynatıcı UIKit geçiş tanısını sakla
         if: always()
         run: |

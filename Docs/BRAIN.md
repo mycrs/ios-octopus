@@ -2434,3 +2434,34 @@ Whole run failure, Signed113882923418 skipped. Build11 IPA/TestFlight
 veya cihaz kurulumu yok. Source39 cache/readiness15 yerel test ve
 mimari denetimi geçti; yeni Mac çalıştırması henüz yapılmadı.
 Değişen testin Swift sözdizimi denetimi geçti; bu derleme kanıtı değildir.
+
+
+### 9 Ekim — Source 39 derleme sonucu ve Source 40 hazırlığı
+
+Source39 4f18589d0a42607c05eabf2fbab875aa6b2f2594 / run37949911418:
+altı gerçek birim/uygulama işi 783 test / 0 hata. Önceki buffering testi
+bu turda 0.019 saniyede geçti; üretim oynatıcı kodu değiştirilmedi.
+Release113885835638 toplam30dk sınırında cancelled; Signed113899801191
+skipped, whole cancelled. Build11 IPA/TestFlight/cihaz kurulumu yok.
+
+Simülatör hazırlığı geçti: cache269ms, boot4754ms, bootstatus169631ms;
+ready15:15:37Z. Derleme 15:42:34Z kesilene dek sürdü, hiçbir XCTest
+başlangıcı yok. Log hem arm64 hem x86_64 simulator derlemesini ve
+universal birleştirmeyi gösterir. Eksik xcresult Info.plist nedeniyle
+export başarısızdır; 436 baytlık artifact ekran görüntüsü kanıtı değildir.
+LogSHA256 b6bf560adb3c02c47bec605f746bf5b7c8638aa325bf35f7cd36222b592ca7de.
+Bu sonuç uygulama/oynatıcı çalışma hatası veya başarı kanıtı sayılmaz.
+
+Source40 yalnız Release CI işini düzenler: seçilen Intel simulator
+id+arch=x86_64 ile ONLY_ACTIVE_ARCH=YES; önce simülatör açılmadan
+build-for-testing, sonra aynı DerivedData ile ayrı iPhone/iPad
+test-without-building adımları. Apple build settings belgesi etkin
+mimariye sınırlamayı destekler. Release optimizasyonları, gerçek XCTest
+koşulları, readiness/cache bütçeleri, unit/App ve imzalı ARM arşivi korunur.
+Derleme30dk, telefon15dk, tablet15dk; setup/tanı/export payıyla job65dk.
+Yeni çalıştırma sonucu olmadan zaman kazancı veya tamamlanma iddiası yok.
+Kaynak: https://developer.apple.com/documentation/xcode/build-settings-reference
+
+Güncellenmiş site ZIP'i kullanıcıya teslim edildi. Kullanıcı henüz canlıya
+yüklemediğini bildirdi; yükleme kullanıcıya ait. Canlı gizlilik metni
+doğrulanmış sayılmaz ve yeni App Review gönderimi yapılmadı.
