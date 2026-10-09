@@ -1915,3 +1915,69 @@ Ek14 native kare toplamında ilk sentez eşlemesi261,085933 çevresinde
 down değildir ve wallclock/PTS eşlemesi yaklaşık; fade kesin önceydi
 iddiası yoktur. Root üç ana native kareyi bağımsız gördü. İki bağımsız
 sonraki dar UITest diff incelemesi geçti; yeni Mac sonucu henüz yok.
+
+
+## 9 Ekim 2026 — yirmi dokuzuncu aday: ikinci mini açılışı ve canlı ekran gözlemi
+
+Kaynak `83e4631c984554cdf866c34cd731c621851ba5ce`,
+[37905711183](https://github.com/mycrs/ios-octopus/actions/runs/37905711183):
+altı gerçek unit işi **738/0**; özgün altı log/job pin/SHA ve suite
+sayıları root ve bağımsız incelemede doğrulandı. iPhone Release journey
+**179,717s** sonunda ikinci Live fullscreen açılışının landscape beklentisinde
+fail verdi (`ReviewJourneyTests.swift:157`). iPad başlamadı. Yeni hide/reveal
+ardından gerçek4s Close dalı derlendi fakat bu koşuda hiç çalışmadı.
+
+Movie landscape/upright/native full-window dört<=1pt, Pause→enabledPlay,
+aynı detay dönüşü; ilk Live mini açılışı, sol kanal paneli, seçili BBB,
+Sintel arama/seçim; ilk normal Close→portrait ve taze aynı-window unique
+Sintel mini altında ready-native dört<=1pt kontrolleri geçti. İlk global
+mini tap başarılıydı. İkinci açılış zaten taze Window/mini merkezine(201,175)
+gerçek coordinate tap istedi; command→synthesis arası36,828723s idi.
+Synthesis işareti fiziksel down/teslim kanıtı değildir. Sabit SafeUIKit
+logunda ikinci landscape isteği/rejection yok; yokluk handler hatasını
+tek başına kanıtlamaz.
+
+16 küçük özgün dosya toplam2.641.234 bayt ve yalnız özgün iPhone MP4
+278.825.663 bayt bağımsız offline CRC/SHA doğrulandı (17unique toplam
+281.466.897). MP4 CRC `d1d96003`, SHA256
+`1225d4e0111135a206b4946bbfca34a12cd26a67c34c6f20dc2073a679690311`.
+Manifest start08:42:27.464Z, duration177,078333s; özgün1206x2622 kayıt
+12native kareye çözüldü. Komut öncesi PTS109,236667, synthesis sonrası
+146,300000 ve failure175,503333 karelerini root bağımsız gördü: portrait
+LiveTV seçili, aynı Sintel mini konumu ve ilerleyen video. Örneklerde Home,
+orphaned yüzey veya ikinci fullscreen yok. Beklenti hatası gerçek portrait
+piksellerle uyumludur; kanıtlanmış AX false-orientation değildir. Hedef
+video alanındadır; fiziksel down işareti yok, gesture/driver ayrımı açık.
+Whole ZIP/iPad MP4/başka medya alınmadı; tüm29 ağ işi tamamlandı.
+
+Release113738632234/whole **failure**, Signed113744916793 **skipped**;
+Build10 paketi/TestFlight/kurulum/review gönderimi yoktur. Read-only
+screens inspect37906928129/job113742559166 başarıyla mevcut eski21
+yerleşimleri doğruladı; yalnız source_verified/target_inspected/completed
+olayları, mağaza görseli değişikliği yok. Bu rapor binary/allCI geçişi
+veya yeni12 READY native source kanıtı değildir.
+
+Ayrı gerçek optimizasyon bulgusu: AVPlayerEngine her0,5s timeChanged
+yayar; PlayerController @Published time günceller. LiveScreen tüm
+controller.objectWillChange olaylarına abonedir, fakat kanal listesi ve
+mini oynatıcı zamanı kullanmaz. Gereksiz2Hz view invalidation vardır;
+gerçek yeniden çizim maliyeti ve36,8s driver gecikmesinin nedeni ölçülmedi.
+Sonraki dar değişiklik yalnız session/playbackState/surfaceGeneration
+Equatable projection'ını gözler; zaman/track/rate olayları canlı listeyi
+yenilemez. Session adoption, native yüzey nesli ve spinner durumları
+korunur. currentItem.isLive session'ın willSet publisher'ında dondurulmaz.
+Timer/throttle, engine policy, gesture, UI assertion/timeouts ve hold
+teslim şartları değişmez. Mac runtime sonucu henüz yoktur.
+
+
+Yeni filtreli gözlem34satır; LiveScreen controller'ı yeniden üretmez,
+aynı AppContainer örneğini komutlar için tutar. Altı yeni FeatureLive testi
+gerçek PlayerController+kontrollü AsyncStream motoruyla başlangıç snapshot,
+64time olayı/0UI yayını, duplicate-state filtreleme/spinner, kanal oturum
+değişimi/finish→nil, aynı engineIdentifier fallback surfaceGeneration ve
+gözlemci bırakılınca shared playback'in durmamasını sınar. Beklenen Mac
+sayıları Live43/Features243/altı unit744'tür; henüz runtime sonucu yok.
+Root ve bağımsız parity diff incelemesi,5Swift syntax parse ve mimari
+denetim geçti. IUO kaldırıldı; fallback testi gerçek playing event'ini de
+bekler. Aynı-native kanal değişimi controller'ın mevcut reload yoludur;
+teardown varsayımı geri çekildi. Üretim scope yalnız FeatureLive gözlemidir.

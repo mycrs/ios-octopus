@@ -18,6 +18,8 @@ struct LiveMiniPlayerView: View {
     let channel: Channel?
     let program: EPGProgram?
     let controller: PlayerController
+    let state: PlaybackState
+    let surfaceGeneration: Int
     /// Hiçbir kanal seçilmemişken gösterilecek afiş — ilk açılışta
     /// ekranın tepesi boş kalmasın.
     let placeholderChannel: Channel?
@@ -47,7 +49,7 @@ struct LiveMiniPlayerView: View {
             surface
             scrim
             info
-            if controller.state.showsSpinner { spinner }
+            if state.showsSpinner { spinner }
         }
         .frame(maxWidth: .infinity)
         .aspectRatio(aspectRatio, contentMode: .fit)
@@ -78,7 +80,7 @@ struct LiveMiniPlayerView: View {
             // ekranda bırakılmış eski motorun katmanı kalır
             // (bkz. `PlayerController.surfaceGeneration`).
             VideoSurfaceView(makeSurface: controller.makeVideoView)
-                .id(controller.surfaceGeneration)
+                .id(surfaceGeneration)
                 .background(Color.black)
         } else if channel != nil {
             // Yayın sürüyor ama yüzey tam ekranda: siyah zemin yeterli,

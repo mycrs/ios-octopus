@@ -81,11 +81,10 @@ public struct LiveDependencies {
 public struct LiveScreen: View {
 
     @StateObject private var viewModel: LiveChannelsViewModel
-    /// ⚠️ `@StateObject` **değil**: denetleyici bu ekrana ait değil,
-    /// tam ekran oynatıcıyla paylaşılıyor ve ömrü `AppContainer`'da.
-    /// `@StateObject` yapılsaydı ekran her kurulduğunda yeni bir motor
-    /// üretilir, paylaşımın amacı ortadan kalkardı.
-    @ObservedObject private var controller: PlayerController
+    @StateObject private var playbackObservation: LivePlaybackObservation
+    /// The shared controller belongs to AppContainer. The local observer follows
+    /// only ownership, playback state and surface changes needed by this screen.
+    private let controller: PlayerController
     @EnvironmentObject private var router: AppRouter
     @Environment(\.scenePhase) private var scenePhase
     @State private var playbackTask: Task<Void, Never>?
@@ -95,7 +94,8 @@ public struct LiveScreen: View {
 
     public init(dependencies: LiveDependencies) {
         _viewModel = StateObject(wrappedValue: LiveChannelsViewModel(dependencies: dependencies))
-        _controller = ObservedObject(wrappedValue: dependencies.controller)
+        controller = dependencies.controller
+        _playbackObservation = StateObject(wrappedValue: LivePlaybackObservation(controller: dependencies.controller))
     }
 
     /// Üstteki oynatıcı alanı görünüyor mu?
@@ -123,6 +123,8 @@ public struct LiveScreen: View {
                         program: (viewModel.playingChannel ?? viewModel.lastWatchedChannel)
                             .flatMap(viewModel.currentProgram),
                         controller: controller,
+                        state: playbackObservation.viewState.state,
+                        surfaceGeneration: playbackObservation.viewState.surfaceGeneration,
                         placeholderChannel: viewModel.lastWatchedChannel,
                         // Tam ekran kapalıyken yüzeyin sahibi burasıdır.
                         ownsSurface: router.player == nil && ownsPreview,
@@ -164,7 +166,7 @@ public struct LiveScreen: View {
             await viewModel.load()
             await synchronizePlayback()
         }
-        .onChange(of: controller.session) { _ in
+        .onChange(of: playbackObservation.viewState.session) { _ in
             guard ownsPreview else { return }
             ownedSession = controller.session
             adoptionTask?.cancel()

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import OctopusDomain
 import OctopusPlayback
 
@@ -66,5 +67,56 @@ final class LiveStubProgress: PlaybackProgressRepository, @unchecked Sendable {
     ) async throws -> [PlaybackProgress] { [] }
 
     func clear(for source: PlaybackItem.Source) async throws {}
+    func clearAll() async throws {}
+}
+
+/// Controllable public engine events exercise the real controller/projection path.
+@MainActor
+final class LiveObservationTestEngine: PlaybackEngine {
+    let identifier = "observation-test"
+    let events: AsyncStream<PlaybackEvent>
+    private let continuation: AsyncStream<PlaybackEvent>.Continuation
+    let surface = UIView()
+    private(set) var currentState: PlaybackState = .idle
+    private(set) var loadCount = 0
+    private(set) var playCount = 0
+    private(set) var teardownCount = 0
+    let audioTracks: [MediaTrack] = []
+    let subtitleTracks: [MediaTrack] = []
+    let selectedAudioTrack: MediaTrack? = nil
+    let selectedSubtitleTrack: MediaTrack? = nil
+    let supportsPictureInPicture = false
+    let supportsAirPlay = false
+    let isPictureInPicturePossible = false
+
+    init() {
+        var captured: AsyncStream<PlaybackEvent>.Continuation?
+        events = AsyncStream { captured = $0 }
+        guard let captured else { preconditionFailure("AsyncStream did not initialize its continuation") }
+        continuation = captured
+    }
+
+    func emit(_ event: PlaybackEvent) {
+        if case .stateChanged(let state) = event { currentState = state }
+        continuation.yield(event)
+    }
+
+    func load(_ item: PlaybackItem) async { loadCount += 1 }
+    func play() { playCount += 1; emit(.stateChanged(.playing)) }
+    func pause() { emit(.stateChanged(.paused)) }
+    func stop() { emit(.stateChanged(.idle)) }
+    func seek(to seconds: TimeInterval) async {}
+    func setVolume(_ volume: Float) {}
+    func setRate(_ rate: Float) {}
+    func select(track: MediaTrack) {}
+    func setVideoFit(_ fit: VideoFit) {}
+    func setPictureInPictureActive(_ active: Bool) {}
+    func makeVideoView() -> UIView { surface }
+    func teardown() { teardownCount += 1; continuation.finish() }
+}
+
+final class LiveObservationTestHistory: WatchHistoryRepository, @unchecked Sendable {
+    func record(_ source: PlaybackItem.Source, at date: Date) async throws {}
+    func recentChannels(playlistID: Playlist.ID, limit: Int) async throws -> [Channel] { [] }
     func clearAll() async throws {}
 }
