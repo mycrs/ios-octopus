@@ -1640,3 +1640,16 @@ durdu. Güvenli diagnostic gerçek kimliğin 64 ASCII harf/rakam olduğunu
 belirledi; ham notlar, iletişim verileri veya kimlik içeriği dışa aktarılmadı.
 Yeni dar kabul kuralı yalnız bu resource türünü kapsar; hazırlık/gönderim
 kapıları ve diğer resource kimliği doğrulamaları korunur.
+
+
+Salt okunur hedef kontrolü daha sonra metadata kaynağı
+`46280fdb6669b965801e818ad9def0765774f072` ve
+[37886747835](https://github.com/mycrs/ios-octopus/actions/runs/37886747835)
+ile başarılı tamamlandı. Gerçek hedef `PREPARE_FOR_SUBMISSION`,
+`reviewType=APP_STORE`, `releaseType=AFTER_APPROVAL`, seçili build9;
+submission `UNRESOLVED_ISSUES`, exact version ilişkisi dolu ve tam listede
+tek `REJECTED` öğe. Orijinal 3492 karakter notun SHA'sı eşleşir. Önceden
+şüpheli optional alanlar gerçekte vardır; strict prepare kapıları değişmez.
+Bu eski başarılı build9 provenansı ile yapılan hedef okumasıdır; yeni
+build10 CI/kurulum/ekran veya gönderim kanıtı yerine geçmez. API mutasyonu
+yapılmadı.

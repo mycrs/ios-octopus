@@ -69,7 +69,7 @@ final class ReviewJourneyTests: XCTestCase {
         // the locked scene disagree. Capture the physical screen after alignment.
         XCUIDevice.shared.orientation = .landscapeRight
         assertWindowOrientation(isLandscape: true)
-        assertVideoFillsWindow(nativeVideo)
+        assertVideoFillsWindow()
         // A normal pause keeps the real controls visible while a slow screenshot
         // is captured; the ready video frame remains displayed by AVPlayerLayer.
         revealAndTapPlayerButton("player.playPause")
@@ -122,14 +122,29 @@ final class ReviewJourneyTests: XCTestCase {
         add(attachment)
     }
 
-    private func assertVideoFillsWindow(_ surface: XCUIElement) {
+    private func assertVideoFillsWindow() {
         let fillsWindow = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
-            guard let app = app, let window = self.observedContentWindow(in: app)?.frame,
-                  window.width > window.height else { return false }
-            let video = surface.frame
-            return abs(video.minX - window.minX) <= 1 && abs(video.minY - window.minY) <= 1
-                && abs(video.width - window.width) <= 1 && abs(video.height - window.height) <= 1
-        }, object: surface)
+            guard let app = app, let window = self.observedContentWindow(in: app),
+                  window.frame.width > window.frame.height else { return false }
+            // Observe both coordinate spaces in the same window snapshot. A
+            // retained global AX identity can report its previous portrait frame.
+            var pending = window.snapshot.children
+            var native: (any XCUIElementSnapshot)?
+            while let child = pending.popLast() {
+                if child.identifier == "player.native-video" {
+                    guard native == nil else { return false } // Ambiguous surfaces fail.
+                    native = child
+                }
+                pending.append(contentsOf: child.children)
+            }
+            guard let native, native.value as? String == "ready" else { return false }
+            let video = native.frame
+            guard video.minX.isFinite, video.minY.isFinite,
+                  video.width.isFinite, video.height.isFinite,
+                  video.width > 0, video.height > 0 else { return false }
+            return abs(video.minX - window.frame.minX) <= 1 && abs(video.minY - window.frame.minY) <= 1
+                && abs(video.width - window.frame.width) <= 1 && abs(video.height - window.frame.height) <= 1
+        }, object: app)
         XCTAssertEqual(XCTWaiter.wait(for: [fillsWindow], timeout: 10), .completed,
                        "Video yüzeyi yatay pencerenin tamamını kaplamalı")
     }
@@ -169,8 +184,7 @@ final class ReviewJourneyTests: XCTestCase {
         mini.tap()
         assertWindowOrientation(isLandscape: true)
         waitForNativeFrame()
-        assertVideoFillsWindow(app.descendants(matching: .any)
-            .matching(identifier: "player.native-video").firstMatch)
+        assertVideoFillsWindow()
 
         revealAndTapPlayerButton("player.channels.open")
         let currentRow = app.buttons.matching(NSPredicate(
@@ -224,8 +238,7 @@ final class ReviewJourneyTests: XCTestCase {
                                              windowFrame: returnedWindow.frame))
         assertWindowOrientation(isLandscape: true)
         waitForNativeFrame()
-        assertVideoFillsWindow(app.descendants(matching: .any)
-            .matching(identifier: "player.native-video").firstMatch)
+        assertVideoFillsWindow()
         revealAndTapPlayerButton("player.close")
         assertWindowOrientation(isLandscape: false)
         XCTAssertTrue(mini.waitForExistence(timeout: 10))
@@ -382,7 +395,7 @@ final class ReviewJourneyTests: XCTestCase {
         return true
     }
 
-    private typealias ContentWindow = (element: XCUIElement, frame: CGRect)
+    private typealias ContentWindow = (element: XCUIElement, frame: CGRect, snapshot: any XCUIElementSnapshot)
 
     /// Ignore zero-size auxiliary windows without selecting by expected orientation
     /// or by video bounds: geometry assertions still examine the independent window.
@@ -394,7 +407,7 @@ final class ReviewJourneyTests: XCTestCase {
             let frame = snapshot.frame
             guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
                   frame.width > 0, frame.height > 0 else { return nil }
-            return (window, frame)
+            return (window, frame, snapshot)
         }.max { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
     }
 
