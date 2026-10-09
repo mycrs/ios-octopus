@@ -37,7 +37,7 @@ final class ReviewJourneyTests: XCTestCase {
         let movie = movieCards.firstMatch
         XCTAssertTrue(movie.waitForExistence(timeout: 20))
         let cardFrame = movie.frame
-        let windowFrame = app.windows.firstMatch.frame
+        let windowFrame = try XCTUnwrap(observedContentWindow(in: app)).frame
         XCTAssertGreaterThanOrEqual(cardFrame.minX, windowFrame.minX - 1,
                                     "Dolgulu afiş kartın erişilebilirlik alanını ekran dışına taşırmamalı")
         XCTAssertLessThanOrEqual(cardFrame.maxX, windowFrame.maxX + 1)
@@ -124,7 +124,8 @@ final class ReviewJourneyTests: XCTestCase {
 
     private func assertVideoFillsWindow(_ surface: XCUIElement) {
         let fillsWindow = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
-            guard let window = app?.windows.firstMatch.frame, window.width > window.height else { return false }
+            guard let app = app, let window = self.observedContentWindow(in: app)?.frame,
+                  window.width > window.height else { return false }
             let video = surface.frame
             return abs(video.minX - window.minX) <= 1 && abs(video.minY - window.minY) <= 1
                 && abs(video.width - window.width) <= 1 && abs(video.height - window.height) <= 1
@@ -135,7 +136,7 @@ final class ReviewJourneyTests: XCTestCase {
 
     private func assertWindowOrientation(isLandscape: Bool) {
         let orientation = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
-            guard let frame = app?.windows.firstMatch.frame, frame.width > 0, frame.height > 0 else { return false }
+            guard let app = app, let frame = self.observedContentWindow(in: app)?.frame else { return false }
             return isLandscape ? frame.width > frame.height : frame.height > frame.width
         }, object: app)
         XCTAssertEqual(XCTWaiter.wait(for: [orientation], timeout: 10), .completed,
@@ -144,8 +145,9 @@ final class ReviewJourneyTests: XCTestCase {
 
     private func assertFullscreenIgnoresPortraitPosture() {
         let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
-            guard let frame = app?.windows.firstMatch.frame else { return false }
-            return frame.height > frame.width
+            // An unavailable window cannot prove that fullscreen stayed landscape.
+            guard let app = app, let frame = self.observedContentWindow(in: app)?.frame else { return true }
+            return frame.height >= frame.width
         }, object: app)
         portrait.isInverted = true
         XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 2), .completed,
@@ -176,7 +178,8 @@ final class ReviewJourneyTests: XCTestCase {
         )).firstMatch
         XCTAssertTrue(currentRow.waitForExistence(timeout: 10))
         XCTAssertTrue(currentRow.isSelected, "Liste açık kanalı seçili göstermeli")
-        XCTAssertLessThan(currentRow.frame.maxX, app.windows.firstMatch.frame.midX,
+        let panelWindowFrame = try XCTUnwrap(observedContentWindow(in: app)).frame
+        XCTAssertLessThan(currentRow.frame.maxX, panelWindowFrame.midX,
                           "Kanal listesi yatay videonun sol tarafında kalmalı")
         currentRow.tap()
         XCTAssertFalse(app.buttons["player.channels.close"].exists, "Mevcut kanala dokunmak paneli kapatmalı")
@@ -222,11 +225,10 @@ final class ReviewJourneyTests: XCTestCase {
         let surface = app.descendants(matching: .any).matching(identifier: "player.native-video").firstMatch
         for _ in 0..<3 {
             if playerActionCompleted(identifier) { return }
-            let window = app.windows.firstMatch
-            let windowFrame = window.frame
+            guard let window = observedContentWindow(in: app) else { continue }
             refreshPlayerControls(button, surface: surface)
             if playerButtonIsReady(button),
-               tapObservedPlayerButton(button, window: window, windowFrame: windowFrame,
+               tapObservedPlayerButton(button, window: window.element, windowFrame: window.frame,
                                        pressDuration: pressDuration) {
                 let completed = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
                     self.playerActionCompleted(identifier)
@@ -245,7 +247,7 @@ final class ReviewJourneyTests: XCTestCase {
         case "player.channels.open":
             return app.buttons["player.channels.close"].exists
         case "player.close":
-            let frame = app.windows.firstMatch.frame
+            guard let frame = observedContentWindow(in: app)?.frame else { return false }
             let mini = app.descendants(matching: .any)
                 .matching(identifier: "live.miniPlayer").firstMatch
             return frame.width > 0 && frame.height > frame.width
@@ -261,11 +263,10 @@ final class ReviewJourneyTests: XCTestCase {
         for _ in 0..<3 {
             if !nativeVideo.exists { return }
             let close = app.buttons["player.close"]
-            let window = app.windows.firstMatch
-            let windowFrame = window.frame
+            guard let window = observedContentWindow(in: app) else { continue }
             refreshPlayerControls(close, surface: nativeVideo)
             if playerButtonIsReady(close) {
-                _ = tapObservedPlayerButton(close, window: window, windowFrame: windowFrame)
+                _ = tapObservedPlayerButton(close, window: window.element, windowFrame: window.frame)
             }
             let dismissed = XCTNSPredicateExpectation(
                 predicate: NSPredicate(format: "exists == false"), object: nativeVideo
@@ -312,6 +313,19 @@ final class ReviewJourneyTests: XCTestCase {
             target.tap()
         }
         return true
+    }
+
+    private typealias ContentWindow = (element: XCUIElement, frame: CGRect)
+
+    /// Ignore zero-size auxiliary windows without selecting by expected orientation
+    /// or by video bounds: geometry assertions still examine the independent window.
+    private func observedContentWindow(in application: XCUIApplication) -> ContentWindow? {
+        application.windows.allElementsBoundByIndex.compactMap { window -> ContentWindow? in
+            let frame = window.frame
+            guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
+                  frame.width > 0, frame.height > 0, window.isHittable else { return nil }
+            return (window, frame)
+        }.max { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
     }
 
     private func scrollTo(_ element: XCUIElement) {

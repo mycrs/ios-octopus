@@ -6,7 +6,39 @@ olarak korunur; aşağıdaki son durum tablosu son build 9 kanıtını ayrı tut
 Ana ajan mağaza metni/yaş cevaplarını ve Review Notes'u kaydetti, imzalı
 build 9'u Apple'a yükledi. Gerçek App Review gönderimi henüz tamamlanmadı.
 
-Son Mac'te denenen build 10 kaynağı `803248d30f6df0b86ed1a4639a6cfe064cedb99f`,
+Son Mac'te denenen build 10 kaynağı `e784931116a1779d0ba2b4f49e26293ad04e6fc4`,
+[on beşinci tur 37865437808](https://github.com/mycrs/ios-octopus/actions/runs/37865437808):
+**734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Finish sırasında askıda tutulan load
+ve kanal reload testleri sırasıyla 0,003s ve 0,004s içinde geçti. Beş
+basılma regresyonu, PIN ve uygulama yön/sunum testleri de başarılıdır.
+
+iPhone **bütün Release akışını 302,468 saniyede geçti**. Dik cihazda
+yatay tam ekran/native kare, aynı film detayına dönüş, sol kanal paneli,
+geçerli kanala tekrar dokunma, Sintel arama/seçim, seçili canlı kanalın
+aynı dikey mini oynatıcıya dönüşü ve 4s gerçek basılı tutarak ikinci
+kapanış doğrulanmıştır. Bu sonuç fiziksel cihazda yeni VLC testi değildir.
+
+iPad public Settings hazırlığını geçti: Full Screen Apps seçili ve
+hittable; Windowed Apps ve Stage Manager seçili değil. Octopus açıldı ve
+gerçek native-video ready yüzeyi ile Main penceresi **1376×1032** olarak
+gözlendi. Bunun önündeki yardımcı AX Window **0×0** idi. Testin
+`app.windows.firstMatch` seçimi ilk yatay pencere assertion'ında
+`ReviewJourneyTests.swift:141` satırında 121,090s sonunda başarısız oldu.
+İki sabit güvenli UI log olayı vardır; yatay istek boyutu 1376×1032'dir,
+bu kayıtta yön isteği reddi yoktur. Bu gözlem iPad yolculuğunun kalanının
+geçtiğini kanıtlamaz. Sonraki test düzeltmesi sıfır alanlı yardımcı
+pencereleri dışlayarak gerçek pencereyi gözlemleyecek; gerçek yön,
+native yüzey sınırı, dik tutma ve geri dönüş assertion'ları korunacak.
+
+Whole run **failure**, imzalı job **skipped**. Build 10 IPA, TestFlight
+yüklemesi, telefon kurulumu ve App Review gönderimi yok. Sınırlı
+çıkarılan 31 özgün ekin CRC/SHA-256 doğrulaması korunur; büyük video
+indirilmedi. Ayrı read-only Apple API kontrolünde sürüm
+PREPARE_FOR_SUBMISSION ve eski 21 görsel yerleşimi doğrulandı; bu işlem
+görsel, not, build seçimi veya inceleme gönderimini değiştirmedi.
+
+Önceki on dördüncü build 10 kaynağı `803248d30f6df0b86ed1a4639a6cfe064cedb99f`,
 [on dördüncü tur 37863231559](https://github.com/mycrs/ios-octopus/actions/runs/37863231559):
 **733 gerçek Swift testi / 1 hata**; Domain 84/0, Playback 75/1, Design 11/0,
 Data 295/0, Features 237/0, App 31/0. Beş basılma regresyonu, PIN ve
