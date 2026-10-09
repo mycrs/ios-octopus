@@ -361,11 +361,27 @@ final class ReviewJourneyTests: XCTestCase {
         // while the input driver resolves the observed window and button frame.
         // The observed frame is only a touch target; outcome/native checks remain.
         window.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
-        guard let hidden = observedHiddenPlayerWindow(identifier, matching: window),
+        guard let hidden = waitForHiddenPlayerWindow(identifier, matching: window),
               hidden.frame.contains(frame) else { return false }
         hidden.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
         return tapObservedPlayerButton(frame, window: hidden.element, windowFrame: hidden.frame,
                                        pressDuration: pressDuration)
+    }
+
+    private func waitForHiddenPlayerWindow(
+        _ identifier: String, matching previous: ContentWindow
+    ) -> ContentWindow? {
+        var hidden: ContentWindow?
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
+            guard let observed = observedHiddenPlayerWindow(identifier, matching: previous) else {
+                return false
+            }
+            hidden = observed
+            return true
+        }, object: app)
+        // The opacity transition must finish before hidden controls are observed.
+        guard XCTWaiter.wait(for: [ready], timeout: 2) == .completed else { return nil }
+        return hidden
     }
 
     private func observedHiddenPlayerWindow(
