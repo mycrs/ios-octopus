@@ -352,11 +352,13 @@ final class ReviewJourneyTests: XCTestCase {
     ) -> Bool {
         let observed = refreshPlayerControls(identifier, window: window)
         guard let frame = playerButtonFrame(identifier, window: window, observed: observed) else { return false }
-        guard pressDuration > 0 else {
+        guard pressDuration > 0 || identifier == "player.playPause" else {
             return tapObservedPlayerButton(frame, window: window.element, windowFrame: window.frame)
         }
         // Observe the real enabled control before hiding it. Once a fresh window
-        // proves it is hidden, reveal and hold without another explicit AX read.
+        // proves it is hidden, reveal and touch without another explicit AX read.
+        // A pause tap also needs a fresh reveal: the old control can disappear
+        // while the input driver resolves the observed window and button frame.
         // The observed frame is only a touch target; outcome/native checks remain.
         window.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
         guard let hidden = observedHiddenPlayerWindow(identifier, matching: window),

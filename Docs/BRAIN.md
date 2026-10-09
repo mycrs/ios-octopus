@@ -2044,3 +2044,45 @@ Mevcut mode navigation, gerçek Full Screen Apps seçimi ve diğer iki
 modun seçili olmaması, tüm player/4s hold/upright/unique-native1pt
 şartları korunur. Assertion hatasından sonra test retry veya private
 quiescence/timer/timeout artışı yoktur. Yeni Mac sonucu henüz yoktur.
+
+
+## 9 Ekim 2026 — otuz birinci aday: unit geçti; ilk Pause dokunuşu tamamlanmadı
+
+Kaynak `4b55fb33b0894f70b3c138d4f2c94ebb8a3e2138`,
+[37916648032](https://github.com/mycrs/ios-octopus/actions/runs/37916648032).
+Altı gerçek unit işi **744/0** (84/80/11/295/243/31); root ve bağımsız
+inceleme frozen altı job ID, log SHA/index, altı yeni Live, beş press,
+altı Playback yaşam döngüsü ve31unique App testini offline doğruladı.
+
+Release113774645568 **failure**, Phone99,789s/1fail: ReviewJourneyTests:80
+zorunlu10s Play+enabled predicate karşılanmadı. Önceki Movie/nativeReady,
+upright landscape lock ve aynıWindow dört<=1pt geçti. Pad ve yeni iki
+launch Settings hazırlığı başlamadı. Signed113780854036 **skipped**;
+yeni IPA/TestFlight/telefon kurulumu veya Apple submit yoktur.
+
+Reveal synth72,70; Pause merkez(437,167) command75,34→synth76,95 ve
+son Window find78,51; sonrasında10:31:51.772 ve53.127 AX hâlâ Pause,
+sonraki query zincirleri boş. SafeUI yalnız Movies tabSelection kaydı.
+11 özgün TXT/manifest/safeUI toplam22.011B root CRC/SHA doğrulandı.
+Sonra yalnız Phone MP4 özgün158.172.904B alındı:CRC `6fe2df7e`, SHA
+`a0e5297a4a369ee13dbeee55af4c8021a59ebd456e93cb9d0ff02ebcebd2d0a1`.
+Root hash ve önceki11report immutable backup doğruladı;12unique toplam
+158.194.915B. Whole ZIP/5galleryPNG/başka medya veya screens API yok;
+tüm31 ağ işi tamamlandı. Kullanıcının görselleri erteleme tercihi sürer.
+
+Manifest recordingstart10:30:32.511Z/duration88,910s. Native kare örnekleri:
+PTS74,328/74,622 Pause+kontroller;76,115 gizli;79,287 tekrar Pause(0:26);
+80,617/88,532 gizli ve film ilerler. Root74,622/76,115 karelerini gördü.
+Play görülmedi; gerçek pause tamamlanmadı. Wallclock/PTS eşliği yaklaşık,
+synthevent fiziksel Down kanıtı değil; hide-before-contact senaryosu olası,
+üretim handler hatası kesinleştirilmedi. Paused durumda üretim timer'ı
+gizlemez; native pause doğrudan AVPlayer.pause yolunu kullanır.
+
+Sonraki dar UITest değişikliği yalnız normal Pause0'ı mevcut gerçek4s
+Close yolundaki enabled hedef→real hide→fresh aynıWindow/identifier0/
+uniqueReadyNative dört<=1pt→real reveal→stored merkez touch yoluna alır.
+Pause duration0 normal tap kalır; reveal sonrası explicit AX/frame sorgusu
+yoktur. Tek gerçek Pause dokunuşu sonrası hemen return ve zorunlu10s
+Play+enabled korunur; belirsiz sonuçtan sonra yeniden toggle yoktur.
+Channels0/Close0/Close4s, timeout/assertionlar, üretim ve yeni Settings
+guard'ları değişmez. Sonraki Mac sonucu henüz yoktur.
