@@ -211,6 +211,29 @@ final class ReviewJourneyTests: XCTestCase {
         // it alive until release, then return to the same live preview.
         revealAndTapPlayerButton("player.close", pressDuration: 4)
         assertWindowOrientation(isLandscape: false)
+        XCTAssertTrue(mini.waitForExistence(timeout: 10))
+        let heldCloseSource = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS %@", "Sintel"), object: mini
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [heldCloseSource], timeout: 10), .completed)
+        waitForNativePreview(mini)
+        // A containing SwiftUI AX element may have no computed activation point.
+        // Prove the returned preview accepts a real touch and owns the video again.
+        let returnedWindow = try XCTUnwrap(observedContentWindow(in: app))
+        XCTAssertTrue(tapObservedPlayerButton(mini, window: returnedWindow.element,
+                                             windowFrame: returnedWindow.frame))
+        assertWindowOrientation(isLandscape: true)
+        waitForNativeFrame()
+        assertVideoFillsWindow(app.descendants(matching: .any)
+            .matching(identifier: "player.native-video").firstMatch)
+        revealAndTapPlayerButton("player.close")
+        assertWindowOrientation(isLandscape: false)
+        XCTAssertTrue(mini.waitForExistence(timeout: 10))
+        let returnedSource = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS %@", "Sintel"), object: mini
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [returnedSource], timeout: 10), .completed)
+        waitForNativePreview(mini)
     }
 
     private func waitForNativeFrame() {
@@ -218,6 +241,27 @@ final class ReviewJourneyTests: XCTestCase {
         let rendered = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND value == %@", "ready"), object: surface)
         XCTAssertEqual(XCTWaiter.wait(for: [rendered], timeout: 45), .completed,
                        "Gerçek AVPlayerLayer ilk kareyi göstermeli")
+    }
+
+    private func waitForNativePreview(_ mini: XCUIElement) {
+        let surface = mini.descendants(matching: .any)
+            .matching(identifier: "player.native-video").firstMatch
+        let rendered = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
+            guard mini.exists, surface.exists, surface.value as? String == "ready",
+                  let window = observedContentWindow(in: app)?.frame else { return false }
+            let preview = mini.frame
+            let video = surface.frame
+            guard preview.minX.isFinite, preview.minY.isFinite,
+                  preview.width.isFinite, preview.height.isFinite,
+                  video.minX.isFinite, video.minY.isFinite,
+                  video.width.isFinite, video.height.isFinite,
+                  preview.width > 0, preview.height > 0, video.width > 0, video.height > 0,
+                  window.contains(preview) else { return false }
+            return abs(video.minX - preview.minX) <= 1 && abs(video.minY - preview.minY) <= 1
+                && abs(video.width - preview.width) <= 1 && abs(video.height - preview.height) <= 1
+        }, object: mini)
+        XCTAssertEqual(XCTWaiter.wait(for: [rendered], timeout: 45), .completed,
+                       "Dönen mini oynatıcı kendi hazır native video yüzeyini göstermeli")
     }
 
     private func revealAndTapPlayerButton(_ identifier: String, pressDuration: TimeInterval = 0) {
@@ -250,8 +294,11 @@ final class ReviewJourneyTests: XCTestCase {
             guard let frame = observedContentWindow(in: app)?.frame else { return false }
             let mini = app.descendants(matching: .any)
                 .matching(identifier: "live.miniPlayer").firstMatch
-            return frame.width > 0 && frame.height > frame.width
-                && mini.exists && mini.isHittable
+            guard frame.height > frame.width, mini.exists else { return false }
+            let preview = mini.frame
+            return preview.minX.isFinite && preview.minY.isFinite
+                && preview.width.isFinite && preview.height.isFinite
+                && preview.width > 0 && preview.height > 0 && frame.contains(preview)
         default:
             return false
         }
@@ -304,7 +351,8 @@ final class ReviewJourneyTests: XCTestCase {
     ) -> Bool {
         let frame = button.frame
         let center = CGPoint(x: frame.midX, y: frame.midY)
-        guard frame.width > 0, frame.height > 0, windowFrame.contains(center) else { return false }
+        guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
+              frame.width > 0, frame.height > 0, windowFrame.contains(center) else { return false }
         let target = window.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
             .withOffset(CGVector(dx: center.x - windowFrame.minX, dy: center.y - windowFrame.minY))
         if pressDuration > 0 {

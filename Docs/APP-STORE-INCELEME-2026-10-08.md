@@ -5,7 +5,40 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
-Son Mac'te denenen build 10 kaynağı `f5480055fee0bbe9863c28069692c4d02672b1fe`,
+Son Mac'te denenen build 10 kaynağı `a76e5e29256ba6b2a9c8f44e84d451bd6bf73244`,
+[on yedinci tur 37870292518](https://github.com/mycrs/ios-octopus/actions/runs/37870292518):
+**734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı unit job başarılıdır.
+
+iPhone kullanıcı testi **192,400s** sonunda `ReviewJourneyTests.swift:254`
+satırında mini oynatıcının SwiftUI kapsayıcısının `isHittable` sorgusunda
+başarısız oldu. XCTest geçerli activation point hesaplayamadı. AX öğesine
+bağlanan pencere seçimi geçti; gerçek hata artık mini kapsayıcının hit-point
+sorgusudur. Kayıt ikinci kapanışta **4,006s** gerçek basılı tutmayı gösterir.
+Kapanıştan 2s sonraki UIKit kaydı portre **402×874**, normal kullanıcı
+etkileşimi, açık Live TV sekmesi ve kaldırılmış tam ekran modalını gösterir.
+Bu kayıt tek başına mini oynatıcının görüntüsünü veya yeniden açılabildiğini
+kanıtlamaz. Son AX dökümü yalnızca uygulama kökünü içerir; son mini frame'i
+bu dökümden çıkarılamaz. Tek özgün telefon MP4 kaydı (292.350.269 bayt)
+CRC/SHA doğrulamasından sonra incelendi. Gerçek basılı kapanışın ardından
+182s ve 185s karelerinde portre Live TV sekmesi, Sintel mini oynatıcısı ve
+ilerleyen film görüntüsü doğrudan gözlendi. Bu iki kare boş AX dökümünün
+görüntü kaybını kanıtlamadığını gösterir; tekrar dokunabilme yeni testte
+ayrıca doğrulanmalıdır. Tam iPhone PASS değildir; iPad bu turda çalışmadı.
+
+Sonraki dar test düzeltmesi kapsayıcının `isHittable` sorgusu yerine
+finite/pozitif, portre pencere içinde kalan mini geometrisini kullanır.
+Geri dönen mini içinde hazır native video yüzeyi ve 1pt sınır eşleşmesi
+doğrulanır; ardından gerçek bir dokunuşla tekrar tam ekran açılması ve
+aynı Sintel kanalına yeniden portre dönüşü sınanır. Kontrol görünürlüğü,
+4s basılı tutma, dik cihazda yatay kilit ve 1pt tam ekran video sınırları
+korunur; timeout veya üretim oynatıcı bu XCTest hatası için değiştirilmez.
+
+Whole run **failure**, imzalı job **skipped**. Build 10 IPA, TestFlight
+yüklemesi, telefon kurulumu veya App Review gönderimi yok. Yeni test
+kaynağı Mac doğrulaması bekler; önceki tam iPhone PASS ayrı kanıttır.
+
+Önceki on altıncı build 10 kaynağı `f5480055fee0bbe9863c28069692c4d02672b1fe`,
 [on altıncı tur 37868108461](https://github.com/mycrs/ios-octopus/actions/runs/37868108461):
 **734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
 Data 295/0, Features 237/0, App 31/0. Altı job başarılıdır; askıdaki
