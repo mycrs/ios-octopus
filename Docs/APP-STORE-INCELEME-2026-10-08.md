@@ -5,7 +5,49 @@ Android referansına uygun kanal paneli, blur temizliği ve tam ekrandan
 dönüşte yüzey/ses ömrü düzeltilip yeni build doğrulanmadan son inceleme
 gönderimi yapılmaz. Aşağıdaki build 9 kanıtı bu ek değişikliklerin testi değildir.
 
-Son Mac'te denenen build 10 kaynağı `a13057e227dab618c50a5d9bbbf234ece47bff2a`,
+Son Mac'te denenen build 10 kaynağı `ea5d3affa18a8c74c11eb97c076f95b2505ab996`,
+[on dokuzuncu tur 37874319632](https://github.com/mycrs/ios-octopus/actions/runs/37874319632):
+**734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı unit job başarılıdır.
+
+**iPhone kullanıcı akışının tamamı PASS: 271,647s**. Dik cihazda yatay
+kilit ve native 1pt tam ekran sınırı, blursuz gerçek kontrol ekranı,
+film kapatılınca aynı detay, canlı kanal paneli/arama/Sintel seçimi,
+mini oynatıcıya aynı kanalın devri, 4s basılı kapanış ve mini kapsamındaki
+hazır native video/1pt sınır doğrulamaları geçti. Gerçek üçüncü mini
+dokunuşu tekrar yatay tam ekran açtı; normal kapanış yeniden portre
+Sintel mini görüntüsüne döndü. Dizi/bölüm ve kaynak sağlık akışı da geçti.
+Kayıtlı örnekte yanlış LIVE rozetini kaldıran üretim kodu bu kaynaktadır.
+
+iPad preflight ve uygulama akışı çalıştı. Gerçek yatay **1376×1032**
+pencere, native tam ekran sınırı, film ve Live TV/kanal paneli/Sintel
+native-ready kontrolleri geçti. İlk canlı kapanış dokunuşu 293,04s,
+interface Portrait 297,01s idi. Pencere listesi dört öğeden üçe inerken
+298,13s'te eski index3'ün frame okuması `No matches found for Element at
+index3` ile `ReviewJourneyTests.swift:373` satırında hata verdi; iPad
+testi **302,668s** sonunda FAIL. Bu native geometri veya mini video
+assertion hatası değildir. Hangi yardımcı pencerenin kalktığı henüz doğrulanmadı;
+kaybolan index sorgusu gerçek kanıttır. Son özgün AX dökümü Main
+1032×1376 içinde seçili Live TV'yi, Sintel mini (3,96,1026,577.5) ve tam
+aynı bounds içinde ready native video yüzeyini gösterir. UIKit +2s kaydı
+modalın kapandığını gösterirken `ignoresEvents=true` gözlemi de vardır;
+bunun kalıcı dokunma sorunu olduğu bu turda doğrulanmadı. iPad'de tekrar
+gerçek dokunuş ve bütün kalan akış PASS sayılmaz; yeni test bunları korur.
+
+Sonraki dar test düzeltmesi her Window için `exists` kontrolü yapar ve
+public throwing `snapshot()` üzerinden tek snapshot.frame okur. Kaybolan
+öğe elenir; finite/pozitif bağımsız en büyük pencere, bütün orientation/
+native/mini/gerçek dokunuş/4s koşulları ve süreler korunur. Apple API'si
+öğe ve alt hiyerarşinin snapshot'ını verir. Yakalanan hatanın XCTest issue
+üretmemesi Mac'te doğrulanmadan garanti sayılmaz; üretim oynatıcı bu test
+hatası için değiştirilmez.
+[Apple snapshot belgesi](https://developer.apple.com/documentation/xcuiautomation/xcuielementsnapshotproviding).
+
+Release **failure**; Build 10 IPA, TestFlight yüklemesi, telefon kurulumu
+veya App Review gönderimi yok. Yeni test kaynağı Mac doğrulaması bekler;
+gerçek tam iPhone PASS ve kısmi iPad kanıtı ayrı ayrı korunur.
+
+Önceki on sekizinci build 10 kaynağı `a13057e227dab618c50a5d9bbbf234ece47bff2a`,
 [on sekizinci tur 37872902093](https://github.com/mycrs/ios-octopus/actions/runs/37872902093):
 **734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
 Data 295/0, Features 237/0, App 31/0. Altı unit job başarılıdır.

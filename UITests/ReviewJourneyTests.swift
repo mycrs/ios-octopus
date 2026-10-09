@@ -371,7 +371,8 @@ final class ReviewJourneyTests: XCTestCase {
         // Resolve the current window query after modal dismissal retires AX identities.
         // Observe geometry only; input controls keep their own hittability guards.
         application.windows.allElementsBoundByIndex.compactMap { window -> ContentWindow? in
-            let frame = window.frame
+            guard window.exists, let snapshot = try? window.snapshot() else { return nil }
+            let frame = snapshot.frame
             guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
                   frame.width > 0, frame.height > 0 else { return nil }
             return (window, frame)
