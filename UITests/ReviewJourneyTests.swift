@@ -3,6 +3,7 @@ import XCTest
 /// Gerçek Release akışı: DEBUG katalog bayrağı veya reviewer'a özel mod yok.
 final class ReviewJourneyTests: XCTestCase {
     private var app: XCUIApplication!
+    private var lastWindowObservation: [String: Any] = [:]
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -324,7 +325,7 @@ final class ReviewJourneyTests: XCTestCase {
 
     private func revealAndTapPlayerButton(_ identifier: String, pressDuration: TimeInterval = 0) {
         for _ in 0..<3 {
-            guard let window = observedContentWindow(in: app) else { continue }
+            guard let window = waitForContentWindow() else { continue }
             if playerActionCompleted(identifier, window: window) { return }
             if performPlayerControl(identifier, window: window, pressDuration: pressDuration) {
                 if identifier == "player.playPause" {
@@ -338,6 +339,14 @@ final class ReviewJourneyTests: XCTestCase {
                 if XCTWaiter.wait(for: [completed], timeout: 2) == .completed { return }
             }
         }
+        if let data = try? JSONSerialization.data(withJSONObject: lastWindowObservation, options: [.sortedKeys]),
+           let text = String(data: data, encoding: .utf8) {
+            let attachment = XCTAttachment(string: text)
+            attachment.name = "player-control-window-observation"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        capture("player-control-failed", fullScreen: true)
         XCTFail("Oynatıcı denetiminin işlemi tamamlanmalı: \(identifier)")
     }
 
@@ -351,7 +360,9 @@ final class ReviewJourneyTests: XCTestCase {
                   let button = uniqueDescendant(identifier, in: window.snapshot) else { return false }
             return button.label == "Play"
         case "player.channels.open":
-            return app.buttons["player.channels.close"].exists
+            guard let window = window ?? observedContentWindow(in: app) else { return false }
+            return observedPlayerButtonFrame("player.channels.close", window: window) != nil
+                && uniqueDescendant("player.channels.close", in: window.snapshot) != nil
         case "player.close":
             guard let window = window ?? observedContentWindow(in: app) else { return false }
             return observedLivePreview(in: window) != nil
@@ -508,6 +519,16 @@ final class ReviewJourneyTests: XCTestCase {
 
     private typealias ContentWindow = (element: XCUIElement, frame: CGRect, snapshot: any XCUIElementSnapshot)
 
+    private func waitForContentWindow() -> ContentWindow? {
+        if let window = observedContentWindow(in: app) { return window }
+        var window: ContentWindow?
+        let available = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
+            window = observedContentWindow(in: app)
+            return window != nil
+        }, object: app)
+        return XCTWaiter.wait(for: [available], timeout: 2) == .completed ? window : nil
+    }
+
     /// Dismissal retires AX identities. Resolve the receiver and its native child
     /// in one current, independent window snapshot; ambiguous matches fail.
     private func observedLivePreview(in window: ContentWindow) -> (any XCUIElementSnapshot)? {
@@ -548,8 +569,10 @@ final class ReviewJourneyTests: XCTestCase {
     private func observedContentWindow(in application: XCUIApplication) -> ContentWindow? {
         // Read geometry from one current tree, without resolving a window again
         // after an intervening rotation has retired its accessibility identity.
+        lastWindowObservation = ["reason": "snapshot_unavailable"]
         guard let root = try? application.snapshot() else { return nil }
         let windows = root.children.filter { $0.elementType == .window }
+        lastWindowObservation = ["reason": "no_positive_window", "windowCount": windows.count]
         let candidates = windows.enumerated().compactMap { index, snapshot ->
             (index: Int, frame: CGRect, snapshot: any XCUIElementSnapshot)? in
             let frame = snapshot.frame
@@ -558,14 +581,36 @@ final class ReviewJourneyTests: XCTestCase {
                   (frame.width * frame.height).isFinite else { return nil }
             return (index, frame, snapshot)
         }
+        lastWindowObservation["validFrames"] = candidates.map { candidate -> [String: Any] in
+            ["index": candidate.index,
+             "frame": [candidate.frame.minX, candidate.frame.minY, candidate.frame.width, candidate.frame.height]]
+        }
         guard let largest = candidates.max(by: {
             $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
-        }), candidates.filter({
+        }) else { return nil }
+        let tied = candidates.filter {
             $0.frame.width * $0.frame.height == largest.frame.width * largest.frame.height
-        }).count == 1 else { return nil }
+        }
+        lastWindowObservation["largestCount"] = tied.count
+        var selected = largest
+        if tied.count > 1 {
+            // Multiple windows can share the full display size. Identify the
+            // single playback owner by identity, never by its video geometry,
+            // ready state, or the orientation the assertion expects to see.
+            lastWindowObservation["reason"] = "ambiguous_largest_windows"
+            let owners = tied.filter { containsDescendant("player.native-video", in: $0.snapshot) }
+            lastWindowObservation["playbackOwnerCount"] = owners.count
+            guard owners.count == 1, let owner = owners.first,
+                  uniqueDescendant("player.native-video", in: owner.snapshot) != nil else { return nil }
+            selected = owner
+            lastWindowObservation["reason"] = "unique_playback_owner"
+        } else {
+            lastWindowObservation["reason"] = "unique_largest_window"
+        }
+        lastWindowObservation["selectedIndex"] = selected.index
         // Construct only a lazy, matching child query for later input delivery.
-        let element = application.children(matching: .window).element(boundBy: largest.index)
-        return (element, largest.frame, largest.snapshot)
+        let element = application.children(matching: .window).element(boundBy: selected.index)
+        return (element, selected.frame, selected.snapshot)
     }
 
     private func scrollTo(_ element: XCUIElement) {

@@ -2533,3 +2533,45 @@ saati sınırı diye sunulmaz. Üretim Swift, UI şartları ve CI ayarları koru
 Apple snapshot belgesi: uygulama elemanının öznitelikleri ve alt UI ağacı.
 https://developer.apple.com/documentation/xcuiautomation/xcuielementsnapshotproviding/snapshot()
 Yeni Mac çalıştırması olmadan bu ölçüm düzeltmesi tamamlanmış sayılmaz.
+
+
+### 9 Ekim — Source 42 yön kanıtı ve Source 43 kontrol hazırlığı
+
+Source42 0bd9d30c185fe5d0b2c8d1d087ccba94aae56c61 / run37962415148:
+783 test / 0 hata. Release113928429414 derleme4m23s, iki portrait-posture
+kontrolü de üçer874x402 ölçümüyle geçti. Film pause ve aynı detay ekranına
+dikey dönüş geçti. Live paneli açıldı, mevcut kanal seçimi ve Sintel araması/
+seçimi, yeni native hazır kare koşulu geçildi. Sonraki player.close çağrısı
+üç application.snapshot'ı yaklaşık0.11sn içinde tüketip satır341'de kaldı;
+Close/reveal dokunuşu yapılmadı. Bu, gerçek Close eyleminin başarısızlığı
+kanıtı değildir. Whole failure, Signed113934589958 skipped; Build11 yok.
+Release logSHA256 bf972380f2b22384a622f381fc9374559555965d9fcb999d47c481bf12b469e2.
+
+Native-video debug sorgusu iki874x402 Window ve tek hazır video, Sintel
+başlığı ile44x44 Close gösterir. Ayrı export edilen UI snapshotları boş
+Application kökü içerir. Her üç son app.snapshot'ın hangisine döndüğü
+kanıtlanmadı; boş yardımcı Window varsayımıyla children filtresi eklenmez.
+Source43 tek application.snapshot ve bağımsız pencere geometrisini korur.
+En büyük alan eşitliğinde yalnız tek player.native-video kimliğinin sahibi
+Window seçilebilir; kimlik tekrarı veya birden çok sahibi yine belirsizdir.
+Bu seçim native frame/boyut/ready/yön koşuluna bakmaz; gerçek pencere yönü
+ve video-pencere eşitliği sonraki bağımsız assertion'larda doğrulanır.
+Hiçbir video sahibi olmayan eşit pencereler başarı değildir. İlk pencere
+gözlemi eksikse2sn fresh snapshot beklenir;3 gerçek eylem denemesi korunur.
+Panel açılma sonucu da aynı snapshot'ta unique/enabled/içerideki Close ile
+doğrulanır. Kontrol hatasında fiziksel PNG ve son pencere sayısı/geometrisi/
+seçim gerekçesi saklanır. Üretim Swift ve3.5sn gizlenme süresi değişmez.
+
+Release-review-journey artifact'ı özgün PNG/TXT/manifest ve filtreli UIKit
+logları taşır; raw xcresult, MP4 ve diğer snapshotlar ayrı always artifact
+Release-review-diagnostics içinde korunur. Source42'nin453.6MB ZIP'inde
+bu küçük temel bölüm yaklaşık4.65MB sıkıştırılmış veriydi; yeni başarılı
+20PNG seti için önceden boyut/başarı iddiası yok. Test/export/gönderim şartları
+ve özgün görüntü baytları değişmez. Birden fazla whitelist yolunun ortak
+kökü review-results olduğundan iphone-screens/ipad-screens dizinleri kalır.
+https://github.com/actions/upload-artifact/blob/v5/README.md#upload-using-multiple-paths-and-exclusions
+
+17:01UTC ayrı GET-only Apple envanteri37963129290: mevcut sürümde7iPhone,
+7iPad,7Watch olmak üzere21ACTIVE yerleşim ve22kitaplık görseli kayıtlıdır.
+Bu kontrol yeni binary/cihaz/görsel QA veya gönderim başarısı değildir.
+Kullanıcı site ZIP'ini henüz yüklemedi; canlı politika bekleniyor.

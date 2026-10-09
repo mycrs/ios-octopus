@@ -173,7 +173,33 @@ jobs:
         if: always()
         with:
           name: Release-review-journey
-          path: review-results/
+          path: |
+            review-results/iphone-screens/*.png
+            review-results/iphone-screens/*.txt
+            review-results/iphone-screens/manifest.json
+            review-results/ipad-screens/*.png
+            review-results/ipad-screens/*.txt
+            review-results/ipad-screens/manifest.json
+            review-results/iphone-player-ui.log
+            review-results/ipad-player-ui.log
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Ham inceleme tanısını ayrı sakla
+        uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: Release-review-diagnostics
+          path: |
+            review-results/iphone.xcresult/
+            review-results/ipad.xcresult/
+            review-results/iphone-screens/
+            review-results/ipad-screens/
+            !review-results/iphone-screens/*.png
+            !review-results/iphone-screens/*.txt
+            !review-results/iphone-screens/manifest.json
+            !review-results/ipad-screens/*.png
+            !review-results/ipad-screens/*.txt
+            !review-results/ipad-screens/manifest.json
           retention-days: 7
           if-no-files-found: warn
 
