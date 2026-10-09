@@ -159,14 +159,52 @@ final class ReviewJourneyTests: XCTestCase {
     }
 
     private func assertFullscreenIgnoresPortraitPosture() {
-        let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { [app] _, _ in
-            // An unavailable window cannot prove that fullscreen stayed landscape.
-            guard let app = app, let frame = self.observedContentWindow(in: app)?.frame else { return true }
-            return frame.height >= frame.width
+        let began = ProcessInfo.processInfo.systemUptime
+        var firstLandscape: TimeInterval?
+        var consecutiveLandscapes = 0
+        var sawNonLandscape = false
+        var observations: [[String: Any]] = []
+        let stable = XCTNSPredicateExpectation(predicate: NSPredicate { [self] _, _ in
+            let requested = ProcessInfo.processInfo.systemUptime - began
+            let window = observedContentWindow(in: app)
+            let elapsed = ProcessInfo.processInfo.systemUptime - began
+            var observation: [String: Any] = [
+                "index": observations.count, "requestedSeconds": requested,
+                "observedSeconds": elapsed, "status": "unavailable"
+            ]
+            defer { observations.append(observation) }
+            guard let frame = window?.frame else {
+                // Unknown geometry is neither portrait nor evidence of landscape.
+                firstLandscape = nil
+                consecutiveLandscapes = 0
+                return false
+            }
+            observation["frame"] = [frame.minX, frame.minY, frame.width, frame.height]
+            guard frame.width > frame.height else {
+                observation["status"] = "non_landscape"
+                sawNonLandscape = true
+                return true // Stop observing; the assertion below must fail.
+            }
+            observation["status"] = "landscape"
+            if firstLandscape == nil { firstLandscape = elapsed }
+            consecutiveLandscapes += 1
+            return consecutiveLandscapes >= 3 && elapsed - (firstLandscape ?? elapsed) >= 2
         }, object: app)
-        portrait.isInverted = true
-        XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 2), .completed,
+        let result = XCTWaiter.wait(for: [stable], timeout: 10)
+        if let data = try? JSONSerialization.data(withJSONObject: observations, options: [.sortedKeys]),
+           let text = String(data: data, encoding: .utf8) {
+            let attachment = XCTAttachment(string: text)
+            attachment.name = "fullscreen-posture-observations"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        if sawNonLandscape || result != .completed {
+            capture("fullscreen-posture-failed", fullScreen: true)
+        }
+        XCTAssertFalse(sawNonLandscape,
                        "Cihaz dik tutulunca tam ekran oyuncu yataydan çıkmamalı")
+        XCTAssertEqual(result, .completed,
+                       "Tam ekranın en az 2 saniye yatay kaldığı üç yeni pencere gözlemiyle doğrulanmalı")
     }
 
     private func verifyLiveFullscreenReturn() throws {
@@ -508,15 +546,26 @@ final class ReviewJourneyTests: XCTestCase {
     /// Ignore zero-size auxiliary windows without selecting by expected orientation
     /// or by video bounds: geometry assertions still examine the independent window.
     private func observedContentWindow(in application: XCUIApplication) -> ContentWindow? {
-        // Resolve the current window query after modal dismissal retires AX identities.
-        // Observe geometry only; input controls keep their own hittability guards.
-        application.windows.allElementsBoundByIndex.compactMap { window -> ContentWindow? in
-            guard window.exists, let snapshot = try? window.snapshot() else { return nil }
+        // Read geometry from one current tree, without resolving a window again
+        // after an intervening rotation has retired its accessibility identity.
+        guard let root = try? application.snapshot() else { return nil }
+        let windows = root.children.filter { $0.elementType == .window }
+        let candidates = windows.enumerated().compactMap { index, snapshot ->
+            (index: Int, frame: CGRect, snapshot: any XCUIElementSnapshot)? in
             let frame = snapshot.frame
             guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
-                  frame.width > 0, frame.height > 0 else { return nil }
-            return (window, frame, snapshot)
-        }.max { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
+                  frame.width > 0, frame.height > 0,
+                  (frame.width * frame.height).isFinite else { return nil }
+            return (index, frame, snapshot)
+        }
+        guard let largest = candidates.max(by: {
+            $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
+        }), candidates.filter({
+            $0.frame.width * $0.frame.height == largest.frame.width * largest.frame.height
+        }).count == 1 else { return nil }
+        // Construct only a lazy, matching child query for later input delivery.
+        let element = application.children(matching: .window).element(boundBy: largest.index)
+        return (element, largest.frame, largest.snapshot)
     }
 
     private func scrollTo(_ element: XCUIElement) {

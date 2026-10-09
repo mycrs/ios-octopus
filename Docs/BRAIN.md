@@ -2501,3 +2501,35 @@ bütçeleri korunur. Önceki ARM açılış hataları bu yeni birleşik yolu
 kullanmamıştı; yeni ARM açılışı/latansı veya UI başarısı henüz kanıtlanmadı.
 Yerel mimari, Swift parse, YAML ve gömülü shell/Python denetimi geçti;
 Swift parse Mac derlemesi veya çalışma kanıtı değildir.
+
+
+### 9 Ekim — Source 41 sonucu ve Source 42 gözlem düzeltmesi
+
+Source41 65dc3e1b54b0e0d0f3dbbb4b5ec2ccbc18f6ecc8 / run37959250601:
+783 gerçek test / 0 hata. Release113917723325 derleme4m16s ve telefon
+readiness geçti. Pause merkezine gerçek dokunma, Play/enabled beklentisi
+ve06-player native ekran görüntüsü bu kez geçti. İkinci portrait-posture
+kontrolü satır168 invertedFulfillment verdi; test80.951s sürdü.
+Logda Window index0.exists ardından snapshot Find/retry görülüyor;
+geçerli portrait pencere boyutu veya arayüzün Portrait'e dönüş kaydı yok.
+Mevcut helper nil pencereyi true sayarak gerçek portrait ile gözlem
+yokluğunu aynı hata olarak bildiriyordu. Üretim orientation lease/mask
+kodunda pause'a bağlı bırakma yolu bulunmadı; bu ürün başarısı kanıtı değil.
+Whole failure, Signed113925236535 skipped; Build11 paketi/kurulumu yok.
+Release logSHA256 ac83e6bdae73a4dbe1a4e44fb3acd6e27cf57d4c16537f414e2392d79cf32d5d.
+
+Source42 yalnız UI testinin pencere gözlemini ve yön kontrolünü değiştirir.
+Tek yeni application.snapshot içinden doğrudan Window çocukları okunur;
+ayrı count/exists/snapshot çözümlemeleri kaldırılır. Sonlu pozitif en büyük
+pencere bağımsız geometriden seçilir, eşit en büyük adaylar belirsizdir.
+Beklenen yön veya native video boyutuyla pencere seçimi yapılmaz.
+Landscape için en az3 yeni geçerli gözlem ve ilk-son arası en az2sn gerekir.
+Eksik gözlem seriyi sıfırlar; gerçek portrait/square gözlemi anında hatadır.
+10sn beklenti bütçesinde yeterli kesintisiz gözlem olmazsa test başarısızdır.
+Her örneğin monoton zamanı/sayısal geometrisi tanı eki olarak saklanır;
+başarısızlıkta fiziksel ekran alınır. Sürekli nil veya tek frame başarı
+sayılmaz. XCTest sürücüsünün kendi snapshot gecikmesi sert bir10sn duvar
+saati sınırı diye sunulmaz. Üretim Swift, UI şartları ve CI ayarları korunur.
+Apple snapshot belgesi: uygulama elemanının öznitelikleri ve alt UI ağacı.
+https://developer.apple.com/documentation/xcuiautomation/xcuielementsnapshotproviding/snapshot()
+Yeni Mac çalıştırması olmadan bu ölçüm düzeltmesi tamamlanmış sayılmaz.
