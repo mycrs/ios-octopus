@@ -26,12 +26,12 @@ on:
         type: string
         default: ''
       review_operation:
-        description: Apple inceleme hazırlığı; inspect ve prepare için paket hedefi none olmalı; göndermez
+        description: target-inspect salt okunur keşif; inspect/prepare başarılı imzalı kaynak ister; paket none olmalı; göndermez
         type: choice
-        options: [none, inspect, prepare]
+        options: [none, target-inspect, inspect, prepare]
         default: none
       review_source_run:
-        description: Yalnız inceleme hazırlığı için başarılı imzalı kaynak Actions run ID
+        description: Kaynak Actions run ID; target-inspect erken okuyabilir, inspect/prepare başarılı imzalı kaynak ister
         type: string
         default: ''
       review_source_sha:
@@ -39,7 +39,7 @@ on:
         type: string
         default: ''
       review_expected_notes_sha256:
-        description: Yalnız inceleme hazırlığı için incelenmiş mevcut notların SHA-256 değeri; metin girmeyin
+        description: Yalnız inspect/prepare için incelenmiş notların SHA-256 değeri; target-inspect için boş bırakın
         type: string
         default: ''
 
@@ -65,13 +65,19 @@ jobs:
           distribution = os.environ.get('DISTRIBUTION') or 'testflight'
           screenshots = os.environ.get('SCREENSHOT_OPERATION') or 'none'
           review = os.environ.get('REVIEW_OPERATION') or 'none'
-          if distribution not in ('testflight', 'device', 'none') or screenshots not in ('none', 'inspect', 'upload') or review not in ('none', 'inspect', 'prepare'):
+          if distribution not in ('testflight', 'device', 'none') or screenshots not in ('none', 'inspect', 'upload') or review not in ('none', 'target-inspect', 'inspect', 'prepare'):
               raise SystemExit('Unsupported operation mode')
           if review != 'none':
               if distribution != 'none' or screenshots != 'none':
                   raise SystemExit('Review preparation requires distribution=none and screenshot_operation=none')
-              if not re.fullmatch(r'[1-9][0-9]{0,19}', os.environ.get('REVIEW_SOURCE_RUN', '')) or not re.fullmatch(r'[a-f0-9]{40}', os.environ.get('REVIEW_SOURCE_SHA', '')) or not re.fullmatch(r'[a-f0-9]{64}', os.environ.get('REVIEW_EXPECTED_NOTES_SHA256', '')):
-                  raise SystemExit('Review preparation requires the source run, full SHA and reviewed notes hash')
+              if not re.fullmatch(r'[1-9][0-9]{0,19}', os.environ.get('REVIEW_SOURCE_RUN', '')) or not re.fullmatch(r'[a-f0-9]{40}', os.environ.get('REVIEW_SOURCE_SHA', '')):
+                  raise SystemExit('Review inspection/preparation requires the source run and full SHA')
+              notes_hash = os.environ.get('REVIEW_EXPECTED_NOTES_SHA256', '')
+              if review == 'target-inspect':
+                  if notes_hash:
+                      raise SystemExit('Read-only target inspection does not accept notes input')
+              elif not re.fullmatch(r'[a-f0-9]{64}', notes_hash):
+                  raise SystemExit('Strict review preparation requires the reviewed notes hash')
           elif distribution == 'none' and screenshots == 'none':
               raise SystemExit('No package or API operation selected')
           print('Operation modes validated; no credentials accessed')
@@ -274,6 +280,67 @@ jobs:
         with:
           name: App-Store-screenshot-API-report
           path: ${{ runner.temp }}/screenshot-api-report.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  review-target-inspection:
+    name: Apple inceleme hedefi — salt okunur
+    if: inputs.review_operation == 'target-inspect'
+    needs: [validate-modes]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: app-store
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Salt okunur hedef aracının işlem ve gizlilik sınırlarını doğrula
+        run: |
+          python3 -m venv "$RUNNER_TEMP/review-target-tools"
+          "$RUNNER_TEMP/review-target-tools/bin/python" -m pip install -r Scripts/device-build-requirements.txt
+          "$RUNNER_TEMP/review-target-tools/bin/python" -m unittest discover -s Scripts -p test_inspect_app_review_target.py
+
+      - name: Apple anahtarına erişmeden exact kaynak kimliğini doğrula
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_SOURCE_RUN: ${{ inputs.review_source_run }}
+          REVIEW_SOURCE_SHA: ${{ inputs.review_source_sha }}
+        run: |
+          "$RUNNER_TEMP/review-target-tools/bin/python" Scripts/inspect-app-review-target.py \
+            --source-only \
+            --source-run "$REVIEW_SOURCE_RUN" \
+            --source-sha "$REVIEW_SOURCE_SHA" \
+            --report "$RUNNER_TEMP/app-review-target-inspection.json"
+
+      - name: Sabit Apple inceleme hedefini yalnız GET ile oku
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_SOURCE_RUN: ${{ inputs.review_source_run }}
+          REVIEW_SOURCE_SHA: ${{ inputs.review_source_sha }}
+        run: |
+          test -n "$API_KEY_ID" && test -n "$API_ISSUER_ID" && test -n "$API_PRIVATE_KEY"
+          task_key_path="$RUNNER_TEMP/review-target-AuthKey.p8"
+          trap 'rm -f "$task_key_path"' EXIT
+          umask 077
+          printf '%s' "$API_PRIVATE_KEY" > "$task_key_path"
+          unset API_PRIVATE_KEY
+          "$RUNNER_TEMP/review-target-tools/bin/python" Scripts/inspect-app-review-target.py \
+            --source-run "$REVIEW_SOURCE_RUN" \
+            --source-sha "$REVIEW_SOURCE_SHA" \
+            --key-path "$task_key_path" \
+            --report "$RUNNER_TEMP/app-review-target-inspection.json"
+
+      - name: Yalnız kimlik ve alan durumlarını içeren keşif raporunu sakla
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: App-review-target-inspection
+          path: ${{ runner.temp }}/app-review-target-inspection.json
           retention-days: 7
           if-no-files-found: warn
 
