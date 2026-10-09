@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import importlib.util
 import json
 import os
@@ -343,6 +344,63 @@ class SourceAndCLITests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(report["status"], "stopped")
         self.assertTrue(report["inspection_performed"])
+
+
+class IdentifierDiagnosticTests(unittest.TestCase):
+    run_cli = SourceAndCLITests.run_cli
+    def test_diagnostic_character_classes_are_ascii_counts_without_identifier_contents(self):
+        identifier = "Aa19-_~.:/\u00e9"
+        with self.assertRaises(target.ResourceIdentifierError) as caught:
+            target.resource({"data": {"type": "appStoreReviewDetails", "id": identifier}},
+                            "appStoreReviewDetails", phase="review_detail")
+        diagnostic = caught.exception.diagnostic
+        self.assertEqual(diagnostic, {
+            "kind": "appStoreReviewDetails", "route_phase": "review_detail", "length": len(identifier),
+            "identifier_sha256": hashlib.sha256(identifier.encode()).hexdigest(),
+            "character_counts": {"digit": 2, "letter": 2, "hyphen": 1, "underscore": 1,
+                                 "tilde": 1, "dot": 1, "colon": 1, "other": 2},
+        })
+        self.assertNotIn(identifier, json.dumps(diagnostic))
+        self.assertNotIn(identifier, str(caught.exception))
+
+    def test_rejected_detail_identifier_cli_exports_only_fixed_kind_phase_shape_and_digest(self):
+        for identifier in (PRIVATE, PRIVATE_NOTES, "Opaque~Case:9_1", "\ud800"):
+            apple = FakeApple()
+            apple.detail["id"] = identifier
+            code, report, _ = self.run_cli(FakeGitHub(), apple)
+            self.assertEqual(code, 1)
+            self.assertEqual(report["status"], "stopped")
+            self.assertFalse(report["inspection_performed"])
+            self.assertNotIn("target", report)
+            self.assertEqual(report["identifier_diagnostic"]["kind"], "appStoreReviewDetails")
+            self.assertEqual(report["identifier_diagnostic"]["route_phase"], "review_detail")
+            self.assertEqual(report["identifier_diagnostic"]["length"], len(identifier))
+            self.assertEqual(report["identifier_diagnostic"]["identifier_sha256"],
+                             hashlib.sha256(identifier.encode("utf-8", errors="surrogatepass")).hexdigest())
+            self.assertNotIn(identifier, json.dumps(report))
+
+    def test_included_build_rejection_keeps_known_version_phase_and_stops_before_later_reads(self):
+        apple = FakeApple()
+        opaque = "OpaqueBuild~9"
+        apple.included[target.VERSION_PATH][1]["id"] = opaque
+        apple.version["relationships"]["build"] = link("builds", opaque)
+        code, report, _ = self.run_cli(FakeGitHub(), apple)
+        self.assertEqual(code, 1)
+        diagnostic = report["identifier_diagnostic"]
+        self.assertEqual((diagnostic["kind"], diagnostic["route_phase"]), ("builds", "version"))
+        self.assertNotIn(opaque, json.dumps(report))
+        self.assertEqual([urlsplit(path).path for _, path in apple.calls], [target.APP_PATH, target.VERSION_PATH])
+
+    def test_malformed_non_string_ids_and_unknown_metadata_never_export_raw_values(self):
+        for value in (None, 42, True, {"secret": PRIVATE}, [PRIVATE]):
+            with self.assertRaises(target.ResourceIdentifierError) as caught:
+                target.resource({"data": {"type": PRIVATE, "id": value}}, PRIVATE, phase=PRIVATE_NOTES)
+            diagnostic = caught.exception.diagnostic
+            self.assertEqual((diagnostic["kind"], diagnostic["route_phase"]), ("unknown", "unknown"))
+            self.assertIsNone(diagnostic["length"])
+            self.assertIsNone(diagnostic["identifier_sha256"])
+            self.assertEqual(sum(diagnostic["character_counts"].values()), 0)
+            self.assertNotIn(PRIVATE, json.dumps(diagnostic))
 
 
 class WorkflowModeTests(unittest.TestCase):

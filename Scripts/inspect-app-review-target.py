@@ -46,6 +46,10 @@ READ_QUERIES = {
 }
 UUID = r"[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"
 RESOURCE_ID = rf"(?:{UUID}|[1-9][0-9]{{0,39}})"
+ROUTE_PHASES = {APP_PATH: "app", VERSION_PATH: "version", SUBMISSION_PATH: "submission",
+                ITEMS_PATH: "items", DETAIL_PATH: "review_detail"}
+RESOURCE_KINDS = {"apps", "appStoreVersions", "reviewSubmissions", "reviewSubmissionItems",
+                  "appStoreReviewDetails", "builds"}
 PLATFORMS = {"IOS", "MAC_OS", "TV_OS", "VISION_OS"}
 VERSION_STATES = {
     "ACCEPTED", "DEVELOPER_REJECTED", "DEVELOPER_REMOVED_FROM_SALE", "IN_REVIEW",
@@ -60,6 +64,29 @@ SUBMISSION_STATES = {
     "CANCELING", "COMPLETING", "COMPLETE",
 }
 ITEM_STATES = {"READY_FOR_REVIEW", "ACCEPTED", "APPROVED", "REJECTED", "REMOVED"}
+
+
+class ResourceIdentifierError(SafeError):
+    """Describe an opaque identifier's shape without exporting its contents."""
+
+    def __init__(self, value, kind, phase):
+        super().__init__("Unexpected target resource identifier")
+        counts = dict.fromkeys(("digit", "letter", "hyphen", "underscore", "tilde", "dot", "colon", "other"), 0)
+        if isinstance(value, str):
+            punctuation = {"-": "hyphen", "_": "underscore", "~": "tilde", ".": "dot", ":": "colon"}
+            for character in value:
+                group = ("digit" if "0" <= character <= "9" else "letter" if
+                         "A" <= character <= "Z" or "a" <= character <= "z" else
+                         punctuation.get(character, "other"))
+                counts[group] += 1
+        self.diagnostic = {
+            "kind": kind if kind in RESOURCE_KINDS else "unknown",
+            "route_phase": phase if phase in ROUTE_PHASES.values() else "unknown",
+            "length": len(value) if isinstance(value, str) else None,
+            "identifier_sha256": hashlib.sha256(value.encode("utf-8", errors="surrogatepass")).hexdigest()
+                if isinstance(value, str) else None,
+            "character_counts": counts,
+        }
 
 
 def validate_read(method, path, body):
@@ -130,7 +157,7 @@ def verify_source(github, run_id, sha):
             "read_only_provenance_verified": True, "preparation_authorized": False}
 
 
-def resource(response, kind, expected_id=None):
+def resource(response, kind, expected_id=None, phase=None):
     data = response.get("data") if isinstance(response, dict) else None
     if not isinstance(data, dict) or data.get("type") != kind:
         raise SafeError("Unexpected target resource schema")
@@ -139,7 +166,7 @@ def resource(response, kind, expected_id=None):
         if value != expected_id:
             raise SafeError("Apple resource differs from the fixed target")
     elif not isinstance(value, str) or not re.fullmatch(RESOURCE_ID, value):
-        raise SafeError("Unexpected target resource identifier")
+        raise ResourceIdentifierError(value, kind, phase)
     return data
 
 
@@ -154,7 +181,8 @@ def validate_included(response, path):
         kind = item.get("type") if isinstance(item, dict) else None
         if kind not in allowed:
             raise SafeError("Unexpected included target resource type")
-        item = resource({"data": item}, kind, APP_ID if kind == "apps" else None)
+        item = resource({"data": item}, kind, APP_ID if kind == "apps" else None,
+                        phase=ROUTE_PHASES[path])
         identity = (kind, item["id"])
         if identity in seen:
             raise SafeError("Duplicate included target resource")
@@ -219,20 +247,20 @@ def notes_summary(attributes):
 
 
 def inspect_target(apple):
-    app = resource(apple.request("GET", target_query(APP_PATH)), "apps", APP_ID)
+    app = resource(apple.request("GET", target_query(APP_PATH)), "apps", APP_ID, phase="app")
     version = resource(apple.request("GET", target_query(VERSION_PATH)),
-        "appStoreVersions", VERSION_ID)
+        "appStoreVersions", VERSION_ID, phase="version")
     require_app(version)
     attributes = version.get("attributes", {})
     if attributes.get("platform") != "IOS" or attributes.get("versionString") != "1.0":
         raise SafeError("The fixed app version platform or version differs")
     submission = resource(apple.request("GET", target_query(SUBMISSION_PATH)),
-        "reviewSubmissions", SUBMISSION_ID)
+        "reviewSubmissions", SUBMISSION_ID, phase="submission")
     require_app(submission)
     items = apple.collection(target_query(ITEMS_PATH))
     safe_items, seen, matching = [], set(), []
     for item in items:
-        item = resource({"data": item}, "reviewSubmissionItems")
+        item = resource({"data": item}, "reviewSubmissionItems", phase="items")
         if item["id"] in seen:
             raise SafeError("Duplicate review item in the complete paginated list")
         seen.add(item["id"])
@@ -242,7 +270,8 @@ def inspect_target(apple):
         safe_items.append(safe)
         if relation.get("matches_fixed_target") is True:
             matching.append(item["id"])
-    detail = resource(apple.request("GET", target_query(DETAIL_PATH)), "appStoreReviewDetails")
+    detail = resource(apple.request("GET", target_query(DETAIL_PATH)), "appStoreReviewDetails",
+                      phase="review_detail")
     return {
         "app_id": app["id"],
         "version": {"id": version["id"], "platform": "IOS", "version": "1.0",
@@ -299,6 +328,8 @@ def main():
             report["status"] = "success"
     except SafeError as error:
         report["status"], report["error"] = "stopped", str(error)
+        if isinstance(error, ResourceIdentifierError):
+            report["identifier_diagnostic"] = error.diagnostic
     except (KeyError, TypeError, ValueError, OSError, AttributeError):
         report["status"], report["error"] = "stopped", "Required source or target schema is unavailable"
     save_report(report, args.report)
