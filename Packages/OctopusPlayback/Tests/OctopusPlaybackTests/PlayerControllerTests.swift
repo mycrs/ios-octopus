@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 import OctopusDomain
 @testable import OctopusPlayback
@@ -27,10 +28,20 @@ final class PlayerControllerTests: XCTestCase {
         let native = TestEngine(identifier: "native")
         let controller = makeController(native: native)
         await controller.start(makeItem())
+        let receivedTransitions = expectation(description: "Engine playing then buffering reaches the controller")
+        var transitions: [PlaybackState] = []
+        // Subscribe before emission and retain both transitions instead of polling
+        // a final value after an independently scheduled sleep.
+        let observation = controller.$state.dropFirst().prefix(2).collect().sink { states in
+            transitions = states
+            receivedTransitions.fulfill()
+        }
+        defer { observation.cancel() }
         native.emit(.stateChanged(.playing))
         native.emit(.stateChanged(.buffering))
-        let buffering = await waitUntil { controller.state == .buffering }
-        XCTAssertTrue(buffering)
+        await fulfillment(of: [receivedTransitions], timeout: 5)
+        XCTAssertEqual(transitions, [.playing, .buffering])
+        XCTAssertEqual(controller.state, .buffering)
 
         await controller.togglePlayPause()
 

@@ -2391,3 +2391,46 @@ kullanılmaz. Mağaza görselleri başarılı gerçek Release akışından alın
 
 Source38 yerel 11 readiness testi, mimari ve diff denetimi gecti;
 Mac Release/cihaz sonucu henuz yok.
+
+
+### 9 Ekim — Source 38 soğuk açılış ve oynatıcı test sonucu
+
+Source38 17d9ff30a38e37149fd46edd78a8dcc446dc3072 / run37946953872:
+Release113875692389 uygulama başlamadan durdu. İlk envanter240ms ve
+boot5320ms başarılı; bootstatus180sn bütçesinde196528ms sonra timeout.
+xcodebuild/xcresult/Release görseli/artifact yok. LogSHA256
+a581924f19c504384840f4563111f8d1d3dc4bed9acc4cddc525a8b4ceb2104c.
+Önceki turdaki ikinci envanter sorgusu artık yok; bu ayrı bir açılış
+zaman aşımıdır. Uygulama çökmesi veya cache bozukluğu kanıtı değildir.
+
+Apple Xcode26.1 sürüm notu, ilk simülatör açılışından önce
+simctl runtime dyld_shared_cache update işlemini önerir. Xcode26.4 notu
+otomatik cache oluşturmanın düzeltildiğini de bildirir; 26.6 üzerindeki
+bizim timeout'un nedeninin aynı olduğu varsayılmaz. Source39 hazırlığı
+tek mevcut envanterden seçilen iOS runtime'ını doğrular ve yalnız onun
+cache güncellemesini300sn sınırla tamamlar. Başarısızsa boot başlamaz.
+Soğuk açılış bootstatus sınırı300sn; tek boot30sn, fail-stop ve gerçek
+XCTest koşulları korunur. Tüm runtime'ları değiştirme, cihaz reseti,
+otomatik tekrar veya test koşulu gevşetme eklenmez.
+Kaynaklar:
+https://developer.apple.com/documentation/Xcode-Release-Notes/xcode-26_1-release-notes
+https://developer.apple.com/documentation/xcode-release-notes/xcode-26_4-release-notes
+https://chromium.googlesource.com/chromium/src/+/93b31d4424cb0fddb7cb5a901f21eb9859270658/ios/build/bots/scripts/iossim_util.py
+
+Playback113875692503 bu turda80test/1hata bildirdi:
+test_toggleWhileBuffering_pausesActiveRequestAndCanResume satır33.
+Önceki35/36/37 başarıları bu güncel hatayı geçersiz saymaz; testin
+olay/durum sırası ayrıca incelendi. Test motorunun AsyncStream kuyruğu
+sınırsız ve FIFO; ürünün stateChanged durum atamasında await yok.
+Log playing olayını gösterir, buffering kaybını veya ürün yarışını
+kanıtlamaz. Testteki5sn/20ms polling yerine, emit öncesi sürekli state
+aboneliğiyle exact playing→buffering sırası beklenir. Aynı5sn sınır,
+toggle öncesi gerçek buffering durumu ve pause/play sayıları korunur.
+Üretim Swift değişmedi. Bu test senkronizasyonu değişikliği, yeni
+Mac sonucundan önce sorunun çözüldüğü şeklinde sunulmaz.
+
+Source38 toplam783test/1hata; App42/0 ve diğer dört modül geçti.
+Whole run failure, Signed113882923418 skipped. Build11 IPA/TestFlight
+veya cihaz kurulumu yok. Source39 cache/readiness15 yerel test ve
+mimari denetimi geçti; yeni Mac çalıştırması henüz yapılmadı.
+Değişen testin Swift sözdizimi denetimi geçti; bu derleme kanıtı değildir.

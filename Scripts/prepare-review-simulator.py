@@ -6,6 +6,7 @@ import subprocess
 import time
 
 UDID_PATTERN = r'[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}'
+RUNTIME_PATTERN = r'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9]+(?:-[0-9]+){0,2}'
 
 
 class ReadinessError(RuntimeError):
@@ -17,6 +18,10 @@ def command_phase(command):
         return 'unknown'
     if list(command) == ['xcrun', 'simctl', 'list', 'devices', '-j']:
         return 'inventory'
+    if (len(command) == 6 and list(command[:5]) ==
+            ['xcrun', 'simctl', 'runtime', 'dyld_shared_cache', 'update'] and
+            isinstance(command[5], str) and re.fullmatch(RUNTIME_PATTERN, command[5])):
+        return 'dyld-cache-update'
     if len(command) >= 4 and command[:2] in (['xcrun', 'simctl'], ('xcrun', 'simctl')):
         if isinstance(command[3], str) and re.fullmatch(UDID_PATTERN, command[3]):
             if len(command) == 4 and command[2] == 'boot':
@@ -44,7 +49,7 @@ def invoke(phase, arguments, budget, run, report, clock):
     return response
 
 
-def selected_state(udid, phase, run, report, clock):
+def selected_simulator(udid, phase, run, report, clock):
     response = invoke(phase, ['xcrun', 'simctl', 'list', 'devices', '-j'],
                       30, run, report, clock)
     try:
@@ -52,26 +57,34 @@ def selected_state(udid, phase, run, report, clock):
         groups = inventory['devices']
         if not isinstance(groups, dict) or not all(isinstance(group, list) for group in groups.values()):
             raise ReadinessError('invalid_simulator_inventory')
-        matches = [device for group in groups.values() for device in group
+        matches = [(runtime, device) for runtime, group in groups.items() for device in group
                    if isinstance(device, dict) and device.get('udid') == udid]
     except (ValueError, KeyError, TypeError):
         raise ReadinessError('invalid_simulator_inventory') from None
-    if len(matches) != 1 or matches[0].get('isAvailable') is not True:
+    if len(matches) != 1 or matches[0][1].get('isAvailable') is not True:
         raise ReadinessError('selected_simulator_not_unique_or_available')
-    state = matches[0].get('state')
+    runtime, device = matches[0]
+    if not isinstance(runtime, str) or not re.fullmatch(RUNTIME_PATTERN, runtime):
+        raise ReadinessError('invalid_selected_runtime')
+    state = device.get('state')
     if state not in {'Booted', 'Shutdown'}:
         raise ReadinessError('unexpected_simulator_state')
-    return state
+    return state, runtime
 
 
 def prepare(udid, *, run=subprocess.run, report=emit_progress, clock=time.monotonic):
     if not isinstance(udid, str) or not re.fullmatch(UDID_PATTERN, udid):
         raise ReadinessError('invalid_selected_simulator')
-    if selected_state(udid, 'inventory-before', run, report, clock) == 'Shutdown':
+    state, runtime = selected_simulator(udid, 'inventory-before', run, report, clock)
+    # Apple recommends updating this cache before booting affected runtimes.
+    # Scope the bounded update to the selected device's validated runtime.
+    invoke('dyld-cache-update', ['xcrun', 'simctl', 'runtime', 'dyld_shared_cache',
+                                'update', runtime], 300, run, report, clock)
+    if state == 'Shutdown':
         invoke('boot', ['xcrun', 'simctl', 'boot', udid], 30, run, report, clock)
     # Booted alone does not mean SpringBoard and the simulator services are ready.
     invoke('bootstatus', ['xcrun', 'simctl', 'bootstatus', udid, '-b'],
-           180, run, report, clock)
+           300, run, report, clock)
     # Its successful exit is the readiness result; a second full inventory
     # can block even after the selected device has finished booting.
 
