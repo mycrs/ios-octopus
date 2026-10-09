@@ -2165,3 +2165,67 @@ ve gerçek CLI regresyonu eklendi; sekiz test geçti. Boolean olmayan
 `true`/`false` string ve sayılar hâlâ reddedilir. Bu takip yalnız CI Python
 araçlarını değiştirir; çalışan USB binary kaynağı yukarıdaki SHA olarak
 kalır, Swift/ürün kodu değişmez. Cihaz testi mağaza yayın kanıtı değildir.
+
+
+### 9 Ekim — Source 34 gerçek cihaz kurulumu ve kapsamı
+
+Kaynak `cae2b8480bd3ab2337243ccff4b083e9c941304a`,
+[37926665779](https://github.com/mycrs/ios-octopus/actions/runs/37926665779)
+USB tanı kapsamını başarıyla tamamladı. Mimari ve altı gerçek Mac birim işi
+**744 test / 0 hata** (84/80/11/295/243/31); altı ID/log/hash/frozen pin ve
+Live/press/Playback regresyonları ayrıca bağımsız offline doğrulandı.
+Release journey açıkça skipped; bu sonuç tam yayın/UI doğrulaması değildir.
+Signed job `113811808870` archive/export/encrypt/artifact adımlarını tamamladı.
+TestFlight yüklemesi ve ham IPA artifact adımı skipped kaldı. Yeni tam yayın
+CI koşulları veya App Store gönderimi bu tanı sonucu ile karşılanmış sayılmaz.
+
+Şifreli artifact `11614793386`, 52.292.181 bayt; API ve gerçek ZIP SHA256
+`e655dc48d24f6b85c7101cbb97904026cb9dc90bdcc60ca6a9d80a6716d80b1c`
+eşleşti. İki şifreli üye, manifest, kaynak, CRC ve değişmez IPA doğrulandı.
+IPA 52.275.682 bayt / SHA256
+`bfdff9240da1f4416f4b811f7c1884ee7fd824b795fbcbee8f8bd3c9fee5ca0e`.
+Ayrı validation-only pin/klasör/makbuz yayın pipeline'ına terfi ettirilmedi.
+
+İlk USB denemesi upload başlamadan yerel pymobiledevice3 11.26 ZIP classifier
+hatasında durdu: özgün IPA'nın ilk dizin girdisi `Payload/`; classifier bunu
+`.app` girdisi gibi yorumlayamıyor. IPA/signature değiştirilmedi. Özel installer
+aynı doğrulanmış baytları AFC staging'e gönderip installation-proxy Upgrade
+çağıracak şekilde düzeltildi. İlk başarısız makbuz korunarak, fresh aynı cihaz
+Build 9 ve hiç upload/progress olmadığını kanıtlayan tek açık devam işlemi
+yapıldı. Yeniden cihaz seçimi de hash ile yazımdan önce doğrulanır. 27 helper
+ve dört dar classifier-continuation testi yerelde geçti; eski yayın doğrulayıcıları
+validation-only kanıtını reddeder.
+
+Gerçek Upgrade: upload 12:33:05 UTC; installation-proxy Complete ve yüzde 100
+12:39:47 UTC. Kullanıcı uygulamayı kapalı/telefonu kilidi açık ana ekranda
+bıraktığını bildirdi; bu sıralama tek başına beklemenin nedenini kanıtlamaz.
+12:40:53 UTC bağımsız installed-app Lookup Build 10'u doğruladı. Kaynak bağlantısı
+aynı cihaz Build 9 → değişmez doğrulanmış IPA → Complete → bağımsız Build 10
+zincirine dayanır; telefondan commit SHA okunduğu iddia edilmez. DVT launch
+12:42:03 UTC başarılı. Eski public-release installer Build 9 başlangıç şartını
+koruduğundan gelecekteki yayın kurulumunda bu yeni Build 10 baseline ayrıca
+ele alınmalı; eski Build 9 makbuzu üretilmemeli.
+
+İlk açılış kaydı 3.024 satır; üç uygulama kapsamlı startup olayı (veritabanı,
+AppContainer/VLC yedeği, panel config), uygulama hata/fault 0. Sonraki tamamlanan
+10 dakikalık kayıt 238 geçerli JSON / 53.389 bayt, SHA256
+`14102a8116477fe26157b4195bff29952311f69fedc785846daa1930a419b6f3`;
+custom uygulama/oynatma/geçiş olayı 0. Bu kayıtlar UHD, normal kanal, dik tutarken
+yatay tam ekran, kanal paneli, üç aynı-Live mini dönüşü, mini kapanınca sesin
+kesilmesi, kayıtlı veriler veya blur sonucu yerine geçmez. Bu sekiz kullanıcı
+kontrolü hâlâ **pending**; Build 9'daki önceki UHD başarısı yeni Build 10 sonucu
+olarak kullanılmadı. Canonical yayın prerequisites dosyası oluşturulmadı.
+Görseller kullanıcının isteğiyle ertelendi; yeni mağaza metadata/görsel/yükleme
+ve incelemeye gönderim işlemi yapılmadı.
+
+Salt okunur performans incelemesi: Source 30 Live projection gereksiz zaman
+olaylarını zaten üst ekrandan ayırıyor. Movie PlayerScreen ise controller'ın
+0,5 saniyelik AVPlayer time yayınıyla kontroller gizliyken de invalidate olup
+hosted overlay snapshot'ını tekrar yayınlatabiliyor; aynı generation'da native
+UIView yeniden kurulmaz. Gerçek çizim/AX maliyeti ölçülmedi ve bu yol simülatör
+Pause hatasının nedeni olarak kanıtlanmadı. Gelecek dar düzenleme: yapısal state,
+session, surfaceGeneration, track/capability/selection/failure alanları emitted
+values üzerinden eşitlik kontrollü projection; raw time yalnız görünür, kilitsiz
+VOD scrub child'ında latest-value seed ve hide'da cancellation ile izlenebilir.
+Engine time/progress/watchdog/resume/seek akışı değiştirilmemeli. Bu inceleme
+üretim değişikliği veya yeni CI başlatmadı; cihazdaki Source 34 sabit kaldı.
