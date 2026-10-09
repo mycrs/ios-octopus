@@ -288,11 +288,7 @@ final class ReviewJourneyTests: XCTestCase {
         for _ in 0..<3 {
             guard let window = observedContentWindow(in: app) else { continue }
             if playerActionCompleted(identifier, window: window) { return }
-            guard let controlWindow = windowForPlayerControlPress(window, pressDuration: pressDuration) else { continue }
-            let observed = refreshPlayerControls(identifier, window: controlWindow)
-            if let frame = playerButtonFrame(identifier, window: controlWindow, observed: observed),
-               tapObservedPlayerButton(frame, window: controlWindow.element, windowFrame: controlWindow.frame,
-                                       pressDuration: pressDuration) {
+            if performPlayerControl(identifier, window: window, pressDuration: pressDuration) {
                 if identifier == "player.playPause" {
                     // Tap delivery is not action completion. The caller's mandatory
                     // 10s Play + enabled predicate proves pause without toggling it again.
@@ -351,16 +347,43 @@ final class ReviewJourneyTests: XCTestCase {
         return nil
     }
 
-    private func windowForPlayerControlPress(
-        _ window: ContentWindow, pressDuration: TimeInterval
-    ) -> ContentWindow? {
-        guard pressDuration > 0 else { return window }
-        // Expansion's controls may expire while XCTest reads geometry. Use a
-        // real background touch before the hold, then observe the current window.
-        // If that touch hid the controls, refreshPlayerControls reveals them.
-        // Delivery still needs the unchanged action and native-return assertions.
+    private func performPlayerControl(
+        _ identifier: String, window: ContentWindow, pressDuration: TimeInterval
+    ) -> Bool {
+        let observed = refreshPlayerControls(identifier, window: window)
+        guard let frame = playerButtonFrame(identifier, window: window, observed: observed) else { return false }
+        guard pressDuration > 0 else {
+            return tapObservedPlayerButton(frame, window: window.element, windowFrame: window.frame)
+        }
+        // Observe the real enabled control before hiding it. Once a fresh window
+        // proves it is hidden, reveal and hold without another explicit AX read.
+        // The observed frame is only a touch target; outcome/native checks remain.
         window.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
-        return observedContentWindow(in: app)
+        guard let hidden = observedHiddenPlayerWindow(identifier, matching: window),
+              hidden.frame.contains(frame) else { return false }
+        hidden.element.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.24)).tap()
+        return tapObservedPlayerButton(frame, window: hidden.element, windowFrame: hidden.frame,
+                                       pressDuration: pressDuration)
+    }
+
+    private func observedHiddenPlayerWindow(
+        _ identifier: String, matching previous: ContentWindow
+    ) -> ContentWindow? {
+        guard let window = observedContentWindow(in: app), window.frame.width > window.frame.height,
+              abs(window.frame.minX - previous.frame.minX) <= 1,
+              abs(window.frame.minY - previous.frame.minY) <= 1,
+              abs(window.frame.width - previous.frame.width) <= 1,
+              abs(window.frame.height - previous.frame.height) <= 1,
+              !containsDescendant(identifier, in: window.snapshot),
+              let native = uniqueDescendant("player.native-video", in: window.snapshot),
+              native.value as? String == "ready" else { return nil }
+        // A missing/empty AX tree cannot prove that controls were hidden.
+        let video = native.frame
+        guard video.minX.isFinite, video.minY.isFinite, video.width.isFinite, video.height.isFinite,
+              video.width > 0, video.height > 0,
+              abs(video.minX - window.frame.minX) <= 1, abs(video.minY - window.frame.minY) <= 1,
+              abs(video.width - window.frame.width) <= 1, abs(video.height - window.frame.height) <= 1 else { return nil }
+        return window
     }
 
     /// Carry the same snapshot geometry into the real tap. Only the unchanged
@@ -449,6 +472,15 @@ final class ReviewJourneyTests: XCTestCase {
             pending.append(contentsOf: child.children)
         }
         return match
+    }
+
+    private func containsDescendant(_ identifier: String, in snapshot: any XCUIElementSnapshot) -> Bool {
+        var pending = snapshot.children
+        while let child = pending.popLast() {
+            if child.identifier == identifier { return true }
+            pending.append(contentsOf: child.children)
+        }
+        return false
     }
 
     /// Ignore zero-size auxiliary windows without selecting by expected orientation

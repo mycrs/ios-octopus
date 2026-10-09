@@ -1848,3 +1848,70 @@ syntax ve mimari kontrol geçti; yeni Mac sonucu henüz yoktur.
 
 İki bağımsız Source28 diff/snapshot kapsamı incelemesi de geçti; bu sonuç
 Mac runtime veya yeni fiziksel cihaz testi yerine geçmez.
+
+
+## 9 Ekim 2026 — yirmi sekizinci aday: iPhone tam akış geçti, iPad hold teslimi
+
+Kaynak `680430733bc8960416253bc46011595d53d34b92`,
+[37901088592](https://github.com/mycrs/ios-octopus/actions/runs/37901088592):
+altı gerçek unit işi **738/0**, frozen6 job kimliği/özgün logSHA/Features9
+suite ve Playback6 lifecycle/press5 regresyonu bağımsız doğrulandı.
+App31 test (smoke8/presenter6/orientation11/startup6) geçti. Üretim
+oynatıcı kodu değiştirilmedi; yeni fresh-window receiver UITest derlendi.
+
+iPhone tüm Release journey **318,782s / 0 fail**: movieWindow/native1pt,
+upright landscape, gerçek Pause ardından enabledPlay, aynı movie-detail
+dönüşü; sol panel/seçili BBB/arama/Sintel, üç portrait aynı-mini dönüşü,
+her dönüşte scoped unique-native ready/four1pt, gerçek4s Close ve üçüncü
+gerçek mini dokunuşu; dizi/kaynak sağlığı adımları geçti. Bu yeni fiziksel
+UHD testi değildir. iPad **285,613s** sonunda `ReviewJourneyTests.swift:307`
+ikinci Live fullscreen'daki 4s Close outcome'da fail verdi. Önceki movie
+ve ilk normal Live Close/portrait/Sintel/unique-mini-native1pt geçti;
+gerçek mini dokunuşu t257,62 ardından landscape/native-ready geçti.
+
+iPad'de üç hold event sentezi t262,29/269,96/277,44, Window1376x1032 ve
+hedef(38,38). SafeUIKit ilk normal Close için68ms pressed/release ve
+portrait/dismissal+2s gösterir; bu üç hold için pressed/down-up veya
+portrait/dismiss kaydı yoktur. Bu yokluk tek başına teslim edilmeyen
+dokunuşun kanıtı veya handler hatasının kanıtı sayılmaz.
+
+18 küçük özgün dosya CRC/SHA bağımsız doğrulandı (5.005.630 range bayt,
+4.726.142 expanded). İki06-player nativePNG düz kontrol zeminlerini,
+okunur düğmeleri ve gerçek videoyu gösterir; blur yoktur. Bunlar failing
+Live hold'dan öncedir. Yalnız özgün iPad MP4 üyesi bounded8MiB range ile
+alındı:328.258.525 bayt, CRC `a2e0833d`, SHA256
+`5c5a8025eeb75c660ac57cc84bcb63e55ba6601827b86b781ff4047a64b64247`;
+root bağımsız stream hash geçti. Manifeststart `08:04:02.344Z`, duration
+283,361667s. Native PTS260,786667/268,485/275,986667'de kontroller görünür;
+263,110/270,776667/278,276667'de bütün overlay kayıp ve film ilerler.
+Son283,195 hâlâ fullscreen Sintel. Close'a özgü pressed feedback veya
+portrait receiver görülmez. Bu fiziksel kayıt delivered4s handler fault
+kurmaz; exact down ve overlay-hide sınırının anı ayrıca değerlendirilir.
+Whole ZIP/iPhone MP4/başka medya alınmadı. Tüm28 ağ işi tamamlandı.
+
+Release113723639814/whole **failure**, Signed113730629539 **skipped**;
+Build10 paketi/TestFlight/telefon kurulumu/review gönderimi yoktur.
+Başarısız kaynağın görselleri mağazaya taşınmadı. Private securefetch ve
+final controller'ın sadece frozen27→28 adı repin edildi;22+20 offline
+test ve4pycompile/root exact byte diff+backupSHA kontrolü geçti. Gerçek
+canonical prerequisite belgesi yok, bu araçların main/API/USB'si çalışmadı.
+
+Sonraki dar UITest yalnız hold dalında gerçek unique/enabled/in-window
+Close frame'ini gözler; gerçek clear-zone hide sonrası taze bağımsız
+Window'un dört geometri farkı<=1pt, Close identifier sayısı0 ve unique
+ready-native fullWindow dört<=1pt şartı aranır. Boş AX ağacı hidden kanıtı
+değildir. Aynı Window'da gerçek reveal ardından gözlenen Close merkezine
+gerçek4s basılır; reveal sonrası açık snapshot/exists/hittable/frame turu
+yoktur. Önceki Close frame'i yalnız dokunma hedefidir;2s outcome, ayrı10s
+mini/10s Sintel/45s scoped-native1pt ve gerçek üçüncü mini touch zorunlu
+kalır. Normal tap,3 deneme,readiness2s, timer3,5s,mandatoryPause,private
+driver ayarı, native/upright/fullWindow koşulları değişmedi. Public
+coordinate kendi örtük driver çözümlemesini yine yapabilir; teslim veya
+Mac başarısı garanti değildir. Statik Swift syntax ve mimari kontrol geçti.
+
+Ek14 native kare toplamında ilk sentez eşlemesi261,085933 çevresinde
+261,068333 full overlay,261,136667 birlikte fade; ikinci268,759228
+çevresinde268,735 full ve268,818333 fade görülür. Sentez işareti fiziksel
+down değildir ve wallclock/PTS eşlemesi yaklaşık; fade kesin önceydi
+iddiası yoktur. Root üç ana native kareyi bağımsız gördü. İki bağımsız
+sonraki dar UITest diff incelemesi geçti; yeni Mac sonucu henüz yok.
