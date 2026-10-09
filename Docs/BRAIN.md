@@ -1653,3 +1653,34 @@ tek `REJECTED` öğe. Orijinal 3492 karakter notun SHA'sı eşleşir. Önceden
 Bu eski başarılı build9 provenansı ile yapılan hedef okumasıdır; yeni
 build10 CI/kurulum/ekran veya gönderim kanıtı yerine geçmez. API mutasyonu
 yapılmadı.
+
+
+## 9 Ekim 2026 — yirmi dördüncü aday: uygulama açılışında Xcode launch hatası
+
+Kaynak `fc3e9ae20369bdb81419ec440d481f799da2104a`,
+[37887097031](https://github.com/mycrs/ios-octopus/actions/runs/37887097031):
+altı gerçek Swift unit işi **738/0** (84/80/11/295/237/31), ham log/source/job
+hash sayımı bağımsız doğrulandı. Release/UITest derlemesi tamamlandı.
+
+Phone testi **74,842s** ile `ReviewJourneyTests.swift:13 app.launch()`
+satırında `Timed out while launching application via Xcode` hatası verdi.
+Eşlik eden debugger version StoreError/no debugger version ve DTXMessage
+signal19/process error3 kaydı, başlatma altyapısındaki sorunla uyumludur;
+uygulama crash nedeni bu veriden kanıtlanmaz. Örnek kitaplık, film, native
+kare, yeni aynı-Window snapshot geometri koşulu ve canlı akışı yürütülmedi.
+iPad başlamadı. Bu tur yeni geometriyi ne PASS ne runtime FAIL doğrular.
+
+Tek 683 bayt özgün Phone manifest CRC `632522a8`, SHA256
+`3cde1b72ab7e998726fbd3ae3250f91ac6da71c88a77bac8f94eeac67267c414`
+ile doğrulandı; yalnız ZIP dizini ve manifest için 296.047 bayt range alındı.
+PNG/AX görüntüsü veya UIKit çalışma logu yoktur. MP4/wholeZIP indirilmedi.
+Whole run/Release **failure**, Signed 113682983800 **skipped**; build10
+paketi, TestFlight yüklemesi, cihaz kurulumu ve review gönderimi yoktur.
+
+Bir sonraki doğrulama aynı üretim ve UITest koduyla yeni temiz Mac koşusudur;
+timeout/geometri şartı gevşetilmez, kanıtlanmamış launch nedeni için oynatıcı
+veya LLDB ayarı değiştirilmez. Ayrı metadata-only kaynak inceleme notu GET'inde
+exact sürüm ilişkisini explicit include ve sparse alanlarla ister; strict
+kaynak/hedef/not/PATCH kapıları değişmez. Bu aracın 19 testi ve hedef okumasının
+28 testi yerelde geçti; önce eksik ilişkiyi modelleyen regresyon RED görülüp
+GET düzeltmesiyle GREEN doğrulandı. Apple mutasyonu henüz yapılmadı.
