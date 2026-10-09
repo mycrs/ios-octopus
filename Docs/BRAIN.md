@@ -1339,3 +1339,37 @@ yüklemesi, telefon kurulumu ve App Review gönderimi yok. Sınırlı
 indirilmedi. Ayrı read-only Apple API kontrolünde sürüm
 PREPARE_FOR_SUBMISSION ve eski 21 görsel yerleşimi doğrulandı; bu işlem
 görsel, not, build seçimi veya inceleme gönderimini değiştirmedi.
+
+## 9 Ekim 2026 — on altıncı aday: pencere geometrisi ve hit-point ayrımı
+
+Son Mac'te denenen build 10 kaynağı `f5480055fee0bbe9863c28069692c4d02672b1fe`,
+[on altıncı tur 37868108461](https://github.com/mycrs/ios-octopus/actions/runs/37868108461):
+**734 gerçek Swift testi / 0 hata**; Domain 84/0, Playback 76/0, Design 11/0,
+Data 295/0, Features 237/0, App 31/0. Altı job başarılıdır; askıdaki
+load/reload, beş basılma regresyonu, PIN ve App yön/sunum suiteleri geçti.
+
+iPhone kullanıcı testi **176,395s** sonunda test yardımcı fonksiyonunun
+`ReviewJourneyTests.swift:323` satırındaki Window `isHittable` sorgusunda
+başarısız oldu. Kayıt, ikinci canlı kapanışta 4s basılı tutmayı ve ardından
+163,99s'te interface orientation'ın Portrait'e dönmesini gösterir. Son
+pencere assertion'ı tamamlanmadı: pozitif frame okumasından sonraki
+dokunulabilirlik sorgusu **{{inf, inf}, {0, 0}}** pencere için geçersiz
+activation point XCTest hatası kaydetti. Bunun sonucu tam iPhone PASS
+değildir; iPad bu turda çalışmadı. İki AX okuması arasında pencere/indeks
+değişimi mekanizması çıkarımdır, gerçek hata pencere hit-point sorgusudur.
+
+Sonraki dar test düzeltmesi `allElementsBoundByAccessibilityElement`
+ile AX öğesine bağlanır ve geometry-only Window seçiminden `isHittable`
+sorgusunu çıkarır. Apple belgeleri bu API'nin sonuç AX öğelerine,
+`allElementsBoundByIndex` API'sinin ise sonuç indekslerine bağlandığını
+açıklar. Bu seçim atomik pencere yaşam süresi garantisi değildir. Finite/
+pozitif bağımsız pencere geometrisi, 1pt native yüzey sınırı, gerçek
+button/mini hittability, seçili kanal, dik tutma ve geri dönüş assertion'ları
+korunur; production oynatıcı bu test hatası için değiştirilmez.
+[Apple query belgesi](https://developer.apple.com/documentation/xcuiautomation/xcuielementquery/allelementsboundbyaccessibilityelement)
+ve [hittability belgesi](https://developer.apple.com/documentation/xcuiautomation/xcuielement/ishittable).
+
+Whole run **failure**, imzalı job **skipped**. Build 10 IPA, TestFlight
+yüklemesi, telefon kurulumu veya App Review gönderimi yok. Bir önceki
+turun bütün iPhone PASS ve iPad native/Main yatay gözlemi ayrı kanıt olarak
+korunur; yeni test kaynağı Mac doğrulaması bekler.

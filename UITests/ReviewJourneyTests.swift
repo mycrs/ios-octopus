@@ -320,10 +320,12 @@ final class ReviewJourneyTests: XCTestCase {
     /// Ignore zero-size auxiliary windows without selecting by expected orientation
     /// or by video bounds: geometry assertions still examine the independent window.
     private func observedContentWindow(in application: XCUIApplication) -> ContentWindow? {
-        application.windows.allElementsBoundByIndex.compactMap { window -> ContentWindow? in
+        // Bind actual AX identities as modal dismissal can reorder window indices.
+        // Observe geometry only; input controls keep their own hittability guards.
+        application.windows.allElementsBoundByAccessibilityElement.compactMap { window -> ContentWindow? in
             let frame = window.frame
             guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
-                  frame.width > 0, frame.height > 0, window.isHittable else { return nil }
+                  frame.width > 0, frame.height > 0 else { return nil }
             return (window, frame)
         }.max { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
     }
