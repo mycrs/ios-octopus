@@ -2116,3 +2116,42 @@ unique ready-native dört1pt/samegeometry/in-window şartları değişmedi;
 boş/duplicate snapshot başarılı değildir. Reveal sonrası explicit AX yok,
 Pause0/tek toggle/mandatory10s Play+enabled ve Close4s korunur. Üretim,
 Settings ve outcome süreleri değişmez; yeni Mac sonucu henüz yoktur.
+
+
+### 9 Ekim — Source 33 sonucu ve USB tanısı kapsamı
+
+Source `3894e90ce4b94c2cc58b1e0da77b3bd2e31c6fcc`, Actions
+`37923045485`: altı gerçek birim işi **744 test / 0 hata**; Domain 84,
+Playback 80, DesignSystem 11, Data 295, Features 243, App 31. Altı job
+ID/log/hash ve 6 Live gözlem, 5 press, 6 Playback regresyonu kökte ve
+bağımsız ajan tarafından doğrulandı. App 11:36:03 UTC'de tamamlandı.
+
+Release job `113795410814` **failure**: Phone 113.256 saniyede gerçek
+Movie Pause sonrası 10 saniyelik enabled Play sonucunu alamadı; iPad
+başlamadı. Yeni hidden-transition beklemesi derlendi ve geçti. Son reveal
+synth 100.79 → Pause synth 101.36 arası 0.57 saniyeydi; önceki gecikme
+bu turu tek başına açıklamaz. Güvenli collector press olaylarını kapsar,
+ama handler girişini loglamaz; press yokluğu tek başına teslim kanıtı değildir.
+
+15 özgün küçük dosya 35.686 bayt ve izinli tek Phone MP4 112.244.824 bayt
+CRC/SHA ile bağımsız doğrulandı. Son iki gerçek karede video ve gizli
+kontroller var; kaydın uzun PTS boşluğu Pause anını kapsadığından gerçek
+dokunma/görünürlük çıkarılamaz. Ek PNG/galeri veya Store API işlemi yok.
+Whole run failure, imzalı job `113800835177` skipped; yeni Build 10 IPA,
+TestFlight yüklemesi, telefon kurulumu veya inceleme gönderimi oluşmadı.
+
+Tekrarlanan simülatör giriş belirsizliğini gerçek telefonda araştırmak için
+mevcut `distribution=device` hedefi ayrı USB tanı kapsamına alındı. Yalnız
+bu hedef reusable CI'a gerçek boolean `device_validation_only=true` verir:
+mimari + altı birim/uygulama işi zorunlu başarı, Release journey açık skipped.
+Başka caller/event/hedef bunu kullanırsa mimari kapısı durur. Eksik input,
+push/PR/standalone CI, TestFlight ve varsayılan hedef tam journey'yi korur.
+Yedi mode/CLI/workflow testi ve mimari denetimi yerelde geçti. İlk çalışmada
+bu sözleşmenin Mac/GitHub ortamındaki gerçek sonucu ayrıca doğrulanacaktır.
+
+USB tanı artifact/kurulum makbuzu ayrı pin, klasör ve validation-only schema
+kullanır; yayın fetch/kurulum/gönderim kanıtı yerine kullanılamaz. TestFlight
+ve ham IPA artifact adımı device modunda skipped kalır. Mağaza yayınının
+sekiz gerçek CI kapısı, başarılı journey ve yükleme koşulları gevşetilmedi.
+Kullanıcının son yönlendirmesiyle mağaza görselleri ertelendi; önce cihazda
+oynatıcı/geri dönüş/UHD ve kayıtlı veriler doğrulanacak.

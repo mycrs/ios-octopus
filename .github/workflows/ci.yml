@@ -6,6 +6,12 @@ on:
   pull_request:
   workflow_dispatch:   # Actions sekmesinden elle de tetiklenebilir
   workflow_call:       # İmzalı yayından önce aynı derleme/test kapısı
+    inputs:
+      device_validation_only:
+        description: Yalnız USB cihaz tanısı; mağaza yayınında false kalır
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   # Elle çağrılan/reusable testleri eski bir yayın turunun kilidi bekletmesin.
@@ -20,6 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Cihaz doğrulama kapsamını denetle
+        env:
+          DEVICE_VALIDATION_ONLY: ${{ toJSON(inputs.device_validation_only) }}
+          DISTRIBUTION: ${{ github.event.inputs.distribution }}
+          CALLER_WORKFLOW: ${{ github.workflow }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python3 -m unittest discover -s Scripts -p test_check_ci_mode.py
+          python3 Scripts/check-ci-mode.py
       - name: Demir kuralları denetle
         run: bash Scripts/check-architecture.sh
       - name: Cihaz log aracı gizlilik testleri
@@ -42,6 +57,9 @@ jobs:
 
   review-journey:
     name: Release inceleme akışı (iPhone ve iPad)
+    # Only a real boolean true from the device caller skips this job. Missing
+    # inputs on push/PR/manual CI preserve the full release journey.
+    if: ${{ toJSON(inputs.device_validation_only) != 'true' }}
     runs-on: macos-latest
     timeout-minutes: 30
     needs: [architecture]
