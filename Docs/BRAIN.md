@@ -1795,3 +1795,56 @@ gerçek mini dokunuşu zorunludur. Üretim timer'ı, pause davranışı, private
 driver ayarı ve timeout değişmedi. Statik Swift syntax ve mimari kontrol,
 iki bağımsız diff/plan incelemesi geçti; yeni Mac sonucu henüz yoktur.
 Driver'ın sonradan yine gecikmesi bu düzeltmeyle garanti olarak elenmez.
+
+
+## 9 Ekim 2026 — yirmi yedinci aday: gerçek dönüş, eski global AX sorgusu
+
+Kaynak `4b4fdfd6fbde58512b1c029b9c9bfe3e68a708c4`,
+[37896580550](https://github.com/mycrs/ios-octopus/actions/runs/37896580550):
+altı gerçek unit işi **738/0** (84/80/11/295/237/31); frozen job kimlikleri,
+özgün log SHA ve Features suite sayımı bağımsız doğrulandı. Release113709273630
+**failure**, Signed113714084865 **skipped**, whole **failure**. iPad başlamadı;
+Build10 paketi, TestFlight yüklemesi, telefon kurulumu ve review gönderimi yok.
+
+iPhone **318,315s** sonunda `ReviewJourneyTests.swift:300` ikinci canlı
+genişlemeden sonraki held Close outcome sorgusunda fail verdi. Film native
+Window1pt, dik cihazda zorunlu yatay, gerçek Pause ardından Play+enabled,
+aynı film detayına dönüş geçti. Sol panel/seçili BBB/arama/Sintel, ilk Close
+sonrası portrait ve aynı Sintel mini etiketi/global native-ready geçti.
+Bu ilk dönüş scoped-mini1pt değildir; o kontrol yalnız held/final dönüşün
+sonrasında yer alır ve bu run o aşamaya ulaşmadı.
+
+İkinci genişleme sonrasında üç gerçek 4s Close basışı sentezlendi. Üçüncü
+basışta güvenli UIKit logu pressed=1 `07:13:49.853Z`, pressed=0
+`07:13:53.855Z` (**4,002s**) ve portrait orientation `07:13:54.991Z`
+gösterir. Dismissal+2s logunda Window402x874, rootUI=1, modal=false,
+transition=false, ignoresEvents=false ve Live sekmesi selected=1 görülür.
+Test portrait pencereyi görmüş, ardından eski global `mini.exists` sorgusu
+false vermiştir; portrait tek başına testi başarılı saydırmaz.
+
+13 küçük özgün dosya 2.932.678 range bayt CRC/SHA doğrulandı. Yalnız bir
+özgün iPhone MP4 üyesi bounded range ile alındı: 430.198.187 bayt,
+CRC `a6715532`, SHA256
+`415da9cc03324db7ddb781eb960853ff3df1fbd43f5fab76d88bdfc1be33f5f7`.
+Root bağımsız yeniden hash/CRC kontrolü geçti. Manifest record başlangıcı
+`07:08:48.208Z`, süre311,811667s. Native PTS308,453333/309,693333/311,611667
+kareleri bağımsız görüldü: portrait, Live TV seçili, Sintel mini başlığı ve
+ilerleyen film görünür; Home veya kaybolmuş receiver kanıtı yok. Tam fail
+eşlemesi PTS312,007652 kayıt bittikten sonradır; o ana ait kare iddia edilmez.
+Piksel kanıtı native-ready/1pt veya üçüncü mini touch testinin yerine geçmez.
+Tüm27 ağ işi tamamlandı; whole ZIP veya başka cihaz medyası indirilmedi.
+
+Sonraki dar UITest her dismissal sonrası fresh bağımsız content Window
+snapshot'ında exact/unique `live.miniPlayer` arar; duplicate match faildir.
+Portrait/finite/positive/in-window mini şartı Close outcome için zorunludur.
+Üç dönüşte ayrı 10s receiver ve10s Sintel label koşulları korunur; 45s native
+ready, mini altındaki unique native surface ve dört sınırda <=1pt korunur.
+İlk dönüş de artık scoped-native1pt kontrolünü kullanır. İkinci/üçüncü açılış
+taze mini frame'ine aynı Window uzayında gerçek dokunur. Her polling turu
+yeni snapshot alır; eski global receiver kimliği saklanmaz. Üretim kodu,
+3,5s timer, gerçek4s basış,3 deneme,2s readiness/outcome, mandatory Pause,
+upright landscape ve full-window native1pt değiştirilmedi. Statik Swift
+syntax ve mimari kontrol geçti; yeni Mac sonucu henüz yoktur.
+
+İki bağımsız Source28 diff/snapshot kapsamı incelemesi de geçti; bu sonuç
+Mac runtime veya yeni fiziksel cihaz testi yerine geçmez.
