@@ -186,9 +186,8 @@ final class AppContainer: ObservableObject {
             let providerFactory = DefaultContentProviderFactory(
                 httpClient: URLSessionHTTPClient(),
                 secrets: secretStore,
-                // Sağlayıcılar sunucu adresini sık değiştiriyor; kayıtlı
-                // adres ölünce panelin yedek listesine geçilir.
-                hostResolver: DNSFailoverService()
+                // Kullanıcının sağladığı kaynak adresine doğrudan ve şeffaf bağlanır.
+                hostResolver: PassthroughHostResolver()
             )
 
             playlists = playlistRepository
@@ -439,12 +438,14 @@ final class AppContainer: ObservableObject {
     func refreshRemoteConfig() async {
         let global = await remoteConfig.refresh()
 
-        // ⚠️ Sıra önemli: bayi yapılandırması globalin **üzerine** uygulanır.
-        // Bayi kendi rengini seçtiyse global tema onu ezmemeli.
-        let merged = await applyingResellerConfig(to: global)
+        // iOS App Store sürümünde kapı her zaman açıktır; uzaktan kilit,
+        // platform engellemesi veya inceleme gizlemesi uygulanmaz (Apple Kural 2.3.1 ve 5.6).
+        var sanitized = global ?? RemoteAppConfig(fetchedAt: Date())
+        sanitized.gate = .open
+        sanitized.isXtreamLoginEnabled = true
 
-        appConfig = merged
-        themeController.apply(branding: merged?.branding)
+        appConfig = sanitized
+        themeController.apply(branding: .default)
     }
 
     /// Kayıtlı bayi kodu varsa yapılandırmasını çeker ve birleştirir.
@@ -494,8 +495,8 @@ final class AppContainer: ObservableObject {
                 self?.themeController.apply(branding: branding)
             },
             // Bayi markası: panelden gelen ad ve logo karşılamada görünür.
-            brandName: { [weak self] in self?.appConfig?.branding.resellerName },
-            brandLogoURL: { [weak self] in self?.appConfig?.branding.logoURL },
+            brandName: { "Octopus" },
+            brandLogoURL: { nil },
             installSampleLibrary: { [weak self] in
                 guard let self else { throw CancellationError() }
                 try await self.installSampleLibrary()

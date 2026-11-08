@@ -21,7 +21,7 @@ public struct AddPlaylistView: View {
         let model = AddPlaylistViewModel(dependencies: dependencies)
 #if DEBUG
         if OnboardingDebugLaunch.opensForm {
-            model.sourceKind = .activationCode
+            model.sourceKind = .xtream
         }
 #endif
         _viewModel = StateObject(wrappedValue: model)
@@ -104,8 +104,6 @@ public struct AddPlaylistView: View {
         VStack(spacing: Theme.Spacing.md) {
             switch viewModel.sourceKind {
             case .activationCode:
-                ActivationCodeIntro()
-
                 FormFieldView(
                     title: "Aktivasyon kodu",
                     placeholder: "ABC-1234",
@@ -118,8 +116,6 @@ public struct AddPlaylistView: View {
                     text: "Kodun doğrulandığında hesabın otomatik olarak hazırlanır.",
                     kind: .info
                 )
-
-                QuickSetupLink()
 
             case .xtream:
                 FormFieldView(

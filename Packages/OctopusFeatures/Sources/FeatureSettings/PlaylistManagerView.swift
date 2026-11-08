@@ -74,7 +74,7 @@ public struct PlaylistManagerView: View {
                 viewModel.cancelUnlock()
             }
         } message: {
-            Text("Bu kaynağı kullanmak için hızlı kurulumda belirlenen PIN'i gir.")
+            Text("Bu kaynağı kullanmak için belirlenen PIN'i girin.")
         }
     }
 

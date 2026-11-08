@@ -114,9 +114,7 @@ struct OnboardingContentDisclaimer: View {
                 .font(.system(size: 12))
                 .foregroundColor(Theme.Palette.textTertiary)
 
-            // ⚠️ Marka adı **yazılmıyor**: uygulama bayiye göre "Qruze
-            // Player" gibi başka bir adla açılabiliyor. Sabit "Octopus"
-            // yazsaydı beyaz etiketli kurulumlarda yanlış ada işaret ederdi.
+            // Standard disclaimer displayed on onboarding.
             Text(
                 AppLocalization.localized(
                     "Yasal yayın kaynağını ekleyebilir veya açık lisanslı örnek filmlerle uygulamayı keşfedebilirsin. Kendi kaynaklarının kullanım hakkından sen sorumlusun.",

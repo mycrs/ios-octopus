@@ -389,13 +389,15 @@
 "%ld kategori gizli" = "%ld categories hidden";
 "Liste kilitli" = "Playlist locked";
 "İçerik kaynağı" = "Content source";
-"Hızlı kurulumda belirlenen 4 haneli PIN'i gir." = "Enter the 4-digit PIN set during quick setup.";
+"Bu kaynak için belirlenen 4 haneli PIN'i girin." = "Enter the 4-digit PIN set for this source.";
+"Hızlı kurulumda belirlenen 4 haneli PIN'i gir." = "Enter the 4-digit PIN set for this source.";
 "4 haneli PIN" = "4-digit PIN";
 "Listeyi aç" = "Unlock playlist";
 "Başka kaynak kullan" = "Use another source";
 "Liste PIN'i hatalı." = "Incorrect playlist PIN.";
 "PIN korumalı" = "PIN protected";
-"Bu kaynağı kullanmak için hızlı kurulumda belirlenen PIN'i gir." = "Enter the PIN set during quick setup to use this source.";
+"Bu kaynağı kullanmak için belirlenen PIN'i girin." = "Enter the PIN set for this source to continue.";
+"Bu kaynağı kullanmak için hızlı kurulumda belirlenen PIN'i gir." = "Enter the PIN set for this source to continue.";
 
 /* Accessibility and loading */
 "Saat" = "Time";

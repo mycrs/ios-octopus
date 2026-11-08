@@ -125,8 +125,8 @@ public struct OnboardingScreen: View {
                             .frame(maxHeight: 72)
 
                         OnboardingWelcomeBrand(
-                            brandName: theme.resellerName ?? dependencies.brandName() ?? "Octopus",
-                            logoURL: theme.logoURL ?? dependencies.brandLogoURL()
+                            brandName: "Octopus",
+                            logoURL: nil
                         )
                         OnboardingCapabilities()
                         OnboardingContentDisclaimer()

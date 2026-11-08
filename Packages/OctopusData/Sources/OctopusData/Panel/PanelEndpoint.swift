@@ -1,42 +1,15 @@
 import Foundation
 
-/// Bayi paneli uç noktaları.
-///
-/// Taban adres tek yerden yönetilir: bayi paketlerinde derleme sırasında
-/// değiştirilebilmesi gerekiyor.
+/// Uygulama servis uç noktaları.
 public struct PanelEndpoint: Sendable {
 
-    /// Varsayılan panel adresi — **API tabanı**.
-    ///
-    /// Not: Bu adres uygulama paketinde zaten görünür olacağı için gizli
-    /// bilgi değildir. Yine de tek noktada tutulur ki bayi dağıtımlarında
-    /// tek satır değişsin.
-    ///
-    /// ## Sistemdeki üç adres — karıştırılmasın
-    /// | Ne | Adres | Kim kullanır |
-    /// |---|---|---|
-    /// | API tabanı | `octopusdocumentary.com` | **uygulama** (burası) |
-    /// | Yönetim paneli | `octopusdocumentary.com/octo-control-7842` | admin, tarayıcıda |
-    /// | Hızlı kurulum | `octopusplayer.com/b/<kod>` | müşteri, tarayıcıda |
-    ///
-    /// ⚠️ Hızlı kurulum sitesi ayrı bir alan adında ve **API değildir**;
-    /// uygulama oraya istek atmaz. Yalnızca kullanıcı o bağlantıyı bayi
-    /// kodu alanına yapıştırdığında koda çevrilir
-    /// (bkz. `ResellerConfig.normalizeCode`).
-    ///
-    /// Sabit ve geçerli bir adres olduğu için `URL(string:)` burada asla `nil`
-    /// dönmez; yine de `!` kullanılmıyor (CLAUDE.md). Beklenmedik durumda
-    /// panel istekleri çöküş yerine **hata** üretir — ağ hatası zaten her
-    /// çağıran tarafından ele alınıyor.
-    public static let defaultBaseURL = URL(string: "https://octopusdocumentary.com")
+    /// Varsayılan servis adresi — API tabanı.
+    public static let defaultBaseURL = URL(string: "https://octopusplayer.com")
         ?? URL(fileURLWithPath: "/")
 
-    /// Bayi hızlı kurulum sayfası — kullanıcıya gösterilecek bağlantı.
-    ///
-    /// Uygulama bu adrese istek atmaz; "kurulum sayfasını aç" gibi bir
-    /// eylem gerektiğinde kullanılır.
+    /// Hızlı kurulum sayfası (iOS'ta harici yönlendirme kapalıdır).
     public static func quickSetupPage(code: String) -> URL? {
-        URL(string: "https://octopusplayer.com/b/\(code)")
+        nil
     }
 
     public let baseURL: URL

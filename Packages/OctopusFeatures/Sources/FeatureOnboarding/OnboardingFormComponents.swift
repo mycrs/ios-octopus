@@ -108,24 +108,8 @@ struct ActivationCodeIntro: View {
 /// Bayiye özel bir bağlantı değil, uygulamanın kendi kurulum sayfası —
 /// bu yüzden panelden değil, sabit URL'den geliyor.
 struct QuickSetupLink: View {
-    @Environment(\.brandColor) private var brandColor
-
-    private var quickSetupURL: URL? {
-        URL(string: "https://octopusplayer.com/quick-setup/")
-    }
-
     var body: some View {
-        if let quickSetupURL {
-            Link(destination: quickSetupURL) {
-                HStack(spacing: Theme.Spacing.xs) {
-                    Text("Kodun yok mu? Kurulum rehberine bak")
-                    Image(systemName: "arrow.up.right")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .font(Theme.Typography.caption.weight(.semibold))
-            }
-            .tint(brandColor)
-        }
+        EmptyView()
     }
 }
 

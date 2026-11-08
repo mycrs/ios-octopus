@@ -44,22 +44,17 @@ public final class AddPlaylistViewModel: ObservableObject {
 
     /// Seçilebilecek kaynak türleri.
     ///
-    /// ⚠️ Panel `xtream_login_enabled: false` derse elle giriş türleri
-    /// listeden **çıkarılır**. Bu bayrak okunmuyordu: bayi kapatsa bile
-    /// uygulama Xtream ve M3U formlarını göstermeye devam ediyordu.
+    /// ⚠️ App Store iOS sürümünde harici bayi aktivasyon kodları / hızlı kurulum
+    /// sunulmaz (Apple Kural 3.1.1 ve 4.3). Kullanıcı doğrudan kendi Xtream
+    /// veya M3U kaynağını ekler.
     public var availableSourceKinds: [SourceKind] {
-        isManualLoginEnabled
-            ? SourceKind.allCases
-            : SourceKind.allCases.filter { !$0.requiresManualLogin }
+        [.xtream, .m3u]
     }
 
-    /// Seçili tür artık sunulmuyorsa aktivasyon koduna döner.
-    ///
-    /// Ekran açıkken panel yapılandırması gelebilir; kapatılmış bir formda
-    /// kullanıcı yazmaya devam ederse doğrulama sırasında reddedilirdi.
+    /// Seçili tür artık sunulmuyorsa varsayılana (.xtream) döner.
     public func reconcileSourceKind() {
         guard !availableSourceKinds.contains(sourceKind) else { return }
-        sourceKind = .activationCode
+        sourceKind = .xtream
     }
 
     /// Akışın hangi adımda olduğu.

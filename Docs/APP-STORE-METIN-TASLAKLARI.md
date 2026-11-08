@@ -45,7 +45,7 @@ Octopus, eklediğin IPTV kaynaklarını iPhone ve iPad'de düzenleyip izlemeni s
 
 Xtream hesabını, M3U bağlantını veya cihazındaki M3U dosyasını ekle. Canlı yayınları kategori ve favorilerine göre bul; kaynağın sunduğunda film, dizi ve program rehberine ulaş.
 
-• Kaynak yönetimi: birden fazla liste ekle ve kaynak değiştir. İsteğe bağlı hızlı kurulumda PIN ile hazırlanmış kaynakların erişimi ayrıca korunur.
+• Kaynak yönetimi: birden fazla liste ekle, düzenle ve kaynaklar arasında kolayca geçiş yap.
 • İzleme düzeni: favoriler, izleme geçmişi ve film/dizilerde kaldığın yer bilgisi.
 • Ebeveyn kontrolleri: hassas içeriğe ve seçtiğin kategorilere erişimi PIN ile yönet.
 • Oynatıcı seçenekleri: yayının ve oynatıcı motorunun desteklediği ses, altyazı ve ekran ayarları.
@@ -63,7 +63,7 @@ Octopus helps you organize and play IPTV sources you add on iPhone and iPad.
 
 Add an Xtream account, an M3U address, or an M3U file from your device. Find live streams by category and favorites. Browse movies, series, and program information when your source provides them.
 
-• Source management: add multiple playlists and switch sources. Quick Setup sources may also require a separate playlist PIN.
+• Source management: add multiple playlists, organize them, and switch between sources easily.
 • Viewing history: return to favorites, recent content, and saved movie or episode progress.
 • Parental Controls: manage access to sensitive content and selected categories with a PIN.
 • Playback options: choose audio, subtitles, and display settings supported by your stream and playback engine.
@@ -106,9 +106,9 @@ No Xtream review account is supplied for this submission. An optional Sample lib
 
 For a fresh installation, select Explore Sample Library on the welcome screen, read the content and license information, and select Open Sample Library. With an existing source, use Settings > Sample Library > Open Sample Library. In Movies, play a film and leave playback after a short interval to review saved progress. Add a favorite, open the sample film-selection episode list in Series, then open the clearly labelled sample guide in Live TV. The sample library demonstrates application controls; it does not certify compatibility with every Xtream provider or UHD format.
 
-To check M3U import separately, select Start setup > M3U on a fresh installation. If you already have a source or opened the Sample Library, go to Settings, tap the active source name in the Source section, select + on the Sources screen, and choose M3U. Enter https://octopusplayer.com/google-review/test.m3u in M3U link, give the source a name, and select Save and load content. No account credentials or activation code are needed for this M3U. Its 11 MP4 entries appear in the live-channel list; it does not supply a movie/series catalog or an external program guide.
+To check M3U import separately, select Start setup > M3U on a fresh installation. If you already have a source or opened the Sample Library, go to Settings, tap the active source name in the Source section, select + on the Sources screen, and choose M3U. Enter https://octopusplayer.com/review/test.m3u in M3U link, give the source a name, and select Save and load content. No account credentials or activation code are needed for this M3U. Its 11 MP4 entries appear in the live-channel list; it does not supply a movie/series catalog or an external program guide.
 
-Please also review the source-management and viewing-control flows: switching playlists, favorites, saved viewing progress, and Parental Controls. Playlist PIN protection applies only to sources configured with a PIN through optional Code/Quick Setup. The supplied M3U and Sample Library do not create a playlist PIN; their category protection can be reviewed in Parental Controls. In Settings, open Source check and support report to view local catalog counts, missing fields, and duplicate stream keys. The user can share a support report through the iOS share sheet; the report omits source URLs, credentials, content titles, PINs, and device identifiers.
+Please also review the source-management and viewing-control flows: switching playlists, favorites, saved viewing progress, and Parental Controls. Category protection can be reviewed in Parental Controls. In Settings, open Source check and support report to view local catalog counts, missing fields, and duplicate stream keys. The user can share a support report through the iOS share sheet; the report omits source URLs, credentials, content titles, PINs, and device identifiers.
 
 Parental Controls are in Settings > Parental Controls. This section contains temporary unlocking, Change PIN, and Manage protected categories. The initial PIN is 0000 unless the user has already changed it. Unlock with the PIN, select a category in Manage protected categories, and relock to verify that protected content is hidden. The app does not perform age assurance or age verification.
 
@@ -121,7 +121,7 @@ Picture in Picture and AirPlay are available through the native iOS player for c
 
 | Test | İnceleme bilgisi | Başlangıç durumu |
 |---|---|---|
-| M3U import / oynatma | Temiz kurulum: Start setup → M3U. Mevcut kaynak/örnek kitaplık: Settings → Source bölümündeki aktif kaynak adı → Sources → + → M3U → adres → Save and load content. | `https://octopusplayer.com/google-review/test.m3u` 8 Ekim'de erişilebilirdi; 11 MP4'ü canlı kanal listesi olarak içe alır. Son Release'te görüntü/ses denenmeli. |
+| M3U import / oynatma | Temiz kurulum: Start setup → M3U. Mevcut kaynak/örnek kitaplık: Settings → Source bölümündeki aktif kaynak adı → Sources → + → M3U → adres → Save and load content. | `https://octopusplayer.com/review/test.m3u` 8 Ekim'de erişilebilirdi; 11 MP4'ü canlı kanal listesi olarak içe alır. Son Release'te görüntü/ses denenmeli. |
 | Yerel M3U | Dosyayı indir → iOS dosya seçicisinden M3U seç → içe al. | Dosya ve son Release akışı doğrulanmalı. |
 | Film / dizi / bölüm | Normal kullanıcıya açık örnek kitaplığı → film ve örnek bölüm akışı; gerçek Xtream servisi için ayrı provider doğrulaması. | Xtream review hesabı yok. Bağımsız kısa filmler gerçek ticari dizi bölümü diye sunulmaz; build 9 test kanıtı beklenir. |
 | EPG | Örnek kitaplığında açıkça örnek olarak etiketlenen rehber; gerçek operatör rehberiyle eşitlenmez. | Eski M3U rehber sağlamaz; örnek rehber kendi metadata'sıdır, dış EPG provider doğrulaması değildir. |
@@ -166,7 +166,7 @@ mesajda tutulmaz.
 ```text
 Hello App Review Team,
 
-We have updated Octopus, our IPTV playlist player, to make its source-management and viewing controls easier to review. Source switching keeps catalogs, favorites, history, and viewing progress associated with the selected playlist. Source check examines duplicate stream keys and missing guide/image fields in the local catalog, and offers a support report that omits source URLs and credentials. Parental Controls let users restrict selected categories with a PIN. Separate playlist PIN protection applies only to sources configured with a PIN through optional Quick Setup.
+We have updated Octopus, our IPTV playlist player, to make its source-management and viewing controls easier to review. Source switching keeps catalogs, favorites, history, and viewing progress associated with the selected playlist. Source check examines duplicate stream keys and missing guide/image fields in the local catalog, and offers a support report that omits source URLs and credentials. Parental Controls let users restrict selected categories with a PIN. 
 
 An optional Sample Library is available to every user from the welcome screen and Settings, without an account. It includes openly licensed films with attribution, and clearly labelled sample guide and episode flows. The review notes provide direct steps and distinguish these samples from user-supplied IPTV services.
 
